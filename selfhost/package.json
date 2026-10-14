@@ -4,11 +4,12 @@
   "type": "module",
   "description": "Self-hosted relay and player page for the Atlas VTT fork.",
   "scripts": {
-    "relay": "node --watch --disable-warning=MODULE_TYPELESS_PACKAGE_JSON relay/server.ts",
+    "relay": "node --watch --disable-warning=MODULE_TYPELESS_PACKAGE_JSON relay/main.ts",
     "player:dev": "vite --config player/vite.config.mts",
     "player:build": "vite build --config player/vite.config.mts",
-    "start": "npm run player:build && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON relay/server.ts",
-    "typecheck": "tsc -p tsconfig.json"
+    "start": "npm run player:build && node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON relay/main.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run --config vitest.config.mts"
   },
   "engines": {
     "node": ">=24"

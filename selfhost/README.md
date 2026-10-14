@@ -45,10 +45,11 @@ npm ci
    Open `http://127.0.0.1:5173/#<table code>`. Vite forwards `/api` and the sockets to the
    relay's public side, so the page behaves as it does behind the tunnel.
 
-3. Check the types of the relay and the page:
+3. Check the types, and run the relay's tests:
 
    ```sh
    npm run typecheck
+   npm test
    ```
 
 ## Build and install the plugin

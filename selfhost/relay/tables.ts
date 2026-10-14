@@ -1,28 +1,75 @@
-import type { IncomingMessage, ServerResponse } from 'node:http';
-import type { WebSocket } from 'ws';
-import { sendJson } from './respond.ts';
+import { CLOSE, MAX_PLAYERS, isOtherVersion, parseClientFrame } from '../../src/app/online/protocol/relay.ts';
+import { closeSocket } from './frames.ts';
+import { hashOf, newSecret, newTableCode } from './ids.ts';
+import type { Link } from './link.ts';
+import { Table } from './table.ts';
+import type { TableStore } from './tableStore.ts';
 
-// The relay's own work, still to be written. The plugin's side of every exchange is in
-// src/app/online/gm/ (createTable.ts, TableConnection.ts, joinGate.ts) and the rules the
-// relay enforces are in src/app/online/protocol/relay.ts. See selfhost/README.md.
+/** A socket that sends no hello within this long is closed. */
+const HELLO_TIMEOUT_MS = 10_000;
 
 /** Which listener a socket arrived on: the GM's loopback side or the tunnelled public side. */
 export type Side = 'gm' | 'public';
 
-/**
- * POST /api/tables on the GM side, with the GM's token (checked by the caller).
- * Answer 201 with `{ code, secret, maxPlayers }`: `code` matches `TABLE_CODE_PATTERN`,
- * `secret` matches `SECRET_PATTERN` and is at least 32 characters (`readCreated` in createdTable.ts).
- */
-export function createTable(_request: IncomingMessage, response: ServerResponse): void {
-  sendJson(response, 501, { error: 'Tables are not implemented on this relay yet.' });
+/** What `POST /api/tables` answers (`readCreated` in createdTable.ts). */
+export interface CreatedTable {
+  readonly code: string;
+  readonly secret: string;
+  readonly maxPlayers: number;
 }
 
-/**
- * A socket opened on `/api/tables/<code>/socket`. The first frame is a `hello`: the GM's
- * (`role: 'gm'` with the table's secret) must arrive on the GM side, players' on the public side.
- */
-export function joinTable(socket: WebSocket, code: string, side: Side): void {
-  console.log(`socket for table ${code} on the ${side} side: relay not implemented, closing`);
-  socket.close(1011, 'relay not implemented');
+/** The relay's tables, saved on every change. The relay hosts for one GM, so a new table supersedes the last. */
+export class Tables {
+  private readonly tables = new Map<string, Table>();
+  private readonly store: TableStore;
+
+  constructor(store: TableStore) {
+    this.store = store;
+    for (const saved of store.load()) this.tables.set(saved.code, this.open(saved));
+  }
+
+  create(): CreatedTable {
+    for (const table of [...this.tables.values()]) table.end(CLOSE.superseded);
+    const code = newTableCode();
+    const secret = newSecret();
+    const saved = { code, secretHash: hashOf(secret), maxPlayers: MAX_PLAYERS, gate: { codeHash: null, ask: true }, players: [] };
+    this.tables.set(code, this.open(saved));
+    this.save();
+    return { code, secret, maxPlayers: MAX_PLAYERS };
+  }
+
+  /** A socket opened on `/api/tables/<code>/socket`: its first frame must be the hello its side expects. */
+  join(link: Link, code: string, side: Side): void {
+    const timer = setTimeout(() => closeSocket(link.socket, CLOSE.protocol, 'no hello'), HELLO_TIMEOUT_MS);
+    link.socket.on('close', () => clearTimeout(timer));
+    link.onText((text) => {
+      clearTimeout(timer);
+      if (isOtherVersion(text)) return closeSocket(link.socket, CLOSE.version, 'protocol version');
+      const frame = parseClientFrame(text);
+      if (frame === null || frame.t !== 'hello') return closeSocket(link.socket, CLOSE.protocol, 'expected hello');
+      const table = this.tables.get(code);
+      if (table === undefined) return closeSocket(link.socket, CLOSE.ended, 'no such table');
+      // The GM's hello is taken only over loopback, a player's only through the tunnel.
+      if (frame.role === 'gm') {
+        if (side !== 'gm') return closeSocket(link.socket, CLOSE.protocol, 'wrong side');
+        return table.attachGm(link, frame.secret);
+      }
+      if (side !== 'public') return closeSocket(link.socket, CLOSE.protocol, 'wrong side');
+      table.attachPlayer(link, frame);
+    });
+  }
+
+  private open(saved: ConstructorParameters<typeof Table>[0]): Table {
+    return new Table(saved, {
+      changed: () => this.save(),
+      ended: (table) => {
+        this.tables.delete(table.code);
+        this.save();
+      },
+    });
+  }
+
+  private save(): void {
+    this.store.save([...this.tables.values()].map((table) => table.saved()));
+  }
 }
