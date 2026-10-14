@@ -20,7 +20,6 @@ import { TableConnection, type TableStatus } from './TableConnection.ts';
 import { closingText, tableEndOf, tableEndText, type TableEnd } from './tableEnd.ts';
 import { readVaultImage } from './vaultImage.ts';
 import { LOST_NOTICES, type OnlineTableEvents } from './tableEvents.ts';
-import { PLAYER_ORIGIN } from './servers.ts';
 
 export type { OnlineTableEvents };
 import { FoundShare } from './pins/FoundShare.ts';
@@ -65,8 +64,8 @@ export class OnlineTable {
     this.app = app;
     this.ownership = ownership;
     this.events = events;
-    // Self-hosted fork: players join on the public side, the GM's socket stays on `origin` (loopback).
-    this.link = `${PLAYER_ORIGIN}/#${table.code}`;
+    // Self-hosted fork: players join on the campaign's public address the relay named; the GM's socket stays on `origin` (loopback).
+    this.link = `${table.playerOrigin}/#${table.code}`;
     this.gate = new TableGate(gate, {
       send: (frame) => this.connection.sendGate(frame),
       answer: (id, admit) => this.connection.answer(id, admit),

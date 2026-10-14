@@ -8,6 +8,19 @@ export interface CreatedTable {
   readonly secret: string;
   /** The players the table seats at once, by the GM's plan. */
   readonly maxPlayers: number;
+  /** Self-hosted fork: the campaign's public address, where players join (`https://name-vtt.kunlab.cc`). */
+  readonly playerOrigin: string;
+}
+
+/** Self-hosted fork: a relay's public address as it answered it, or null for anything that is no bare http(s) origin. */
+export function playerOriginOf(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  try {
+    const url = new URL(value);
+    return (url.protocol === 'https:' || url.protocol === 'http:') && url.origin === value ? value : null;
+  } catch {
+    return null;
+  }
 }
 
 /** The seats a relay answered with; a relay from before plans seats `MAX_PLAYERS`. */
@@ -31,6 +44,7 @@ export function readCreated(status: number, body: unknown): CreatedTable | strin
   const fields = typeof body === 'object' && body !== null ? (body as Record<string, unknown>) : {};
   if (status !== 201) return refusalText(status, fields.error);
   const { code, secret } = fields;
-  if (typeof code !== 'string' || !TABLE_CODE_PATTERN.test(code) || typeof secret !== 'string' || secret.length < 32) return 'The server answered with something that is no table.';
-  return { code, secret, maxPlayers: seatsOf(fields.maxPlayers) };
+  const playerOrigin = playerOriginOf(fields.playerOrigin);
+  if (typeof code !== 'string' || !TABLE_CODE_PATTERN.test(code) || typeof secret !== 'string' || secret.length < 32 || playerOrigin === null) return 'The server answered with something that is no table.';
+  return { code, secret, maxPlayers: seatsOf(fields.maxPlayers), playerOrigin };
 }

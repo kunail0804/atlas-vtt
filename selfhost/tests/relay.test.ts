@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
+import { readCreated } from '../../src/app/online/gm/createdTable.ts';
 import { CLOSE } from '../../src/app/online/protocol/relay.ts';
 import { PLAYER_ORIGIN, TestGm, TestPlayer, createTable, startTestRelay, stopTestRelay, until, type TestRelay } from './helpers.ts';
 
@@ -37,6 +38,8 @@ describe('the relay with the plugin as GM', () => {
     expect(created.code).toMatch(/^[a-z2-7]{26}$/);
     expect(created.secret.length).toBeGreaterThanOrEqual(32);
     expect(created.playerOrigin).toBe(PLAYER_ORIGIN);
+    // The plugin's own reader takes the answer as a table, with the campaign's address.
+    expect(readCreated(201, created)).toEqual(created);
   });
 
   it('seats a player without a gate and carries game messages both ways', async () => {

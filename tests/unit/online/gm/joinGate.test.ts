@@ -81,10 +81,10 @@ describe('a table\'s gates as kept', () => {
     expect(readGate({ code: '483912', requireCode: false, askToJoin: false })).toEqual({ code: '483912', requireCode: false, askToJoin: false });
     for (const none of [undefined, null, 'gate', 7]) expect(readGate(none, () => 7)).toEqual({ code: '000007', requireCode: true, askToJoin: true });
     expect(readGate({ code: '48391', requireCode: 'no', askToJoin: 0 }, () => 7)).toEqual({ code: '000007', requireCode: true, askToJoin: true });
-    const saved = readSavedTable({ code: 'a'.repeat(26), secret: 's'.repeat(43), mapPath: null, maxPlayers: 4 });
+    const saved = readSavedTable({ code: 'a'.repeat(26), secret: 's'.repeat(43), mapPath: null, maxPlayers: 4, playerOrigin: 'https://name2-vtt.kunlab.cc' });
     expect(saved?.gate).toMatchObject({ requireCode: true, askToJoin: true });
     expect(saved?.gate.code).toMatch(JOIN_CODE_PATTERN);
-    expect(readSavedTable({ code: 'a'.repeat(26), secret: 's'.repeat(43), gate: { code: '111111', requireCode: true, askToJoin: false } })?.gate).toEqual({ code: '111111', requireCode: true, askToJoin: false });
+    expect(readSavedTable({ code: 'a'.repeat(26), secret: 's'.repeat(43), playerOrigin: 'https://name2-vtt.kunlab.cc', gate: { code: '111111', requireCode: true, askToJoin: false } })?.gate).toEqual({ code: '111111', requireCode: true, askToJoin: false });
   });
 
   it('tell the relay the code only while it is asked for', () => {

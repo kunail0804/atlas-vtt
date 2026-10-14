@@ -4,13 +4,17 @@ import { createTable } from '../../../../src/app/online/gm/createTable.ts';
 import { readCreated } from '../../../../src/app/online/gm/createdTable.ts';
 import type { HttpRequest } from '../../../../src/app/online/gm/account/http.ts';
 
-const TABLE = { code: 'b'.repeat(26), secret: 'n'.repeat(43), maxPlayers: 12, plan: 'beta' };
+const TABLE = { code: 'b'.repeat(26), secret: 'n'.repeat(43), maxPlayers: 12, plan: 'beta', playerOrigin: 'https://name2-vtt.kunlab.cc' };
 
 describe('the relay\'s answer to a table request', () => {
   it('is a table with its code, secret and seats when the account may host', () => {
-    expect(readCreated(201, TABLE)).toEqual({ code: TABLE.code, secret: TABLE.secret, maxPlayers: 12 });
+    expect(readCreated(201, TABLE)).toEqual({ code: TABLE.code, secret: TABLE.secret, maxPlayers: 12, playerOrigin: TABLE.playerOrigin });
     expect(readCreated(201, { ...TABLE, maxPlayers: 2, plan: 'free' })).toMatchObject({ maxPlayers: 2 });
     expect(readCreated(201, { code: 'short', secret: TABLE.secret })).toBe('The server answered with something that is no table.');
+    // Self-hosted fork: a table without the campaign's address, or with one that is no bare origin, is no table.
+    for (const playerOrigin of [undefined, 'name2-vtt.kunlab.cc', 'https://name2-vtt.kunlab.cc/', 'ftp://name2-vtt.kunlab.cc']) {
+      expect(readCreated(201, { ...TABLE, playerOrigin })).toBe('The server answered with something that is no table.');
+    }
   });
 
   it('is one sentence for each way the relay says no', () => {

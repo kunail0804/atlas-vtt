@@ -1,5 +1,5 @@
 import { SECRET_PATTERN, TABLE_CODE_PATTERN } from '../protocol/index.ts';
-import { seatsOf, type CreatedTable } from './createdTable.ts';
+import { playerOriginOf, seatsOf, type CreatedTable } from './createdTable.ts';
 import { readGate, type GateSettings } from './joinGate.ts';
 
 /** The longest map path kept. */
@@ -22,7 +22,8 @@ export interface SavedTable extends CreatedTable {
 export function readSavedTable(data: unknown): SavedTable | null {
   if (typeof data !== 'object' || data === null) return null;
   const { code, secret, mapPath, maxPlayers, gate } = data as Record<string, unknown>;
-  if (typeof code !== 'string' || !TABLE_CODE_PATTERN.test(code) || typeof secret !== 'string' || !SECRET_PATTERN.test(secret)) return null;
+  const playerOrigin = playerOriginOf((data as Record<string, unknown>).playerOrigin);
+  if (typeof code !== 'string' || !TABLE_CODE_PATTERN.test(code) || typeof secret !== 'string' || !SECRET_PATTERN.test(secret) || playerOrigin === null) return null;
   const path = typeof mapPath === 'string' && mapPath !== '' && mapPath.length <= MAX_MAP_PATH ? mapPath : null;
-  return { code, secret, maxPlayers: seatsOf(maxPlayers), mapPath: path, gate: readGate(gate) };
+  return { code, secret, maxPlayers: seatsOf(maxPlayers), playerOrigin, mapPath: path, gate: readGate(gate) };
 }

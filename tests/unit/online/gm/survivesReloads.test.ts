@@ -61,7 +61,7 @@ vi.mock('../../../../src/app/online/gm/atlasLighting.ts', async (original) => ({
 
 const ANA = 'anaanaanaanaanaanaan';
 const MAP = 'Scenes/Cave.atlasmap';
-const SAVED: SavedTable = { code: 'a'.repeat(26), secret: 's'.repeat(43), maxPlayers: 12, mapPath: MAP, gate: { code: '483912', requireCode: true, askToJoin: true } };
+const SAVED: SavedTable = { code: 'a'.repeat(26), secret: 's'.repeat(43), maxPlayers: 12, playerOrigin: 'https://name2-vtt.kunlab.cc', mapPath: MAP, gate: { code: '483912', requireCode: true, askToJoin: true } };
 const ogre = (x: number): TokenEntity => ({ id: 'gm-ogre', kind: 'character', name: 'Ogre', imagePath: 'art/ogre.png', x, y: 140 });
 
 workspace.files = new Map<string, Uint8Array>([['maps/cave.png', png(700, 700)], ['maps/cave2.png', png(350, 350)], ['art/ogre.png', png(4, 4)]]);
@@ -86,7 +86,7 @@ describe('the online table', () => {
     seen.marks.length = 0;
     seen.requests.length = 0;
     signedIn.refresh.mockClear();
-    seen.created = { status: 201, json: { code: 'b'.repeat(26), secret: 'n'.repeat(43) } };
+    seen.created = { status: 201, json: { code: 'b'.repeat(26), secret: 'n'.repeat(43), playerOrigin: 'https://name2-vtt.kunlab.cc' } };
     saves = [];
     workspace.leaves = [];
     workspace.presented = null;
@@ -171,7 +171,7 @@ describe('the online table', () => {
     await online.start(tab.leaf);
     await advance(0);
     const created = saves.at(-1);
-    expect(created).toEqual({ code: 'b'.repeat(26), secret: 'n'.repeat(43), maxPlayers: 12, mapPath: MAP, gate: { code: expect.stringMatching(/^\d{6}$/) as string, requireCode: true, askToJoin: true } });
+    expect(created).toEqual({ code: 'b'.repeat(26), secret: 'n'.repeat(43), maxPlayers: 12, playerOrigin: 'https://name2-vtt.kunlab.cc', mapPath: MAP, gate: { code: expect.stringMatching(/^\d{6}$/) as string, requireCode: true, askToJoin: true } });
     const link = online.link();
     const socket = FakeSocket.all[0];
     if (socket === undefined || created === null || created === undefined) throw new Error('no table');
@@ -322,7 +322,7 @@ describe('the online table', () => {
     expect(account.refresh).toHaveBeenCalledWith(true);
     expect(seen.notices.at(-1)).toBe('Online play is in early access. Redeem an invite key on your account page.');
 
-    seen.created = { status: 201, json: { code: 'b'.repeat(26), secret: 'n'.repeat(43), maxPlayers: 2 } };
+    seen.created = { status: 201, json: { code: 'b'.repeat(26), secret: 'n'.repeat(43), maxPlayers: 2, playerOrigin: 'https://name2-vtt.kunlab.cc' } };
     await online.start(tab.leaf);
     await advance(0);
     expect(seen.requests.map((request) => request.headers?.Authorization)).toEqual(['Bearer account-token', 'Bearer account-token']);
@@ -357,7 +357,7 @@ describe('the online table', () => {
     const online = new OnlineControl(app, new Ownership(readOwnership(undefined), () => undefined), (table) => saves.push(table), signedIn);
     await online.start(tab.leaf);
     expect(seen.requests[0]?.url).toBe('http://127.0.0.1:8787/api/tables');
-    expect(online.link()).toBe(`https://vtt.kunlab.cc/#${'b'.repeat(26)}`);
+    expect(online.link()).toBe(`https://name2-vtt.kunlab.cc/#${'b'.repeat(26)}`);
     online.stop();
   });
 
@@ -437,7 +437,7 @@ describe('the online table', () => {
     // A table saved before plans seats as many as any table did.
     expect(readSavedTable({ ...SAVED, maxPlayers: undefined })).toEqual(SAVED);
     expect(readSavedTable({ ...SAVED, maxPlayers: 2 })).toEqual({ ...SAVED, maxPlayers: 2 });
-    for (const broken of [undefined, null, 'x', { ...SAVED, code: 'short' }, { ...SAVED, secret: 'a b' }]) {
+    for (const broken of [undefined, null, 'x', { ...SAVED, code: 'short' }, { ...SAVED, secret: 'a b' }, { ...SAVED, playerOrigin: undefined }]) {
       expect(readSavedTable(broken)).toBeNull();
     }
   });
