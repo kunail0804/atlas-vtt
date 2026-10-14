@@ -1,0 +1,8 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "noEmit": true
+  },
+  "include": ["relay/**/*.ts", "player/src/**/*.ts", "player/src/**/*.tsx", "player/vite.config.mts", "../src/assets.d.ts"]
+}

@@ -1,0 +1,10 @@
+# Copy to ~/.cloudflared/config.yml and replace <TUNNEL-UUID> with the id that
+# `cloudflared tunnel create atlas-vtt` printed.
+tunnel: cda84c83-3540-4f33-8bb3-04eb235fcc51
+credentials-file: /home/kunail/.cloudflared/cda84c83-3540-4f33-8bb3-04eb235fcc51.json
+
+ingress:
+  # Only the relay's public side is reachable from the internet.
+  - hostname: vtt.kunlab.cc
+    service: http://127.0.0.1:8788
+  - service: http_status:404

@@ -78,7 +78,7 @@ describe('online play\'s settings', () => {
     expect(row.descEl.textContent).toBe('Signed in as Mara (@mara). Your access to online play was withdrawn. See your account page.');
     expect(buttonsOf(row)).toEqual(['Sign out', 'Open account page']);
     row.controlEl.querySelectorAll('button')[1]?.click();
-    expect(of.opened).toEqual(['https://atlas-vtt.dev/account']);
+    expect(of.opened).toEqual(['http://127.0.0.1:8787/account']);
     expect(row.controlEl.querySelector('input')).toBeNull();
   });
 
@@ -88,6 +88,6 @@ describe('online play\'s settings', () => {
     await of.account.refresh(true);
     expect(row.descEl.textContent).toBe('Signed in as Mara (@mara) · Early access · up to 12 players');
     expect(buttonsOf(row)).toEqual(['Sign out', 'Open account page']);
-    expect(of.requests.map((request) => request.url)).toEqual(['https://play.atlas-vtt.dev/api/me']);
+    expect(of.requests.map((request) => request.url)).toEqual(['http://127.0.0.1:8787/api/me']);
   });
 });

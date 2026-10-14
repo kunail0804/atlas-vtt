@@ -205,7 +205,7 @@ describe('the signed-in account', () => {
   it('opens the account page on Atlas\'s website', () => {
     const { control, opened } = setup();
     control.openAccountPage();
-    expect(opened).toEqual(['https://atlas-vtt.dev/account']);
+    expect(opened).toEqual(['http://127.0.0.1:8787/account']);
   });
 
   it('forgets a token the relay refuses, says running tables go on, and asks again only after a while', async () => {

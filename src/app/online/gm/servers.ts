@@ -1,8 +1,15 @@
-/** Atlas's table server: what a join link names, and where tables are asked for. */
-export const RELAY_ORIGIN = 'https://play.atlas-vtt.dev';
+// Self-hosted fork: the relay runs on the GM's own machine (see selfhost/README.md).
+// The GM's side talks to it over loopback, which never leaves the machine; players reach
+// the public side through a Cloudflare Tunnel.
 
-/** The Atlas account service, where the GM signs in. */
-export const ACCOUNTS_ORIGIN = 'https://api.atlas-vtt.dev';
+/** The self-hosted relay's GM side, on loopback: where tables are asked for and the GM's socket connects. */
+export const RELAY_ORIGIN = 'http://127.0.0.1:8787';
 
-/** The account page on Atlas's website: invite keys are redeemed there, and the account's data is exported and deleted. */
-export const ACCOUNT_PAGE_URL = 'https://atlas-vtt.dev/account';
+/** The relay's public side: what a join link names, the page players open. */
+export const PLAYER_ORIGIN = 'https://vtt.kunlab.cc';
+
+/** The account service: the self-hosted relay answers the GM's sign-in itself, on loopback. */
+export const ACCOUNTS_ORIGIN = 'http://127.0.0.1:8787';
+
+/** The account page: the relay's own page on loopback. */
+export const ACCOUNT_PAGE_URL = 'http://127.0.0.1:8787/account';

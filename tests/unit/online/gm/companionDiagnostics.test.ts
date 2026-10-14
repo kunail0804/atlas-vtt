@@ -65,12 +65,12 @@ describe('the companion\'s error reports', () => {
     throwIn(win, ownError(`Alice Liddell lost ${CODE} with ${SECRET} and ${ACCOUNT_TOKEN}`));
     await settle();
     expect(sent).toHaveLength(1);
-    expect(sent[0]?.url).toBe('https://play.atlas-vtt.dev/api/reports');
+    expect(sent[0]?.url).toBe('http://127.0.0.1:8787/api/reports');
     expect(sent[0]?.body).toMatchObject({ source: 'companion', kind: 'error', browser: 'Obsidian 1.14.4', build: '0.0.1+dev atlas 0.6.1', os: 'macOS' });
     expect(sent[0]?.body.table).toMatch(/^[0-9a-f]{12}$/);
     const text = JSON.stringify(sent);
     for (const forbidden of [CODE, SECRET, ACCOUNT_TOKEN, 'Alice', 'Liddell']) expect(text).not.toContain(forbidden);
-    expect(console.warn).toHaveBeenCalledWith(expect.stringMatching(/^Atlas Online: error [0-9a-f]{10} reported to play\.atlas-vtt\.dev$/));
+    expect(console.warn).toHaveBeenCalledWith(expect.stringMatching(/^Atlas Online: error [0-9a-f]{10} reported to 127\.0\.0\.1:8787$/));
   });
 
   it('never carry the join code, as kept or as shown, in a message or a stack', async () => {

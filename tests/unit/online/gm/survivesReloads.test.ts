@@ -344,7 +344,7 @@ describe('the online table', () => {
     const online = new OnlineControl(app, new Ownership(readOwnership(undefined), () => undefined), (table) => saves.push(table), signedIn);
     online.resume(SAVED);
     await advance(0);
-    expect(FakeSocket.all.map((socket) => socket.url)).toEqual([`wss://play.atlas-vtt.dev/api/tables/${SAVED.code}/socket`]);
+    expect(FakeSocket.all.map((socket) => socket.url)).toEqual([`ws://127.0.0.1:8787/api/tables/${SAVED.code}/socket`]);
     expect(FakeSocket.all[0]?.frames()[0]).toMatchObject({ t: 'hello', secret: SAVED.secret });
     // The secret is in the hello to that socket and nowhere else: no request was made at all.
     expect(seen.requests).toEqual([]);
@@ -356,8 +356,8 @@ describe('the online table', () => {
     workspace.leaves = [tab.leaf];
     const online = new OnlineControl(app, new Ownership(readOwnership(undefined), () => undefined), (table) => saves.push(table), signedIn);
     await online.start(tab.leaf);
-    expect(seen.requests[0]?.url).toBe('https://play.atlas-vtt.dev/api/tables');
-    expect(online.link()).toBe(`https://play.atlas-vtt.dev/#${'b'.repeat(26)}`);
+    expect(seen.requests[0]?.url).toBe('http://127.0.0.1:8787/api/tables');
+    expect(online.link()).toBe(`https://vtt.kunlab.cc/#${'b'.repeat(26)}`);
     online.stop();
   });
 
