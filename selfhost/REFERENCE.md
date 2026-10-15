@@ -76,6 +76,32 @@ message's `body`.
 `npm test` starts real relays on random ports. The GM side of every test is the plugin's own
 `TableConnection`, so a test fails when the relay stops answering the way the plugin expects.
 
+## The player page
+
+`player/src/main.ts` starts it. The table code comes from the link's hash
+(`<playerOrigin>/#<table code>`).
+
+| Part | File | What it does |
+|---|---|---|
+| Join screen | `ui.ts` | Name and optional six-digit code, French messages for every close code |
+| Connection | `connection.ts` | Hello, keep-alive, reconnect with backoff, key kept in `localStorage` per table, wait token |
+| Inbox | `inbox.ts` | Puts `part` messages together, follows deltas with the plugin's `DeltaReader`, asks for a `resync` on a gap |
+| Assets | `assets.ts` | Asks by hash, takes chunks, checks SHA-256, continues a stalled download, takes scaled copies |
+| Map | `mapLayer.ts` | Draws the map at its own size; serves as the grid's `MapImageView` |
+| Grid | `sceneView.ts` | The plugin's `GridSystem` |
+| Tokens | `tokenLayer.ts` | Draws tokens, drags the player's own (`drag`, `move`, `drag-cancel`), follows `live` and `move-refused` |
+| Fog | `fogLayer.ts` | The plugin's `FogCanvasCompositor`, solid for players |
+| Chat and dice | `logPanel.ts` | The plugin's `TableLogPanel` with `LogState` |
+
+Not drawn yet: dynamic lighting (a lit scene shows a notice and nothing of the map), doors,
+sensed tokens, pins, annotations, initiative, widgets, cursors, lasers, measures, images the GM
+shows, and the player's book.
+
+The test `tests/player.browser.test.ts` builds nothing itself: run `npm run player:build` first. It
+serves the built page from a real relay, drives it in `/usr/bin/chromium`, and plays the GM with
+the plugin's `TableConnection`. It checks the map's pixels under and outside the fog, a token
+drag, and a chat message. It is skipped where Chromium or the build is missing.
+
 ## What the player page can import
 
 `tsconfig.shared.json` in the repository root lists the code that runs without Obsidian.

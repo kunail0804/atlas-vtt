@@ -1,0 +1,51 @@
+/* The variables the plugin's log panel reads from Obsidian's theme, with dark values. */
+:root {
+  color-scheme: dark;
+  --background-primary: #1e1f24;
+  --background-secondary: #26272d;
+  --background-modifier-hover: rgba(255, 255, 255, 0.07);
+  --background-modifier-active-hover: rgba(255, 255, 255, 0.12);
+  --background-modifier-border: #3a3b42;
+  --background-modifier-border-hover: #4a4b53;
+  --background-modifier-border-focus: #7c8cff;
+  --background-modifier-form-field: #2b2c33;
+  --text-normal: #e6e8ec;
+  --text-muted: #a3a8b5;
+  --text-faint: #6f7480;
+  --text-accent: #9aa7ff;
+  --text-error: #f0736a;
+  --text-on-accent: #ffffff;
+  --interactive-accent: #6b78ff;
+  --interactive-accent-hover: #7f8bff;
+  --mono-100: #ffffff;
+  --color-red: #e35d5d;
+  --color-green: #4ec27f;
+  --color-yellow: #e0b04a;
+  --color-orange: #e08a4a;
+  --color-purple: #a979e6;
+  --color-pink: #e26fb4;
+  --color-cyan: #4cc3cf;
+  --color-blue: #5a9cf0;
+  --font-interface: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-monospace: ui-monospace, 'Cascadia Code', monospace;
+  --font-ui-small: 13px;
+  --font-semibold: 600;
+  --line-height-tight: 1.3;
+  --input-height: 32px;
+}
+
+html, body, #app { margin: 0; height: 100%; background: #101114; color: var(--text-normal); font-family: var(--font-interface); overflow: hidden; }
+.canvas { position: fixed; inset: 0; }
+.canvas canvas { display: block; touch-action: none; }
+
+.status { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); padding: 8px 14px; border-radius: 999px; background: rgba(30, 31, 36, 0.92); border: 1px solid var(--background-modifier-border); font-size: 14px; z-index: 10; }
+.status[data-tone='warn'] { color: var(--color-yellow); }
+
+.join { position: fixed; inset: 0; margin: auto; width: min(360px, calc(100vw - 32px)); height: fit-content; display: flex; flex-direction: column; gap: 14px; padding: 24px; border-radius: 14px; background: var(--background-primary); border: 1px solid var(--background-modifier-border); z-index: 20; }
+.join-title { margin: 0; font-size: 20px; }
+.join-label { display: flex; flex-direction: column; gap: 6px; font-size: 14px; color: var(--text-muted); }
+.join-input { height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--background-modifier-border); background: var(--background-modifier-form-field); color: var(--text-normal); font-size: 16px; }
+.join-error { margin: 0; min-height: 1em; color: var(--text-error); font-size: 14px; }
+.join-button { height: 42px; border: 0; border-radius: 8px; background: var(--interactive-accent); color: var(--text-on-accent); font-size: 16px; font-weight: 600; cursor: pointer; }
+
+.chat-button { position: fixed; right: 16px; bottom: 16px; padding: 10px 16px; border: 0; border-radius: 999px; background: var(--interactive-accent); color: var(--text-on-accent); font-size: 15px; font-weight: 600; cursor: pointer; z-index: 10; }

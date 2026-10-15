@@ -22,7 +22,8 @@ export default defineConfig({
           environment: 'jsdom',
           globals: true,
           setupFiles: ['./tests/setup/obsidianDom.ts', './tests/setup/domHost.ts'],
-          exclude: ['**/node_modules/**', '**/*.gpu.test.ts'],
+          // selfhost/ has its own suite (npm test in selfhost/), which drives a built page in Chromium.
+          exclude: ['**/node_modules/**', '**/*.gpu.test.ts', 'selfhost/**'],
         },
       },
       {
