@@ -56,10 +56,12 @@ export async function api<T>(method: string, path: string, body?: unknown, optio
     // A body that is no JSON is answered below by its status.
   }
   if (response.ok) return value as T;
-  await log(`service ${method} ${path}: ${response.status} ${text.slice(0, 300)}`);
+  const code = typeof value.error === 'string' ? value.error : String(response.status);
+  // A login still waiting for the browser is polled every two seconds: not worth a log line each time.
+  if (code !== 'pending') await log(`service ${method} ${path}: ${response.status} ${text.slice(0, 300)}`);
   if (response.status === 401) await forgetSession();
   const message = typeof value.message === 'string' ? value.message : `Le service a répondu ${response.status}.`;
-  throw new ServiceError(message, typeof value.error === 'string' ? value.error : String(response.status));
+  throw new ServiceError(message, code);
 }
 
 export interface Me {

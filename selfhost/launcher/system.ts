@@ -13,10 +13,13 @@ export async function log(line: string): Promise<void> {
 }
 
 /** Runs a program; never through a shell, so nothing in an argument is ever read as a command. */
-export async function run(command: string, args: string[], options: { env?: Record<string, string>; stdin?: string } = {}): Promise<{ code: number; stdout: string; stderr: string }> {
+export async function run(command: string, args: string[], options: { env?: Record<string, string>; stdin?: string; capture?: boolean } = {}): Promise<{ code: number; stdout: string; stderr: string }> {
+  // `capture: false` for programs that leave a process behind (a clipboard keeper): it would hold
+  // captured pipes open, and reading them to the end would never finish.
+  const output = options.capture === false ? 'null' : 'piped';
   try {
     const child = new Deno.Command(command, {
-      args, stdout: 'piped', stderr: 'piped', stdin: options.stdin === undefined ? 'null' : 'piped',
+      args, stdout: output, stderr: output, stdin: options.stdin === undefined ? 'null' : 'piped',
       ...(options.env === undefined ? {} : { env: options.env }),
     }).spawn();
     if (options.stdin !== undefined) {
@@ -24,9 +27,10 @@ export async function run(command: string, args: string[], options: { env?: Reco
       await writer.write(new TextEncoder().encode(options.stdin));
       await writer.close();
     }
-    const output = await child.output();
+    if (options.capture === false) return { code: (await child.status).code, stdout: '', stderr: '' };
+    const result = await child.output();
     const decoder = new TextDecoder();
-    return { code: output.code, stdout: decoder.decode(output.stdout), stderr: decoder.decode(output.stderr) };
+    return { code: result.code, stdout: decoder.decode(result.stdout), stderr: decoder.decode(result.stderr) };
   } catch (error) {
     // A program that is not installed: the caller decides what that means.
     return { code: -1, stdout: '', stderr: String(error) };
@@ -36,14 +40,14 @@ export async function run(command: string, args: string[], options: { env?: Reco
 export async function openBrowser(url: string): Promise<boolean> {
   const result = Deno.build.os === 'windows'
     ? await run('rundll32', ['url.dll,FileProtocolHandler', url])
-    : await run('xdg-open', [url]);
+    : await run('xdg-open', [url], { capture: false });
   return result.code === 0;
 }
 
 export async function copyToClipboard(text: string): Promise<boolean> {
-  if (Deno.build.os === 'windows') return (await run('clip', [], { stdin: text })).code === 0;
+  if (Deno.build.os === 'windows') return (await run('clip', [], { stdin: text, capture: false })).code === 0;
   for (const [command, args] of [['wl-copy', []], ['xclip', ['-selection', 'clipboard']], ['xsel', ['--clipboard', '--input']]] as const) {
-    if ((await run(command, [...args], { stdin: text })).code === 0) return true;
+    if ((await run(command, [...args], { stdin: text, capture: false })).code === 0) return true;
   }
   return false;
 }

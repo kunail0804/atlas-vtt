@@ -105,3 +105,31 @@ Tables live in the `atlas-<campaign>` volume.
 The tunnel forwards `vtt.kunlab.cc` to the public side, port 8788, and nothing else. The GM
 side, port 8787, never leaves the machine. `cloudflared/config.example.yml` holds the
 configuration to copy to `~/.cloudflared/config.yml`.
+
+## Deploy the campaigns service
+
+The service (`service/`) runs on Cloudflare Workers with D1 at `https://campaigns.kunlab.cc`. It
+reads its secrets from `~/.config/atlas-vtt-admin/secrets.env`. Run once `npx wrangler login` in
+`service/`, then:
+
+```sh
+cd service
+npm ci
+./setup.sh
+```
+
+`setup.sh` creates the database if it is missing, applies `migrations/`, deploys the Worker and
+sets its secrets. It is safe to run again after a change.
+
+## Build the launcher
+
+The launcher (`launcher/`) is compiled with Deno, for Linux and for Windows, from Linux:
+
+```sh
+cd launcher
+deno task build
+```
+
+It writes `dist/atlas` and `dist/atlas.exe`. GMs download them from the fork's GitHub Releases;
+`atlas man` lists every command.
+

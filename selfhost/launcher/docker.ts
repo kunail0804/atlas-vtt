@@ -79,7 +79,9 @@ export async function waitForRelay(name: string): Promise<void> {
   const deadline = Date.now() + 30_000;
   while (Date.now() < deadline) {
     try {
-      const response = await fetch('http://127.0.0.1:8787/api/me');
+      // Each try is short: while the container starts, Docker's port forwarder may take the
+      // connection and never answer, and a fetch without a limit would wait forever.
+      const response = await fetch('http://127.0.0.1:8787/api/me', { signal: AbortSignal.timeout(2_000) });
       await response.body?.cancel();
       // The tunnel connects after the relay answers; one Cloudflare refuses stops the container within seconds.
       await new Promise((resolve) => setTimeout(resolve, 3_000));
