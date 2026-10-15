@@ -51,7 +51,10 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player page in
     const player = gm.joined[0]?.id ?? '';
 
     send({ t: 'scene', scene: { id: 's1', map: { hash: mapHash, size: mapBytes.length, mime: 'image/png' }, lit: false } }, player);
-    send({ t: 'tokens', scene: 's1', seq: 1, cell: 70, snap: null, tokens: [{ id: TOKEN, ...TOKEN_AT, size: 70, cells: 1, rotation: 0, art: null, name: 'Mira', ring: { colour: '#3366ff', size: 80 }, claim: 'taken', badge: null, ui: null }] }, player);
+    // A goblin with 2 of 10 hit points left: its bar must be red by the plugin's rule, under a 'heart' condition.
+    const goblin = { id: 'b1b2c3d4e5f6a1b2c3d4e5f6', x: 300, y: 150, size: 70, cells: 1, rotation: 0, art: null, name: 'Gobelin', ring: { colour: '#aa3333', size: 80 }, claim: null, badge: null,
+      ui: { nameplate: true, downed: false, bars: [{ colour: '#22c55e', direction: 'drains', defeats: true, current: 2, max: 10 }], conditions: [{ colour: '#3b82f6', glyph: { kind: 'icon', icon: 'heart' }, value: 2 }] } } as const;
+    send({ t: 'tokens', scene: 's1', seq: 1, cell: 70, snap: null, tokens: [{ id: TOKEN, ...TOKEN_AT, size: 70, cells: 1, rotation: 0, art: null, name: 'Mira', ring: { colour: '#3366ff', size: 80 }, claim: 'taken', badge: null, ui: null }, goblin] }, player);
     send({ t: 'mine', scene: 's1', tokens: [TOKEN] }, player);
     send({ t: 'fog', scene: 's1', seq: 1, fog: [{ type: 'rectangle', erase: false, x: MAP_W / 2, y: 0, width: MAP_W / 2, height: MAP_H }] }, player);
 
@@ -79,6 +82,11 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player page in
     const fogged = await pixel(screen(900, 300).x, screen(900, 300).y);
     expect(visible[1]).toBeGreaterThan(120);
     expect(fogged.slice(0, 3)).toEqual([0, 0, 0]);
+    // The goblin's bar: below its ring (outer 80), 20 % filled from the left, in the plugin's critical red.
+    const bar = await pixel(screen(268, 150 + 43 + 3).x, screen(268, 150 + 43 + 3).y);
+    expect(bar.slice(0, 3)).toEqual([0xef, 0x44, 0x44]);
+    const track = await pixel(screen(330, 150 + 43 + 3).x, screen(330, 150 + 43 + 3).y);
+    expect(track.slice(0, 3)).toEqual([0x1b, 0x1d, 0x22]);
 
     // Drag the own token 100 px right: the GM gets drags, then the move.
     const from = screen(TOKEN_AT.x, TOKEN_AT.y);

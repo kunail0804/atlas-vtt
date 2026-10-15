@@ -4,6 +4,7 @@ import type { LivePlace } from '../../../src/app/online/protocol/live.ts';
 import type { PlayerMessage } from '../../../src/app/online/protocol/game.ts';
 import type { SharedToken } from '../../../src/app/online/protocol/tokens.ts';
 import type { AssetLoader } from './assets.ts';
+import { drawTokenUI } from './tokenUI.ts';
 
 /** A token's art is asked for at most this large: tokens are small on screen. */
 const TOKEN_ART_SIDE = 512;
@@ -147,11 +148,18 @@ export class TokenLayer {
         art.mask = null;
       }
       group.setChildIndex(art, group.children.length - 1);
+      // A downed creature is greyed out, under its skull.
+      art.tint = token.ui?.downed === true ? 0x6b6b6b : 0xffffff;
     }
-    if (token.name !== null && token.name !== '') {
-      const label = new Text({ text: token.name, style: { fontFamily: 'system-ui, sans-serif', fontSize: Math.max(10, radius * 0.35), fill: 0xffffff, stroke: { color: 0x000000, width: 3 } } });
+    const outer = token.ring?.size ?? token.size;
+    let nameTop = outer / 2 + 4;
+    if (token.ui !== null) nameTop = drawTokenUI(group, token.ui, token.size, outer).nameTop;
+    // A creature shows its name only where the GM's nameplate does; other tokens show the name they are sent.
+    const showName = token.name !== null && token.name !== '' && (token.ui === null || token.ui.nameplate);
+    if (showName) {
+      const label = new Text({ text: token.name ?? '', style: { fontFamily: 'system-ui, sans-serif', fontSize: Math.max(10, radius * 0.35), fill: 0xffffff, stroke: { color: 0x000000, width: 3 } } });
       label.anchor.set(0.5, 0);
-      label.position.set(0, (token.ring?.size ?? token.size) / 2 + 4);
+      label.position.set(0, nameTop);
       group.addChild(label);
     }
     this.style(drawn);
