@@ -14,6 +14,7 @@ export default {
       publicOrigin: env.PUBLIC_ORIGIN,
       campaignDomain: env.CAMPAIGN_DOMAIN,
       adminId: env.ADMIN_DISCORD_ID,
+      allow: async (_bucket: 'login', key: string) => (await env.LOGIN_LIMIT.limit({ key })).success,
     };
     try {
       return await handle(context, request);

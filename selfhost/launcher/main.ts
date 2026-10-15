@@ -3,6 +3,8 @@ import { manual } from './man.ts';
 import { logFile } from './paths.ts';
 import { me, sessionToken, type Me } from './service.ts';
 import { UserError, ask, log, pause } from './system.ts';
+import { updateNotice } from './update.ts';
+import { VERSION } from './version.ts';
 
 async function account(): Promise<Me | null> {
   if ((await sessionToken()) === null) return null;
@@ -34,6 +36,8 @@ async function runCommand(args: string[]): Promise<void> {
   switch (command) {
     case 'man': case 'help': case '--help':
       return console.log(manual((await account())?.admin === true));
+    case 'version': case '--version':
+      return console.log(`atlas ${VERSION}`);
     case 'login': return signIn();
     case 'logout': return signOut();
     case 'status': return status();
@@ -55,7 +59,9 @@ async function runCommand(args: string[]): Promise<void> {
 
 async function menuOnce(): Promise<boolean> {
   const who = await account();
-  console.log('\n══════════ ATLAS ══════════');
+  console.log(`\n══════════ ATLAS ${VERSION} ══════════`);
+  const notice = await updateNotice();
+  if (notice !== null) console.log(`${notice}\n`);
   if (who === null) {
     console.log('Pas connecté.\n  1. Se connecter avec Discord\n  2. Aide\n  0. Quitter');
     const choice = ask('Ton choix :');
@@ -105,6 +111,8 @@ async function report(error: unknown): Promise<void> {
 if (Deno.args.length > 0) {
   try {
     await runCommand(Deno.args);
+    const notice = await updateNotice();
+    if (notice !== null) console.log(`\n${notice}`);
   } catch (error) {
     await report(error);
     Deno.exit(1);

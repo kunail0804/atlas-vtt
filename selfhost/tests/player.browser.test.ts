@@ -65,8 +65,11 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player page in
     const screen = (x: number, y: number): { x: number; y: number } => ({ x: 600 + (x - MAP_W / 2) * scale, y: 400 + (y - MAP_H / 2) * scale });
     await page.waitForTimeout(300);
     const shot = await page.screenshot();
+    // Decoded through an <img>: the page's policy allows data: images but no fetch of them.
     const pixel = async (x: number, y: number): Promise<number[]> => page.evaluate(async ({ data, px, py }) => {
-      const image = await createImageBitmap(await (await fetch(`data:image/png;base64,${data}`)).blob());
+      const image = new Image();
+      image.src = `data:image/png;base64,${data}`;
+      await image.decode();
       const canvas = new OffscreenCanvas(image.width, image.height);
       const context = canvas.getContext('2d');
       context?.drawImage(image, 0, 0);

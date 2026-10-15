@@ -15,3 +15,12 @@ binding = "DB"
 database_name = "atlas-campaigns"
 database_id = "a5a33617-106c-4f13-a25c-36758ca01968"
 migrations_dir = "migrations"
+
+# Login routes: 10 calls a minute per visitor address, per Cloudflare location.
+[[ratelimits]]
+name = "LOGIN_LIMIT"
+namespace_id = "7301"
+
+  [ratelimits.simple]
+  limit = 10
+  period = 60

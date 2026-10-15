@@ -15,11 +15,14 @@ function toBuffer(data: RawData): Buffer {
  */
 export class Link {
   readonly socket: WebSocket;
+  /** Where the socket comes from: the visitor's address Cloudflare names, or `local`. Limits count by it. */
+  readonly source: string;
   private readonly maxFrameBytes: number;
   private handler: (text: string) => void = () => undefined;
 
-  constructor(socket: WebSocket, maxFrameBytes: number) {
+  constructor(socket: WebSocket, maxFrameBytes: number, source = 'local') {
     this.socket = socket;
+    this.source = source;
     this.maxFrameBytes = maxFrameBytes;
     socket.on('message', (data: RawData, isBinary: boolean) => this.receive(data, isBinary));
     // A socket error is followed by its close; without a listener it would crash the process.

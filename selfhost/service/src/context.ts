@@ -11,6 +11,8 @@ export interface Context {
   readonly publicOrigin: string;
   readonly campaignDomain: string;
   readonly adminId: string;
+  /** Whether one more request from `key` is allowed now (Cloudflare's rate limit, per location). */
+  readonly allow: (bucket: 'login', key: string) => Promise<boolean>;
 }
 
 export interface Account {

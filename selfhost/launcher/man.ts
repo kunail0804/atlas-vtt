@@ -6,6 +6,7 @@ export function manual(admin: boolean): string {
     'Sans commande (double-clic), un menu propose tout ce qui suit.',
     '',
     '  atlas man                       cette aide',
+    '  atlas version                   la version du lanceur',
     '  atlas login                     se connecter avec Discord (crée ton compte la première fois)',
     '  atlas logout                    se déconnecter de cette machine',
     '  atlas status                    ton compte et la campagne en cours',
@@ -17,6 +18,7 @@ export function manual(admin: boolean): string {
     '',
     'Un nom de campagne : 1 à 30 lettres minuscules, chiffres ou tirets.',
     'Une campagne s\'arrête toute seule 5 minutes après le départ de tout le monde.',
+    'Le lanceur te prévient quand une nouvelle version est disponible.',
   ];
   if (admin) {
     lines.push(

@@ -4,8 +4,8 @@ import { testService, type TestService } from './serviceFakes.ts';
 
 const ORIGIN = 'https://campaigns.kunlab.cc';
 
-async function call(service: TestService, method: string, path: string, options: { token?: string; body?: unknown } = {}): Promise<{ status: number; body: Record<string, unknown>; location: string | null }> {
-  const headers: Record<string, string> = {};
+async function call(service: TestService, method: string, path: string, options: { token?: string; body?: unknown } = {}): Promise<{ status: number; body: Record<string, unknown>; location: string | null; headers: Headers }> {
+  const headers: Record<string, string> = { 'cf-connecting-ip': '203.0.113.7' };
   if (options.token !== undefined) headers.authorization = `Bearer ${options.token}`;
   if (options.body !== undefined) headers['content-type'] = 'application/json';
   const response = await handle(service.context, new Request(`${ORIGIN}${path}`, { method, headers, ...(options.body === undefined ? {} : { body: JSON.stringify(options.body) }) }));
@@ -16,7 +16,7 @@ async function call(service: TestService, method: string, path: string, options:
   } catch {
     body = { html: text };
   }
-  return { status: response.status, body, location: response.headers.get('location') };
+  return { status: response.status, body, location: response.headers.get('location'), headers: response.headers };
 }
 
 /** The whole launcher sign-in: code, login link to Discord, back with a Discord code, poll. */
@@ -25,7 +25,9 @@ async function signIn(service: TestService, discordId: string, handle: string): 
   const started = await call(service, 'POST', '/auth/device');
   const pending = await call(service, 'POST', '/auth/device/token', { body: { device_code: started.body.device_code } });
   expect(pending.body.error).toBe('pending');
-  const login = await call(service, 'GET', `/login?code=${String(started.body.user_code)}`);
+  const confirm = await call(service, 'GET', `/login?code=${String(started.body.user_code)}`);
+  expect(confirm.status).toBe(200);
+  const login = await call(service, 'GET', `/login/discord?code=${String(started.body.user_code)}`);
   expect(login.status).toBe(302);
   const state = new URL(login.location ?? '').searchParams.get('state') ?? '';
   const back = await call(service, 'GET', `/auth/discord/callback?code=code-${discordId}&state=${state}`);
@@ -42,6 +44,7 @@ describe('the accounts and campaigns service', () => {
     expect((await call(service, 'GET', '/me', { token })).body).toEqual({ handle: 'paul', name: 'PAUL', status: 'pending', admin: false });
     expect(service.discord.notices).toHaveLength(1);
     expect(service.discord.notices[0]).toContain('atlas admin approve paul');
+    expect(service.limited.length).toBeGreaterThanOrEqual(3);
     const refused = await call(service, 'POST', '/campaigns', { token, body: { name: 'name2' } });
     expect(refused.status).toBe(403);
     expect(service.cloudflare.calls).toEqual([]);
@@ -125,6 +128,47 @@ describe('the accounts and campaigns service', () => {
     expect((await call(service, 'GET', '/me', { token })).status).toBe(200);
     service.clock += 31 * day;
     expect((await call(service, 'GET', '/me', { token })).status).toBe(401);
+  });
+
+  it('shows the launcher\'s code before Discord, and never goes on by itself', async () => {
+    const service = testService();
+    const started = await call(service, 'POST', '/auth/device');
+    const confirm = await call(service, 'GET', `/login?code=${String(started.body.user_code)}`);
+    expect(confirm.status).toBe(200);
+    expect(confirm.location).toBeNull();
+    expect(String(confirm.body.html)).toContain(String(started.body.user_code));
+    expect(String(confirm.body.html)).toContain('/login/discord?code=');
+    expect(confirm.headers.get('content-security-policy')).toContain("frame-ancestors 'none'");
+    expect(confirm.headers.get('x-frame-options')).toBe('DENY');
+  });
+
+  it('refuses logins past the rate limit, keyed by the visitor\'s address', async () => {
+    const service = testService();
+    service.allowLogins = false;
+    expect((await call(service, 'POST', '/auth/device')).status).toBe(429);
+    expect(service.limited).toEqual(['203.0.113.7']);
+  });
+
+  it('caps pending logins per address and in all, whatever the rate limit lets through', async () => {
+    const service = testService();
+    const from = async (ip: string): Promise<number> => (await handle(service.context, new Request(`${ORIGIN}/auth/device`, { method: 'POST', headers: { 'cf-connecting-ip': ip } }))).status;
+    for (let index = 0; index < 5; index += 1) expect(await from('203.0.113.50')).toBe(200);
+    expect(await from('203.0.113.50')).toBe(429);
+    for (let index = 0; index < 45; index += 1) expect(await from(`198.51.100.${index}`)).toBe(200);
+    expect(await from('192.0.2.1')).toBe(429);
+    service.clock += 11 * 60_000;
+    expect(await from('203.0.113.50')).toBe(200);
+  });
+
+  it('writes a chosen name as plain text in the administrator\'s notice', async () => {
+    const service = testService();
+    service.discord.users.set('code-x', { id: 'x-id', handle: 'eve_1', name: '**[click](https://evil.test)**' });
+    const started = await call(service, 'POST', '/auth/device');
+    const login = await call(service, 'GET', `/login/discord?code=${String(started.body.user_code)}`);
+    const state = new URL(login.location ?? '').searchParams.get('state') ?? '';
+    await call(service, 'GET', `/auth/discord/callback?code=code-x&state=${state}`);
+    expect(service.discord.notices[0]).toContain('\\*\\*\\[click\\]\\(https://evil.test\\)\\*\\*');
+    expect(service.discord.notices[0]).toContain('eve\\_1');
   });
 
   it('refuses a login link that expired', async () => {

@@ -11,10 +11,13 @@ export const WRONG_CODE_WINDOW_MS = 10 * 60_000;
 export const PAUSE_MS = 10 * 60_000;
 /** How long a newcomer waits for the GM's answer before the gate turns them away with `noAnswer`. */
 export const NO_ANSWER_MS = 5 * 60_000;
+/** Newcomers one address may have waiting at once: the waiting room holds 8, and one visitor must not fill it. */
+export const KNOCKS_PER_SOURCE = 2;
 
 interface Knock {
   readonly id: string;
   readonly name: string;
+  readonly source: string;
   socket: WebSocket;
   readonly waitHash: string | null;
   readonly timer: NodeJS.Timeout;
@@ -96,15 +99,16 @@ export class JoinGate {
   }
 
   /** A newcomer knocks. `waits`: their page keeps a token that takes the wait up again after a reconnect. */
-  knock(socket: WebSocket, name: string, waits: boolean): void {
-    if (this.knocks.size >= MAX_WAITING) {
+  knock(socket: WebSocket, name: string, waits: boolean, source: string): void {
+    const fromSource = [...this.knocks.values()].filter((knock) => knock.source === source).length;
+    if (this.knocks.size >= MAX_WAITING || fromSource >= KNOCKS_PER_SOURCE) {
       closeSocket(socket, CLOSE.tooManyKnocks, 'too many waiting');
       return;
     }
     const id = newPlayerId();
     const wait = waits ? newSecret() : null;
     const timer = setTimeout(() => this.timeOut(id), NO_ANSWER_MS);
-    const knock: Knock = { id, name, socket, waitHash: wait === null ? null : hashOf(wait), timer };
+    const knock: Knock = { id, name, source, socket, waitHash: wait === null ? null : hashOf(wait), timer };
     this.knocks.set(id, knock);
     this.watch(knock, socket);
     sendFrame(socket, wait === null ? { t: 'waiting' } : { t: 'waiting', wait });

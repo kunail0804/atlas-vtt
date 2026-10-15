@@ -1,7 +1,10 @@
-import { DEVICE_LOGIN_MS, SESSION_IDLE_MS, SESSION_TOUCH_MS } from './config.ts';
+import { DEVICE_LOGIN_MS, PENDING_LOGINS_PER_SOURCE, PENDING_LOGINS_TOTAL, SESSION_IDLE_MS, SESSION_TOUCH_MS } from './config.ts';
 import type { Account, Context } from './context.ts';
 import { randomToken, sha256, userCode } from './crypto.ts';
 import { failure, json, page, readJson } from './http.ts';
+
+/** A name someone chose, shown as plain text in a Discord message: its Markdown marks are escaped. */
+const markdownSafe = (text: string): string => text.replace(/[\\*_`~|>#\[\]()-]/g, (mark) => `\\${mark}`);
 
 interface DeviceLogin {
   readonly code_hash: string;
@@ -15,21 +18,50 @@ interface DeviceLogin {
  * login link, and polls. Discord knows no flow for programs without a browser of their own, so the
  * browser goes through Discord's usual authorization-code flow, tied to the launcher's code by `state`.
  */
-export async function startDeviceLogin(context: Context): Promise<Response> {
+/** The visitor's address as Cloudflare saw it: the key of the login rate limit. */
+export const clientKey = (request: Request): string => request.headers.get('cf-connecting-ip') ?? 'unknown';
+
+const TOO_FAST = (): Response => failure(429, 'rate', 'Trop de tentatives de connexion. Attends une minute.');
+
+export async function startDeviceLogin(context: Context, request: Request): Promise<Response> {
+  if (!(await context.allow('login', clientKey(request)))) return TOO_FAST();
   const now = context.now();
   await context.db.prepare('DELETE FROM device_logins WHERE expires_at < ?').bind(now).run();
+  // Cloudflare's rate limit above is approximate; these counts are exact, and bound what this route can write.
+  const source = await sha256(`login-source:${clientKey(request)}`);
+  const pending = await context.db.prepare('SELECT COUNT(*) AS total, SUM(CASE WHEN source = ? THEN 1 ELSE 0 END) AS mine FROM device_logins')
+    .bind(source).first<{ total: number; mine: number | null }>();
+  if ((pending?.mine ?? 0) >= PENDING_LOGINS_PER_SOURCE || (pending?.total ?? 0) >= PENDING_LOGINS_TOTAL) return TOO_FAST();
   const deviceCode = randomToken();
   const code = userCode();
-  await context.db.prepare('INSERT INTO device_logins (code_hash, user_code, expires_at) VALUES (?, ?, ?)')
-    .bind(await sha256(deviceCode), code, now + DEVICE_LOGIN_MS).run();
+  await context.db.prepare('INSERT INTO device_logins (code_hash, user_code, expires_at, source) VALUES (?, ?, ?, ?)')
+    .bind(await sha256(deviceCode), code, now + DEVICE_LOGIN_MS, source).run();
   return json(200, { device_code: deviceCode, user_code: code, login_url: `${context.publicOrigin}/login?code=${code}`, interval: 2, expires_in: DEVICE_LOGIN_MS / 1000 });
 }
 
-/** The login link the launcher opened: on to Discord, with a `state` that names this login. */
+async function liveLogin(context: Context, code: string): Promise<DeviceLogin | null> {
+  return context.db.prepare('SELECT * FROM device_logins WHERE user_code = ? AND expires_at >= ? AND discord_id IS NULL')
+    .bind(code, context.now()).first<DeviceLogin>();
+}
+
+/**
+ * The login link the launcher opened. It never goes on to Discord by itself: it shows the code the
+ * launcher shows, so a GM handed someone else's link (to sign them into the sender's launcher) sees
+ * a code that is not on their screen.
+ */
 export async function openLogin(context: Context, url: URL): Promise<Response> {
   const code = url.searchParams.get('code') ?? '';
-  const login = await context.db.prepare('SELECT * FROM device_logins WHERE user_code = ? AND expires_at >= ? AND discord_id IS NULL')
-    .bind(code, context.now()).first<DeviceLogin>();
+  const login = await liveLogin(context, code);
+  if (login === null) return page(400, 'Lien expiré', 'Ce lien de connexion a expiré. Relance la connexion depuis le lanceur Atlas.');
+  return page(200, `Code ${login.user_code}`,
+    `Le lanceur Atlas sur ton ordinateur affiche ce même code ? Continue seulement si c'est le cas et si tu viens de lancer la connexion toi-même. Sinon, ferme cette page : quelqu'un essaie de se connecter avec ton compte.`,
+    { label: 'Continuer avec Discord', href: `${context.publicOrigin}/login/discord?code=${encodeURIComponent(login.user_code)}` });
+}
+
+/** The GM confirmed the code: on to Discord, with a `state` that names this login. */
+export async function goToDiscord(context: Context, request: Request, url: URL): Promise<Response> {
+  if (!(await context.allow('login', clientKey(request)))) return TOO_FAST();
+  const login = await liveLogin(context, url.searchParams.get('code') ?? '');
   if (login === null) return page(400, 'Lien expiré', 'Ce lien de connexion a expiré. Relance la connexion depuis le lanceur Atlas.');
   const state = randomToken();
   await context.db.prepare('UPDATE device_logins SET state = ? WHERE code_hash = ?').bind(state, login.code_hash).run();
@@ -37,7 +69,8 @@ export async function openLogin(context: Context, url: URL): Promise<Response> {
 }
 
 /** Discord sends the browser back here. The account is made on the first login, pending unless it is the administrator's. */
-export async function finishLogin(context: Context, url: URL): Promise<Response> {
+export async function finishLogin(context: Context, request: Request, url: URL): Promise<Response> {
+  if (!(await context.allow('login', clientKey(request)))) return TOO_FAST();
   const state = url.searchParams.get('state') ?? '';
   const code = url.searchParams.get('code');
   const login = await context.db.prepare('SELECT * FROM device_logins WHERE state = ? AND expires_at >= ?').bind(state, context.now()).first<DeviceLogin>();
@@ -54,7 +87,7 @@ export async function finishLogin(context: Context, url: URL): Promise<Response>
     const admin = user.id === context.adminId;
     await context.db.prepare('INSERT INTO accounts (discord_id, handle, name, status, created_at, decided_at) VALUES (?, ?, ?, ?, ?, ?)')
       .bind(user.id, user.handle, user.name, admin ? 'approved' : 'pending', now, admin ? now : null).run();
-    if (!admin) await context.discord.notify(`Nouvelle demande de compte Atlas : **${user.name}** (\`${user.handle}\`). Pour l'accepter : \`atlas admin approve ${user.handle}\``);
+    if (!admin) await context.discord.notify(`Nouvelle demande de compte Atlas : **${markdownSafe(user.name)}** (${markdownSafe(user.handle)}). Pour l'accepter : atlas admin approve ${markdownSafe(user.handle)}`);
   } else {
     await context.db.prepare('UPDATE accounts SET handle = ?, name = ? WHERE discord_id = ?').bind(user.handle, user.name, user.id).run();
   }

@@ -1,5 +1,7 @@
 import '../../../src/app/online/tableLog/styles/table-log.scss';
 import './page.css';
+// The page's policy forbids eval (relay/staticFiles.ts); PixiJS then needs its own replacement for it.
+import 'pixi.js/unsafe-eval';
 import type { GmMessage } from '../../../src/app/online/protocol/game.ts';
 import { TABLE_CODE_PATTERN } from '../../../src/app/online/protocol/relay.ts';
 import { AssetLoader } from './assets.ts';

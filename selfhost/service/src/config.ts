@@ -3,6 +3,8 @@ import type { Database } from './db.ts';
 /** The Worker's bindings: D1, the secrets set with `wrangler secret put`, and the vars of wrangler.toml. */
 export interface Env {
   readonly DB: Database;
+  /** Cloudflare's rate limit for the login routes, by visitor address (wrangler.toml `ratelimits`). */
+  readonly LOGIN_LIMIT: { limit(options: { key: string }): Promise<{ success: boolean }> };
   readonly DISCORD_CLIENT_ID: string;
   readonly DISCORD_CLIENT_SECRET: string;
   readonly DISCORD_WEBHOOK_URL: string;
@@ -19,6 +21,9 @@ export interface Env {
 export const MAX_CAMPAIGNS_PER_ACCOUNT = 5;
 export const SESSION_IDLE_MS = 30 * 24 * 60 * 60_000;
 export const DEVICE_LOGIN_MS = 10 * 60_000;
+/** Logins waiting for their browser at once, from one address and in all. Each costs D1 writes, which the free plan counts. */
+export const PENDING_LOGINS_PER_SOURCE = 5;
+export const PENDING_LOGINS_TOTAL = 50;
 /** A session's last use is written at most this often: every request reads it, few need to write it. */
 export const SESSION_TOUCH_MS = 60 * 60_000;
 

@@ -33,6 +33,33 @@ export interface RunningRelay {
 
 const SOCKET_PATH = /^\/api\/tables\/([^/]+)\/socket$/;
 
+/** Sockets the public side holds at once, and from one visitor's address. */
+export const MAX_PUBLIC_SOCKETS = 300;
+export const MAX_SOCKETS_PER_SOURCE = 20;
+
+const LOOPBACK_NAMES = new Set(['127.0.0.1', 'localhost', '[::1]']);
+
+/**
+ * The GM side answers only requests addressed to this machine by name. A web page the GM opens could
+ * make its own domain point at 127.0.0.1 (DNS rebinding); its requests then carry that domain as Host.
+ */
+function addressedToLoopback(request: IncomingMessage): boolean {
+  const host = request.headers.host ?? '';
+  const name = host.startsWith('[') ? host.slice(0, host.indexOf(']') + 1) : host.split(':')[0] ?? '';
+  return LOOPBACK_NAMES.has(name.toLowerCase());
+}
+
+/** A socket a web page opened: browsers name the page's origin. Obsidian is no web page (its origin is not http or https). */
+function fromWebPage(request: IncomingMessage): boolean {
+  return /^https?:/i.test(request.headers.origin ?? '');
+}
+
+/** The visitor's address Cloudflare names on requests through the tunnel; `local` for anything else. */
+function sourceOf(request: IncomingMessage): string {
+  const named = request.headers['cf-connecting-ip'];
+  return typeof named === 'string' && named !== '' ? named : 'local';
+}
+
 function pathnameOf(request: IncomingMessage): string {
   return new URL(request.url ?? '/', 'http://relay').pathname;
 }
@@ -54,6 +81,8 @@ export async function startRelay(options: RelayOptions): Promise<RunningRelay> {
   const publicSockets = new WebSocketServer({ noServer: true, perMessageDeflate: false, maxPayload: 64 * 1024 });
   const idle = new IdleStop(options.idleStopMs, options.onIdle);
   const openSockets = (): number => gmSockets.clients.size + publicSockets.clients.size;
+  /** Open public sockets by visitor address. */
+  const publicSources = new Map<string, number>();
 
   const servers: Server[] = [];
   const gmServer = createServer((request, response) => handleGm(request, response));
@@ -63,6 +92,7 @@ export async function startRelay(options: RelayOptions): Promise<RunningRelay> {
   const account = createAccount(options.dataDir, `http://127.0.0.1:${gmOriginPort}`, options.playerOrigin);
 
   function handleGm(request: IncomingMessage, response: ServerResponse): void {
+    if (!addressedToLoopback(request)) return sendJson(response, 421, { error: 'wrong-host' });
     const pathname = pathnameOf(request);
     if (account.handle(request, response, pathname)) return;
     if (request.method === 'POST' && pathname === '/api/tables') {
@@ -76,7 +106,7 @@ export async function startRelay(options: RelayOptions): Promise<RunningRelay> {
     const pathname = pathnameOf(request);
     if (pathname === '/health') return sendText(response, 200, 'ok');
     if (request.method !== 'GET' && request.method !== 'HEAD') return sendJson(response, 405, { error: 'method-not-allowed' });
-    void servePlayerPage(response, pathname);
+    void servePlayerPage(response, pathname, request.headers.host);
   }
 
   function upgrade(side: Side, request: IncomingMessage, stream: Duplex, head: Buffer): void {
@@ -85,11 +115,31 @@ export async function startRelay(options: RelayOptions): Promise<RunningRelay> {
       stream.end('HTTP/1.1 404 Not Found\r\nConnection: close\r\n\r\n');
       return;
     }
+    if (side === 'gm' && (!addressedToLoopback(request) || fromWebPage(request))) {
+      stream.end('HTTP/1.1 403 Forbidden\r\nConnection: close\r\n\r\n');
+      return;
+    }
+    const source = side === 'gm' ? 'local' : sourceOf(request);
+    if (side === 'public') {
+      const fromSource = publicSources.get(source) ?? 0;
+      if (publicSockets.clients.size >= MAX_PUBLIC_SOCKETS || fromSource >= MAX_SOCKETS_PER_SOURCE) {
+        stream.end('HTTP/1.1 429 Too Many Requests\r\nConnection: close\r\n\r\n');
+        return;
+      }
+    }
     const sockets = side === 'gm' ? gmSockets : publicSockets;
     sockets.handleUpgrade(request, stream, head, (socket) => {
-      const link = new Link(socket, side === 'gm' ? MAX_GM_FRAME : MAX_PLAYER_FRAME);
+      const link = new Link(socket, side === 'gm' ? MAX_GM_FRAME : MAX_PLAYER_FRAME, source);
+      if (side === 'public') publicSources.set(source, (publicSources.get(source) ?? 0) + 1);
       idle.update(openSockets());
-      socket.on('close', () => idle.update(openSockets()));
+      socket.on('close', () => {
+        if (side === 'public') {
+          const left = (publicSources.get(source) ?? 1) - 1;
+          if (left <= 0) publicSources.delete(source);
+          else publicSources.set(source, left);
+        }
+        idle.update(openSockets());
+      });
       tables.join(link, code, side);
     });
   }

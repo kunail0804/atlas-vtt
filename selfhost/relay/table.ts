@@ -163,7 +163,7 @@ export class Table {
     if (this.gate.asksTheGm()) {
       // A waiting newcomer only sends keep-alives until the GM answers.
       link.onText(() => closeSocket(link.socket, CLOSE.protocol, 'waiting'));
-      this.gate.knock(link.socket, hello.name, hello.waits === true);
+      this.gate.knock(link.socket, hello.name, hello.waits === true, link.source);
       this.linksByKnockSocket.set(link.socket, link);
       return;
     }

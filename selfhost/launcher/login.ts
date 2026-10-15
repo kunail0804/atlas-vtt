@@ -13,6 +13,7 @@ interface DeviceLogin {
 export async function login(): Promise<void> {
   const device = await api<DeviceLogin>('POST', '/auth/device', undefined, { session: false });
   console.log('\nConnexion avec Discord.');
+  console.log(`Ton code : ${device.user_code}  (la page qui s'ouvre doit afficher le même ; sinon, ferme-la)`);
   const opened = await openBrowser(device.login_url);
   console.log(opened
     ? 'Une page s\'est ouverte dans ton navigateur : autorise Atlas sur Discord, puis reviens ici.'

@@ -1,5 +1,5 @@
 import { decide, isAdmin, listAccounts } from './admin.ts';
-import { finishLogin, logout, me, openLogin, pollDeviceLogin, sessionAccount, startDeviceLogin } from './auth.ts';
+import { finishLogin, goToDiscord, logout, me, openLogin, pollDeviceLogin, sessionAccount, startDeviceLogin } from './auth.ts';
 import { createCampaign, deleteCampaign, listCampaigns, startCampaign } from './campaigns.ts';
 import type { Context } from './context.ts';
 import { failure } from './http.ts';
@@ -13,9 +13,10 @@ export async function handle(context: Context, request: Request): Promise<Respon
   const { pathname } = url;
   const method = request.method;
 
-  if (method === 'POST' && pathname === '/auth/device') return startDeviceLogin(context);
+  if (method === 'POST' && pathname === '/auth/device') return startDeviceLogin(context, request);
   if (method === 'GET' && pathname === '/login') return openLogin(context, url);
-  if (method === 'GET' && pathname === '/auth/discord/callback') return finishLogin(context, url);
+  if (method === 'GET' && pathname === '/login/discord') return goToDiscord(context, request, url);
+  if (method === 'GET' && pathname === '/auth/discord/callback') return finishLogin(context, request, url);
   if (method === 'POST' && pathname === '/auth/device/token') return pollDeviceLogin(context, request);
 
   const session = await sessionAccount(context, request);

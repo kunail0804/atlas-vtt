@@ -30,26 +30,46 @@ function fileForPath(pathname: string): string {
   return requested.startsWith(PLAYER_DIST + path.sep) ? requested : INDEX_FILE;
 }
 
-async function sendFile(response: ServerResponse, file: string): Promise<void> {
+/**
+ * The page loads only its own files, talks only to this relay, and may not be framed. Workers come
+ * from blobs (PixiJS builds some), images from blobs (assets arrive over the socket).
+ */
+function pagePolicy(host: string | undefined): string {
+  // The Host header is the client's word: only a plain host name with a port may enter the policy.
+  const plain = host !== undefined && /^[a-z0-9.-]+(:\d{1,5})?$/i.test(host);
+  const socket = plain ? ` wss://${host} ws://${host}` : '';
+  return [
+    "default-src 'self'", "script-src 'self'", "style-src 'self' 'unsafe-inline'", "img-src 'self' data: blob:",
+    "font-src 'self' data:", `connect-src 'self'${socket}`, "worker-src 'self' blob:", "object-src 'none'",
+    "base-uri 'none'", "form-action 'none'", "frame-ancestors 'none'",
+  ].join('; ');
+}
+
+async function sendFile(response: ServerResponse, file: string, host: string | undefined): Promise<void> {
   const bytes = await readFile(file);
   const type = CONTENT_TYPES[path.extname(file)] ?? 'application/octet-stream';
   // Built assets carry a content hash in their name, so they never change under the same URL.
   const cache = file.includes(`${path.sep}assets${path.sep}`) ? 'public, max-age=31536000, immutable' : 'no-cache';
-  response.writeHead(200, { 'content-type': type, 'content-length': bytes.length, 'cache-control': cache });
+  response.writeHead(200, {
+    'content-type': type, 'content-length': bytes.length, 'cache-control': cache,
+    'content-security-policy': pagePolicy(host), 'x-content-type-options': 'nosniff', 'x-frame-options': 'DENY',
+    // The table code is in the link's hash, which browsers never send; this keeps the path to itself too.
+    'referrer-policy': 'no-referrer',
+  });
   response.end(bytes);
 }
 
 /** Serves the built player page (`npm run player:build`); every unknown path gets index.html. */
-export async function servePlayerPage(response: ServerResponse, pathname: string): Promise<void> {
+export async function servePlayerPage(response: ServerResponse, pathname: string, host?: string): Promise<void> {
   const file = fileForPath(pathname);
   try {
-    await sendFile(response, file);
+    await sendFile(response, file, host);
     return;
   } catch {
     // Not a file of the build: the page itself answers below.
   }
   try {
-    await sendFile(response, INDEX_FILE);
+    await sendFile(response, INDEX_FILE, host);
   } catch {
     sendText(response, 503, 'The player page is not built. Run: npm run player:build');
   }

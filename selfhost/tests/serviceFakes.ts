@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import type { CloudflareApi } from '../service/src/cloudflare.ts';
@@ -9,7 +9,8 @@ import type { DiscordApi, DiscordUser } from '../service/src/discord.ts';
 /** D1's shape over Node's SQLite, with the service's own migration applied: the same SQL on the same engine. */
 export function sqliteDatabase(): Database {
   const db = new DatabaseSync(':memory:');
-  db.exec(readFileSync(path.join(import.meta.dirname, '..', 'service', 'migrations', '0001_init.sql'), 'utf8'));
+  const migrations = path.join(import.meta.dirname, '..', 'service', 'migrations');
+  for (const file of readdirSync(migrations).filter((name) => name.endsWith('.sql')).sort()) db.exec(readFileSync(path.join(migrations, file), 'utf8'));
   return {
     prepare(sql: string): Statement {
       const make = (values: (string | number | null)[]): Statement => ({
@@ -84,6 +85,9 @@ export interface TestService {
   readonly cloudflare: FakeCloudflare;
   readonly discord: FakeDiscord;
   clock: number;
+  /** What the rate limit answers; the keys it was asked for are recorded. */
+  allowLogins: boolean;
+  readonly limited: string[];
 }
 
 export function testService(adminId = 'admin-id'): TestService {
@@ -91,6 +95,8 @@ export function testService(adminId = 'admin-id'): TestService {
     cloudflare: new FakeCloudflare(),
     discord: new FakeDiscord(),
     clock: Date.UTC(2026, 9, 15),
+    allowLogins: true,
+    limited: [],
     context: undefined as unknown as Context,
   };
   Object.assign(service, {
@@ -102,6 +108,10 @@ export function testService(adminId = 'admin-id'): TestService {
       publicOrigin: 'https://campaigns.kunlab.cc',
       campaignDomain: 'kunlab.cc',
       adminId,
+      allow: async (_bucket, key) => {
+        service.limited.push(key);
+        return service.allowLogins;
+      },
     } satisfies Context,
   });
   return service;
