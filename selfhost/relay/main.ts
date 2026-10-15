@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { GM_PORT, LOOPBACK, PUBLIC_PORT } from './config.ts';
 import { startRelay } from './relay.ts';
+import { startTunnel } from './tunnel.ts';
 
 // Settings come from the environment, which the launcher sets for the container.
 // Without them the relay runs for development: loopback only, data in selfhost/.local, no idle stop.
@@ -20,8 +21,26 @@ const relay = await startRelay({
   idleStopMs: idleMinutes === null ? null : idleMinutes * 60_000,
   onIdle: () => {
     console.log(`nobody connected for ${idleMinutes} minutes: stopping`);
-    process.exit(0);
+    stop(0);
   },
 });
-console.log(`GM side      http://127.0.0.1:${relay.gmPort}  (loopback only)`);
-console.log(`Public side  http://127.0.0.1:${relay.publicPort}  (forwarded by the tunnel)`);
+
+// In the container the relay starts the campaign's tunnel itself: one stops, both stop, so an idle
+// stop also closes the public address, and a tunnel that dies does not leave a relay nobody reaches.
+const tunnelToken = env.TUNNEL_TOKEN;
+delete process.env.TUNNEL_TOKEN;
+const tunnel = tunnelToken === undefined || tunnelToken === '' ? null : startTunnel(tunnelToken, (code) => {
+  console.error(`the tunnel stopped (${code ?? 'did not start'}): stopping`);
+  stop(1);
+});
+
+function stop(code: number): void {
+  tunnel?.kill('SIGTERM');
+  process.exit(code);
+}
+process.on('SIGTERM', () => stop(0));
+process.on('SIGINT', () => stop(0));
+const host = env.RELAY_HOST ?? LOOPBACK;
+console.log(`GM side      http://${host}:${relay.gmPort}`);
+console.log(`Public side  http://${host}:${relay.publicPort}  (forwarded by the tunnel)`);
+console.log(`Campaign     ${env.PLAYER_ORIGIN ?? 'https://vtt.kunlab.cc'}`);

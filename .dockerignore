@@ -1,0 +1,10 @@
+# The image is built from the repository root (docker build -f selfhost/Dockerfile .).
+.git
+**/node_modules
+dist
+selfhost/player/dist
+selfhost/.local
+test-vault
+networking-test-vault
+logs
+release

@@ -78,6 +78,28 @@ plugins: it replaces this build with the official one, which talks to `atlas-vtt
    palette, sign in from the online control, and start a table. The sign-in completes at
    once: the relay answers it on loopback.
 
+## Build the campaign image
+
+The image holds the relay, the built player page, the plugin build the launcher copies into a
+vault, and `cloudflared` 2026.10.0 (checked against its published SHA-256). Build it from the
+repository root:
+
+```sh
+docker build -f selfhost/Dockerfile -t kunail0804/atlas-relay:dev .
+```
+
+The launcher runs it like this, one container per campaign:
+
+```sh
+docker run --rm -p 127.0.0.1:8787:8787 -v atlas-<campaign>:/data \
+  -e PLAYER_ORIGIN=https://<campaign>-vtt.kunlab.cc -e TUNNEL_TOKEN=<token> kunail0804/atlas-relay
+```
+
+Only the GM side (8787) is published, on the host's loopback. `cloudflared` reaches the public side
+(8788) inside the container. The relay stops after `IDLE_STOP_MINUTES` (5 in the image) with no
+socket open, and when the tunnel stops; `--rm` then deletes the container and the token with it.
+Tables live in the `atlas-<campaign>` volume.
+
 ## Expose the public side
 
 The tunnel forwards `vtt.kunlab.cc` to the public side, port 8788, and nothing else. The GM
