@@ -13,5 +13,5 @@ CAMPAIGN_DOMAIN = "kunlab.cc"
 [[d1_databases]]
 binding = "DB"
 database_name = "atlas-campaigns"
-database_id = "SET-BY-SETUP"
+database_id = "a5a33617-106c-4f13-a25c-36758ca01968"
 migrations_dir = "migrations"
