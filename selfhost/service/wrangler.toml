@@ -1,0 +1,17 @@
+# The accounts and campaigns service. Personal values (account, zone, Discord ids and secrets) are
+# Worker secrets, set by selfhost/service/setup.sh from ~/.config/atlas-vtt-admin/secrets.env.
+name = "atlas-campaigns"
+main = "src/index.ts"
+compatibility_date = "2026-10-01"
+workers_dev = false
+routes = [{ pattern = "campaigns.kunlab.cc", custom_domain = true }]
+
+[vars]
+PUBLIC_ORIGIN = "https://campaigns.kunlab.cc"
+CAMPAIGN_DOMAIN = "kunlab.cc"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "atlas-campaigns"
+database_id = "SET-BY-SETUP"
+migrations_dir = "migrations"

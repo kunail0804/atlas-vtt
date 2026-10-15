@@ -1,0 +1,14 @@
+{
+  "name": "atlas-campaigns",
+  "private": true,
+  "type": "module",
+  "description": "Accounts and campaigns service for the self-hosted Atlas VTT fork: a Cloudflare Worker with D1.",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261015.1",
+    "wrangler": "^4.151.0"
+  }
+}
