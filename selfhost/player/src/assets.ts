@@ -4,6 +4,8 @@ import type { GmMessage, PlayerMessage } from '../../../src/app/online/protocol/
 /** An image ready to draw: `width` × `height` is the size to draw it at (a scaled copy is drawn at its original's size). */
 export interface LoadedImage {
   readonly bitmap: ImageBitmap;
+  /** The same image as an object URL, for elements (`<img>`): the page's policy allows blob: images. */
+  readonly url: string;
   readonly width: number;
   readonly height: number;
 }
@@ -125,9 +127,11 @@ export class AssetLoader {
     }
     if ((await sha256Hex(bytes)) !== hash) return this.fail(hash, download, new Error('The image arrived damaged.'));
     try {
-      const bitmap = await createImageBitmap(new Blob([bytes], { type: download.mime }));
+      const blob = new Blob([bytes], { type: download.mime });
+      const bitmap = await createImageBitmap(blob);
       const size = download.drawSize ?? { width: bitmap.width, height: bitmap.height };
-      for (const waiter of download.waiters) waiter.resolve({ bitmap, width: size.width, height: size.height });
+      const url = URL.createObjectURL(blob);
+      for (const waiter of download.waiters) waiter.resolve({ bitmap, url, width: size.width, height: size.height });
     } catch {
       this.fail(hash, download, new Error('The image could not be decoded.'));
     }

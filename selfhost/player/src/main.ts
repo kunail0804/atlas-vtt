@@ -11,6 +11,7 @@ import { installBrowserDomHost } from './domHost.ts';
 import { GameInbox } from './inbox.ts';
 import { LogPanel } from './logPanel.ts';
 import { MarksView } from './marks.ts';
+import { ImageViewer } from './shownImage.ts';
 import { SceneView, type SceneNotice } from './sceneView.ts';
 import { createStage } from './stage.ts';
 import { TokenLayer } from './tokenLayer.ts';
@@ -61,7 +62,8 @@ async function main(): Promise<void> {
   scene.onSceneChange = () => marks.clear();
   const logHost = document.createElement('div');
   app.append(logHost);
-  const log = new LogPanel(logHost, send, () => scene.sceneId);
+  const viewer = new ImageViewer(app, assets);
+  const log = new LogPanel(logHost, send, () => scene.sceneId, assets, viewer);
   const chatButton = document.createElement('button');
   // The plugin's panel closes on a press outside it, except on the host's button for it (LOG_TOGGLE).
   chatButton.className = 'chat-button atlas-online-log-button';
@@ -72,6 +74,7 @@ async function main(): Promise<void> {
     if (assets.receive(message) || log.receive(message)) return;
     if (message.t === 'marks') return marks.receive(message);
     if (message.t === 'rules') return marks.rules(message);
+    if (message.t === 'shown-image') return viewer.fromGm(message);
     scene.receive(message);
   }, (sceneId, of) => send({ t: 'resync', scene: sceneId, of }));
 

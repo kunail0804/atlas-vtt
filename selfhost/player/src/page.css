@@ -57,3 +57,7 @@ html, body, #app { margin: 0; height: 100%; background: #101114; color: var(--te
 /* The marks overlay over the map (the plugin's MarkOverlay), as the GM's dock styles it: laid over the
    canvas, never in the way of a press. */
 .atlas-online-marks { position: absolute; top: 0; left: 0; pointer-events: none; }
+
+.viewer { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; background: rgba(0, 0, 0, 0.82); }
+.viewer-image { max-width: 94vw; max-height: 88vh; width: auto; height: auto; object-fit: contain; border-radius: 8px; }
+.viewer-close { position: fixed; top: 16px; right: 16px; padding: 10px 16px; border: 0; border-radius: 999px; background: var(--background-secondary); color: var(--text-normal); font-size: 15px; cursor: pointer; }

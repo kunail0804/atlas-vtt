@@ -153,5 +153,24 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player page in
     await page.mouse.up();
     // Back to moving: the own token drags again.
     await page.keyboard.press('Escape');
+
+    // An image the GM shows: fetched by hash, shown over the map, closed by the player for good.
+    const pictureBytes = png(200, 100, () => [30, 90, 200]);
+    const pictureHash = await sha256Hex(pictureBytes as Uint8Array<ArrayBuffer>);
+    const asked = gm.messages.length;
+    const showing = (id: string): GmMessage => ({ t: 'shown-image', shown: { id, image: { hash: pictureHash, size: pictureBytes.length, mime: 'image/png' }, width: 200, height: 100 } });
+    send(showing('c'.repeat(24)), player);
+    await until(() => gm.messages.slice(asked).some((m) => (m.body as { t?: string; hash?: string }).hash === pictureHash), 'image requested', 5_000);
+    for (const chunk of assetChunks(pictureHash, pictureBytes)) send(chunk, player);
+    await page.waitForFunction(() => (document.querySelector('.viewer-image') as HTMLImageElement | null)?.naturalWidth === 200, null, { timeout: 5_000 });
+    await page.click('.viewer-close');
+    expect(await page.locator('.viewer').count()).toBe(0);
+    send(showing('c'.repeat(24)), player);
+    await page.waitForTimeout(300);
+    expect(await page.locator('.viewer').count()).toBe(0);
+    send(showing('d'.repeat(24)), player);
+    await page.waitForSelector('.viewer');
+    send({ t: 'shown-image', shown: null }, player);
+    await page.waitForSelector('.viewer', { state: 'detached', timeout: 5_000 });
   });
 });
