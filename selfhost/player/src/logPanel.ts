@@ -55,6 +55,12 @@ export class LogPanel {
     this.render();
   }
 
+  /** Opens the log (a found pin's note comes there). */
+  show(): void {
+    if (this.open) return;
+    this.toggle();
+  }
+
   toggle(): void {
     this.open = !this.open;
     this.state.setOpen(this.open);

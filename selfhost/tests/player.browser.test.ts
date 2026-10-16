@@ -187,5 +187,27 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player page in
     expect(await page.locator('.initiative-side[data-turn="true"]').textContent()).toBe('Joueurs');
     send({ t: 'initiative', scene: 's1', list: null } as GmMessage, player);
     await page.waitForSelector('.initiative', { state: 'hidden' });
+
+    // A drawing with the plugin's own layer: a thick red stroke across the green half.
+    send({ t: 'annotations', scene: 's1', drawings: [{ type: 'pen', points: [60, 560, 440, 560], colour: '#ff0000', width: 12, opacity: 1 }], texts: [{ x: 300, y: 450, text: 'Taverne', fontSize: 24, fontFamily: 'sans-serif', colour: '#ffffff', background: null, padding: 8, radius: 0, opacity: 1, align: 'center', bold: true, italic: false, rotation: 0, scale: 1 }] } as GmMessage, player);
+    await page.waitForTimeout(400);
+    const drawn = await page.screenshot();
+    const stroke = await page.evaluate(async ({ data, px, py }) => {
+      const image = new Image();
+      image.src = `data:image/png;base64,${data}`;
+      await image.decode();
+      const canvas = new OffscreenCanvas(image.width, image.height);
+      const context = canvas.getContext('2d');
+      context?.drawImage(image, 0, 0);
+      return [...(context?.getImageData(Math.round(px), Math.round(py), 1, 1).data ?? [])];
+    }, { data: drawn.toString('base64'), px: screen(420, 560).x, py: screen(420, 560).y });
+    expect(stroke.slice(0, 3)).toEqual([255, 0, 0]);
+
+    // A readable pin: opening it finds it.
+    const pinId = 'e1e2e3e4e5e6e7e8e9e0eaeb';
+    send({ t: 'pins', scene: 's1', pins: [{ id: pinId, x: 420, y: 100, icon: 'location', found: null }] } as GmMessage, player);
+    await page.waitForTimeout(300);
+    await page.mouse.click(screen(420, 100).x, screen(420, 100).y);
+    await until(() => sentOf('pin-found').some((body) => body.pin === pinId), 'pin found sent', 5_000);
   }, 60_000);
 });

@@ -8,7 +8,11 @@ export interface Stage {
   /** The map image; the grid places itself just above it. */
   readonly map: Container;
   readonly tokens: Container;
+  /** Drawings and texts, under the fog as in Atlas's players' frame. */
+  readonly annotations: Container;
   readonly fog: Container;
+  /** Readable pins: only those where players see the map are sent, so they lie above the fog. */
+  readonly pins: Container;
 }
 
 export async function createStage(host: HTMLElement): Promise<Stage> {
@@ -21,15 +25,18 @@ export async function createStage(host: HTMLElement): Promise<Stage> {
   app.stage.addChild(viewport);
   const map = new Container();
   const tokens = new Container();
+  const annotations = new Container();
   const fog = new Container();
+  const pins = new Container();
   // Inside the viewport every child is hit-tested as if it were interactive (Pixi v8 passes the
   // viewport's mode down), so the fog, which covers the map above the tokens, would take every
   // press. The map and the fog take none; panning is the viewport's own.
   map.eventMode = 'none';
+  annotations.eventMode = 'none';
   fog.eventMode = 'none';
-  viewport.addChild(map, tokens, fog);
+  viewport.addChild(map, tokens, annotations, fog, pins);
   app.renderer.on('resize', (width: number, height: number) => viewport.resize(width, height));
-  return { app, viewport, map, tokens, fog };
+  return { app, viewport, map, tokens, annotations, fog, pins };
 }
 
 /** Frames a world rectangle in the screen, leaving a margin. */
