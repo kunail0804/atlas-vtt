@@ -86,6 +86,23 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('dynamic lighting o
     expect(brightness(await pixel(800, 300))).toBeLessThan(20);
     expect(brightness(await pixel(530, 300))).toBeLessThan(20);
 
+    // A door the players see gets its badge; a token they only sense, behind the wall, its outline.
+    send({ t: 'doors', scene: 'lit', doors: [{ p: [500, 250, 500, 350], open: false }] } as GmMessage);
+    send({ t: 'sensed', scene: 'lit', tokens: [{ x: 800, y: 300, size: 70 }] } as GmMessage);
+    await page.waitForTimeout(600);
+    // The badge's white rim and glyph: the brightest of a line of samples across it.
+    const across: number[] = [];
+    for (let dy = -15; dy <= 15; dy += 1) across.push(brightness(await pixel(500 + 4, 300 + dy)));
+    expect(Math.max(...across)).toBeGreaterThan(150);
+    const ring: number[] = [];
+    for (let step = 0; step < 16; step += 1) {
+      const angle = (step / 16) * Math.PI * 2;
+      ring.push(brightness(await pixel(800 + Math.cos(angle) * 34, 300 + Math.sin(angle) * 34)));
+    }
+    expect(Math.max(...ring)).toBeGreaterThan(150);
+    // The map behind the wall is still dark beside the outline.
+    expect(brightness(await pixel(900, 150))).toBeLessThan(20);
+
     // Full daylight, every vision token hidden: the GM says blind, and nothing shows.
     send(sight({ lighting: { enabled: true, ambient: 1 }, tokens: [], blind: true }));
     await page.waitForTimeout(1_500);

@@ -9,6 +9,7 @@ import { MapLayer } from './mapLayer.ts';
 import { frame, type Stage } from './stage.ts';
 import type { TokenLayer } from './tokenLayer.ts';
 import { PlayerLighting } from './playerLighting.ts';
+import { LitMarks } from './litMarks.ts';
 
 /** The map is asked for at most this large; a larger one comes as a scaled copy drawn at its own size. */
 const MAP_SIDE = 8192;
@@ -35,6 +36,7 @@ export class SceneView {
   private lastFog: SharedFog | undefined;
   private lastGrid: SharedGrid | null = null;
   private lighting: PlayerLighting | null = null;
+  private readonly litMarks: LitMarks;
 
   constructor(stage: Stage, assets: AssetLoader, tokens: TokenLayer, notice: (notice: SceneNotice) => void) {
     this.stage = stage;
@@ -42,6 +44,7 @@ export class SceneView {
     this.tokens = tokens;
     this.map = new MapLayer(stage.map);
     this.fog = new FogLayer(stage.fog);
+    this.litMarks = new LitMarks(stage.viewport);
     this.notice = notice;
     notice('no-scene');
   }
@@ -80,6 +83,12 @@ export class SceneView {
       case 'sight':
         if (message.scene === this.sceneId) this.lighting?.setSight(message);
         return;
+      case 'doors':
+        if (message.scene === this.sceneId) this.litMarks.showDoors(message.doors);
+        return;
+      case 'sensed':
+        if (message.scene === this.sceneId) this.litMarks.showSensed(message.tokens);
+        return;
       case 'explored':
         if (message.scene === this.sceneId) this.showExplored(message.mask);
         return;
@@ -98,6 +107,7 @@ export class SceneView {
     this.lastFog = undefined;
     this.lighting?.destroy();
     this.lighting = null;
+    this.litMarks.clear();
     // The curtain comes before anything of a lit scene: the map loads beneath it.
     if (scene?.lit === true) this.lighting = new PlayerLighting(this.stage, `scene-${scene.id}`, () => this.notice('lit-failed'));
     this.onSceneChange();

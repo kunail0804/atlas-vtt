@@ -7,8 +7,8 @@ import type { SightRules } from '../../../src/app/vision/sightRules.ts';
 import { litScene } from './litScene.ts';
 import type { Stage } from './stage.ts';
 
-/** Above the lighting layer: what covers the map while the players' picture cannot be trusted. */
-const CURTAIN_Z = LIGHTING_Z_INDEX + 5;
+/** Above the lighting layer, its door badges and sensed outlines: what covers the map while the players' picture cannot be trusted. */
+const CURTAIN_Z = LIGHTING_Z_INDEX + 9;
 const CURTAIN_MARGIN = 100_000;
 
 function measurementOf(unitDistance: number): MeasurementSettings {
