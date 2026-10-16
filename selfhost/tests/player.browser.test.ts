@@ -172,5 +172,20 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player page in
     await page.waitForSelector('.viewer');
     send({ t: 'shown-image', shown: null }, player);
     await page.waitForSelector('.viewer', { state: 'detached', timeout: 5_000 });
-  });
+
+    // The initiative list: the GM's order, the turn marked, a name the player view hides shown as '?'.
+    const combatant = (name: string | null, initiative: number, turn: boolean, side: 'players' | 'opponents'): Record<string, unknown> => ({ initiative, name, turn, sitsOut: false, art: null, ring: null, side, hp: null });
+    const list = { isActive: true, round: 2, bySides: false, firstSide: 'players', activeSide: null, combatants: [combatant('Mira', 18, false, 'players'), combatant(null, 12, true, 'opponents'), combatant('Bran', 7, false, 'players')] };
+    send({ t: 'initiative', scene: 's1', list } as GmMessage, player);
+    await page.waitForSelector('.initiative:not([hidden])');
+    expect(await page.locator('.combatant-name').allTextContents()).toEqual(['Mira', '?', 'Bran']);
+    expect(await page.locator('.combatant[data-turn="true"] .combatant-number').textContent()).toBe('12');
+    expect(await page.locator('.initiative-title').textContent()).toContain('round 2');
+    send({ t: 'initiative', scene: 's1', list: { ...list, bySides: true, firstSide: 'opponents', activeSide: 'players' } } as GmMessage, player);
+    await page.waitForFunction(() => document.querySelectorAll('.initiative-side').length === 2);
+    expect(await page.locator('.initiative-side').allTextContents()).toEqual(['Adversaires', 'Joueurs']);
+    expect(await page.locator('.initiative-side[data-turn="true"]').textContent()).toBe('Joueurs');
+    send({ t: 'initiative', scene: 's1', list: null } as GmMessage, player);
+    await page.waitForSelector('.initiative', { state: 'hidden' });
+  }, 60_000);
 });

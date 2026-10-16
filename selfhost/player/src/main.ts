@@ -12,6 +12,7 @@ import { GameInbox } from './inbox.ts';
 import { LogPanel } from './logPanel.ts';
 import { MarksView } from './marks.ts';
 import { ImageViewer } from './shownImage.ts';
+import { InitiativePanel } from './initiative.ts';
 import { SceneView, type SceneNotice } from './sceneView.ts';
 import { createStage } from './stage.ts';
 import { TokenLayer } from './tokenLayer.ts';
@@ -59,10 +60,14 @@ async function main(): Promise<void> {
   });
   let playerId: string | null = null;
   const marks = new MarksView(stage.viewport, stage.app.canvas, send, () => playerId, () => scene.sceneId);
-  scene.onSceneChange = () => marks.clear();
+  scene.onSceneChange = () => {
+    marks.clear();
+    initiative.show(null);
+  };
   const logHost = document.createElement('div');
   app.append(logHost);
   const viewer = new ImageViewer(app, assets);
+  const initiative = new InitiativePanel(app, assets);
   const log = new LogPanel(logHost, send, () => scene.sceneId, assets, viewer);
   const chatButton = document.createElement('button');
   // The plugin's panel closes on a press outside it, except on the host's button for it (LOG_TOGGLE).
@@ -75,6 +80,7 @@ async function main(): Promise<void> {
     if (message.t === 'marks') return marks.receive(message);
     if (message.t === 'rules') return marks.rules(message);
     if (message.t === 'shown-image') return viewer.fromGm(message);
+    if (message.t === 'initiative') return message.scene === scene.sceneId ? initiative.show(message.list) : undefined;
     scene.receive(message);
   }, (sceneId, of) => send({ t: 'resync', scene: sceneId, of }));
 
