@@ -24,6 +24,7 @@ answers when a table is created (`CreatedTable.playerOrigin`). A join link is
 | `POST /auth/sign-out` | `relay/account.ts` | Done. Answers 200. |
 | `GET /api/me` | `relay/account.ts` | Done. 401 without the GM's token, else the local account with `maxPlayers: MAX_PLAYERS`. |
 | `GET /account` | `relay/account.ts` | Done. A page that says the sign-in worked. |
+| `POST /api/feedback`, `POST /api/reports` | `relay/diagnostics.ts` | Done. Keeps the plugin's feedback and error reports in `<DATA_DIR>/feedback.jsonl` and `reports.jsonl`, up to 1 MB each. |
 | `POST /api/tables` | `relay/relay.ts`, `Tables.create` | Done. Ends the previous table with `superseded`. |
 | Socket `/api/tables/<code>/socket` | `relay/tables.ts`, `relay/table.ts` | Done. Takes only the GM's hello. |
 
@@ -104,11 +105,12 @@ message's `body`.
 | Widgets | `widgets.ts` | Counters, clocks and timers; a running timer counts on its own |
 | Dice | `dice.tsx` | Rolls thrown in 3D with the plugin's `DiceRollStack` |
 | Chat and dice log | `logPanel.ts` | The plugin's `TableLogPanel` with `LogState` |
-| Book | `book.ts`, `bookPages.ts` | Character with editable resources (`book-resource`), items, free notes (`book-note`, `book-note-delete`), quests with their whole text, purse (`book-purse`), world map. All text is set with `textContent` |
+| Book | `book.ts`, `book*.ts` | Character with editable resources, items, equipment slots (equip, hide default slots, add own ones), free notes, quests with their whole text and images, notes on a quest, purse, world map with the maps its entrances lead into and the player's own pins. The GM takes a write without answering, so the page applies it to its own copy with the plugin's `applyBookMessage` (on the message as the GM's parser cleans it); a refused write is answered with the whole book |
+| Found notes | `reader.ts`, `documentView.ts` | The note a found pin lets players read, opened from the log or the pin |
+| Notices | `notice.ts` | A new item, a refused roll, a roll without a scene, a book that is full |
+| Words | `text.ts` | Every text the page writes itself |
 
-Not done yet: pins on the world map (`book-pin`), equipment slots (`book-equip`, `book-slots`),
-notes written on a quest, the images a quest's text embeds, and the maps a world map's entrances
-lead to. The chat panel is in English: the plugin ships no French locale.
+The chat panel is in English: the plugin ships no French locale.
 
 On a screen under 640 px wide the widget bar sits above the tools instead of at the top.
 
@@ -120,7 +122,8 @@ page from a real relay, drive it in `/usr/bin/chromium`, and play the GM with th
 |---|---|
 | `tests/player.browser.test.ts` | Map pixels under and outside the fog, token bars, a drag, chat, marks, the shown image, initiative, annotations, pins, widgets, dice |
 | `tests/lighting.browser.test.ts` | Dark before sight arrives, lit and dark sides of a wall, doors, sensed tokens, explored memory, blindness, daylight |
-| `tests/book.browser.test.ts` | The book's pages, and what the player writes reaching the GM; markup in names stays text |
+| `tests/book.browser.test.ts` | Every page of the book, each write reaching the GM and showing without an answer, the world map's levels and pins, quest images, found notes, a refused roll; markup in names stays text |
+| `tests/diagnostics.test.ts` | Feedback and error reports kept in the data folder; malformed, too large, web-page and flooding requests refused |
 | `tests/phone.browser.test.ts` | At 390 × 844, every control on screen and apart; a touch drag moves the own token |
 
 ## What the player page can import

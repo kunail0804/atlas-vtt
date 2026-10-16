@@ -4,6 +4,7 @@ import type { Duplex } from 'node:stream';
 import { WebSocketServer } from 'ws';
 import { MAX_GM_FRAME, MAX_PLAYER_FRAME, TABLE_CODE_PATTERN } from '../../src/app/online/protocol/relay.ts';
 import { createAccount } from './account.ts';
+import { createDiagnostics } from './diagnostics.ts';
 import { IdleStop } from './idle.ts';
 import { Link } from './link.ts';
 import { sendJson, sendText } from './respond.ts';
@@ -90,11 +91,17 @@ export async function startRelay(options: RelayOptions): Promise<RunningRelay> {
   servers.push(gmServer, publicServer);
   const gmOriginPort = await listen(gmServer, options.gmPort, options.host);
   const account = createAccount(options.dataDir, `http://127.0.0.1:${gmOriginPort}`, options.playerOrigin);
+  const diagnostics = createDiagnostics(options.dataDir);
 
   function handleGm(request: IncomingMessage, response: ServerResponse): void {
     if (!addressedToLoopback(request)) return sendJson(response, 421, { error: 'wrong-host' });
     const pathname = pathnameOf(request);
     if (account.handle(request, response, pathname)) return;
+    if (diagnostics.owns(pathname)) {
+      // A web page may reach loopback by its address; only Obsidian, which is no web page, writes here.
+      if (fromWebPage(request)) return sendJson(response, 403, { error: 'web-page' });
+      return diagnostics.handle(request, response, pathname);
+    }
     if (request.method === 'POST' && pathname === '/api/tables') {
       if (!account.isHost(request)) return sendJson(response, 401, { error: 'signed-out' });
       return sendJson(response, 201, { ...tables.create(), playerOrigin: options.playerOrigin });

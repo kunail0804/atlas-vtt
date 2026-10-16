@@ -32,6 +32,24 @@ function sizeOf(parts: readonly string[]): Pick<QuestEmbed, 'width' | 'height'> 
   return { width: side(size?.[1]), height: side(size?.[2]) };
 }
 
+/** Every embed of a text with where it stands (`at` to `end`), in the order they stand. */
+function placedEmbeds(text: string): { readonly at: number; readonly end: number; readonly embed: QuestEmbed }[] {
+  const found: { readonly at: number; readonly end: number; readonly embed: QuestEmbed }[] = [];
+  const add = (at: number, end: number, target: string, parts: readonly string[]): void => {
+    const trimmed = target.trim();
+    if (trimmed !== '' && trimmed.length <= MAX_EMBED_TARGET) found.push({ at, end, embed: { target: trimmed, ...sizeOf(parts) } });
+  };
+  for (const match of text.matchAll(WIKI_EMBED)) {
+    const parts = (match[1] ?? '').split('|');
+    add(match.index, match.index + match[0].length, parts[0] ?? '', parts);
+  }
+  for (const match of text.matchAll(MARKDOWN_EMBED)) {
+    const written = match[2] ?? '';
+    add(match.index, match.index + match[0].length, written.startsWith('<') ? written.slice(1, -1) : written, (match[1] ?? '').split('|'));
+  }
+  return found.sort((a, b) => a.at - b.at);
+}
+
 /**
  * The image embeds of a quest's text, in the order they stand: Obsidian's `![[…]]` and Markdown's
  * `![…](…)`, each with its target as written (angle brackets taken off) and the size its last `|`
@@ -39,20 +57,24 @@ function sizeOf(parts: readonly string[]): Pick<QuestEmbed, 'width' | 'height'> 
  * embed whose target and size match one, and shows any other as text.
  */
 export function questEmbeds(text: string): QuestEmbed[] {
-  const found: { readonly at: number; readonly embed: QuestEmbed }[] = [];
-  const add = (at: number, target: string, parts: readonly string[]): void => {
-    const trimmed = target.trim();
-    if (trimmed !== '' && trimmed.length <= MAX_EMBED_TARGET) found.push({ at, embed: { target: trimmed, ...sizeOf(parts) } });
-  };
-  for (const match of text.matchAll(WIKI_EMBED)) {
-    const parts = (match[1] ?? '').split('|');
-    add(match.index, parts[0] ?? '', parts);
+  return placedEmbeds(text).map(({ embed }) => embed);
+}
+
+/** A piece of a quest's text: text as written, or an embed with what it was written as (`written`). */
+export type QuestTextPart = { readonly text: string } | { readonly embed: QuestEmbed; readonly written: string };
+
+/** A quest's text cut at its embeds, in order; an embed that overlaps the one before stays text. */
+export function questTextParts(text: string): QuestTextPart[] {
+  const parts: QuestTextPart[] = [];
+  let from = 0;
+  for (const { at, end, embed } of placedEmbeds(text)) {
+    if (at < from) continue;
+    if (at > from) parts.push({ text: text.slice(from, at) });
+    parts.push({ embed, written: text.slice(at, end) });
+    from = end;
   }
-  for (const match of text.matchAll(MARKDOWN_EMBED)) {
-    const written = match[2] ?? '';
-    add(match.index, written.startsWith('<') ? written.slice(1, -1) : written, (match[1] ?? '').split('|'));
-  }
-  return found.sort((a, b) => a.at - b.at).map(({ embed }) => embed);
+  if (from < text.length) parts.push({ text: text.slice(from) });
+  return parts;
 }
 
 const isTarget = (value: unknown): value is string => typeof value === 'string' && value.trim() === value && value !== '' && value.length <= MAX_EMBED_TARGET && !value.includes('\n');

@@ -123,6 +123,51 @@ html, body, #app { margin: 0; height: 100%; background: #101114; color: var(--te
 .book-map { width: 100%; height: auto; border-radius: 8px; }
 .book-placeholder { min-height: 64px; background: var(--background-secondary); }
 
+.book.book-wide { width: min(1100px, calc(100vw - 24px)); }
+.book-primary { background: var(--interactive-accent); color: var(--text-on-accent); }
+.book-muted { color: var(--text-muted); }
+.book-group { margin: 6px 0 0; font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); }
+.book-subtitle { margin: 10px 0 4px; font-size: 13px; color: var(--text-muted); }
+.book-rewards { margin: 0; padding-left: 18px; font-size: 14px; }
+.book-notes { display: flex; flex-direction: column; gap: 8px; }
+.book-notes .book-note { background: var(--background-primary); }
+.book-item-slot { margin: 0 0 4px; font-size: 12px; color: var(--interactive-accent); }
+.book-slots { display: flex; flex-direction: column; gap: 6px; }
+.book-slot { display: grid; grid-template-columns: 140px minmax(0, 1fr); align-items: center; gap: 8px; font-size: 14px; }
+.book-slot-settings { padding: 8px; border-radius: 10px; background: var(--background-secondary); }
+.book-slot-settings summary { cursor: pointer; font-size: 14px; }
+.book-slot-setting { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 4px 0; font-size: 14px; }
+.book-inline-form { display: flex; gap: 6px; margin-top: 6px; }
+.book-inline-form .book-input { flex: 1; min-width: 0; }
+.doc-text { white-space: pre-wrap; font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+.doc-image { display: block; max-width: 100%; height: auto; margin: 8px 0; border-radius: 8px; }
+.map-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.map-title { flex: 1; }
+.map-frame { position: relative; width: fit-content; max-width: 100%; margin: 0 auto; line-height: 0; border-radius: 8px; overflow: hidden; }
+.map-frame .book-map { display: block; width: auto; max-width: 100%; height: auto; max-height: calc(100vh - 300px); border-radius: 0; }
+.map-frame .book-map.book-placeholder { width: 100%; min-height: 240px; }
+.map-placing { cursor: crosshair; outline: 2px dashed var(--interactive-accent); }
+.map-marker { position: absolute; transform: translate(-50%, -50%); width: 30px; height: 30px; padding: 5px; display: grid; place-items: center; border: 2px solid #ffffff; border-radius: 50%; background: #3a3f4b; color: #ffffff; cursor: pointer; line-height: 1; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.6); }
+[data-pointer='coarse'] .map-marker { width: 38px; height: 38px; }
+.map-marker-glyph { width: 100%; height: 100%; }
+.map-marker-label { font-size: 13px; font-weight: 700; }
+.map-entrance { background: #6b78ff; }
+.map-quest { background: #d4a017; }
+.map-pin-treasure { background: #b8860b; }
+.map-pin-danger { background: #c0392b; }
+.map-pin-dungeon { background: #6c4f3d; }
+.map-pin-person { background: #2e86c1; }
+.map-pin-note { background: #5b6270; }
+.map-draft { background: var(--interactive-accent); }
+.map-chosen { outline: 3px solid var(--interactive-accent); outline-offset: 2px; }
+.map-card { display: flex; flex-direction: column; gap: 8px; padding: 10px; border-radius: 10px; background: var(--background-secondary); }
+.notice { position: fixed; left: 50%; bottom: 84px; transform: translateX(-50%); max-width: min(480px, calc(100vw - 32px)); padding: 10px 16px; border-radius: 12px; background: rgba(30, 31, 36, 0.96); border: 1px solid var(--background-modifier-border); font-size: 14px; z-index: 40; }
+.notice[hidden] { display: none; }
+.reader { position: fixed; inset: 0; z-index: 35; display: grid; place-items: center; padding: 16px; background: rgba(0, 0, 0, 0.7); }
+.reader-panel { position: relative; width: min(680px, 100%); max-height: calc(100vh - 32px); overflow-y: auto; padding: 20px; border-radius: 14px; background: var(--background-primary); border: 1px solid var(--background-modifier-border); }
+.reader-title { margin: 0 80px 12px 0; font-size: 20px; }
+.reader-close { position: absolute; top: 12px; right: 12px; padding: 6px 12px; border: 0; border-radius: 8px; background: var(--background-secondary); color: var(--text-normal); cursor: pointer; }
+
 /* A phone: the widgets leave the top to the initiative list and sit above the tools. */
 @media (max-width: 640px) {
   .widgets { top: auto; bottom: 76px; transform-origin: bottom center; }

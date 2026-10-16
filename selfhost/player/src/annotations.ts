@@ -42,9 +42,9 @@ export class AnnotationsView {
   private readonly pins: Container;
   private readonly send: (message: PlayerMessage) => void;
   private readonly scene: () => string | null;
-  private readonly opened: () => void;
+  private readonly opened: (found: string | null) => void;
 
-  constructor(annotations: Container, pins: Container, send: (message: PlayerMessage) => void, scene: () => string | null, opened: () => void) {
+  constructor(annotations: Container, pins: Container, send: (message: PlayerMessage) => void, scene: () => string | null, opened: (found: string | null) => void) {
     const drawingContainer = new Container();
     this.texts = new Container();
     annotations.addChild(drawingContainer, this.texts);
@@ -96,7 +96,7 @@ export class AnnotationsView {
       const scene = this.scene();
       if (scene === null) return;
       this.send({ t: 'pin-found', scene, pin: pin.id });
-      this.opened();
+      this.opened(pin.found);
     });
     return node;
   }

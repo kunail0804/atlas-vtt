@@ -17,6 +17,9 @@ import { AnnotationsView } from './annotations.ts';
 import { WidgetBar } from './widgets.ts';
 import { DiceView } from './dice.tsx';
 import { BookPanel } from './book.ts';
+import { Notice } from './notice.ts';
+import { Reader } from './reader.ts';
+import { TEXT } from './text.ts';
 import './dice.scss';
 import { SceneView, type SceneNotice } from './sceneView.ts';
 import { createStage } from './stage.ts';
@@ -77,9 +80,13 @@ async function main(): Promise<void> {
   const initiative = new InitiativePanel(app, assets);
   const widgets = new WidgetBar(app);
   let dice: DiceView | null = null;
-  const book = new BookPanel(app, assets, send);
-  const annotations = new AnnotationsView(stage.annotations, stage.pins, send, () => scene.sceneId, () => log.show());
-  const log = new LogPanel(logHost, send, () => scene.sceneId, assets, viewer);
+  const notices = new Notice(app);
+  const reader = new Reader(app, assets);
+  const book = new BookPanel(app, assets, send, (text) => notices.show(text));
+  const annotations = new AnnotationsView(stage.annotations, stage.pins, send, () => scene.sceneId, (found) => {
+    if (found === null || !log.openFound(found)) log.show();
+  });
+  const log = new LogPanel(logHost, send, () => scene.sceneId, assets, viewer, reader, () => notices.show(TEXT.rolls.noScene));
   dice = new DiceView(app, (who) => log.nameOf(who));
   const chatButton = document.createElement('button');
   // The plugin's panel closes on a press outside it, except on the host's button for it (LOG_TOGGLE).
@@ -89,6 +96,7 @@ async function main(): Promise<void> {
 
   const inbox = new GameInbox((message: GmMessage) => {
     if (message.t === 'roll') dice?.roll(message);
+    if (message.t === 'roll-refused') return notices.show(TEXT.rolls.refused[message.reason]);
     if (assets.receive(message) || log.receive(message)) return;
     if (message.t === 'marks') return marks.receive(message);
     if (message.t === 'rules') return marks.rules(message);

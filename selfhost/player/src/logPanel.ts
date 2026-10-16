@@ -2,6 +2,7 @@ import type { GmMessage, PlayerMessage } from '../../../src/app/online/protocol/
 import type { ImageEntry } from '../../../src/app/online/protocol/log.ts';
 import { LogState, mountLogSurface, type LogActions, type SpeakerOption } from '../../../src/app/online/tableLog/index.ts';
 import type { AssetLoader } from './assets.ts';
+import type { Reader } from './reader.ts';
 import type { ImageViewer } from './shownImage.ts';
 
 /** Images in the log are asked for at this size: they show as thumbnails there. */
@@ -24,14 +25,19 @@ export class LogPanel {
   private open = false;
   private readonly assets: AssetLoader;
   private readonly viewer: ImageViewer;
+  private readonly reader: Reader;
+  /** Tells the player a roll waits for a scene. */
+  private readonly noScene: () => void;
   /** Object URLs of the log's images, by hash, once they are here. */
   private readonly images = new Map<string, string>();
 
-  constructor(host: HTMLElement, send: (message: PlayerMessage) => void, scene: () => string | null, assets: AssetLoader, viewer: ImageViewer) {
+  constructor(host: HTMLElement, send: (message: PlayerMessage) => void, scene: () => string | null, assets: AssetLoader, viewer: ImageViewer, reader: Reader, noScene: () => void) {
     this.send = send;
     this.scene = scene;
     this.assets = assets;
     this.viewer = viewer;
+    this.reader = reader;
+    this.noScene = noScene;
     this.state = new LogState(() => this.self);
     this.surface = mountLogSurface(host);
     this.render();
@@ -62,6 +68,14 @@ export class LogPanel {
     return this.state.snapshot().people.find((person) => person.id === who)?.name ?? null;
   }
 
+  /** Opens the note a found pin let the players read, by its log entry; false while the log holds no such entry. */
+  openFound(id: string): boolean {
+    const entry = this.state.snapshot().entries.find((candidate) => candidate.id === id);
+    if (entry?.kind !== 'found') return false;
+    this.reader.open(entry);
+    return true;
+  }
+
   /** Opens the log (a found pin's note comes there). */
   show(): void {
     if (this.open) return;
@@ -78,7 +92,7 @@ export class LogPanel {
     say: (draft) => this.send({ t: 'chat', text: draft.text, ...(draft.reply === undefined ? {} : { reply: draft.reply }), ...(draft.style === undefined ? {} : { style: draft.style }), ...(draft.to === undefined ? {} : { to: draft.to }) }),
     roll: (draft) => {
       const scene = this.scene();
-      if (scene === null) return;
+      if (scene === null) return this.noScene();
       this.send({ t: 'roll', scene, formula: draft.formula, token: null, mode: draft.mode, ...(draft.flavor === undefined ? {} : { flavor: draft.flavor }), ...(draft.request === undefined ? {} : { request: draft.request }) });
     },
     edit: (id, text) => this.send({ t: 'chat-edit', id, text }),
@@ -103,7 +117,7 @@ export class LogPanel {
       state: this.state, actions: this.actions, self: this.self, moderator: false, canSend: this.canSend,
       offlineText: 'Le MJ n\'est pas connecté.', speakers, open: this.open,
       onOpen: () => this.toggle(), onClose: () => this.toggle(),
-      imageSrc: (entry) => this.imageSrc(entry), openImage: (entry) => this.viewer.open(entry),
+      imageSrc: (entry) => this.imageSrc(entry), openImage: (entry) => this.viewer.open(entry), openFound: (entry) => this.reader.open(entry),
     });
   }
 }

@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import {
-  MAX_ASSET_BYTES, MAX_EMBED_TARGET, MAX_QUEST_IMAGES, parseAsset, parseBookQuest, parseTextAsset, questEmbeds, readQuestText, TEXT_MIME_TYPE, type BookQuest,
+  MAX_ASSET_BYTES, MAX_EMBED_TARGET, MAX_QUEST_IMAGES, parseAsset, parseBookQuest, parseTextAsset, questEmbeds, questTextParts, readQuestText, TEXT_MIME_TYPE, type BookQuest,
 } from '../../../../src/app/online/protocol/index.ts';
 
 const HASH = 'b'.repeat(64);
@@ -56,5 +56,25 @@ describe('a quest\'s whole text and images as the page reads them', () => {
     const text = `Über den Fluss 🐸 ${'Wörter '.repeat(10_000)}`;
     expect(readQuestText(new TextEncoder().encode(`${text}\u0007\n\n\n\nEnd`))).toBe(`${text.trimEnd()}\n\nEnd`);
     expect(readQuestText(new Uint8Array([0xff, 0xfe, 0x41]))).toBeNull();
+  });
+});
+
+describe('questTextParts', () => {
+  it('cuts the text at its embeds and keeps every character', () => {
+    const text = 'Avant ![[carte.png|300]] milieu ![alt](<a b.png>) fin';
+    const parts = questTextParts(text);
+    expect(parts).toEqual([
+      { text: 'Avant ' },
+      { embed: { target: 'carte.png', width: 300, height: null }, written: '![[carte.png|300]]' },
+      { text: ' milieu ' },
+      { embed: { target: 'a b.png', width: null, height: null }, written: '![alt](<a b.png>)' },
+      { text: ' fin' },
+    ]);
+    expect(parts.map((part) => ('text' in part ? part.text : part.written)).join('')).toBe(text);
+  });
+
+  it('gives a text without embeds as one piece, and none for an empty text', () => {
+    expect(questTextParts('rien')).toEqual([{ text: 'rien' }]);
+    expect(questTextParts('')).toEqual([]);
   });
 });
