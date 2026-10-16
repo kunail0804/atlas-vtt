@@ -9,8 +9,9 @@ The relay is one Node process with two HTTP listeners. Both bind to `127.0.0.1`
 | Public | 8788 | Players, through the Cloudflare Tunnel | The player page, `/health`, players' sockets |
 
 The plugin's addresses are in `src/app/online/gm/servers.ts`: `RELAY_ORIGIN` and
-`ACCOUNTS_ORIGIN` name the GM side, `PLAYER_ORIGIN` names the public side. A join link is
-`PLAYER_ORIGIN/#<table code>` (`OnlineTable.link`).
+`ACCOUNTS_ORIGIN` name the GM side, on loopback. The public side is the `playerOrigin` the relay
+answers when a table is created (`CreatedTable.playerOrigin`). A join link is
+`<playerOrigin>/#<table code>` (`OnlineTable.link`).
 
 ## Routes
 
@@ -84,23 +85,43 @@ message's `body`.
 | Part | File | What it does |
 |---|---|---|
 | Join screen | `ui.ts` | Name and optional six-digit code, French messages for every close code |
+| Toolbar | `ui.ts` | Move, Laser, Measure; Escape goes back to Move |
 | Connection | `connection.ts` | Hello, keep-alive, reconnect with backoff, key kept in `localStorage` per table, wait token |
 | Inbox | `inbox.ts` | Puts `part` messages together, follows deltas with the plugin's `DeltaReader`, asks for a `resync` on a gap |
-| Assets | `assets.ts` | Asks by hash, takes chunks, checks SHA-256, continues a stalled download, takes scaled copies |
+| Assets | `assets.ts` | Asks by hash, takes chunks, checks SHA-256, continues a stalled download, takes scaled copies; quest texts are read with the plugin's `readQuestText` |
+| Stage | `stage.ts` | The layers in order: map, grid, tokens, annotations, fog, pins |
+| Scene | `sceneView.ts` | Routes every scene message to its layer |
 | Map | `mapLayer.ts` | Draws the map at its own size; serves as the grid's `MapImageView` |
 | Grid | `sceneView.ts` | The plugin's `GridSystem` |
-| Tokens | `tokenLayer.ts` | Draws tokens, drags the player's own (`drag`, `move`, `drag-cancel`), follows `live` and `move-refused` |
+| Tokens | `tokenLayer.ts`, `tokenUI.ts` | Draws tokens with their bars, conditions and the downed mark; drags the player's own (`drag`, `move`, `drag-cancel`), by mouse or touch; follows `live` and `move-refused` |
 | Fog | `fogLayer.ts` | The plugin's `FogCanvasCompositor`, solid for players |
-| Chat and dice | `logPanel.ts` | The plugin's `TableLogPanel` with `LogState` |
+| Dynamic lighting | `litScene.ts`, `playerLighting.ts`, `litMarks.ts` | The plugin's `LightingRenderer` in the players' view; door badges, sensed outlines, explored memory. The map stays covered until sight is current |
+| Marks | `marks.ts` | Lasers, measures and cursors with the plugin's overlays; the player's own laser and ruler |
+| Annotations | `annotations.ts` | Drawings and texts the GM shares |
+| Pins | `annotations.ts` | Pins with the plugin's icons; opening a readable pin sends `pin-found` |
+| Shown image | `shownImage.ts` | The image the GM shows, full screen |
+| Initiative | `initiative.ts` | The GM's order, the turn marked, hidden names as `?` |
+| Widgets | `widgets.ts` | Counters, clocks and timers; a running timer counts on its own |
+| Dice | `dice.tsx` | Rolls thrown in 3D with the plugin's `DiceRollStack` |
+| Chat and dice log | `logPanel.ts` | The plugin's `TableLogPanel` with `LogState` |
+| Book | `book.ts`, `bookPages.ts` | Character with editable resources (`book-resource`), items, free notes (`book-note`, `book-note-delete`), quests with their whole text, purse (`book-purse`), world map. All text is set with `textContent` |
 
-Not drawn yet: dynamic lighting (a lit scene shows a notice and nothing of the map), doors,
-sensed tokens, pins, annotations, initiative, widgets, cursors, lasers, measures, images the GM
-shows, and the player's book.
+Not done yet: pins on the world map (`book-pin`), equipment slots (`book-equip`, `book-slots`),
+notes written on a quest, the images a quest's text embeds, and the maps a world map's entrances
+lead to. The chat panel is in English: the plugin ships no French locale.
 
-The test `tests/player.browser.test.ts` builds nothing itself: run `npm run player:build` first. It
-serves the built page from a real relay, drives it in `/usr/bin/chromium`, and plays the GM with
-the plugin's `TableConnection`. It checks the map's pixels under and outside the fog, a token
-drag, and a chat message. It is skipped where Chromium or the build is missing.
+On a screen under 640 px wide the widget bar sits above the tools instead of at the top.
+
+The browser tests build nothing themselves: run `npm run player:build` first. They serve the built
+page from a real relay, drive it in `/usr/bin/chromium`, and play the GM with the plugin's
+`TableConnection`. They are skipped where Chromium or the build is missing.
+
+| Test | What it checks |
+|---|---|
+| `tests/player.browser.test.ts` | Map pixels under and outside the fog, token bars, a drag, chat, marks, the shown image, initiative, annotations, pins, widgets, dice |
+| `tests/lighting.browser.test.ts` | Dark before sight arrives, lit and dark sides of a wall, doors, sensed tokens, explored memory, blindness, daylight |
+| `tests/book.browser.test.ts` | The book's pages, and what the player writes reaching the GM; markup in names stays text |
+| `tests/phone.browser.test.ts` | At 390 × 844, every control on screen and apart; a touch drag moves the own token |
 
 ## What the player page can import
 
