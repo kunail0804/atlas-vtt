@@ -15,6 +15,8 @@ import { ImageViewer } from './shownImage.ts';
 import { InitiativePanel } from './initiative.ts';
 import { AnnotationsView } from './annotations.ts';
 import { WidgetBar } from './widgets.ts';
+import { DiceView } from './dice.tsx';
+import './dice.scss';
 import { SceneView, type SceneNotice } from './sceneView.ts';
 import { createStage } from './stage.ts';
 import { TokenLayer } from './tokenLayer.ts';
@@ -73,8 +75,10 @@ async function main(): Promise<void> {
   const viewer = new ImageViewer(app, assets);
   const initiative = new InitiativePanel(app, assets);
   const widgets = new WidgetBar(app);
+  let dice: DiceView | null = null;
   const annotations = new AnnotationsView(stage.annotations, stage.pins, send, () => scene.sceneId, () => log.show());
   const log = new LogPanel(logHost, send, () => scene.sceneId, assets, viewer);
+  dice = new DiceView(app, (who) => log.nameOf(who));
   const chatButton = document.createElement('button');
   // The plugin's panel closes on a press outside it, except on the host's button for it (LOG_TOGGLE).
   chatButton.className = 'chat-button atlas-online-log-button';
@@ -82,6 +86,7 @@ async function main(): Promise<void> {
   chatButton.addEventListener('click', () => log.toggle());
 
   const inbox = new GameInbox((message: GmMessage) => {
+    if (message.t === 'roll') dice?.roll(message);
     if (assets.receive(message) || log.receive(message)) return;
     if (message.t === 'marks') return marks.receive(message);
     if (message.t === 'rules') return marks.rules(message);

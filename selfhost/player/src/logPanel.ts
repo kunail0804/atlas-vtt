@@ -55,6 +55,13 @@ export class LogPanel {
     this.render();
   }
 
+  /** The name someone at the table goes by: the GM, or a player by relay id. */
+  nameOf(who: string): string | null {
+    if (who === 'gm') return 'MJ';
+    if (who === this.self) return this.name;
+    return this.state.snapshot().people.find((person) => person.id === who)?.name ?? null;
+  }
+
   /** Opens the log (a found pin's note comes there). */
   show(): void {
     if (this.open) return;

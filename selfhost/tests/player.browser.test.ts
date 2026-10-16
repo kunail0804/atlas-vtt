@@ -221,5 +221,14 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player page in
     await page.waitForTimeout(2_600);
     const later = (await page.locator('.widget-value').allTextContents())[2];
     expect(['0:02', '0:03']).toContain(later);
+
+    // A roll thrown in 3D with the plugin's own stack, named by who rolled.
+    const pageErrors: string[] = [];
+    page.on('pageerror', (error) => pageErrors.push(String(error)));
+    send({ t: 'roll', who: 'gm', token: null, result: { id: 'roll-1', timestamp: Date.now(), formula: '1d20+3', rolls: [{ die: 'd20', value: 17, max: 20 }], modifiers: 3, total: 20 } } as GmMessage, player);
+    await page.waitForSelector('.dice-area > *', { timeout: 5_000 });
+    await page.waitForTimeout(2_500);
+    await page.screenshot({ path: '/tmp/atlas-dice-shot.png' });
+    expect(pageErrors).toEqual([]);
   }, 60_000);
 });
