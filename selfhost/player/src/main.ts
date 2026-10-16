@@ -26,7 +26,7 @@ const NOTICE_TEXT: Readonly<Record<SceneNotice, string | null>> = {
   none: null,
   'no-scene': 'Le MJ n\'a pas encore partagé de scène.',
   loading: 'Chargement de la carte…',
-  lit: 'Cette scène utilise l\'éclairage dynamique, que cette page n\'affiche pas encore.',
+  'lit-failed': 'L\'éclairage dynamique ne peut pas s\'afficher sur ce navigateur : la carte reste masquée.',
   'map-failed': 'La carte n\'a pas pu être chargée.',
 };
 

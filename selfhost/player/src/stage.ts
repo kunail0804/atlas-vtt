@@ -34,6 +34,12 @@ export async function createStage(host: HTMLElement): Promise<Stage> {
   map.eventMode = 'none';
   annotations.eventMode = 'none';
   fog.eventMode = 'none';
+  // Drawing order as Atlas's players' frame has it (MAP_LAYER_Z): the lighting (z 90) lights the map
+  // and the tokens beneath it; drawings, texts, fog and pins stand above it, unlit.
+  viewport.sortableChildren = true;
+  annotations.zIndex = 500;
+  fog.zIndex = 950;
+  pins.zIndex = 1000;
   viewport.addChild(map, tokens, annotations, fog, pins);
   app.renderer.on('resize', (width: number, height: number) => viewport.resize(width, height));
   return { app, viewport, map, tokens, annotations, fog, pins };

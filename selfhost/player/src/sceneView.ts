@@ -1,4 +1,5 @@
 import type { GmMessage, SharedScene } from '../../../src/app/online/protocol/game.ts';
+import type { AssetRef } from '../../../src/app/online/protocol/asset.ts';
 import type { SharedFog } from '../../../src/app/online/protocol/fog.ts';
 import type { SharedGrid } from '../../../src/app/online/protocol/mapLayers.ts';
 import { GridSystem } from '../../../src/app/grid/GridSystem.ts';
@@ -7,17 +8,18 @@ import { FogLayer } from './fogLayer.ts';
 import { MapLayer } from './mapLayer.ts';
 import { frame, type Stage } from './stage.ts';
 import type { TokenLayer } from './tokenLayer.ts';
+import { PlayerLighting } from './playerLighting.ts';
 
 /** The map is asked for at most this large; a larger one comes as a scaled copy drawn at its own size. */
 const MAP_SIDE = 8192;
 
 /** What the page tells the player about the scene, outside the canvas. */
-export type SceneNotice = 'none' | 'no-scene' | 'loading' | 'lit' | 'map-failed';
+export type SceneNotice = 'none' | 'no-scene' | 'loading' | 'lit-failed' | 'map-failed';
 
 /**
  * The shared scene on the canvas: the map, the grid, the tokens and the fog, as the GM's messages
- * say. A lit scene shows nothing yet: players may see only what the lighting shows, and this page
- * does not draw lighting, so it never shows the map unlit.
+ * say. A lit scene goes through the plugin's lighting (`PlayerLighting`), which keeps the map covered
+ * until the players' sight is worked out, so it is never shown unlit.
  */
 export class SceneView {
   private readonly stage: Stage;
@@ -32,6 +34,7 @@ export class SceneView {
   private scene: SharedScene | null = null;
   private lastFog: SharedFog | undefined;
   private lastGrid: SharedGrid | null = null;
+  private lighting: PlayerLighting | null = null;
 
   constructor(stage: Stage, assets: AssetLoader, tokens: TokenLayer, notice: (notice: SceneNotice) => void) {
     this.stage = stage;
@@ -71,32 +74,45 @@ export class SceneView {
       case 'move-refused':
         if (message.scene === this.sceneId) this.tokens.refused(message.id, message.x, message.y);
         return;
+      case 'lighting':
+        if (message.scene === this.sceneId) this.lighting?.setScene(message);
+        return;
+      case 'sight':
+        if (message.scene === this.sceneId) this.lighting?.setSight(message);
+        return;
+      case 'explored':
+        if (message.scene === this.sceneId) this.showExplored(message.mask);
+        return;
       default:
         return;
     }
   }
 
   private visible(scene: string): boolean {
-    return this.scene !== null && scene === this.scene.id && !this.scene.lit;
+    return this.scene !== null && scene === this.scene.id;
   }
 
   private showScene(scene: SharedScene | null): void {
     if (scene !== null && this.scene !== null && scene.id === this.scene.id && scene.lit === this.scene.lit && scene.map?.hash === this.scene.map?.hash) return;
     this.scene = scene;
     this.lastFog = undefined;
+    this.lighting?.destroy();
+    this.lighting = null;
+    // The curtain comes before anything of a lit scene: the map loads beneath it.
+    if (scene?.lit === true) this.lighting = new PlayerLighting(this.stage, `scene-${scene.id}`, () => this.notice('lit-failed'));
     this.onSceneChange();
     this.tokens.reset(scene?.id ?? null);
     this.fog.clear();
     this.map.show(null);
     this.drawGrid();
     if (scene === null) return this.notice('no-scene');
-    if (scene.lit) return this.notice('lit');
     if (scene.map === null) return this.notice('none');
     this.notice('loading');
     const id = scene.id;
     this.assets.image(scene.map, MAP_SIDE).then((image) => {
       if (this.scene?.id !== id) return;
       this.map.show(image);
+      this.lighting?.setBounds(image.width, image.height);
       frame(this.stage, image.width, image.height);
       this.drawFog();
       this.drawGrid();
@@ -108,13 +124,13 @@ export class SceneView {
 
   private drawFog(): void {
     const rect = this.map.worldRect;
-    if (rect === null || this.lastFog === undefined || this.scene?.lit !== false) return;
+    if (rect === null || this.lastFog === undefined || this.scene === null) return;
     this.fog.show(this.lastFog, rect.width, rect.height);
   }
 
   private drawGrid(): void {
     const grid = this.lastGrid;
-    if (grid === null || this.map.worldRect === null || this.scene?.lit !== false) {
+    if (grid === null || this.map.worldRect === null || this.scene === null) {
       this.grid?.destroy();
       this.grid = null;
       return;
@@ -127,5 +143,21 @@ export class SceneView {
     };
     if (this.grid === null) this.grid = new GridSystem(this.stage.app, this.stage.viewport, this.map, options);
     else this.grid.updateOptions(options);
+  }
+
+  /** The explored memory the GM last saved: a PNG by hash, handed to the lighting as a data URL. */
+  private showExplored(mask: AssetRef | null): void {
+    if (mask === null) return this.lighting?.setExplored(null);
+    const scene = this.sceneId;
+    this.assets.image(mask, null).then(async (loaded) => {
+      if (this.sceneId !== scene) return;
+      const reader = new FileReader();
+      const url = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(new Error('unreadable mask'));
+        reader.readAsDataURL(loaded.blob);
+      });
+      this.lighting?.setExplored(url);
+    }).catch(() => undefined);
   }
 }

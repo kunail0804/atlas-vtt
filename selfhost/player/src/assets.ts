@@ -6,6 +6,8 @@ export interface LoadedImage {
   readonly bitmap: ImageBitmap;
   /** The same image as an object URL, for elements (`<img>`): the page's policy allows blob: images. */
   readonly url: string;
+  /** The checked bytes, for readers that want them as they came (the explored memory's PNG). */
+  readonly blob: Blob;
   readonly width: number;
   readonly height: number;
 }
@@ -131,7 +133,7 @@ export class AssetLoader {
       const bitmap = await createImageBitmap(blob);
       const size = download.drawSize ?? { width: bitmap.width, height: bitmap.height };
       const url = URL.createObjectURL(blob);
-      for (const waiter of download.waiters) waiter.resolve({ bitmap, url, width: size.width, height: size.height });
+      for (const waiter of download.waiters) waiter.resolve({ bitmap, url, blob, width: size.width, height: size.height });
     } catch {
       this.fail(hash, download, new Error('The image could not be decoded.'));
     }
