@@ -90,3 +90,30 @@ export class StatusLine {
     this.node.dataset.tone = tone;
   }
 }
+
+export type ToolName = 'move' | 'laser' | 'measure';
+
+const TOOL_LABELS: ReadonlyArray<[ToolName, string]> = [['move', 'Déplacer'], ['laser', 'Laser'], ['measure', 'Mesurer']];
+
+/** The player's tools: move the map and their tokens, point with the laser, or measure. Escape goes back to moving. */
+export function toolbar(host: HTMLElement, choose: (tool: ToolName) => void): void {
+  const bar = element('div', 'tools');
+  const buttons = new Map<ToolName, HTMLButtonElement>();
+  const select = (tool: ToolName): void => {
+    for (const [name, button] of buttons) button.setAttribute('aria-pressed', String(name === tool));
+    choose(tool);
+  };
+  for (const [tool, label] of TOOL_LABELS) {
+    const button = element('button', 'tool', label);
+    button.type = 'button';
+    button.addEventListener('click', () => select(tool));
+    buttons.set(tool, button);
+    bar.append(button);
+  }
+  window.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !(event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLInputElement)) select('move');
+  });
+  host.append(bar);
+  select('move');
+}
+

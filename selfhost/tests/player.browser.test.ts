@@ -109,5 +109,49 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player page in
     await until(() => gm.messages.some((m) => (m.body as { t?: string; text?: string }).t === 'chat'), 'chat sent', 5_000);
     const chat = gm.messages.find((m) => (m.body as { t?: string }).t === 'chat')?.body as { text: string };
     expect(chat.text).toBe('Bonjour la table');
+    await page.click('.chat-button');
+    // A second press on the button closes the panel (it is the host's toggle, not a press outside).
+    expect(await page.locator('textarea').count()).toBe(0);
+
+    // The GM's measurement, drawn by the plugin's own overlay: a white line across the green half.
+    const measurement = { mode: 'metric', unitType: 'meters', unitDistance: 1.5, ruleDistance: 1.5, diagonalRule: 'equidistant', rangeBands: [], coneAngle: 53 } as const;
+    send({ t: 'rules', scene: 's1', grid: { type: 'square', size: 70, offsetX: 0, offsetY: 0 }, snap: true, measurement, accent: '#ffffff' } as GmMessage, player);
+    send({ t: 'marks', scene: 's1', lasers: [], measures: [{ who: 'gm', color: '#ffffff', live: null, kept: [{ shape: 'line', a: [60, 520], b: [440, 520] }] }] }, player);
+    await page.waitForTimeout(500);
+    const marked = await page.screenshot();
+    const onLine = await page.evaluate(async ({ data, px, py }) => {
+      const image = new Image();
+      image.src = `data:image/png;base64,${data}`;
+      await image.decode();
+      const canvas = new OffscreenCanvas(image.width, image.height);
+      const context = canvas.getContext('2d');
+      context?.drawImage(image, 0, 0);
+      return [...(context?.getImageData(Math.round(px), Math.round(py), 1, 1).data ?? [])];
+    }, { data: marked.toString('base64'), px: screen(420, 520).x, py: screen(420, 520).y });
+    expect(onLine[0]).toBeGreaterThan(150);
+
+    // The player's own ruler: a drag sends the measurement while it lasts, and its end on release.
+    const sentOf = (t: string): Record<string, unknown>[] => gm.messages.map((m) => m.body as Record<string, unknown>).filter((body) => body.t === t);
+    await page.click('.tool >> text=Mesurer');
+    const start = screen(350, 400);
+    await page.mouse.move(start.x, start.y);
+    await page.mouse.down();
+    await page.mouse.move(screen(470, 400).x, start.y, { steps: 6 });
+    await until(() => sentOf('measure').some((body) => body.live !== null), 'live measurement sent', 5_000);
+    await page.mouse.up();
+    await until(() => sentOf('measure').at(-1)?.live === null, 'measurement ended', 5_000);
+    const live = sentOf('measure').find((body) => body.live !== null)?.live as { shape: string; a: number[] };
+    expect(live.shape).toBe('line');
+    expect(live.a[0]).toBeCloseTo(350, -1);
+
+    // The laser: pointing with the button down sends it on.
+    await page.click('.tool >> text=Laser');
+    await page.mouse.move(screen(380, 200).x, screen(380, 200).y);
+    await page.mouse.down();
+    await page.mouse.move(screen(450, 240).x, screen(450, 240).y, { steps: 6 });
+    await until(() => sentOf('laser').some((body) => body.on === true), 'laser sent', 5_000);
+    await page.mouse.up();
+    // Back to moving: the own token drags again.
+    await page.keyboard.press('Escape');
   });
 });

@@ -49,3 +49,11 @@ html, body, #app { margin: 0; height: 100%; background: #101114; color: var(--te
 .join-button { height: 42px; border: 0; border-radius: 8px; background: var(--interactive-accent); color: var(--text-on-accent); font-size: 16px; font-weight: 600; cursor: pointer; }
 
 .chat-button { position: fixed; right: 16px; bottom: 16px; padding: 10px 16px; border: 0; border-radius: 999px; background: var(--interactive-accent); color: var(--text-on-accent); font-size: 15px; font-weight: 600; cursor: pointer; z-index: 10; }
+
+.tools { position: fixed; left: 16px; bottom: 16px; display: flex; gap: 6px; padding: 6px; border-radius: 12px; background: rgba(30, 31, 36, 0.92); border: 1px solid var(--background-modifier-border); z-index: 10; }
+.tool { padding: 8px 12px; border: 0; border-radius: 8px; background: transparent; color: var(--text-normal); font-size: 14px; cursor: pointer; }
+.tool[aria-pressed='true'] { background: var(--interactive-accent); color: var(--text-on-accent); }
+
+/* The marks overlay over the map (the plugin's MarkOverlay), as the GM's dock styles it: laid over the
+   canvas, never in the way of a press. */
+.atlas-online-marks { position: absolute; top: 0; left: 0; pointer-events: none; }

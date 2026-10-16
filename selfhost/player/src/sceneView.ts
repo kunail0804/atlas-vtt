@@ -26,6 +26,8 @@ export class SceneView {
   private readonly map: MapLayer;
   private readonly fog: FogLayer;
   private readonly notice: (notice: SceneNotice) => void;
+  /** Called when another scene (or none) is shown, for what lives beside the canvas. */
+  onSceneChange: () => void = () => undefined;
   private grid: GridSystem | null = null;
   private scene: SharedScene | null = null;
   private lastFog: SharedFog | undefined;
@@ -82,6 +84,7 @@ export class SceneView {
     if (scene !== null && this.scene !== null && scene.id === this.scene.id && scene.lit === this.scene.lit && scene.map?.hash === this.scene.map?.hash) return;
     this.scene = scene;
     this.lastFog = undefined;
+    this.onSceneChange();
     this.tokens.reset(scene?.id ?? null);
     this.fog.clear();
     this.map.show(null);

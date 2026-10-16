@@ -32,6 +32,8 @@ export class TokenLayer {
   private mine = new Set<string>();
   private scene: string | null = null;
   private dragging: { id: string; offsetX: number; offsetY: number; lastSent: number } | null = null;
+  /** Off while the laser or the ruler holds the pointer. */
+  private dragsEnabled = true;
 
   constructor(layer: Container, viewport: Viewport, assets: AssetLoader, send: (message: PlayerMessage) => void) {
     this.layer = layer;
@@ -53,6 +55,10 @@ export class TokenLayer {
     this.viewport.plugins.resume('drag');
     for (const drawn of this.drawn.values()) drawn.group.destroy({ children: true });
     this.drawn.clear();
+  }
+
+  setDragsEnabled(enabled: boolean): void {
+    this.dragsEnabled = enabled;
   }
 
   setMine(ids: readonly string[]): void {
@@ -172,7 +178,7 @@ export class TokenLayer {
 
   private pick(id: string, event: FederatedPointerEvent): void {
     const drawn = this.drawn.get(id);
-    if (drawn === undefined || !this.mine.has(id) || this.scene === null || event.button !== 0) return;
+    if (drawn === undefined || !this.dragsEnabled || !this.mine.has(id) || this.scene === null || event.button !== 0) return;
     event.stopPropagation();
     const at = this.viewport.toWorld(event.global);
     this.dragging = { id, offsetX: drawn.group.x - at.x, offsetY: drawn.group.y - at.y, lastSent: 0 };

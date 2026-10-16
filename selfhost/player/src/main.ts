@@ -2,6 +2,7 @@ import '../../../src/app/online/tableLog/styles/table-log.scss';
 import './page.css';
 // The page's policy forbids eval (relay/staticFiles.ts); PixiJS then needs its own replacement for it.
 import 'pixi.js/unsafe-eval';
+import '../../../src/app/online/marks/styles/marks.scss';
 import type { GmMessage } from '../../../src/app/online/protocol/game.ts';
 import { TABLE_CODE_PATTERN } from '../../../src/app/online/protocol/relay.ts';
 import { AssetLoader } from './assets.ts';
@@ -9,10 +10,11 @@ import { PlayerConnection, type ConnectionEvent, type JoinRequest } from './conn
 import { installBrowserDomHost } from './domHost.ts';
 import { GameInbox } from './inbox.ts';
 import { LogPanel } from './logPanel.ts';
+import { MarksView } from './marks.ts';
 import { SceneView, type SceneNotice } from './sceneView.ts';
 import { createStage } from './stage.ts';
 import { TokenLayer } from './tokenLayer.ts';
-import { StatusLine, askToJoin, closeText } from './ui.ts';
+import { StatusLine, askToJoin, closeText, toolbar } from './ui.ts';
 
 const NOTICE_TEXT: Readonly<Record<SceneNotice, string | null>> = {
   none: null,
@@ -54,16 +56,22 @@ async function main(): Promise<void> {
     notice = next;
     refresh();
   });
+  let playerId: string | null = null;
+  const marks = new MarksView(stage.viewport, stage.app.canvas, send, () => playerId, () => scene.sceneId);
+  scene.onSceneChange = () => marks.clear();
   const logHost = document.createElement('div');
   app.append(logHost);
   const log = new LogPanel(logHost, send, () => scene.sceneId);
   const chatButton = document.createElement('button');
-  chatButton.className = 'chat-button';
+  // The plugin's panel closes on a press outside it, except on the host's button for it (LOG_TOGGLE).
+  chatButton.className = 'chat-button atlas-online-log-button';
   chatButton.textContent = 'Chat et dés';
   chatButton.addEventListener('click', () => log.toggle());
 
   const inbox = new GameInbox((message: GmMessage) => {
     if (assets.receive(message) || log.receive(message)) return;
+    if (message.t === 'marks') return marks.receive(message);
+    if (message.t === 'rules') return marks.rules(message);
     scene.receive(message);
   }, (sceneId, of) => send({ t: 'resync', scene: sceneId, of }));
 
@@ -75,9 +83,16 @@ async function main(): Promise<void> {
         return status.show('Le MJ va t\'accepter à la table, patiente un instant…');
       case 'welcome':
         gmOnline = event.gmOnline;
+        playerId = event.id;
         log.setPlayer(event.id, request.name);
         log.setCanSend(gmOnline);
-        if (chatButton.parentElement === null) app.append(chatButton);
+        if (chatButton.parentElement === null) {
+          app.append(chatButton);
+          toolbar(app, (tool) => {
+            marks.setTool(tool);
+            tokens.setDragsEnabled(tool === 'move');
+          });
+        }
         return refresh();
       case 'gm':
         gmOnline = event.online;
