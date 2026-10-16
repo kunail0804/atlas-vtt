@@ -16,6 +16,7 @@ import { InitiativePanel } from './initiative.ts';
 import { AnnotationsView } from './annotations.ts';
 import { WidgetBar } from './widgets.ts';
 import { DiceView } from './dice.tsx';
+import { BookPanel } from './book.ts';
 import './dice.scss';
 import { SceneView, type SceneNotice } from './sceneView.ts';
 import { createStage } from './stage.ts';
@@ -76,6 +77,7 @@ async function main(): Promise<void> {
   const initiative = new InitiativePanel(app, assets);
   const widgets = new WidgetBar(app);
   let dice: DiceView | null = null;
+  const book = new BookPanel(app, assets, send);
   const annotations = new AnnotationsView(stage.annotations, stage.pins, send, () => scene.sceneId, () => log.show());
   const log = new LogPanel(logHost, send, () => scene.sceneId, assets, viewer);
   dice = new DiceView(app, (who) => log.nameOf(who));
@@ -91,6 +93,7 @@ async function main(): Promise<void> {
     if (message.t === 'marks') return marks.receive(message);
     if (message.t === 'rules') return marks.rules(message);
     if (message.t === 'shown-image') return viewer.fromGm(message);
+    if (message.t === 'book' || message.t === 'book-sheet' || message.t === 'book-item') return book.receive(message);
     if (message.t === 'initiative') return message.scene === scene.sceneId ? initiative.show(message.list) : undefined;
     if (message.t === 'annotations') return message.scene === scene.sceneId ? annotations.showAnnotations(message) : undefined;
     if (message.t === 'widgets') return message.scene === scene.sceneId ? widgets.show(message.bar) : undefined;

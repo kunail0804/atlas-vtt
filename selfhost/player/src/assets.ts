@@ -1,5 +1,6 @@
 import { MAX_ASSET_BYTES, isMaxSide, type AssetRef } from '../../../src/app/online/protocol/asset.ts';
 import type { GmMessage, PlayerMessage } from '../../../src/app/online/protocol/game.ts';
+import { readQuestText } from '../../../src/app/online/protocol/questText.ts';
 
 /** An image ready to draw: `width` × `height` is the size to draw it at (a scaled copy is drawn at its original's size). */
 export interface LoadedImage {
@@ -10,6 +11,12 @@ export interface LoadedImage {
   readonly blob: Blob;
   readonly width: number;
   readonly height: number;
+}
+
+/** An asset's checked bytes, and the size to draw a scaled copy at (null for the asset itself). */
+interface Fetched {
+  readonly blob: Blob;
+  readonly drawSize: { width: number; height: number } | null;
 }
 
 /** A download that hears nothing for this long asks again, from the first chunk it lacks. */
@@ -24,7 +31,7 @@ interface Download {
   /** The request this download answers; the GM continues a download `from` a chunk. */
   readonly request: { readonly hash: string; readonly maxSide: number | null };
   drawSize: { width: number; height: number } | null;
-  readonly waiters: { resolve: (image: LoadedImage) => void; reject: (reason: Error) => void }[];
+  readonly waiters: { resolve: (fetched: Fetched) => void; reject: (reason: Error) => void }[];
   stall: number | undefined;
 }
 
@@ -50,6 +57,7 @@ export class AssetLoader {
   /** Downloads by the hash their chunks carry: the asset's own, or its scaled copy's. */
   private readonly downloads = new Map<string, Download>();
   private readonly loaded = new Map<string, Promise<LoadedImage>>();
+  private readonly texts = new Map<string, Promise<string>>();
 
   constructor(send: (message: PlayerMessage) => void) {
     this.send = send;
@@ -60,18 +68,45 @@ export class AssetLoader {
     const cacheKey = `${ref.hash}@${side ?? 'full'}`;
     const known = this.loaded.get(cacheKey);
     if (known !== undefined) return known;
-    const promise = new Promise<LoadedImage>((resolve, reject) => {
-      const download: Download = {
-        mime: ref.mime, size: ref.size, chunks: [], received: 0, count: null,
-        request: { hash: ref.hash, maxSide: side }, drawSize: null, waiters: [{ resolve, reject }], stall: undefined,
-      };
-      this.downloads.set(ref.hash, download);
-      this.ask(download, 0);
+    const promise = this.fetch(ref, side).then(async ({ blob, drawSize }) => {
+      let bitmap: ImageBitmap;
+      try {
+        bitmap = await createImageBitmap(blob);
+      } catch {
+        throw new Error('The image could not be decoded.');
+      }
+      const size = drawSize ?? { width: bitmap.width, height: bitmap.height };
+      return { bitmap, url: URL.createObjectURL(blob), blob, width: size.width, height: size.height };
     });
     // A failed image is forgotten, so the next scene or token showing it asks again.
     promise.catch(() => this.loaded.delete(cacheKey));
     this.loaded.set(cacheKey, promise);
     return promise;
+  }
+
+  /** A text asset (a quest's Markdown), read as the plugin reads it: strict UTF-8, within the asset limit. */
+  text(ref: AssetRef): Promise<string> {
+    const known = this.texts.get(ref.hash);
+    if (known !== undefined) return known;
+    const promise = this.fetch(ref, null).then(async ({ blob }) => {
+      const text = readQuestText(new Uint8Array(await blob.arrayBuffer()));
+      if (text === null) throw new Error('unreadable text');
+      return text;
+    });
+    promise.catch(() => this.texts.delete(ref.hash));
+    this.texts.set(ref.hash, promise);
+    return promise;
+  }
+
+  private fetch(ref: AssetRef, maxSide: number | null): Promise<Fetched> {
+    return new Promise<Fetched>((resolve, reject) => {
+      const download: Download = {
+        mime: ref.mime, size: ref.size, chunks: [], received: 0, count: null,
+        request: { hash: ref.hash, maxSide }, drawSize: null, waiters: [{ resolve, reject }], stall: undefined,
+      };
+      this.downloads.set(ref.hash, download);
+      this.ask(download, 0);
+    });
   }
 
   /** Takes the asset messages; false for any other message. */
@@ -119,7 +154,7 @@ export class AssetLoader {
     window.clearTimeout(download.stall);
     this.downloads.delete(hash);
     const total = download.chunks.reduce((sum, chunk) => sum + (chunk?.length ?? 0), 0);
-    if (total !== download.size || total > MAX_ASSET_BYTES) return this.fail(hash, download, new Error('The image arrived with the wrong size.'));
+    if (total !== download.size || total > MAX_ASSET_BYTES) return this.fail(hash, download, new Error('The asset arrived with the wrong size.'));
     const bytes = new Uint8Array(total);
     let offset = 0;
     for (const chunk of download.chunks) {
@@ -127,16 +162,9 @@ export class AssetLoader {
       bytes.set(chunk, offset);
       offset += chunk.length;
     }
-    if ((await sha256Hex(bytes)) !== hash) return this.fail(hash, download, new Error('The image arrived damaged.'));
-    try {
-      const blob = new Blob([bytes], { type: download.mime });
-      const bitmap = await createImageBitmap(blob);
-      const size = download.drawSize ?? { width: bitmap.width, height: bitmap.height };
-      const url = URL.createObjectURL(blob);
-      for (const waiter of download.waiters) waiter.resolve({ bitmap, url, blob, width: size.width, height: size.height });
-    } catch {
-      this.fail(hash, download, new Error('The image could not be decoded.'));
-    }
+    if ((await sha256Hex(bytes)) !== hash) return this.fail(hash, download, new Error('The asset arrived damaged.'));
+    const blob = new Blob([bytes], { type: download.mime });
+    for (const waiter of download.waiters) waiter.resolve({ blob, drawSize: download.drawSize });
   }
 
   private fail(hash: string, download: Download, reason: Error): void {
