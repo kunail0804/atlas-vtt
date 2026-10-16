@@ -81,3 +81,9 @@ html, body, #app { margin: 0; height: 100%; background: #101114; color: var(--te
 
 /* The panel's own display would otherwise override the hidden attribute. */
 .initiative[hidden] { display: none; }
+
+.widgets { position: fixed; top: 56px; left: 50%; transform: translateX(-50%) scale(var(--widget-scale, 1)); transform-origin: top center; display: flex; gap: 8px; padding: 6px; border-radius: 12px; background: rgba(30, 31, 36, 0.92); border: 1px solid var(--background-modifier-border); z-index: 9; }
+.widgets[hidden] { display: none; }
+.widget { display: flex; align-items: center; gap: 6px; padding: 4px 8px; font-size: 14px; }
+.widget-label { color: var(--text-muted); }
+.widget-value { font-weight: 600; font-variant-numeric: tabular-nums; display: flex; align-items: center; }

@@ -209,5 +209,17 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player page in
     await page.waitForTimeout(300);
     await page.mouse.click(screen(420, 100).x, screen(420, 100).y);
     await until(() => sentOf('pin-found').some((body) => body.pin === pinId), 'pin found sent', 5_000);
+
+    // Widgets: a counter, a clock with its count, and a running timer that counts down on its own.
+    send({ t: 'widgets', scene: 's1', bar: { scale: 1, widgets: [
+      { kind: 'counter', label: 'Or', icon: 'coin', colour: null, value: 3 },
+      { kind: 'clock', label: 'Rituel', icon: 'star', colour: null, value: 2, segments: 6, showCount: true },
+      { kind: 'timer', label: 'Torche', icon: 'hourglass', colour: null, value: 5, since: 0 },
+    ] } } as GmMessage, player);
+    await page.waitForSelector('.widgets:not([hidden])');
+    expect(await page.locator('.widget-value').allTextContents()).toEqual(['3', '2/6', '0:05']);
+    await page.waitForTimeout(2_600);
+    const later = (await page.locator('.widget-value').allTextContents())[2];
+    expect(['0:02', '0:03']).toContain(later);
   }, 60_000);
 });
