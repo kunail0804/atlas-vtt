@@ -1,9 +1,21 @@
-import { extractPlugin } from './docker.ts';
+import { extractPlugins } from './docker.ts';
+import { isNewer } from './update.ts';
 import { campaignFile, join, readJson, writeJson } from './paths.ts';
 import { UserError, ask, pickFolder } from './system.ts';
 
-/** The plugin's code files. Its settings (`data.json`) and the vault's table (`atlas-vtt/.atlas-data`) are never touched. */
+/** A plugin's code files. Its settings (`data.json`) and the vault's table (`atlas-vtt/.atlas-data`) are never touched. */
 const PLUGIN_FILES = ['main.js', 'manifest.json', 'styles.css'] as const;
+/** The plugins' ids, which are their folders under `.obsidian/plugins` and their names in `community-plugins.json`. */
+export const ATLAS_ID = 'atlas-vtt';
+export const STATBLOCKS_ID = 'obsidian-5e-statblocks';
+
+/** What changed in the vault: a plugin's files, and whether a plugin was switched on. */
+export interface VaultChanges {
+  readonly atlas: boolean;
+  /** The Fantasy Statblocks version put in, or null where the vault's was kept. */
+  readonly statblocks: string | null;
+  readonly enabled: readonly string[];
+}
 
 interface CampaignSettings {
   readonly vault: string;
@@ -43,20 +55,59 @@ async function sameFile(a: string, b: string): Promise<boolean> {
   }
 }
 
-/** Installs the image's plugin build in the vault when it differs; returns whether anything changed. */
-export async function installPlugin(vault: string): Promise<boolean> {
+async function versionOf(folder: string): Promise<string | null> {
+  const manifest = await readJson<{ version?: unknown }>(join(folder, 'manifest.json'));
+  return typeof manifest?.version === 'string' ? manifest.version : null;
+}
+
+/** Copies a plugin's code files from `from` into `to` where they differ; returns whether any did. */
+async function copyPlugin(from: string, to: string): Promise<boolean> {
+  await Deno.mkdir(to, { recursive: true });
+  let changed = false;
+  for (const file of PLUGIN_FILES) {
+    if (await sameFile(join(from, file), join(to, file))) continue;
+    await Deno.copyFile(join(from, file), join(to, file));
+    changed = true;
+  }
+  return changed;
+}
+
+/**
+ * Switches plugins on in the vault's `community-plugins.json`, keeping every other one as it is;
+ * returns the ids it added. Obsidian loads them once community plugins are on (not in restricted mode).
+ */
+export async function enablePlugins(vault: string, ids: readonly string[]): Promise<string[]> {
+  const file = join(vault, '.obsidian', 'community-plugins.json');
+  const stored = await readJson<unknown>(file);
+  const enabled = Array.isArray(stored) ? stored.filter((id): id is string => typeof id === 'string') : [];
+  const added = ids.filter((id) => !enabled.includes(id));
+  if (added.length > 0) await writeJson(file, [...enabled, ...added]);
+  return added;
+}
+
+/**
+ * Puts the image's plugins in the vault and switches them on: Atlas whenever its files differ, and
+ * Fantasy Statblocks, which Atlas reads statblocks from, where the vault has none or an older one
+ * (a newer one the GM installed is kept). Neither plugin's settings are touched.
+ */
+export async function installPlugins(vault: string): Promise<VaultChanges> {
   const staging = await Deno.makeTempDir({ prefix: 'atlas-plugin-' });
   try {
-    await extractPlugin(staging);
-    const target = join(vault, '.obsidian', 'plugins', 'atlas-vtt');
-    await Deno.mkdir(target, { recursive: true });
-    let changed = false;
-    for (const file of PLUGIN_FILES) {
-      if (await sameFile(join(staging, file), join(target, file))) continue;
-      await Deno.copyFile(join(staging, file), join(target, file));
-      changed = true;
+    const atlasFrom = join(staging, 'atlas');
+    const statblocksFrom = join(staging, 'statblocks');
+    await Deno.mkdir(atlasFrom);
+    await Deno.mkdir(statblocksFrom);
+    const copied = await extractPlugins({ atlas: atlasFrom, statblocks: statblocksFrom });
+    const plugins = join(vault, '.obsidian', 'plugins');
+    const atlas = await copyPlugin(atlasFrom, join(plugins, ATLAS_ID));
+    let statblocks: string | null = null;
+    if (copied.has('statblocks')) {
+      const bundled = await versionOf(statblocksFrom);
+      const installed = await versionOf(join(plugins, STATBLOCKS_ID));
+      if (bundled !== null && (installed === null || isNewer(bundled, installed)) && await copyPlugin(statblocksFrom, join(plugins, STATBLOCKS_ID))) statblocks = bundled;
     }
-    return changed;
+    const enabled = await enablePlugins(vault, copied.has('statblocks') ? [ATLAS_ID, STATBLOCKS_ID] : [ATLAS_ID]);
+    return { atlas, statblocks, enabled };
   } finally {
     await Deno.remove(staging, { recursive: true }).catch(() => undefined);
   }

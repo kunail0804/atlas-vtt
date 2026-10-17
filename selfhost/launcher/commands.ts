@@ -2,7 +2,7 @@ import { checkDocker, portTaken, pullImage, runningCampaign, startCampaign, stop
 import { login } from './login.ts';
 import { api, forgetSession, me, sessionToken } from './service.ts';
 import { UserError, ask, copyToClipboard } from './system.ts';
-import { campaignVault, installPlugin } from './vault.ts';
+import { campaignVault, installPlugins } from './vault.ts';
 
 interface Campaign {
   readonly name: string;
@@ -82,7 +82,7 @@ export async function start(name: string): Promise<void> {
   const vault = await campaignVault(name);
   console.log('Téléchargement de la dernière version d\'Atlas…');
   await pullImage();
-  const pluginChanged = await installPlugin(vault);
+  const changes = await installPlugins(vault);
   const campaign = await api<{ origin: string; tunnelToken: string }>('GET', `/campaigns/${encodeURIComponent(name)}/start`);
   console.log('Démarrage de la campagne…');
   await startCampaign(name, campaign.origin, campaign.tunnelToken);
@@ -91,7 +91,9 @@ export async function start(name: string): Promise<void> {
   console.log(`\nLa campagne « ${name} » tourne.`);
   console.log(`Adresse des joueurs : ${campaign.origin}${copied ? '  (copiée)' : ''}`);
   console.log('Dans Obsidian, ouvre le coffre de la campagne puis « Start online table » : le lien d\'invitation complet s\'affiche là.');
-  if (pluginChanged) console.log('Le plugin Atlas a été mis à jour dans ce coffre : recharge Obsidian (Ctrl+R) s\'il était ouvert.');
+  if (changes.statblocks !== null) console.log(`Fantasy Statblocks ${changes.statblocks} a été installé dans ce coffre : Atlas y lit les statblocks.`);
+  if (changes.enabled.length > 0) console.log(`Plugins activés dans ce coffre : ${changes.enabled.join(', ')}. Si Obsidian est en mode restreint, active les plugins communautaires dans ses réglages.`);
+  if (changes.atlas || changes.statblocks !== null || changes.enabled.length > 0) console.log('Les plugins du coffre ont changé : ferme et rouvre Obsidian s\'il était ouvert.');
   console.log('La campagne s\'arrête toute seule 5 minutes après le départ de tout le monde.');
 }
 

@@ -81,7 +81,16 @@ plugins: it replaces this build with the official one, which talks to `atlas-vtt
 ## Build the campaign image
 
 The image holds the relay, the built player page, the plugin build the launcher copies into a
-vault, and `cloudflared` 2026.10.0 (checked against its published SHA-256). Build it from the
+vault, Fantasy Statblocks 4.10.3 (MIT, `javalent/fantasy-statblocks`, in `/opt/atlas/statblocks`
+with its licence), and `cloudflared` 2026.10.0. Every downloaded file is checked against a pinned
+SHA-256.
+
+`atlas start` puts both plugins in the campaign's vault and switches them on in
+`.obsidian/community-plugins.json`, keeping the vault's other plugins. Atlas is replaced whenever
+its files differ. Fantasy Statblocks is installed where the vault has none or an older version; a
+newer one the GM installed is kept. Neither plugin's `data.json` is touched. To bundle another
+Fantasy Statblocks release, change the version and the four SHA-256 values in the Dockerfile's
+`fetch` stage. Build it from the
 repository root:
 
 ```sh

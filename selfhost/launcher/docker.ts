@@ -27,16 +27,27 @@ export async function pullImage(): Promise<void> {
 }
 
 /** The plugin build inside the image, copied to `target`: the version the relay that will run expects. */
-export async function extractPlugin(target: string): Promise<void> {
+/** Where the image keeps the plugins the launcher copies into the vault. */
+export const IMAGE_PLUGINS = { atlas: '/opt/atlas/plugin', statblocks: '/opt/atlas/statblocks' } as const;
+
+/**
+ * Copies the image's plugin builds into folders of `targets` (by `IMAGE_PLUGINS` key). One the image
+ * does not hold (an older image without Fantasy Statblocks) is left out of the result.
+ */
+export async function extractPlugins(targets: Partial<Record<keyof typeof IMAGE_PLUGINS, string>>): Promise<Set<keyof typeof IMAGE_PLUGINS>> {
   const name = `atlas-plugin-copy-${Date.now()}`;
   const created = await run('docker', ['create', '--name', name, IMAGE]);
   if (created.code !== 0) throw new UserError('Impossible de préparer le plugin depuis l\'image Atlas.');
+  const copied = new Set<keyof typeof IMAGE_PLUGINS>();
   try {
-    const copied = await run('docker', ['cp', `${name}:/opt/atlas/plugin/.`, target]);
-    if (copied.code !== 0) throw new UserError('Impossible de copier le plugin depuis l\'image Atlas.');
+    for (const [key, target] of Object.entries(targets) as [keyof typeof IMAGE_PLUGINS, string][]) {
+      if ((await run('docker', ['cp', `${name}:${IMAGE_PLUGINS[key]}/.`, target])).code === 0) copied.add(key);
+    }
   } finally {
     await run('docker', ['rm', '-f', name]);
   }
+  if (!copied.has('atlas') && targets.atlas !== undefined) throw new UserError('Impossible de copier le plugin depuis l\'image Atlas.');
+  return copied;
 }
 
 /** The campaign running on this machine now, or null. The plugin talks to one relay at a time (port 8787). */
