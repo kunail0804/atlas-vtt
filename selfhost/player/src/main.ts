@@ -88,8 +88,10 @@ async function main(): Promise<void> {
   const widgets = new WidgetBar(app);
   let dice: DiceView | null = null;
   const notices = new Notice(app);
-  // What the toolbar shows, kept for when it mounts (the book or the rules may come first).
-  let toolbarState: ToolbarState = { advantage: [], book: false };
+  // What the toolbar shows, kept for when it mounts (the book or the rules may come first). The tray
+  // offers both sides of advantage until the GM names the dice set's (`dice-rules`): a GM's Atlas that
+  // names none still rolls them by its set's rules, and a set without them rolls as it is.
+  let toolbarState: ToolbarState = { advantage: ['advantage', 'disadvantage'], book: false };
   const reader = new Reader(app, assets);
   const book = new BookPanel(app, assets, send, (text) => notices.show(text), (has) => {
     toolbarState = { ...toolbarState, book: has };

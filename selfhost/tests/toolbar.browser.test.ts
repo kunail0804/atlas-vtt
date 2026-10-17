@@ -60,7 +60,6 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player toolbar
     for (const chunk of assetChunks(mapHash, mapBytes)) send(chunk, player);
     const measurement = { mode: 'metric', unitType: 'feet', unitDistance: 5, ruleDistance: 5, diagonalRule: 'equidistant', rangeBands: [], coneAngle: 53 };
     send({ t: 'rules', scene: 's1', grid: { type: 'square', size: 70, offsetX: 0, offsetY: 0 }, snap: true, measurement, accent: '#7c8cff' } as GmMessage, player);
-    send({ t: 'dice-rules', scene: 's1', advantage: ['advantage', 'disadvantage'] } as GmMessage, player);
     send({ t: 'book', book: { character: null, worldMap: null, items: [], notes: [], pins: [], quests: [], purse: [], slots: DEFAULT_BOOK_SLOTS, equipped: [] } } as GmMessage, player);
     await page.waitForFunction(() => (document.querySelector('.status') as HTMLElement | null)?.hidden === true, null, { timeout: 10_000 });
     await page.waitForSelector('.player-toolbar');
@@ -207,6 +206,20 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player toolbar
     await page.mouse.up();
     await until(() => sentOf('laser').some((message) => message.on === true), 'laser sent', 5_000);
     expect(sentOf('laser').find((message) => message.on === true)?.color).toBe('#3d6bff');
+
+    // The dice tray offers advantage until the GM names a set without it, then no more.
+    await page.keyboard.press('r');
+    await page.waitForSelector('.atlas-dice-tray');
+    expect(await page.locator('.atlas-dice-tray .atlas-segmented__option').allTextContents()).toEqual(['Normal', 'Advantage', 'Disadvantage']);
+    await page.keyboard.press('r');
+    send({ t: 'dice-rules', scene: 's1', advantage: [] } as GmMessage, player);
+    await page.waitForTimeout(200);
+    await page.keyboard.press('r');
+    await page.waitForSelector('.atlas-dice-tray');
+    expect(await page.locator('.atlas-dice-tray .atlas-segmented__option').count()).toBe(0);
+    await page.keyboard.press('r');
+    send({ t: 'dice-rules', scene: 's1', advantage: ['advantage', 'disadvantage'] } as GmMessage, player);
+    await page.waitForTimeout(200);
 
     // The dice tray: a d20 with advantage goes to the GM, who rolls it by the collection's dice set.
     await page.keyboard.press('r');
