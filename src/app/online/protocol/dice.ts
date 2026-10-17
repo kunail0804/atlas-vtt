@@ -40,7 +40,13 @@ export interface PlayerRoll {
   readonly mode?: RollMode;
   readonly flavor?: string;
   readonly request?: RollRequestAnswer;
+  /** Rolled with advantage or disadvantage by the GM's dice set (the tray's choice); absent for neither. */
+  readonly advantage?: RollAdvantage;
 }
+
+/** A side of advantage, as Atlas's dice sets name them. */
+export type RollAdvantage = 'advantage' | 'disadvantage';
+export const isRollAdvantage = (value: unknown): value is RollAdvantage => value === 'advantage' || value === 'disadvantage';
 
 /**
  * One die of a roll as Atlas rolled it: a Fate die is `dF` with `min` −1 and `max` 1. A die rolled
@@ -112,12 +118,13 @@ export function parsePlayerRoll(value: Record<string, unknown>): PlayerRoll | nu
   if (mode !== undefined && !isRollMode(mode)) return null;
   const shownFlavor = flavor === undefined ? undefined : shownLine(flavor, MAX_FLAVOR);
   const request = value.request === undefined ? undefined : parseRequestAnswer(value.request);
-  if (shownFlavor === null || request === null) return null;
+  if (shownFlavor === null || request === null || (value.advantage !== undefined && !isRollAdvantage(value.advantage))) return null;
   return {
     t: 'roll', scene, formula, token,
     ...(mode !== undefined && mode !== 'public' && { mode }),
     ...(shownFlavor !== undefined && { flavor: shownFlavor }),
     ...(request !== undefined && { request }),
+    ...(isRollAdvantage(value.advantage) && { advantage: value.advantage }),
   };
 }
 

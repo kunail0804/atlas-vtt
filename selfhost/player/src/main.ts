@@ -1,8 +1,9 @@
-import '../../../src/app/online/tableLog/styles/table-log.scss';
+// The plugin's whole stylesheet, so its toolbar, menus, dice tray and log look as they do for the GM.
+import '../../../styles/index.css';
+import '../../../styles/main.scss';
 import './page.css';
 // The page's policy forbids eval (relay/staticFiles.ts); PixiJS then needs its own replacement for it.
 import 'pixi.js/unsafe-eval';
-import '../../../src/app/online/marks/styles/marks.scss';
 import type { GmMessage } from '../../../src/app/online/protocol/game.ts';
 import { TABLE_CODE_PATTERN } from '../../../src/app/online/protocol/relay.ts';
 import { AssetLoader } from './assets.ts';
@@ -20,11 +21,13 @@ import { BookPanel } from './book.ts';
 import { Notice } from './notice.ts';
 import { Reader } from './reader.ts';
 import { TEXT } from './text.ts';
-import './dice.scss';
 import { SceneView, type SceneNotice } from './sceneView.ts';
 import { createStage } from './stage.ts';
 import { TokenLayer } from './tokenLayer.ts';
-import { StatusLine, askToJoin, closeText, toolbar } from './ui.ts';
+import { StatusLine, askToJoin, closeText } from './ui.ts';
+import { DrawTools, askText } from './drawTools.ts';
+import { mountToolbar, type ToolbarState } from './toolbar.tsx';
+import { ToolSettingsStore } from './toolSettings.ts';
 
 const NOTICE_TEXT: Readonly<Record<SceneNotice, string | null>> = {
   none: null,
@@ -36,6 +39,8 @@ const NOTICE_TEXT: Readonly<Record<SceneNotice, string | null>> = {
 
 async function main(): Promise<void> {
   installBrowserDomHost();
+  // Obsidian's dark theme marks the body; the plugin's styles read it (the dice tray's faces among them).
+  document.body.classList.add('theme-dark');
   document.documentElement.dataset.pointer = window.matchMedia('(pointer: coarse)').matches ? 'coarse' : 'fine';
   const app = document.querySelector<HTMLDivElement>('#app');
   if (app === null) return;
@@ -67,9 +72,11 @@ async function main(): Promise<void> {
     refresh();
   });
   let playerId: string | null = null;
-  const marks = new MarksView(stage.viewport, stage.app.canvas, send, () => playerId, () => scene.sceneId);
+  const settings = new ToolSettingsStore();
+  const marks = new MarksView(stage.viewport, stage.app.canvas, send, () => playerId, () => scene.sceneId, settings);
   scene.onSceneChange = () => {
     marks.clear();
+    drawTools.clear();
     initiative.show(null);
     annotations.clear();
     widgets.show(null);
@@ -81,25 +88,59 @@ async function main(): Promise<void> {
   const widgets = new WidgetBar(app);
   let dice: DiceView | null = null;
   const notices = new Notice(app);
+  // What the toolbar shows, kept for when it mounts (the book or the rules may come first).
+  let toolbarState: ToolbarState = { advantage: [], book: false };
   const reader = new Reader(app, assets);
-  const book = new BookPanel(app, assets, send, (text) => notices.show(text));
+  const book = new BookPanel(app, assets, send, (text) => notices.show(text), (has) => {
+    toolbarState = { ...toolbarState, book: has };
+    bar?.update(toolbarState);
+  });
   const annotations = new AnnotationsView(stage.annotations, stage.pins, send, () => scene.sceneId, (found) => {
     if (found === null || !log.openFound(found)) log.show();
   });
   const log = new LogPanel(logHost, send, () => scene.sceneId, assets, viewer, reader, () => notices.show(TEXT.rolls.noScene));
   dice = new DiceView(app, (who) => log.nameOf(who));
-  const chatButton = document.createElement('button');
-  // The plugin's panel closes on a press outside it, except on the host's button for it (LOG_TOGGLE).
-  chatButton.className = 'chat-button atlas-online-log-button';
-  chatButton.textContent = 'Chat et dés';
-  chatButton.addEventListener('click', () => log.toggle());
+  const drawTools = new DrawTools(stage.viewport, stage.annotations, annotations, {
+    send, scene: () => scene.sceneId, self: () => playerId, settings, askText: (at) => askText(app, at),
+  });
+  let bar: ReturnType<typeof mountToolbar> | null = null;
+  const showToolbar = (): void => {
+    if (bar !== null) return;
+    bar = mountToolbar(app, {
+      settings,
+      setTool: (tool) => {
+        marks.setTool(tool);
+        drawTools.setTool(tool);
+        tokens.setDragsEnabled(tool === 'move');
+      },
+      deleteMyDrawings: () => drawTools.deleteMine(),
+      roll: (formula, advantage) => {
+        const shared = scene.sceneId;
+        if (shared === null) {
+          notices.show(TEXT.rolls.noScene);
+          return false;
+        }
+        send({ t: 'roll', scene: shared, formula, token: null, ...(advantage !== null && { advantage }) });
+        return true;
+      },
+      toggleChat: () => log.toggle(),
+      toggleBook: () => book.toggle(),
+    });
+    bar.update(toolbarState);
+  };
 
   const inbox = new GameInbox((message: GmMessage) => {
     if (message.t === 'roll') dice?.roll(message);
     if (message.t === 'roll-refused') return notices.show(TEXT.rolls.refused[message.reason]);
     if (assets.receive(message) || log.receive(message)) return;
     if (message.t === 'marks') return marks.receive(message);
-    if (message.t === 'rules') return marks.rules(message);
+    if (message.t === 'rules') {
+      if (message.scene === scene.sceneId) {
+        toolbarState = { ...toolbarState, advantage: message.advantage ?? [] };
+        bar?.update(toolbarState);
+      }
+      return marks.rules(message);
+    }
     if (message.t === 'shown-image') return viewer.fromGm(message);
     if (message.t === 'book' || message.t === 'book-sheet' || message.t === 'book-item') return book.receive(message);
     if (message.t === 'initiative') return message.scene === scene.sceneId ? initiative.show(message.list) : undefined;
@@ -120,13 +161,7 @@ async function main(): Promise<void> {
         playerId = event.id;
         log.setPlayer(event.id, request.name);
         log.setCanSend(gmOnline);
-        if (chatButton.parentElement === null) {
-          app.append(chatButton);
-          toolbar(app, (tool) => {
-            marks.setTool(tool);
-            tokens.setDragsEnabled(tool === 'move');
-          });
-        }
+        showToolbar();
         return refresh();
       case 'gm':
         gmOnline = event.online;

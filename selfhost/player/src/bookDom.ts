@@ -53,3 +53,25 @@ export function glyph(path: string, className: string): SVGSVGElement {
   svg.append(shape);
   return svg;
 }
+
+/** The plugin's close control (`CloseButton`): its classes and lucide's X, for a panel built without React. */
+export function closeButton(label: string, act: () => void): HTMLButtonElement {
+  const element = node('button', 'btn btn--ghost btn--icon atlas-close-btn book-close');
+  element.type = 'button';
+  element.setAttribute('aria-label', label);
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('stroke', 'currentColor');
+  svg.setAttribute('stroke-width', '2');
+  svg.setAttribute('stroke-linecap', 'round');
+  svg.setAttribute('aria-hidden', 'true');
+  for (const d of ['M18 6 6 18', 'm6 6 12 12']) {
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', d);
+    svg.append(path);
+  }
+  element.append(svg);
+  element.addEventListener('click', act);
+  return element;
+}

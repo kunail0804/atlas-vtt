@@ -73,3 +73,13 @@ export function textToolFace(activeTool: Tool): ToolFace {
 export function lightingToolFace(activeTool: Tool): ToolFace {
   return singleToolFace("wall", Lightbulb, "Lighting", activeTool)
 }
+
+/** What MainToolbar hands every tool group: the active tool and its options menu. */
+export interface ToolGroupControls {
+  activeTool: Tool
+  /** Selects a tool and closes every toolbar menu. */
+  selectTool: (tool: Tool) => void
+  menuOpen: boolean
+  toggleMenu: () => void
+  closeMenu: () => void
+}

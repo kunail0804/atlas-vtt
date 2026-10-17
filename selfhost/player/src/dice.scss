@@ -1,5 +1,0 @@
-// The plugin's dice styles, nested as Atlas's own stylesheet nests them (styles/main.scss): they
-// style `.atlas-vtt-plugin.atlas-dice-rolls`, which is the page's dice area.
-.atlas-vtt-plugin {
-  @import '../../../src/app/react/components/dice3d/dice-roll.scss';
-}

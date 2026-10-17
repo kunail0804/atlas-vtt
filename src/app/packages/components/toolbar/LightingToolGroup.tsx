@@ -11,8 +11,8 @@ import type { WallToolMode, WallToolSubMode } from "../../../tools/WallTool"
 import { DropdownMenuItem, type DropdownMenuItemProps } from "../primitives/DropdownMenuItem"
 import { ExploredMemorySection } from "./ExploredMemorySection"
 import { SceneLightingSection } from "./SceneLightingSection"
-import { ToolGroup, type ToolGroupControls } from "./ToolGroup"
-import { lightingToolFace } from "./toolFaces"
+import { ToolGroup } from "./ToolGroup"
+import { lightingToolFace, type ToolGroupControls } from "./toolFaces"
 import { useEmitViewEvent } from "./useEmitViewEvent"
 
 type RowIcon = DropdownMenuItemProps['icon']

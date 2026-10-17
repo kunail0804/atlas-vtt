@@ -91,8 +91,8 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player book in
       equipped: [],
     };
     send({ t: 'book', book } as GmMessage, player);
-    await page.waitForSelector('.book-toggle:not([hidden])', { timeout: 5_000 });
-    await page.click('.book-toggle');
+    await page.waitForSelector('.atlas-bottom-toolbar-row__end button', { timeout: 5_000 });
+    await page.click('.atlas-bottom-toolbar-row__end button');
     const tab = (name: string): Promise<void> => page.click(`.book-tab[data-tab="${name}"]`);
 
     // The sheet: a step shows at once and goes to the GM.
@@ -209,7 +209,7 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player book in
 
     // A found pin's note opens in the reader from the log; a refused roll is told.
     send({ t: 'log', entries: [{ id: FOUND, at: Date.now(), who: player, name: 'Mira', kind: 'found', title: 'Lettre', body: 'Rendez-vous à minuit.' }] } as GmMessage, player);
-    await page.click('.chat-button');
+    await page.click('.atlas-bottom-toolbar-row__start button');
     await page.click('.atlas-online-log__found-title');
     expect(await page.textContent('.reader-title')).toBe('Lettre');
     expect(await page.textContent('.reader .doc-text')).toBe('Rendez-vous à minuit.');

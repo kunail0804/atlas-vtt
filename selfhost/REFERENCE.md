@@ -86,7 +86,8 @@ message's `body`.
 | Part | File | What it does |
 |---|---|---|
 | Join screen | `ui.ts` | Name and optional six-digit code, French messages for every close code |
-| Toolbar | `ui.ts` | Move, Laser, Measure; Escape goes back to Move |
+| Toolbar | `toolbar.tsx`, `toolSettings.ts` | The GM's toolbar, built from the plugin's own components (`ToolGroup`, the dropdown rows, `DiceTray`) and stylesheet: Move/Laser with the laser's colour and size, Pen/Icon stamp/Eraser with ink and sizes, Text with colour, size and bold, Measure line/circle/cone with Persist Measurements, and the dice tray with advantage where the dice set has it. The GM's keys (V, B, T, M, R); Escape closes a menu, else goes back to Move. The log's button in the bottom left corner, the book's in the bottom right. Settings are kept in the browser |
+| Drawings and texts | `drawTools.ts` | The pen, stamp, eraser and text tool. What the player makes goes to the GM (`draw`, `place-text`, `erase`); the page shows its own copy until the GM's `annotations` hold it. The eraser rubs out only the player's own ink, and only the part under it |
 | Connection | `connection.ts` | Hello, keep-alive, reconnect with backoff, key kept in `localStorage` per table, wait token |
 | Inbox | `inbox.ts` | Puts `part` messages together, follows deltas with the plugin's `DeltaReader`, asks for a `resync` on a gap |
 | Assets | `assets.ts` | Asks by hash, takes chunks, checks SHA-256, continues a stalled download, takes scaled copies; quest texts are read with the plugin's `readQuestText` |
@@ -97,7 +98,7 @@ message's `body`.
 | Tokens | `tokenLayer.ts`, `tokenUI.ts` | Draws tokens with their bars, conditions and the downed mark; drags the player's own (`drag`, `move`, `drag-cancel`), by mouse or touch; follows `live` and `move-refused` |
 | Fog | `fogLayer.ts` | The plugin's `FogCanvasCompositor`, solid for players |
 | Dynamic lighting | `litScene.ts`, `playerLighting.ts`, `litMarks.ts` | The plugin's `LightingRenderer` in the players' view; door badges, sensed outlines, explored memory. The map stays covered until sight is current |
-| Marks | `marks.ts` | Lasers, measures and cursors with the plugin's overlays; the player's own laser and ruler |
+| Marks | `marks.ts` | Lasers, measures and cursors with the plugin's overlays; the player's own laser, line, circle and cone, kept on the map while Persist Measurements is on |
 | Annotations | `annotations.ts` | Drawings and texts the GM shares |
 | Pins | `annotations.ts` | Pins with the plugin's icons; opening a readable pin sends `pin-found` |
 | Shown image | `shownImage.ts` | The image the GM shows, full screen |
@@ -112,7 +113,15 @@ message's `body`.
 
 The chat panel is in English: the plugin ships no French locale.
 
-On a screen under 640 px wide the widget bar sits above the tools instead of at the top.
+On a screen under 640 px wide the toolbar takes a row of its own under the log's and the book's buttons, and the widget bar sits above them instead of at the top.
+
+The log stays open beside the book and the toolbar: a press in anything marked `data-keeps-log-open` is no press outside it (`LOG_KEEPS_OPEN` in the plugin's `usePanelDismissal.ts`).
+
+### What players make on the map
+
+Players draw and write with `draw`, `place-text` and `erase` (`src/app/online/protocol/annotate.ts`). The GM's `PlayerAnnotations` (`src/app/online/gm/PlayerAnnotations.ts`) keeps each as Atlas's own drawing or text, with the key `drawing_player_<id>` or `text_player_<id>` and `author` set to the player's relay id, so the GM sees it, saves it with the map and can erase or undo it (each is one undo step). `annotations` then carries `id` and `by` for a player's own. A player erases only their own; each keeps at most `MAX_PLAYER_ANNOTATIONS` (400) in a scene, within 10 % past the map's edges, at 20 a second (burst 60). A stroke longer than `MAX_STROKE_POINTS` (150) goes as several, since a player's frame holds 4 KiB.
+
+A player's roll may name `advantage` (`advantage` or `disadvantage`); the GM rolls it by the collection's dice set, as the GM's own tray does. `rules` names the sides the set has a rule for, which the player's tray offers.
 
 The browser tests build nothing themselves: run `npm run player:build` first. They serve the built
 page from a real relay, drive it in `/usr/bin/chromium`, and play the GM with the plugin's
@@ -125,6 +134,7 @@ page from a real relay, drive it in `/usr/bin/chromium`, and play the GM with th
 | `tests/book.browser.test.ts` | Every page of the book, each write reaching the GM and showing without an answer, the world map's levels and pins, quest images, found notes, a refused roll; markup in names stays text |
 | `tests/diagnostics.test.ts` | Feedback and error reports kept in the data folder; malformed, too large, web-page and flooding requests refused |
 | `tests/phone.browser.test.ts` | At 390 × 844, every control on screen and apart; a touch drag moves the own token |
+| `tests/toolbar.browser.test.ts` | The toolbar's menus, the log open beside the book, and what each tool sends: a pen stroke, a stamp, a text, a partial erase, delete all, a kept circle, the laser's colour, a d20 with advantage. `ATLAS_SHOTS=<dir>` writes screenshots |
 
 ## What the player page can import
 

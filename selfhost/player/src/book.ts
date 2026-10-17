@@ -4,7 +4,8 @@ import type { PlayerMessage } from '../../../src/app/online/protocol/game.ts';
 import { applyBookMessage } from '../../../src/app/online/gm/book/bookStore.ts';
 import type { AssetLoader } from './assets.ts';
 import type { BookUi, PageContext, Tab } from './bookContext.ts';
-import { button, node } from './bookDom.ts';
+import { button, closeButton, node } from './bookDom.ts';
+import './book.scss';
 import { equipmentPage } from './bookEquipment.ts';
 import { notesPage } from './bookNotes.ts';
 import { characterPage, itemsPage, pursePage } from './bookPages.ts';
@@ -26,7 +27,6 @@ const PAGES: Readonly<Record<Tab, (context: PageContext) => HTMLElement>> = {
 export class BookPanel {
   private readonly panel: HTMLElement;
   private readonly body: HTMLElement;
-  private readonly toggleButton: HTMLButtonElement;
   private readonly assets: AssetLoader;
   private readonly send: (message: PlayerMessage) => void;
   private readonly tell: (text: string) => void;
@@ -34,28 +34,33 @@ export class BookPanel {
   private readonly ui: BookUi = { tab: 'character', mapId: null, placing: false, pinDraft: null, selected: null, editing: new Map(), extraCoins: 0 };
   private book: PlayerBook | null = null;
 
-  constructor(host: HTMLElement, assets: AssetLoader, send: (message: PlayerMessage) => void, tell: (text: string) => void) {
+  /** Told whether the player has a book, for the toolbar's button. */
+  private readonly available: (has: boolean) => void;
+
+  constructor(host: HTMLElement, assets: AssetLoader, send: (message: PlayerMessage) => void, tell: (text: string) => void, available: (has: boolean) => void) {
     this.assets = assets;
     this.send = send;
     this.tell = tell;
-    this.toggleButton = button(TEXT.book.open, () => this.setOpen(this.panel.hidden), 'book-toggle');
-    this.toggleButton.hidden = true;
-    this.panel = node('aside', 'book');
+    this.available = available;
+    this.panel = node('aside', 'atlas-vtt-plugin book');
+    // A press in the book leaves the log open beside it.
+    this.panel.dataset.keepsLogOpen = '';
     this.panel.setAttribute('aria-label', TEXT.book.open);
     this.panel.hidden = true;
-    const header = node('div', 'book-tabs');
+    const header = node('div', 'book-header');
+    header.append(node('span', 'book-title', TEXT.book.open), closeButton(TEXT.book.close, () => this.setOpen(false)));
+    const tabs = node('div', 'book-tabs');
     for (const tab of TABS) {
       const choice = button(TEXT.book.tabs[tab], () => {
         this.ui.tab = tab;
         this.render();
       }, 'book-tab');
       choice.dataset.tab = tab;
-      header.append(choice);
+      tabs.append(choice);
     }
-    header.append(button(TEXT.book.close, () => this.setOpen(false), 'book-close'));
     this.body = node('div', 'book-body');
-    this.panel.append(header, this.body);
-    host.append(this.toggleButton, this.panel);
+    this.panel.append(header, tabs, this.body);
+    host.append(this.panel);
   }
 
   receive(message: BookMessage): void {
@@ -65,7 +70,7 @@ export class BookPanel {
       this.book = { ...this.book, items: [...this.book.items.filter((item) => item.id !== message.item.id), message.item] };
       this.tell(TEXT.book.newItem(message.item.name));
     }
-    this.toggleButton.hidden = this.book === null;
+    this.available(this.book !== null);
     if (!this.panel.hidden) this.render();
   }
 
@@ -86,6 +91,10 @@ export class BookPanel {
     }
     this.send(message);
     this.render();
+  }
+
+  toggle(): void {
+    this.setOpen(this.panel.hidden);
   }
 
   private setOpen(open: boolean): void {

@@ -10,6 +10,7 @@ import { MAX_Q, Q_SCALE, type QShape } from '../../types/shapeTypes';
 import type { WallSegment } from '../../types/wallTypes';
 import { wallList } from '../../vision/wallList';
 import { ringColour } from './scenePicture.ts';
+import { authorOf } from './PlayerAnnotations.ts';
 
 const finite = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
 /** A place players may be sent: finite and within the protocol's reach. */
@@ -79,9 +80,9 @@ function sharedDrawing(stroke: DrawingStroke): SharedDrawing | null {
   if (stroke.type === 'icon') {
     const centre = stroke.points[0];
     if (centre === undefined || typeof stroke.icon !== 'string' || !/^[a-z0-9-]{1,40}$/.test(stroke.icon)) return null;
-    return { type: 'icon', points: [centre.x, centre.y], colour, width, opacity, icon: stroke.icon };
+    return { type: 'icon', points: [centre.x, centre.y], colour, width, opacity, icon: stroke.icon, ...authorOf(stroke) };
   }
-  return { type: 'pen', points: stroke.points.flatMap((point) => [point.x, point.y]), colour, width, opacity };
+  return { type: 'pen', points: stroke.points.flatMap((point) => [point.x, point.y]), colour, width, opacity, ...authorOf(stroke) };
 }
 
 /** A box sure to hold a text however its font draws it: generous, so a text is never hidden that fog does not cover. */
@@ -102,7 +103,7 @@ function sharedText(text: TextElement): SharedText {
     x: text.x, y: text.y, text: text.text.slice(0, MAX_TEXT_LENGTH), fontSize: clamp(text.fontSize, 1, 10_000, 16), fontFamily: FONT.test(font) ? font : FALLBACK_FONT,
     colour: ringColour(text.color), background: text.backgroundColor ? ringColour(text.backgroundColor) : null, padding: clamp(text.padding || 8, 0, 10_000, 8),
     radius: clamp(text.borderRadius, 0, 10_000, 0), opacity: clamp(text.opacity || 1, 0, 1, 1), align: text.align === 'left' || text.align === 'right' ? text.align : 'center', bold: text.bold === true, italic: text.italic === true,
-    rotation: clamp(text.rotation, -360, 360, 0), scale: clamp(text.scale || 1, 0.001, 1_000, 1),
+    rotation: clamp(text.rotation, -360, 360, 0), scale: clamp(text.scale || 1, 0.001, 1_000, 1), ...authorOf(text),
   };
 }
 

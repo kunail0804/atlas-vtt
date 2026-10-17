@@ -5,8 +5,8 @@ import { useHotkeyLabels } from "../../../keyboard/useMapHotkeys"
 import { DropdownMenuItem } from "../primitives/DropdownMenuItem"
 import { DropdownModeSelector } from "../primitives/DropdownModeSelector"
 import { DropdownSliderRow } from "../primitives/DropdownSliderRow"
-import { ToolGroup, type ToolGroupControls } from "./ToolGroup"
-import { fogToolFace } from "./toolFaces"
+import { ToolGroup } from "./ToolGroup"
+import { fogToolFace, type ToolGroupControls } from "./toolFaces"
 import { useEmitViewEvent } from "./useEmitViewEvent"
 import { t } from '../../../i18n'
 

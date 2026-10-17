@@ -2,7 +2,8 @@ import type { WorkspaceLeaf } from 'obsidian';
 import type { DiceRollOrigin } from '../../types/diceRollOrigin';
 import type { DiceRollResult } from '../../types/diceTypes';
 import type { DiceRules } from '../../types/diceRulesTypes';
-import type { RollingDice } from '../../types/diceSetTypes';
+import type { AdvantageSide, RollingDice } from '../../types/diceSetTypes';
+import { ruledSides } from '../../tools/diceAdvantage';
 import { call } from './atlasView.ts';
 
 /** What `dice-rolled` carries on an Atlas view's bus: the roll and, when known, the token it was made for. */
@@ -14,7 +15,9 @@ export type DiceRolledListener = (result: DiceRollResult, origin?: DiceRollOrigi
  */
 export interface DiceSource {
   readonly viewId: string;
-  rollDice(formula: string, source?: DiceRollResult['source'], origin?: DiceRollOrigin): DiceRollResult | null;
+  rollDice(formula: string, source?: DiceRollResult['source'], origin?: DiceRollOrigin, options?: { readonly advantage?: AdvantageSide }): DiceRollResult | null;
+  /** The sides of advantage the tool's dice set has a rule for; none from an Atlas that tells none. */
+  advantageSides?(): readonly AdvantageSide[];
   /** The dice the tool rolls a bare bonus with: its map's dice set (or a collection's stored dice rules). */
   rules(): DiceRules | RollingDice;
   on(event: 'dice-rolled', listener: DiceRolledListener): unknown;
@@ -39,7 +42,8 @@ export function diceSourceOf(leaf: WorkspaceLeaf): DiceSource | null {
   if (typeof viewId !== 'string' || !hasMethods(tool, 'rollDice', 'getDiceRules') || !hasMethods(bus, 'on', 'off')) return null;
   return {
     viewId,
-    rollDice: (formula, source, origin) => tool.rollDice(formula, source, origin) as DiceRollResult | null,
+    rollDice: (formula, source, origin, options) => tool.rollDice(formula, source, origin, options) as DiceRollResult | null,
+    advantageSides: () => (hasMethods(tool, 'rollingDice') ? ruledSides(tool.rollingDice() as RollingDice) : []),
     rules: () => tool.getDiceRules() as DiceRules | RollingDice,
     on: (event, listener) => bus.on(event, listener),
     off: (event, listener) => bus.off(event, listener),

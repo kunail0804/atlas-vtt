@@ -125,6 +125,8 @@ export interface TextElement {
   rotation?: number;
   /** Text scale multiplier (default 1) */
   scale?: number;
+  /** The relay id of the player who placed it from the online player page; unset for the GM's own. */
+  author?: string;
 }
 
 export interface DrawingStroke {
@@ -139,6 +141,8 @@ export interface DrawingStroke {
   opacity: number;
   /** Key into `MAP_ICON_SVG`; only set when `type` is `'icon'` */
   icon?: string;
+  /** The relay id of the player who drew it from the online player page; unset for the GM's own. */
+  author?: string;
 }
 
 export type ToolMode =

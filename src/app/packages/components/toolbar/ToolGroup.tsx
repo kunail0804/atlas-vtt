@@ -1,23 +1,19 @@
 import React from "react"
 import { ToolButton } from "../primitives/ToolButton"
 import { DropdownMenu } from "../primitives/DropdownMenu"
-import type { Tool, ToolFace } from "./toolFaces"
 
 const CHEVRON_CLASS = "h-9 w-5 p-0 ml-0 text-[var(--text-muted)] hover:text-[var(--text-normal)] hover:bg-[var(--background-modifier-hover)]"
 
-/** What MainToolbar hands every tool group: the active tool and its options menu. */
-export interface ToolGroupControls {
-  activeTool: Tool
-  /** Selects a tool and closes every toolbar menu. */
-  selectTool: (tool: Tool) => void
-  menuOpen: boolean
-  toggleMenu: () => void
-  closeMenu: () => void
+/** What a tool button shows: its icon and label, and whether its tool is in use. */
+export interface ToolGroupFace {
+  icon: React.ComponentType<{ className?: string }>
+  label: string
+  isActive: boolean
 }
 
 interface ToolGroupProps {
   /** What the tool button shows; the click's tool is `onSelect`'s business. */
-  face: Pick<ToolFace, "icon" | "label" | "isActive">
+  face: ToolGroupFace
   shortcut: string
   menuLabel: string
   menuOpen: boolean

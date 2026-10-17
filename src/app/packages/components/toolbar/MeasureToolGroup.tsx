@@ -4,8 +4,8 @@ import { Circle, Ruler, Triangle } from "lucide-react"
 import { useHotkeyLabels } from "../../../keyboard/useMapHotkeys"
 import { DropdownMenuItem } from "../primitives/DropdownMenuItem"
 import { DropdownToggleRow } from "../primitives/DropdownToggleRow"
-import { ToolGroup, type ToolGroupControls } from "./ToolGroup"
-import { MEASURE_SHAPES, measureToolFace, type MeasureTool } from "./toolFaces"
+import { ToolGroup } from "./ToolGroup"
+import { MEASURE_SHAPES, measureToolFace, type MeasureTool, type ToolGroupControls } from "./toolFaces"
 import { useEmitViewEvent } from "./useEmitViewEvent"
 
 const SHAPE_OPTIONS: readonly { tool: MeasureTool; icon: typeof Ruler; label: string }[] = [

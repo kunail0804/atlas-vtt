@@ -2,6 +2,8 @@ import { useEffect, useRef, type RefObject } from 'react';
 
 /** What a host marks its button for the log with: a press on it is no press outside the panel. */
 export const LOG_TOGGLE = '.atlas-online-log-button';
+/** What a host marks its own panels and bars with that stand beside the log: a press there leaves the log open. */
+export const LOG_KEEPS_OPEN = '[data-keeps-log-open]';
 
 /**
  * Whether a modal layer stands over the panel: an element marked `aria-modal` that is neither the
@@ -14,7 +16,8 @@ function covered(panel: HTMLElement): boolean {
 /**
  * While `on` (the floating panel, not pinned): Escape, wherever the focus is, goes to the panel
  * (`escape`, which undoes its innermost state or closes it), and a press outside the panel closes
- * it, as Atlas's dice log does (not a press on the host's own button for the log, `LOG_TOGGLE`).
+ * it, as Atlas's dice log does (not a press on the host's own button for the log, `LOG_TOGGLE`, nor
+ * on what the host keeps beside it, `LOG_KEEPS_OPEN`).
  * While a modal layer stands over it, neither reaches the panel: Escape and a press close that first.
  */
 export function usePanelDismissal(root: RefObject<HTMLElement | null>, on: boolean, escape: () => boolean, close: () => void): void {
@@ -38,7 +41,7 @@ export function usePanelDismissal(root: RefObject<HTMLElement | null>, on: boole
       const target = event.target as Partial<Element> | null;
       if (event.button !== 0 || typeof target?.closest !== 'function' || covered(panel)) return;
       // The host's button that opens and closes the log does that itself: closing here would open it again.
-      if (target.closest(`.atlas-online-log, ${LOG_TOGGLE}`) === null) latest.current.close();
+      if (target.closest(`.atlas-online-log, ${LOG_TOGGLE}, ${LOG_KEEPS_OPEN}`) === null) latest.current.close();
     };
     view.addEventListener('keydown', onKey, true);
     doc.addEventListener('pointerdown', onPress, true);

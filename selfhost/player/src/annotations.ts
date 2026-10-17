@@ -1,6 +1,6 @@
 import { Container, Graphics, Text, type FederatedPointerEvent } from 'pixi.js';
 import type { PlayerMessage } from '../../../src/app/online/protocol/game.ts';
-import type { SharedAnnotations, SharedPin } from '../../../src/app/online/protocol/mapLayers.ts';
+import type { SharedAnnotations, SharedDrawing, SharedPin, SharedText } from '../../../src/app/online/protocol/mapLayers.ts';
 import { DrawingLayer } from '../../../src/app/pixi/drawingLayer.ts';
 import { createTextElementView } from '../../../src/app/pixi/textElementView.ts';
 import { PIN_ICON_PATHS, resolvePinIcon } from '../../../src/app/types/pinIcons.ts';
@@ -8,13 +8,20 @@ import type { DrawingStroke, TextElement } from '../../../src/app/types.ts';
 
 const PIN_RADIUS = 18;
 
+/** A player's own drawings and texts as their page holds them before the GM has them. */
+export interface LocalOwn {
+  readonly by: string;
+  readonly drawings: readonly SharedDrawing[];
+  readonly texts: readonly SharedText[];
+}
+
 /** Drawings as the plugin's layer takes them: the inverse of `sharedDrawing` in mapLayerInputs.ts. */
 function strokes(annotations: SharedAnnotations): Record<string, DrawingStroke> {
   const result: Record<string, DrawingStroke> = {};
   annotations.drawings.forEach((drawing, index) => {
     const points: { x: number; y: number }[] = [];
     for (let at = 0; at + 1 < drawing.points.length; at += 2) points.push({ x: drawing.points[at] ?? 0, y: drawing.points[at + 1] ?? 0 });
-    const id = `shared-${index}`;
+    const id = drawing.id === undefined ? `shared-${index}` : `player-${drawing.id}`;
     result[id] = {
       id, kind: 'drawing', timestamp: index, type: drawing.type, points, color: drawing.colour, width: drawing.width, opacity: drawing.opacity,
       ...(drawing.icon === undefined ? {} : { icon: drawing.icon }),
@@ -38,6 +45,11 @@ function textElement(text: SharedAnnotations['texts'][number], index: number): T
  */
 export class AnnotationsView {
   private readonly drawings: DrawingLayer;
+  /** What the GM last sent. */
+  private shown: SharedAnnotations = { drawings: [], texts: [] };
+  /** The player's own drawings as the eraser has them while it works, drawn in place of theirs as the GM sent them; null for none. */
+  private local: LocalOwn | null = null;
+  private readonly listeners = new Set<(annotations: SharedAnnotations) => void>();
   private readonly texts: Container;
   private readonly pins: Container;
   private readonly send: (message: PlayerMessage) => void;
@@ -56,6 +68,33 @@ export class AnnotationsView {
   }
 
   showAnnotations(annotations: SharedAnnotations): void {
+    this.shown = annotations;
+    this.render();
+    for (const listener of this.listeners) listener(annotations);
+  }
+
+  /** Hears every set of annotations the GM sends. */
+  onShown(listener: (annotations: SharedAnnotations) => void): void {
+    this.listeners.add(listener);
+  }
+
+  /** The drawings and texts `by` made, as the GM last sent them. */
+  own(by: string): SharedAnnotations {
+    return { drawings: this.shown.drawings.filter((drawing) => drawing.by === by), texts: this.shown.texts.filter((text) => text.by === by) };
+  }
+
+  /** Draws `drawings` in place of what `by` made (the eraser's work before the GM has it), or what the GM sent again (null). */
+  setLocal(local: LocalOwn | null): void {
+    this.local = local;
+    this.render();
+  }
+
+  private render(): void {
+    const local = this.local;
+    const annotations = local === null ? this.shown : {
+      drawings: [...this.shown.drawings.filter((drawing) => drawing.by !== local.by), ...local.drawings],
+      texts: [...this.shown.texts.filter((text) => text.by !== local.by), ...local.texts],
+    };
     this.drawings.sync(strokes(annotations));
     for (const child of [...this.texts.children]) child.destroy({ children: true });
     annotations.texts.forEach((text, index) => this.texts.addChild(createTextElementView(textElement(text, index))));
@@ -67,6 +106,8 @@ export class AnnotationsView {
   }
 
   clear(): void {
+    this.shown = { drawings: [], texts: [] };
+    this.local = null;
     this.drawings.sync({});
     this.showPins([]);
     for (const child of [...this.texts.children]) child.destroy({ children: true });

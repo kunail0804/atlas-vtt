@@ -1,0 +1,48 @@
+// The book as the plugin's floating panels look (the table log's `_log-panel.scss`): the elevated
+// surface, the panel corner, and a header whose close button sits concentric in the corner.
+@use '../../../styles/tokens' as *;
+@use '../../../styles/mixins' as *;
+
+.atlas-vtt-plugin.book {
+  padding: $spacing-s;
+  gap: $spacing-s;
+  @include atlas-elevated-surface;
+  @include atlas-panel-radius($radius-2xl);
+  animation: atlas-book-slide-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+
+  .book-header {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: $spacing-s;
+    @include atlas-close-header(0);
+    margin: calc(-1 * #{$spacing-s}) calc(-1 * #{$spacing-s}) 0 0;
+  }
+
+  .book-title {
+    flex: 1;
+    padding-left: $spacing-xs;
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .book-tabs {
+    padding: 0;
+    border-bottom: 0;
+  }
+
+  .book-body {
+    padding: $spacing-xs;
+  }
+}
+
+@keyframes atlas-book-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+}

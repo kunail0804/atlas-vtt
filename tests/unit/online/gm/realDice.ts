@@ -1,7 +1,9 @@
 import { EventEmitter } from 'node:events';
 import type { DiceRules } from '../../../../src/app/types/diceRulesTypes';
+import type { RollingDice } from '../../../../src/app/types/diceSetTypes';
 import type { DiceRollResult } from '../../../../src/app/types/diceTypes';
 import type { DiceSource } from '../../../../src/app/online/gm/atlasDice.ts';
+import { ruledSides } from '../../../../src/app/tools/diceAdvantage';
 
 /**
  * Where Atlas's real dice tool comes from, which each test file imports by this computed path, so the
@@ -17,7 +19,7 @@ interface DiceRollInputs {
   onFormulaError(error: { readonly code: string }): void;
 }
 /** Atlas's `DiceTool` class, as far as these tests use it. */
-export type DiceToolClass = new (bus: EventEmitter, rules: () => DiceRules, inputs: DiceRollInputs) => Pick<DiceSource, 'rollDice'>;
+export type DiceToolClass = new (bus: EventEmitter, rules: () => DiceRules, inputs: DiceRollInputs) => Pick<DiceSource, 'rollDice'> & { rollingDice(): RollingDice };
 
 export interface RealDice {
   /** The tab's dice as the companion sees them: Atlas's dice tool and the bus it announces rolls on. */
@@ -38,6 +40,6 @@ export function realDice(DiceTool: DiceToolClass, rules: DiceRules, random: () =
   bus.on('dice-rolled', (result: DiceRollResult) => rolled.push(result));
   return {
     rolled, errors,
-    dice: { viewId, rollDice: (formula, source, origin) => tool.rollDice(formula, source, origin), rules: () => tool.getDiceRules(), on: (event, listener) => bus.on(event, listener), off: (event, listener) => bus.off(event, listener) },
+    dice: { viewId, rollDice: (formula, source, origin, options) => tool.rollDice(formula, source, origin, options), advantageSides: () => ruledSides(tool.rollingDice()), rules: () => tool.getDiceRules(), on: (event, listener) => bus.on(event, listener), off: (event, listener) => bus.off(event, listener) },
   };
 }

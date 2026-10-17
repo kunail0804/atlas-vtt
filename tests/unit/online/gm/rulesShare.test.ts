@@ -53,6 +53,22 @@ describe('the rules players measure by', () => {
     expect(sharedRules({ ...GRID, offsetX: 1e9 }, DAGGERHEART, null)).toBeNull();
   });
 
+  it('name the sides of advantage the dice set has, which the player\'s tray offers, and the parser reads them back', () => {
+    const { store } = fakeStore(state({ grid: GRID }));
+    const sent: { body: GmMessage; to: string | undefined }[] = [];
+    let sides: ('advantage' | 'disadvantage')[] = ['advantage', 'disadvantage'];
+    const share = new RulesShare(store, { send: (body, to) => void sent.push({ body, to }), measurement: () => DAGGERHEART, accent: () => null, advantageSides: () => sides });
+    share.setScene('s1');
+    const body = sent.at(-1)?.body;
+    expect(body?.t === 'rules' ? body.advantage : undefined).toEqual(['advantage', 'disadvantage']);
+    expect(parseGmMessage(JSON.parse(JSON.stringify(body)))).toEqual(body);
+    sides = [];
+    share.update();
+    const without = sent.at(-1)?.body;
+    expect(without !== undefined && 'advantage' in without).toBe(false);
+    expect(parseGmMessage({ ...(without as object), advantage: ['sideways'] })).toBeNull();
+  });
+
   it('go out when the scene is shared, again only when they change, and to a player who joins', () => {
     const { store, set } = fakeStore(state({ grid: GRID }));
     const sent: { body: GmMessage; to: string | undefined }[] = [];

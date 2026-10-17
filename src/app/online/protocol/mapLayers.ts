@@ -1,4 +1,6 @@
 import { isRecord } from './shape.ts';
+import { isAnnotationId } from './annotate.ts';
+import { PLAYER_ID_PATTERN } from './relay.ts';
 import { COLOUR_PATTERN, MAX_COORDINATE, MAX_TOKEN_SIZE, MAX_TOKENS } from './tokens.ts';
 
 /** Door badges one message may carry. */
@@ -65,6 +67,9 @@ export interface SharedDrawing {
   readonly width: number;
   readonly opacity: number;
   readonly icon?: string;
+  /** A player's own: its id and who made it (`annotate.ts`); the GM's carry neither. */
+  readonly id?: string;
+  readonly by?: string;
 }
 
 /** A text on the map, as Atlas's text tool stores it. */
@@ -83,6 +88,9 @@ export interface SharedText {
   readonly bold: boolean;
   readonly italic: boolean;
   readonly rotation: number;
+  /** A player's own: its id and who made it; the GM's carry neither. */
+  readonly id?: string;
+  readonly by?: string;
   readonly scale: number;
 }
 
@@ -162,15 +170,23 @@ export function parseSensed(value: unknown): SensedMark[] | null {
   return marks;
 }
 
+/** Who made an annotation, where a player did: both its id and its maker, or neither; undefined where they cannot be read. */
+function authorField(value: Record<string, unknown>): { id?: string; by?: string } | undefined {
+  if (value.id === undefined && value.by === undefined) return {};
+  return isAnnotationId(value.id) && typeof value.by === 'string' && PLAYER_ID_PATTERN.test(value.by) ? { id: value.id, by: value.by } : undefined;
+}
+
 function parseDrawing(value: unknown): SharedDrawing | null {
   if (!isRecord(value) || (value.type !== 'pen' && value.type !== 'icon') || !isColour(value.colour)) return null;
   if (!isIn(value.width, 0, MAX_TOKEN_SIZE) || !isIn(value.opacity, 0, 1)) return null;
+  const author = authorField(value);
+  if (author === undefined) return null;
   if (value.type === 'icon') {
     if (!isPoints(value.points, 1) || value.points.length !== 2 || typeof value.icon !== 'string' || !ICON_PATTERN.test(value.icon)) return null;
-    return { type: 'icon', points: value.points, colour: value.colour, width: value.width, opacity: value.opacity, icon: value.icon };
+    return { type: 'icon', points: value.points, colour: value.colour, width: value.width, opacity: value.opacity, icon: value.icon, ...author };
   }
   if (!isPoints(value.points, MAX_DRAWING_POINTS) || value.points.length === 0) return null;
-  return { type: 'pen', points: value.points, colour: value.colour, width: value.width, opacity: value.opacity };
+  return { type: 'pen', points: value.points, colour: value.colour, width: value.width, opacity: value.opacity, ...author };
 }
 
 function parseText(value: unknown): SharedText | null {
@@ -180,7 +196,10 @@ function parseText(value: unknown): SharedText | null {
   if (!isIn(value.fontSize, 1, 10_000) || !isColour(value.colour) || (background !== null && !isColour(background))) return null;
   if (!isIn(value.padding, 0, 10_000) || !isIn(value.radius, 0, 10_000) || !isIn(value.opacity, 0, 1) || !oneOf(ALIGNS, value.align)) return null;
   if (typeof value.bold !== 'boolean' || typeof value.italic !== 'boolean' || !isIn(value.rotation, -360, 360) || !isIn(value.scale, 0.001, 1_000)) return null;
+  const author = authorField(value);
+  if (author === undefined) return null;
   return {
+    ...author,
     x: value.x, y: value.y, text: value.text, fontSize: value.fontSize, fontFamily, colour: value.colour, background,
     padding: value.padding, radius: value.radius, opacity: value.opacity, align: value.align, bold: value.bold, italic: value.italic, rotation: value.rotation, scale: value.scale,
   };

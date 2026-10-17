@@ -1,11 +1,12 @@
 import type { Viewport } from 'pixi-viewport';
 import type { PlayerMessage } from '../../../src/app/online/protocol/game.ts';
-import { MARKS_INTERVAL_MS, MAX_MARK_LASER_NUMBERS, type MarkPoint, type MarksMessage, type MeasureState, type SharedCursor } from '../../../src/app/online/protocol/marks.ts';
+import { MARKS_INTERVAL_MS, MAX_KEPT, MAX_MARK_LASER_NUMBERS, type MarkPoint, type MarkShape, type MarksMessage, type MeasureState, type SharedCursor, type SharedMeasure } from '../../../src/app/online/protocol/marks.ts';
 import type { RulesMessage } from '../../../src/app/online/protocol/rules.ts';
 import { CursorOverlay, CursorTap, MarkOverlay, PointerTap, type MeasureRules, type RemoteLaser, type RemoteMeasure } from '../../../src/app/online/marks/index.ts';
-import { DEFAULT_LASER_POINTER_SETTINGS } from '../../../src/app/tools/laserPointerSettings.ts';
+import type { PlayerTool, ToolSettingsStore } from './toolSettings.ts';
 
-export type Tool = 'move' | 'laser' | 'measure';
+/** The shape each measure tool draws, as the GM's (`MEASURE_SHAPES`). */
+const SHAPES: Partial<Record<PlayerTool, MarkShape>> = { measure: 'line', 'measure-circle': 'circle', 'measure-cone': 'cone' };
 
 const FALLBACK_ACCENT = '#7c8cff';
 
@@ -26,7 +27,10 @@ export class MarksView {
   private cursorTap: CursorTap | null = null;
   private measureRules: MeasureRules | null = null;
   private accent = FALLBACK_ACCENT;
-  private tool: Tool = 'move';
+  private tool: PlayerTool = 'move';
+  private readonly settings: ToolSettingsStore;
+  /** The measurements the player keeps on the map while "Persist Measurements" is on. */
+  private kept: SharedMeasure[] = [];
   private remoteLasers: readonly RemoteLaser[] = [];
   private remoteMeasures: readonly RemoteMeasure[] = [];
   private ownLaser: RemoteLaser | null = null;
@@ -35,8 +39,13 @@ export class MarksView {
   private lastCursor = '';
   private names = new Map<string, string>();
 
-  constructor(viewport: Viewport, canvas: HTMLCanvasElement, send: (message: PlayerMessage) => void, self: () => string | null, scene: () => string | null) {
+  constructor(viewport: Viewport, canvas: HTMLCanvasElement, send: (message: PlayerMessage) => void, self: () => string | null, scene: () => string | null, settings: ToolSettingsStore) {
     this.viewport = viewport;
+    this.settings = settings;
+    // Kept measurements go when the player stops keeping them, as the GM's do.
+    settings.subscribe(() => {
+      if (!settings.get().measure.persist && this.kept.length > 0) this.clearKept();
+    });
     this.canvas = canvas;
     this.send = send;
     this.self = self;
@@ -50,11 +59,20 @@ export class MarksView {
     window.setInterval(() => this.tick(), MARKS_INTERVAL_MS);
   }
 
-  setTool(tool: Tool): void {
+  setTool(tool: PlayerTool): void {
     this.tool = tool;
-    // The map pans with the left button only while moving; the laser and the ruler take it.
+    // The map pans with the left button only while moving; every other tool takes it.
     if (tool === 'move') this.viewport.plugins.resume('drag');
     else this.viewport.plugins.pause('drag');
+  }
+
+  /** Takes every kept measurement off the map. */
+  clearKept(): void {
+    this.kept = [];
+    this.ownMeasure = this.measureStart === null ? null : this.ownMeasure;
+    const scene = this.scene();
+    if (scene !== null) this.send({ t: 'measure', scene, color: this.accent, live: null, kept: [] });
+    this.draw();
   }
 
   rules(message: RulesMessage): void {
@@ -88,6 +106,7 @@ export class MarksView {
     this.remoteLasers = [];
     this.remoteMeasures = [];
     this.ownMeasure = null;
+    this.kept = [];
     this.measureStart = null;
     this.draw();
     this.cursors.clear();
@@ -96,7 +115,8 @@ export class MarksView {
   private draw(): void {
     const self = this.self() ?? 'me';
     const lasers = this.ownLaser === null ? this.remoteLasers : [...this.remoteLasers, this.ownLaser];
-    const measures = this.ownMeasure === null ? this.remoteMeasures : [...this.remoteMeasures, { who: self, ...this.ownMeasure }];
+    const own = this.ownMeasure ?? (this.kept.length > 0 ? { color: this.accent, live: null, kept: this.kept } : null);
+    const measures = own === null ? this.remoteMeasures : [...this.remoteMeasures, { who: self, ...own }];
     this.marks.show({ lasers, measures }, { canvas: this.canvas, viewport: this.viewport });
   }
 
@@ -106,20 +126,24 @@ export class MarksView {
   }
 
   private measureDown(button: number, global: { x: number; y: number }): void {
-    if (this.tool !== 'measure' || button !== 0) return;
+    const shape = SHAPES[this.tool];
+    if (shape === undefined || button !== 0) return;
     this.measureStart = this.world(global);
-    this.ownMeasure = { color: this.accent, live: { shape: 'line', a: this.measureStart, b: this.measureStart }, kept: [] };
+    this.ownMeasure = { color: this.accent, live: { shape, a: this.measureStart, b: this.measureStart }, kept: this.kept };
   }
 
   private measureMove(global: { x: number; y: number }): void {
-    if (this.measureStart === null || this.ownMeasure === null) return;
-    this.ownMeasure = { ...this.ownMeasure, live: { shape: 'line', a: this.measureStart, b: this.world(global) } };
+    if (this.measureStart === null || this.ownMeasure?.live == null) return;
+    this.ownMeasure = { ...this.ownMeasure, live: { ...this.ownMeasure.live, b: this.world(global) } };
   }
 
   private measureUp(): void {
     if (this.measureStart === null) return;
+    const live = this.ownMeasure?.live ?? null;
     this.measureStart = null;
-    this.ownMeasure = { color: this.accent, live: null, kept: [] };
+    // A measurement the player keeps stays on the map (the oldest goes past `MAX_KEPT`); a click without a drag keeps nothing.
+    if (live !== null && this.settings.get().measure.persist && (live.a[0] !== live.b[0] || live.a[1] !== live.b[1])) this.kept = [...this.kept, live].slice(-MAX_KEPT);
+    this.ownMeasure = { color: this.accent, live: null, kept: this.kept };
     this.sendMeasure();
     this.ownMeasure = null;
     this.draw();
@@ -128,7 +152,7 @@ export class MarksView {
   private sendMeasure(): void {
     const scene = this.scene();
     if (scene === null || this.ownMeasure === null) return;
-    this.send({ t: 'measure', scene, color: this.ownMeasure.color, live: this.ownMeasure.live, kept: [] });
+    this.send({ t: 'measure', scene, color: this.ownMeasure.color, live: this.ownMeasure.live, kept: this.kept });
   }
 
   private sendCursor(at: MarkPoint | null, pts: readonly number[], span: number | undefined): void {
@@ -143,7 +167,7 @@ export class MarksView {
     if (scene === null) return;
     const state = this.laser.state();
     const trail = this.laser.takeTrail(MAX_MARK_LASER_NUMBERS);
-    const { color, size } = DEFAULT_LASER_POINTER_SETTINGS;
+    const { color, size } = this.settings.get().laser;
     if (state.on || trail.pts.length > 0 || this.ownLaser?.on === true) {
       const laser = { color, size, at: state.at, pts: trail.pts, on: state.on, ...(trail.span === null ? {} : { span: trail.span }) };
       this.send({ t: 'laser', scene, ...laser });

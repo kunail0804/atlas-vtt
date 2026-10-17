@@ -55,6 +55,13 @@ export const TEXT = {
     kinds: { treasure: 'Trésor', danger: 'Danger', dungeon: 'Donjon', person: 'Personnage', note: 'Note' } satisfies Record<PinKind, string>,
   },
   reader: { close: 'Fermer' },
+  toolbar: {
+    chat: 'Chat et dés',
+    deleteMine: 'Effacer tous mes dessins',
+    textPlaceholder: 'Ton texte…',
+    textAdd: 'Placer',
+    noScene: 'Le MJ ne partage aucune scène pour l\'instant.',
+  },
   rolls: {
     noScene: 'Le MJ ne partage aucune scène : les jets attendent qu\'il en montre une.',
     refused: {

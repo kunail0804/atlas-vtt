@@ -1,3 +1,4 @@
+import { isRollAdvantage, type RollAdvantage } from './dice.ts';
 import { isRecord } from './shape.ts';
 import { MAX_SCENE_ID, parseSnapGrid, type SnapGrid } from './moves.ts';
 import { MAX_COORDINATE } from './tokens.ts';
@@ -32,6 +33,8 @@ export interface SharedRules {
   readonly measurement: SharedMeasurement;
   readonly accent: string | null;
   readonly cursors?: true;
+  /** The sides of advantage the scene's dice set has a rule for, which a player's dice tray offers; absent for none. */
+  readonly advantage?: readonly RollAdvantage[];
 }
 
 export type RulesMessage = { readonly t: 'rules'; readonly scene: string } & SharedRules;
@@ -67,11 +70,13 @@ export function parseMeasurement(value: unknown): SharedMeasurement | null {
 
 /** A `rules` message as the client reads it, or null for anything malformed. */
 export function parseRules(value: Record<string, unknown>): RulesMessage | null {
-  const { scene, snap, accent, cursors } = value;
+  const { scene, snap, accent, cursors, advantage } = value;
   const grid = parseSnapGrid(value.grid);
   const measurement = parseMeasurement(value.measurement);
   if (typeof scene !== 'string' || scene.length > MAX_SCENE_ID || typeof snap !== 'boolean' || grid === null || grid === undefined || measurement === null) return null;
   if (accent !== null && (typeof accent !== 'string' || !ACCENT.test(accent))) return null;
   if (cursors !== undefined && cursors !== true) return null;
-  return { t: 'rules', scene, grid, snap, measurement, accent, ...(cursors === true && { cursors }) };
+  if (advantage !== undefined && (!Array.isArray(advantage) || advantage.length > 2 || !advantage.every(isRollAdvantage))) return null;
+  const sides = Array.isArray(advantage) && advantage.length > 0 ? { advantage: [...new Set(advantage)] } : {};
+  return { t: 'rules', scene, grid, snap, measurement, accent, ...(cursors === true && { cursors }), ...sides };
 }

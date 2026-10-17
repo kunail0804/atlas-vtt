@@ -6,8 +6,8 @@ import { useHotkeyLabels } from "../../../keyboard/useMapHotkeys"
 import { DropdownMenuItem } from "../primitives/DropdownMenuItem"
 import { DropdownToggleRow } from "../primitives/DropdownToggleRow"
 import { LaserPointerOptions } from "../LaserPointerOptions"
-import { ToolGroup, type ToolGroupControls } from "./ToolGroup"
-import { moveToolFace } from "./toolFaces"
+import { ToolGroup } from "./ToolGroup"
+import { moveToolFace, type ToolGroupControls } from "./toolFaces"
 
 /** Move/Select and the laser pointer, with the selection mode and laser options. */
 export function MoveToolGroup({ activeTool, selectTool, menuOpen, toggleMenu }: ToolGroupControls): React.ReactElement {

@@ -10,8 +10,8 @@ import { LabelTooltip } from "../primitives/tooltip"
 import { DropdownMenuItem } from "../primitives/DropdownMenuItem"
 import { DropdownModeSelector } from "../primitives/DropdownModeSelector"
 import { DropdownSliderRow } from "../primitives/DropdownSliderRow"
-import { ToolGroup, type ToolGroupControls } from "./ToolGroup"
-import { drawToolFace } from "./toolFaces"
+import { ToolGroup } from "./ToolGroup"
+import { drawToolFace, type ToolGroupControls } from "./toolFaces"
 import { useEmitViewEvent } from "./useEmitViewEvent"
 
 /** Stampable map icons; keys match `MAP_ICON_SVG` in `pixi/mapIcons.ts`. */

@@ -44,6 +44,20 @@ const refusals = (sent: ShareHarness['sent']): { readonly reason: string; readon
 const face = (value: number, sides: number): number => (value - 0.5) / sides;
 
 describe('players\' rolls', () => {
+  it('roll with the side of advantage the tray chose, by the dice set\'s own rule', async () => {
+    const set = { dice: [{ sides: 20, count: 1 }], crit: 'natural', advantage: { kind: 'keep' }, disadvantage: { kind: 'keep' } } as unknown as DiceRules;
+    const faces = [face(5, 20), face(17, 20)];
+    let next = 0;
+    const gm = await table(set, () => faces[next++ % faces.length] ?? 0);
+    gm.share.receive(ANA, { t: 'roll', scene: gm.scene, formula: '1d20', token: null, advantage: 'advantage' });
+    expect(gm.rolled).toHaveLength(1);
+    expect(gm.rolled[0]?.total).toBe(17);
+    expect(gm.rolled[0]?.rolls.filter((die) => die.dropped === true).map((die) => die.value)).toEqual([5]);
+    next = 0;
+    gm.share.receive(ANA, { t: 'roll', scene: gm.scene, formula: '1d20', token: null, advantage: 'disadvantage' });
+    expect(gm.rolled[1]?.total).toBe(5);
+  });
+
   it('are rolled once each by Atlas\'s dice tool with the map\'s crit and explode rules, for the player\'s own token', async () => {
     // Every die shows its highest face once, then a 2: 1d20 crits and explodes once (2d6 explode too).
     const faces = [face(20, 20), face(2, 20), face(6, 6), face(2, 6), face(3, 6)];

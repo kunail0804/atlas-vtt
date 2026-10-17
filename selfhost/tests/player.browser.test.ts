@@ -102,14 +102,14 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player page in
     expect(gm.messages.some((m) => (m.body as { t?: string }).t === 'drag')).toBe(true);
 
     // Chat through the plugin's own log panel.
-    await page.click('.chat-button');
+    await page.click('.atlas-bottom-toolbar-row__start button');
     const field = page.locator('textarea').first();
     await field.fill('Bonjour la table');
     await field.press('Enter');
     await until(() => gm.messages.some((m) => (m.body as { t?: string; text?: string }).t === 'chat'), 'chat sent', 5_000);
     const chat = gm.messages.find((m) => (m.body as { t?: string }).t === 'chat')?.body as { text: string };
     expect(chat.text).toBe('Bonjour la table');
-    await page.click('.chat-button');
+    await page.click('.atlas-bottom-toolbar-row__start button');
     // A second press on the button closes the panel (it is the host's toggle, not a press outside).
     expect(await page.locator('textarea').count()).toBe(0);
 
@@ -132,7 +132,7 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player page in
 
     // The player's own ruler: a drag sends the measurement while it lasts, and its end on release.
     const sentOf = (t: string): Record<string, unknown>[] => gm.messages.map((m) => m.body as Record<string, unknown>).filter((body) => body.t === t);
-    await page.click('.tool >> text=Mesurer');
+    await page.keyboard.press('m');
     const start = screen(350, 400);
     await page.mouse.move(start.x, start.y);
     await page.mouse.down();
@@ -145,7 +145,8 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player page in
     expect(live.a[0]).toBeCloseTo(350, -1);
 
     // The laser: pointing with the button down sends it on.
-    await page.click('.tool >> text=Laser');
+    await page.keyboard.press('v');
+    await page.keyboard.press('v');
     await page.mouse.move(screen(380, 200).x, screen(380, 200).y);
     await page.mouse.down();
     await page.mouse.move(screen(450, 240).x, screen(450, 240).y, { steps: 6 });
@@ -200,7 +201,7 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player page in
       const context = canvas.getContext('2d');
       context?.drawImage(image, 0, 0);
       return [...(context?.getImageData(Math.round(px), Math.round(py), 1, 1).data ?? [])];
-    }, { data: drawn.toString('base64'), px: screen(420, 560).x, py: screen(420, 560).y });
+    }, { data: drawn.toString('base64'), px: screen(100, 560).x, py: screen(100, 560).y });
     expect(stroke.slice(0, 3)).toEqual([255, 0, 0]);
 
     // A readable pin: opening it finds it.

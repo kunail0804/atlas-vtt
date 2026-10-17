@@ -12,7 +12,7 @@ import { png } from './png.ts';
 const CHROMIUM = '/usr/bin/chromium';
 const BUILT = path.join(import.meta.dirname, '..', 'player', 'dist', 'index.html');
 const TOKEN = 'a1b2c3d4e5f6a1b2c3d4e5f6';
-const CONTROLS = ['.book-toggle', '.tools', '.chat-button', '.initiative', '.widgets'];
+const CONTROLS = ['.player-toolbar', '.atlas-bottom-toolbar-row__start > .atlas-vtt-toolbar', '.atlas-bottom-toolbar-row__end > .atlas-vtt-toolbar', '.initiative', '.widgets'];
 
 describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player page on a phone', () => {
   let test: TestRelay;
@@ -80,7 +80,7 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player page on
     }
 
     // The book takes the whole width of a phone and closes again.
-    await page.tap('.book-toggle');
+    await page.tap('.atlas-bottom-toolbar-row__end button');
     const book = await page.locator('.book').boundingBox();
     expect(book?.width).toBeGreaterThan(350);
     await page.tap('.book-close');

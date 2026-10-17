@@ -11,6 +11,8 @@ import { fakeLayers } from './fakeAtlasTab.ts';
 import { MAP_LAYER_INTERVAL_MS } from '../../../../src/app/online/gm/MapLayerShare.ts';
 import { GENERIC_SOURCE } from './gmLighting.ts';
 import { sceneState, shareHarness, token, type Sent } from './shareHarness.ts';
+import { png } from './fakeTable.ts';
+import { TOKEN_INTERVAL_MS } from '../../../../src/app/online/gm/TokenShare.ts';
 
 const MAP = { width: 2000, height: 2000 };
 const last = <T extends GmMessage['t']>(sent: readonly Sent[], t: T): Extract<GmMessage, { t: T }> | undefined =>
@@ -66,6 +68,27 @@ describe("the map's layers players are sent", () => {
     options.grid = { ...options.grid, enabled: false };
     await shared.advance(1000);
     expect(last(shared.sent, 'grid')?.grid).toBeNull();
+  });
+
+  it('take a player\'s drawing and text into the scene and send them to all, with who made them', async () => {
+    const ana = 'a'.repeat(20);
+    const id = 'c'.repeat(24);
+    const harness = shareHarness(sceneState(), new Map([['maps/cave.webp', png(1000, 600) as Uint8Array<ArrayBuffer>]]));
+    harness.layers = fakeLayers({ state: () => harness.share['store'].getState(), source: GENERIC_SOURCE, bounds: MAP, grid: () => null, collections: null });
+    harness.share.start();
+    await harness.advance(TOKEN_INTERVAL_MS);
+    await harness.advance(MAP_LAYER_INTERVAL_MS);
+    const scene = last(harness.sent, 'tokens')?.scene ?? '';
+    harness.share.receive(ana, { t: 'draw', scene, id, drawing: { type: 'pen', points: [10, 20, 30, 40], colour: '#ffffff', width: 4 } });
+    harness.share.receive(ana, { t: 'place-text', scene, id: 'd'.repeat(24), text: { x: 50, y: 60, text: 'Ici', fontSize: 24, colour: '#ffffff', bold: false } });
+    await harness.advance(MAP_LAYER_INTERVAL_MS);
+    const annotations = last(harness.sent, 'annotations');
+    expect(annotations?.drawings).toEqual([{ type: 'pen', points: [10, 20, 30, 40], colour: '#ffffff', width: 4, opacity: 1, id, by: ana }]);
+    expect(annotations?.texts[0]).toMatchObject({ text: 'Ici', id: 'd'.repeat(24), by: ana, fontFamily: 'Arial' });
+    harness.share.receive('b'.repeat(20), { t: 'erase', scene, ids: [id] });
+    harness.share.receive(ana, { t: 'erase', scene, ids: [id] });
+    await harness.advance(MAP_LAYER_INTERVAL_MS);
+    expect(last(harness.sent, 'annotations')?.drawings).toEqual([]);
   });
 
   it('send drawings and texts but those fog covers whole', async () => {

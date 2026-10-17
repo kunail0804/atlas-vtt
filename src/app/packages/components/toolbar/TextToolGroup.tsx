@@ -4,8 +4,8 @@ import { useHotkeyLabels } from "../../../keyboard/useMapHotkeys"
 import { DropdownSliderRow } from "../primitives/DropdownSliderRow"
 import { DropdownSwatchGrid } from "../primitives/DropdownSwatchGrid"
 import { DropdownToggleRow } from "../primitives/DropdownToggleRow"
-import { ToolGroup, type ToolGroupControls } from "./ToolGroup"
-import { textToolFace } from "./toolFaces"
+import { ToolGroup } from "./ToolGroup"
+import { textToolFace, type ToolGroupControls } from "./toolFaces"
 import { useEmitViewEvent } from "./useEmitViewEvent"
 import { t } from '../../../i18n'
 

@@ -2,7 +2,7 @@ import type React from "react"
 import type { DiceTool } from "../../../tools/DiceTool"
 import type { MapHotkeyId } from "../../../keyboard/mapHotkeys"
 import type { Tool } from "./toolFaces"
-import type { ToolGroupControls } from "./ToolGroup"
+import type { ToolGroupControls } from "./toolFaces"
 
 /** Tool groups whose options menu is open; only one at a time. */
 export type ToolMenu = 'move' | 'fog' | 'draw' | 'text' | 'measure' | 'wall'

@@ -125,7 +125,7 @@ export class PlayerRolls {
     const origin = tokenId === null ? undefined : { viewId: dice.viewId, mapPath: context.mapPath, tokenId };
     let rolled = false;
     this.ports.rollAs(from, () => {
-      rolled = dice.rollDice(message.formula, source, origin) !== null;
+      rolled = dice.rollDice(message.formula, source, origin, sent.advantage === undefined ? undefined : { advantage: sent.advantage }) !== null;
     }, notes);
     if (!rolled) this.refuse('unavailable', from);
   }

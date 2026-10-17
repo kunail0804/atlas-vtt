@@ -18,6 +18,7 @@ import { MarkShare, type MarkSharePorts } from './MarkShare.ts';
 import { sceneWalls, type MapSize } from './moveCheck.ts';
 import type { SeatSource } from './seatSource.ts';
 import { PlayerMoves } from './playerMoves.ts';
+import { PlayerAnnotations } from './PlayerAnnotations.ts';
 import { RulesShare, type RulesSharePorts } from './RulesShare.ts';
 import { TOKEN_POLL_MS, TokenShare, type TokenSharePorts } from './TokenShare.ts';
 
@@ -76,6 +77,7 @@ export class SceneShare {
   readonly layers: MapLayerShare;
   private readonly rules: RulesShare;
   private readonly moves: PlayerMoves;
+  private readonly annotations: PlayerAnnotations;
   private readonly marks: MarkShare;
   private unsubscribe: (() => void) | null = null;
   private poll: number | undefined;
@@ -98,7 +100,7 @@ export class SceneShare {
     });
     this.layers = new MapLayerShare(store, { ...ports, mapLayers: () => ports.mapLayers?.() ?? null });
     const cursorsShown = (): boolean => ports.atlasSettings().showCursors;
-    this.rules = new RulesShare(store, { ...ports, cursorsShown });
+    this.rules = new RulesShare(store, { ...ports, cursorsShown, advantageSides: () => ports.dice?.()?.advantageSides?.() ?? [] });
     this.moves = new PlayerMoves(store, {
       ...ports,
       context: () => ({
@@ -110,6 +112,7 @@ export class SceneShare {
       }),
     });
     this.marks = new MarkShare({ ...ports, cursorsShown }, () => this.mapSize);
+    this.annotations = new PlayerAnnotations(store, { scene: () => this.tokens.listedScene, map: () => this.mapSize, now: () => ports.now() });
     this.assets = new AssetAnswers({ send: (body, to) => ports.send(body, to), now: () => ports.now(), readImage: (path) => ports.readImage(path), scaleImage: ports.scaleImage }, {
       map: () => {
         const map = this.scene?.map ?? null;
@@ -195,6 +198,7 @@ export class SceneShare {
     if (message.t === 'drag-cancel') return this.moves.dragCancel(from, message);
     if (message.t === 'roll') return this.dice.receive(from, message);
     if (message.t === 'laser' || message.t === 'measure' || message.t === 'cursor') return this.marks.receive(from, message);
+    if (message.t === 'draw' || message.t === 'place-text' || message.t === 'erase') return this.annotations.receive(from, message);
     if (message.t === 'resync') return message.of === 'tokens' ? this.tokens.resync(from, message.scene) : this.inputs.resync(from, message.scene, message.of);
     if (message.t === 'asset-request') this.assets.answer(from, message);
   }
