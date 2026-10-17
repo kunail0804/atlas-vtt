@@ -22,7 +22,7 @@ const finiteOr = (value: number | undefined, fallback: number): number => (typeo
  * the grid's own, as Atlas's ruler falls back to), accent and whether everyone's cursor shows; null for
  * a grid players cannot use.
  */
-export function sharedRules(grid: SceneState['grid'], measurement: MeasurementSettings | null, accent: string | null, cursors = false, advantage: readonly RollAdvantage[] = []): SharedRules | null {
+export function sharedRules(grid: SceneState['grid'], measurement: MeasurementSettings | null, accent: string | null, cursors = false): SharedRules | null {
   if (grid === null || !Number.isFinite(grid.size) || !(grid.size > 0) || grid.size > MAX_COORDINATE) return null;
   const offsetX = finiteOr(grid.offsetX, 0);
   const offsetY = finiteOr(grid.offsetY, 0);
@@ -34,7 +34,6 @@ export function sharedRules(grid: SceneState['grid'], measurement: MeasurementSe
     measurement: { mode, unitType, unitDistance, ruleDistance, diagonalRule, rangeBands: rangeBands.map(({ name, maxSquares }) => ({ name, maxSquares })), coneAngle },
     accent,
     ...(cursors && { cursors }),
-    ...(advantage.length > 0 && { advantage: [...advantage] }),
   };
 }
 
@@ -47,6 +46,8 @@ export class RulesShare {
   private readonly ports: RulesSharePorts;
   private scene: string | null = null;
   private last: { readonly body: GmMessage; readonly text: string } | null = null;
+  /** The dice tray's rules last sent: they go whether or not the grid is one players can use. */
+  private lastDice: { readonly body: GmMessage; readonly text: string } | null = null;
 
   constructor(store: SceneStore, ports: RulesSharePorts) {
     this.store = store;
@@ -57,14 +58,16 @@ export class RulesShare {
   setScene(scene: string | null): void {
     this.scene = scene;
     this.last = null;
+    this.lastDice = null;
     this.update();
   }
 
   /** Sends the rules when they changed since they were last sent. */
   update(): void {
     if (this.scene === null) return;
+    this.updateDice(this.scene);
     const state = this.store.getState();
-    const rules = sharedRules(state.grid, this.ports.measurement?.() ?? null, this.ports.accent?.() ?? null, this.ports.cursorsShown?.() === true, this.ports.advantageSides?.() ?? []);
+    const rules = sharedRules(state.grid, this.ports.measurement?.() ?? null, this.ports.accent?.() ?? null, this.ports.cursorsShown?.() === true);
     if (rules === null) return;
     const body: GmMessage = { t: 'rules', scene: this.scene, ...rules };
     const text = JSON.stringify(body);
@@ -76,5 +79,15 @@ export class RulesShare {
   /** The last rules again, to one player or to all. */
   resend(to?: string): void {
     if (this.last !== null) this.ports.send(this.last.body, to);
+    if (this.lastDice !== null) this.ports.send(this.lastDice.body, to);
+  }
+
+  /** The sides of advantage the dice set has, sent when they changed. */
+  private updateDice(scene: string): void {
+    const body: GmMessage = { t: 'dice-rules', scene, advantage: [...(this.ports.advantageSides?.() ?? [])] };
+    const text = JSON.stringify(body);
+    if (text === this.lastDice?.text) return;
+    this.lastDice = { body, text };
+    this.ports.send(body);
   }
 }

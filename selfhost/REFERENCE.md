@@ -121,7 +121,7 @@ The log stays open beside the book and the toolbar: a press in anything marked `
 
 Players draw and write with `draw`, `place-text` and `erase` (`src/app/online/protocol/annotate.ts`). The GM's `PlayerAnnotations` (`src/app/online/gm/PlayerAnnotations.ts`) keeps each as Atlas's own drawing or text, with the key `drawing_player_<id>` or `text_player_<id>` and `author` set to the player's relay id, so the GM sees it, saves it with the map and can erase or undo it (each is one undo step). `annotations` then carries `id` and `by` for a player's own. A player erases only their own; each keeps at most `MAX_PLAYER_ANNOTATIONS` (400) in a scene, within 10 % past the map's edges, at 20 a second (burst 60). A stroke longer than `MAX_STROKE_POINTS` (150) goes as several, since a player's frame holds 4 KiB.
 
-A player's roll may name `advantage` (`advantage` or `disadvantage`); the GM rolls it by the collection's dice set, as the GM's own tray does. `rules` names the sides the set has a rule for, which the player's tray offers.
+A player's roll may name `advantage` (`advantage` or `disadvantage`); the GM rolls it by the collection's dice set, as the GM's own tray does. `dice-rules` names the sides the set has a rule for, which the player's tray offers. It goes apart from `rules`, which a scene without a grid players can use goes without.
 
 The browser tests build nothing themselves: run `npm run player:build` first. They serve the built
 page from a real relay, drive it in `/usr/bin/chromium`, and play the GM with the plugin's

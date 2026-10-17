@@ -1,5 +1,5 @@
 // @vitest-environment node
-import type { GmMessage } from '../../../../src/app/online/protocol/index.ts';
+import { parseGmMessage, type GmMessage } from '../../../../src/app/online/protocol/index.ts';
 import type { DiceRules } from '../../../../src/app/types/diceRulesTypes';
 import type { TokenEntity } from '../../../../src/app/types';
 import { describe, expect, it } from 'vitest';
@@ -56,6 +56,14 @@ describe('players\' rolls', () => {
     next = 0;
     gm.share.receive(ANA, { t: 'roll', scene: gm.scene, formula: '1d20', token: null, advantage: 'disadvantage' });
     expect(gm.rolled[1]?.total).toBe(5);
+  });
+
+  it('tell players the sides of advantage the dice set has, on a scene without a grid too', async () => {
+    const set = { dice: [{ sides: 20, count: 1 }], crit: 'natural', advantage: { kind: 'keep' }, disadvantage: { kind: 'keep' } } as unknown as DiceRules;
+    const gm = await table(set, () => 0.5);
+    const told = gm.sent.flatMap(({ body }) => (body.t === 'dice-rules' ? [body] : [])).at(-1);
+    expect(told).toEqual({ t: 'dice-rules', scene: gm.scene, advantage: ['advantage', 'disadvantage'] });
+    expect(parseGmMessage(JSON.parse(JSON.stringify(told)))).toEqual(told);
   });
 
   it('are rolled once each by Atlas\'s dice tool with the map\'s crit and explode rules, for the player\'s own token', async () => {

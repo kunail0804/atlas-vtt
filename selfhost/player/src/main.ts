@@ -134,12 +134,11 @@ async function main(): Promise<void> {
     if (message.t === 'roll-refused') return notices.show(TEXT.rolls.refused[message.reason]);
     if (assets.receive(message) || log.receive(message)) return;
     if (message.t === 'marks') return marks.receive(message);
-    if (message.t === 'rules') {
-      if (message.scene === scene.sceneId) {
-        toolbarState = { ...toolbarState, advantage: message.advantage ?? [] };
-        bar?.update(toolbarState);
-      }
-      return marks.rules(message);
+    if (message.t === 'rules') return marks.rules(message);
+    if (message.t === 'dice-rules') {
+      if (message.scene !== scene.sceneId) return;
+      toolbarState = { ...toolbarState, advantage: message.advantage };
+      return bar?.update(toolbarState);
     }
     if (message.t === 'shown-image') return viewer.fromGm(message);
     if (message.t === 'book' || message.t === 'book-sheet' || message.t === 'book-item') return book.receive(message);

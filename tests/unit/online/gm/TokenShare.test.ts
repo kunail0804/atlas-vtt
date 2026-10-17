@@ -95,7 +95,7 @@ describe('the tokens players see', () => {
     const table = await started();
     table.sent.length = 0;
     table.share.resend('alice');
-    expect(table.sent.map(({ body, to }) => [body.t, to])).toEqual([['scene', 'alice'], ['tokens', 'alice'], ['fog', 'alice']]);
+    expect(table.sent.map(({ body, to }) => [body.t, to])).toEqual([['scene', 'alice'], ['tokens', 'alice'], ['fog', 'alice'], ['dice-rules', 'alice']]);
   });
 });
 

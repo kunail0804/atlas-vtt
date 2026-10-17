@@ -49,6 +49,24 @@ export type RollAdvantage = 'advantage' | 'disadvantage';
 export const isRollAdvantage = (value: unknown): value is RollAdvantage => value === 'advantage' || value === 'disadvantage';
 
 /**
+ * What a player's dice tray offers in the scene `scene`: the sides of advantage the scene's dice set
+ * has a rule for (none: the tray offers no advantage). Apart from `rules`, which a scene without a grid
+ * players can use goes without.
+ */
+export interface DiceRulesMessage {
+  readonly t: 'dice-rules';
+  readonly scene: string;
+  readonly advantage: readonly RollAdvantage[];
+}
+
+export function parseDiceRules(value: Record<string, unknown>): DiceRulesMessage | null {
+  const { scene, advantage } = value;
+  if (typeof scene !== 'string' || scene === '' || scene.length > MAX_SCENE_ID) return null;
+  if (!Array.isArray(advantage) || advantage.length > 2 || !advantage.every(isRollAdvantage)) return null;
+  return { t: 'dice-rules', scene, advantage: [...new Set(advantage)] };
+}
+
+/**
  * One die of a roll as Atlas rolled it: a Fate die is `dF` with `min` −1 and `max` 1. A die rolled
  * again (`rerolled`, the next die took its place) or left out by keep or drop (`dropped`) counts for
  * nothing; a counted one is a `success` or a `failure`; `label` is its term's.

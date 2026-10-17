@@ -9,7 +9,7 @@ import { parseLightingScene, parseSight, type SharedLightingScene, type SharedSi
 import { parseLive, type LiveMessage } from './live.ts';
 import type { LogMessage, PlayerLogMessage } from './log.ts';
 import { isPlayerLogType, parseLogMessage, parsePlayerLog } from './logParse.ts';
-import { parsePlayerRoll, parseRoll, parseRollRefused, type PlayerRoll, type RollMessage, type RollRefused } from './dice.ts';
+import { parseDiceRules, parsePlayerRoll, parseRoll, parseRollRefused, type DiceRulesMessage, type PlayerRoll, type RollMessage, type RollRefused } from './dice.ts';
 import { parseAnnotations, parseDoors, parseGrid, parsePinFound, parsePins, parseSensed, type PlayerPinFound, type SensedMark, type SharedAnnotations, type SharedDoor, type SharedGrid, type SharedPin } from './mapLayers.ts';
 import { parseMarks, parsePlayerMark, type MarksMessage, type PlayerCursor, type PlayerLaser, type PlayerMeasure } from './marks.ts';
 import { isRecord } from './shape.ts';
@@ -81,6 +81,7 @@ export type GmMessage =
   | RulesMessage
   | RollMessage
   | RollRefused
+  | DiceRulesMessage
   | MarksMessage
   /** The table's log: chat, rolls, who came and went. It belongs to the table, not to a scene. */
   | LogMessage
@@ -219,6 +220,8 @@ export function parseGmMessage(value: unknown): GmMessage | null {
       return parseRoll(value);
     case 'roll-refused':
       return parseRollRefused(value);
+    case 'dice-rules':
+      return parseDiceRules(value);
     case 'marks':
       return parseMarks(value);
     case 'delta':

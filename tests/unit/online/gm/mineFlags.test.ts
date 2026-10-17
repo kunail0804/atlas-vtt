@@ -63,7 +63,7 @@ describe('mine flags', () => {
     share.share.resend(ANA);
     owners.joined({ id: ANA, name: 'Ana' });
     expect(mineTo(share, ANA)).toHaveLength(count + 1);
-    expect(share.sent.slice(-4).map(({ body, to }) => [body.t, to])).toEqual([['scene', ANA], ['tokens', ANA], ['fog', ANA], ['mine', ANA]]);
+    expect(share.sent.slice(-5).map(({ body, to }) => [body.t, to])).toEqual([['scene', ANA], ['tokens', ANA], ['fog', ANA], ['dice-rules', ANA], ['mine', ANA]]);
   });
 
   it('are taken back when the GM gives a token to nobody or removes its player', async () => {
