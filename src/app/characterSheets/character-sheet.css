@@ -1,0 +1,56 @@
+/* A character sheet as Roll20 lays one out: boxes with a small caps title, big numbers that roll. Theme variables only. */
+.atlas-sheet { display: flex; flex-direction: column; gap: 12px; color: var(--text-normal); font-size: 14px; container-type: inline-size; }
+.atlas-sheet-input { width: 100%; box-sizing: border-box; padding: 4px 6px; border-radius: 6px; border: 1px solid var(--background-modifier-border); background: var(--background-modifier-form-field); color: var(--text-normal); font: inherit; }
+.atlas-sheet-input[readonly], .atlas-sheet-input:disabled { border-color: transparent; background: transparent; resize: none; opacity: 1; }
+textarea.atlas-sheet-input { min-height: 72px; resize: vertical; }
+.atlas-sheet-number { text-align: center; }
+.atlas-sheet-label { display: block; font-size: 10px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted); }
+.atlas-sheet-labelled { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.atlas-sheet-labelled--big { align-items: center; padding: 6px; border-radius: 10px; border: 1px solid var(--background-modifier-border); background: var(--background-secondary); text-align: center; }
+.atlas-sheet-labelled--big .atlas-sheet-input, .atlas-sheet-labelled--big .atlas-sheet-roll, .atlas-sheet-labelled--big .atlas-sheet-value { font-size: 18px; font-weight: 700; text-align: center; }
+
+.atlas-sheet-header { display: grid; grid-template-columns: 1fr; gap: 8px; padding: 10px; border-radius: 12px; border: 1px solid var(--background-modifier-border); background: var(--background-secondary); }
+.atlas-sheet-name { font-size: 22px; font-weight: 700; }
+.atlas-sheet-identity { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
+.atlas-sheet-badges { display: flex; flex-wrap: wrap; gap: 8px; }
+.atlas-sheet-badge { display: inline-flex; align-items: center; gap: 8px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--background-modifier-border); background: var(--background-primary); font-size: 12px; }
+.atlas-sheet-badge strong { font-size: 15px; }
+
+.atlas-sheet-tabs { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--background-modifier-border); padding-bottom: 6px; }
+.atlas-sheet-tab { padding: 6px 12px; border: 0; border-radius: 8px; background: transparent; color: var(--text-normal); font: inherit; cursor: pointer; }
+.atlas-sheet-tab[aria-selected='true'] { background: var(--interactive-accent); color: var(--text-on-accent); }
+
+.atlas-sheet-main { display: grid; grid-template-columns: 120px minmax(0, 1fr) minmax(0, 1.3fr); gap: 12px; align-items: start; }
+@container (max-width: 720px) { .atlas-sheet-main { grid-template-columns: 1fr; } .atlas-sheet-abilities { flex-direction: row; flex-wrap: wrap; } }
+.atlas-sheet-column, .atlas-sheet-page { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.atlas-sheet-abilities { display: flex; flex-direction: column; gap: 8px; }
+.atlas-sheet-ability { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px; border-radius: 12px; border: 2px solid var(--background-modifier-border); background: var(--background-secondary); min-width: 96px; }
+.atlas-sheet-ability__name { font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted); }
+.atlas-sheet-ability__mod { font-size: 22px; font-weight: 800; }
+.atlas-sheet-ability__score { width: 52px; border-radius: 999px; font-weight: 600; }
+
+.atlas-sheet-box { padding: 8px; border-radius: 12px; border: 1px solid var(--background-modifier-border); background: var(--background-secondary); }
+.atlas-sheet-box__title { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted); }
+.atlas-sheet-line { display: grid; grid-template-columns: auto auto 44px 1fr; align-items: center; gap: 6px; padding: 1px 0; }
+.atlas-sheet-line:not(:has(.atlas-sheet-expertise)) { grid-template-columns: auto 44px 1fr; }
+.atlas-sheet-line__value { text-align: center; font-weight: 700; }
+.atlas-sheet-roll { padding: 2px 6px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--text-normal); font: inherit; font-weight: 700; cursor: pointer; }
+.atlas-sheet-roll:hover, .atlas-sheet-roll:focus-visible { border-color: var(--interactive-accent); color: var(--text-accent); }
+.atlas-sheet-value { font-weight: 700; }
+.atlas-sheet-check { width: 15px; height: 15px; accent-color: var(--interactive-accent); margin: 0; }
+.atlas-sheet-expertise { accent-color: var(--color-orange, #e0ac00); }
+.atlas-sheet-combat { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 8px; }
+.atlas-sheet-marks { display: flex; align-items: center; gap: 6px; }
+.atlas-sheet-marks span { min-width: 72px; font-size: 12px; color: var(--text-muted); }
+
+.atlas-sheet-table { display: flex; flex-direction: column; gap: 4px; }
+.atlas-sheet-table__head, .atlas-sheet-table__row { display: grid; gap: 6px; align-items: center; }
+.atlas-sheet-table__head { font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted); }
+.atlas-sheet-cell { display: flex; gap: 4px; align-items: center; min-width: 0; }
+.atlas-sheet-dice, .atlas-sheet-remove { flex: none; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--text-muted); cursor: pointer; }
+.atlas-sheet-dice:hover, .atlas-sheet-remove:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
+.atlas-sheet-add { align-self: flex-start; padding: 4px 10px; border: 1px solid var(--background-modifier-border); border-radius: 8px; background: transparent; color: var(--text-muted); font: inherit; cursor: pointer; }
+.atlas-sheet-slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 6px; }
+.atlas-sheet-slot { display: grid; grid-template-columns: 16px 1fr 1fr; gap: 4px; align-items: center; font-weight: 700; }
+.atlas-sheet-coins { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
+.atlas-sheet-story { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }

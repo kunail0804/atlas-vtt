@@ -1,4 +1,6 @@
 import { AssetRegistrationUncertainError } from '../../../services/assetRegistrationRecovery';
+import { runInBackground } from '../../../utils/backgroundTask';
+import { sheetsForPlayerCharacters } from '../../../characterSheets/obsidian/sheetEntries';
 import { AssetService } from '../../../services/AssetService';
 import { StatblockImportContent } from './statblock-import/StatblockImportContent';
 import { VaultImageContent } from './vault-images/VaultImageContent';
@@ -150,6 +152,8 @@ export function TokenCreator({ isOpen, onClose, mode = 'token', selectedCollecti
     } finally {
       // Tokens registered before a failure get their statblocks too.
       statblockRow.createFor(savedTokens);
+      // New player characters without a statblock role chosen get a character sheet each; the first opens.
+      if (playerCharacters && statblockRow.roleId === null && savedTokens.length > 0) runInBackground(sheetsForPlayerCharacters(app, savedTokens), 'Creating character sheets');
       setIsSubmitting(false);
       clearSaveProgress();
     }

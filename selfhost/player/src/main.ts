@@ -5,6 +5,7 @@ import './page.css';
 // The page's policy forbids eval (relay/staticFiles.ts); PixiJS then needs its own replacement for it.
 import 'pixi.js/unsafe-eval';
 import type { GmMessage } from '../../../src/app/online/protocol/game.ts';
+import type { RollAdvantage } from '../../../src/app/online/protocol/dice.ts';
 import { TABLE_CODE_PATTERN } from '../../../src/app/online/protocol/relay.ts';
 import { AssetLoader } from './assets.ts';
 import { PlayerConnection, type ConnectionEvent, type JoinRequest } from './connection.ts';
@@ -93,10 +94,20 @@ async function main(): Promise<void> {
   // names none still rolls them by its set's rules, and a set without them rolls as it is.
   let toolbarState: ToolbarState = { advantage: ['advantage', 'disadvantage'], book: false };
   const reader = new Reader(app, assets);
+  /** A roll of the player's, from the dice tray or the sheet; false while no scene is shared to roll in. */
+  const rollAs = (formula: string, how: { readonly flavor?: string; readonly advantage?: RollAdvantage | null } = {}): boolean => {
+    const shared = scene.sceneId;
+    if (shared === null) {
+      notices.show(TEXT.rolls.noScene);
+      return false;
+    }
+    send({ t: 'roll', scene: shared, formula, token: null, ...(how.flavor !== undefined && { flavor: how.flavor.slice(0, 80) }), ...(how.advantage != null && { advantage: how.advantage }) });
+    return true;
+  };
   const book = new BookPanel(app, assets, send, (text) => notices.show(text), (has) => {
     toolbarState = { ...toolbarState, book: has };
     bar?.update(toolbarState);
-  });
+  }, { roll: (formula, label) => void rollAs(formula, { flavor: label }), openNote: (note) => reader.open(note) });
   const annotations = new AnnotationsView(stage.annotations, stage.pins, send, () => scene.sceneId, (found) => {
     if (found === null || !log.openFound(found)) log.show();
   });
@@ -116,15 +127,7 @@ async function main(): Promise<void> {
         tokens.setDragsEnabled(tool === 'move');
       },
       deleteMyDrawings: () => drawTools.deleteMine(),
-      roll: (formula, advantage) => {
-        const shared = scene.sceneId;
-        if (shared === null) {
-          notices.show(TEXT.rolls.noScene);
-          return false;
-        }
-        send({ t: 'roll', scene: shared, formula, token: null, ...(advantage !== null && { advantage }) });
-        return true;
-      },
+      roll: (formula, advantage) => rollAs(formula, { advantage }),
       toggleChat: () => log.toggle(),
       toggleBook: () => book.toggle(),
     });
@@ -144,6 +147,7 @@ async function main(): Promise<void> {
     }
     if (message.t === 'shown-image') return viewer.fromGm(message);
     if (message.t === 'book' || message.t === 'book-sheet' || message.t === 'book-item') return book.receive(message);
+    if (message.t === 'sheet') return book.receiveSheet(message);
     if (message.t === 'initiative') return message.scene === scene.sceneId ? initiative.show(message.list) : undefined;
     if (message.t === 'annotations') return message.scene === scene.sceneId ? annotations.showAnnotations(message) : undefined;
     if (message.t === 'widgets') return message.scene === scene.sceneId ? widgets.show(message.bar) : undefined;

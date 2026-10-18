@@ -214,6 +214,14 @@ export const app = {
       return bytes === undefined ? null : { path, stat: { mtime: 0, size: bytes.length } };
     },
     readBinary: (file: { path: string }) => Promise.resolve(workspace.files.get(file.path)?.slice().buffer),
+    getAbstractFileByPath: () => null,
+  },
+  // No note of this vault is a character sheet; the books listen for notes changing all the same.
+  metadataCache: {
+    on: (name: string, listener: (...args: unknown[]) => void) => ({ name, listener }),
+    offref: () => undefined,
+    getFileCache: () => null,
+    getFirstLinkpathDest: () => null,
   },
   plugins: { plugins: { 'atlas-vtt': { presentedScene: atlasPresented } } },
 } as unknown as App;

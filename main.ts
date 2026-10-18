@@ -1,4 +1,5 @@
 import './src/app/plugin/host/initializeHost';
+import { registerCharacterSheets } from './src/app/characterSheets/obsidian/sheetEntries';
 import { Plugin } from 'obsidian';
 // Tailwind first, so the custom SCSS can override it.
 import './styles/index.css';
@@ -276,5 +277,6 @@ export default class AtlasVTTPlugin extends Plugin {
     registerLootQueryView(this);
     this.registerView(TEMPLATE_EDITOR_VIEW_TYPE, (leaf) => new TemplateEditorView(leaf));
     this.registerExtensions([TEMPLATE_EXTENSION], TEMPLATE_EDITOR_VIEW_TYPE);
+    registerCharacterSheets(this);
   }
 }

@@ -6,6 +6,7 @@
  */
 
 import type { ResourceDefsProvider } from '../../resources/resourceTypes';
+import { characterSheetEntry } from '../../characterSheets/obsidian/sheetEntries';
 import { isKillable, resetLabel } from '../../resources/resourceValues';
 import { visibleResources } from '../../resources/visibleResources';
 import React from 'react';
@@ -694,6 +695,9 @@ export class InteractionController implements ITokenInteractionController {
     // Player character: the library token it was placed from, for the GM alone
     const playerCharacter = this.isPlayerView ? null : placedPlayerCharacterEntry(this.obsApp, token, this.store);
     if (playerCharacter) entries.push(playerCharacter);
+    // Its character sheet, opened or made, for the GM alone.
+    const sheet = this.isPlayerView ? null : characterSheetEntry(this.obsApp, { name: character?.name || 'Token', imagePath: token.imagePath, statblockPath: character?.statblockPath });
+    if (sheet) entries.push(sheet);
 
     // Ring colour of the selection in one undo step; the clicked token's colour is ticked
     const currentRingColor = token.ringColor;

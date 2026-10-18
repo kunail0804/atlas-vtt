@@ -1,4 +1,4 @@
-import { normalizePath, type App } from 'obsidian';
+import { normalizePath, type App, type EventRef } from 'obsidian';
 import type { GmMessage } from '../../protocol/index.ts';
 import { setLootRecipientSource } from '../../../loot/lootRecipients';
 import { scaleInWindow } from '../assetVariants.ts';
@@ -7,6 +7,8 @@ import type { Ownership } from '../ownership.ts';
 import type { VaultImage } from '../TokenShare.ts';
 import type { BookScene } from './bookScene.ts';
 import { BookShare } from './BookShare.ts';
+import { SheetShare } from './SheetShare.ts';
+import { sheetSource } from './sheetSource.ts';
 import { writeCharacterValue } from './characterValues.ts';
 import type { ResourceWrites } from './resourceWrites.ts';
 import { gatedQuestAsset, gatedQuests, onQuestsChange } from './questGate.ts';
@@ -27,9 +29,13 @@ export interface TableBookPorts {
   tokenWrites(): ResourceWrites | null;
 }
 
+const offref = (app: App, ref: EventRef): (() => void) => () => app.metadataCache.offref(ref);
+
 /** A running table's books, and what they hang on while it runs. */
 export interface TableBook {
   readonly share: BookShare;
+  /** The players' character sheets and the notes linked to them. */
+  readonly sheets: SheetShare;
   start(): void;
   stop(): void;
 }
@@ -70,9 +76,23 @@ export function tableBook(ports: TableBookPorts): TableBook {
     },
     scaleImage: scaleInWindow,
   }, ports.shelf);
+  const source = sheetSource(app);
+  const sheets = new SheetShare({
+    send: (body, to) => ports.send(body, to),
+    now: () => timers.now(),
+    setTimer: (run, ms) => timers.setTimer(run, ms),
+    clearTimer: (timer) => timers.clearTimer(timer),
+    online: () => ownership.list().filter((player) => player.online).map((player) => player.id),
+    noteOf: (player) => share.statblockOf(player),
+    read: (path) => source.read(path),
+    write: (path, edit) => source.write(path, edit),
+    readImage: (path) => ports.readImage(path),
+    scaleImage: scaleInWindow,
+  });
   let stops: (() => void)[] = [];
   return {
     share,
+    sheets,
     start: () => {
       if (stops.length > 0) return;
       stops = [
@@ -81,8 +101,12 @@ export function tableBook(ports: TableBookPorts): TableBook {
         onQuestsChange(() => share.questsChanged()),
         () => setLootRecipientSource(null),
         () => share.stop(),
+        () => sheets.stop(),
+        // A sheet's note or a note linked to it changed: whoever is sent it gets it again.
+        offref(app, app.metadataCache.on('changed', (file) => sheets.noteChanged(file.path))),
       ];
       share.start();
+      sheets.start();
       setLootRecipientSource(share);
     },
     stop: () => {

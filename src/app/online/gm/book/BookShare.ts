@@ -79,6 +79,8 @@ export class BookShare implements LootRecipientSource {
   private readonly ports: BookSharePorts;
   private readonly shelf: BookShelf;
   private readonly characters = new Characters();
+  /** The statblock note of each character, by book, as last seen on its token: kept while the scene shows none of its tokens. */
+  private readonly statblocks = new Map<string, string>();
   private readonly art: ArtRefs;
   private readonly maps: WorldMaps;
   private readonly questList: AskedAnswer<readonly BookQuest[]>;
@@ -289,6 +291,24 @@ export class BookShare implements LootRecipientSource {
 
   private isOnline(player: string): boolean {
     return this.ports.players().some((known) => known.id === player && known.online);
+  }
+
+  /**
+   * The statblock note of the character a player plays: its token's in the shared scene, else the one
+   * last seen on it while the scene shows none of its tokens; null for a player who plays none.
+   */
+  statblockOf(player: string): string | null {
+    const character = this.characters.of(player);
+    if (character === null) return null;
+    const book = `${character.collection}\n${character.key}`;
+    const token = this.ports.scene()?.tokens[character.tokenId];
+    if (token !== undefined) {
+      const path = token.kind === 'character' && token.statblockPath?.trim() ? token.statblockPath : null;
+      if (path === null) this.statblocks.delete(book);
+      else this.statblocks.set(book, path);
+      return path;
+    }
+    return this.statblocks.get(book) ?? null;
   }
 
   /** Tells who listens when the people an item can be handed to changed. */

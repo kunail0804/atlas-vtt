@@ -27,6 +27,7 @@ export * from './redact.ts';
 export * from './relay.ts';
 export * from './rules.ts';
 export { isRecord } from './shape.ts';
+export * from './sheet.ts';
 export * from './stream.ts';
 export * from './tokens.ts';
 export * from './tokenUI.ts';

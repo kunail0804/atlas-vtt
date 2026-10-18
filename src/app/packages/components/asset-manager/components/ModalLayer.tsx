@@ -1,4 +1,5 @@
 import React from 'react';
+import { openOrCreateSheet, openSheetIfAny } from '../../../../characterSheets/obsidian/sheetEntries';
 import { AnimatePresence } from 'framer-motion';
 import { TokenCreator } from '../TokenCreator';
 import TagManager from '../TagManager';
@@ -176,7 +177,14 @@ export function ModalLayer({
             isOpen={true}
             onClose={statblock.closeStatblockLinkModal}
             asset={statblock.linkingStatblockAsset}
-            onLink={(statblockPath) => { void statblock.handleLinkStatblock(statblockPath); }}
+            onLink={(statblockPath) => { void statblock.handleLinkStatblock(statblockPath).then(() => openSheetIfAny(data.app, statblockPath)); }}
+            newCharacterSheet={statblock.linkingStatblockAsset.statblockPath ? undefined : () => {
+              const token = statblock.linkingStatblockAsset;
+              if (token === null) return;
+              // The sheet opens in the workspace this window covers.
+              onClose();
+              void openOrCreateSheet(data.app, { name: token.name, imagePath: token.imagePath ?? token.imageUrl });
+            }}
             app={data.app}
             newStatblock={newStatblockOption(data.app, {
               collectionId: selectedCollection,

@@ -13,6 +13,7 @@ import { useStatblockEntries, type BestiaryStatus } from './statblock-link/useSt
 import { NewStatblockButton } from '../../../statblocks/editor/create/RoleMenu';
 import type { NewStatblockOption } from '../../../statblocks/editor/create/roleChoices';
 import { t } from '../../../i18n';
+import { SHEET_TEXT } from '../../../characterSheets/obsidian/sheetText';
 
 interface StatblockLinkModalProps {
   isOpen: boolean;
@@ -23,6 +24,8 @@ interface StatblockLinkModalProps {
   app: App;
   /** "New statblock…" at the dialog's end, made for this token; absent while the statblock editor is off. */
   newStatblock?: NewStatblockOption | undefined;
+  /** "New character sheet": a sheet made for this token and opened; absent where the caller offers none. */
+  newCharacterSheet?: (() => void) | undefined;
 }
 
 const EMPTY_MESSAGES: Record<Exclude<BestiaryStatus, 'loading'>, React.ReactNode> = {
@@ -46,7 +49,7 @@ function emptyMessage(hasEntries: boolean, status: BestiaryStatus): React.ReactN
  * selected creature's statblock on the right. Arrow keys move through the
  * results, Enter or a double click links.
  */
-const StatblockLinkModal: React.FC<StatblockLinkModalProps> = ({ isOpen, onClose, asset, onLink, app, newStatblock }) => {
+const StatblockLinkModal: React.FC<StatblockLinkModalProps> = ({ isOpen, onClose, asset, onLink, app, newStatblock, newCharacterSheet }) => {
   const { entries, status } = useStatblockEntries(app);
   const linkedPath = asset.statblockPath || null;
   const [query, setQuery] = useState('');
@@ -158,6 +161,12 @@ const StatblockLinkModal: React.FC<StatblockLinkModalProps> = ({ isOpen, onClose
         </div>
 
         <div className="atlas-modal-footer">
+          {newCharacterSheet && (
+            <Button variant="outline" size="sm" onClick={() => {
+              onClose();
+              newCharacterSheet();
+            }}>{SHEET_TEXT.createSheet}</Button>
+          )}
           {newStatblock ? (
             <div className="atlas-statblock-link__start">
               <NewStatblockButton

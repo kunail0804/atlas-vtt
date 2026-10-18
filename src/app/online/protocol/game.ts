@@ -1,4 +1,5 @@
 import { ASSET_CHUNK_BYTES, isCount, isHash, isMaxSide, MAX_ASSET_BYTES, parseAsset, parseAssetVariant, type AssetRef, type AssetVariant } from './asset.ts';
+import { isPlayerSheetType, parsePlayerSheetEdit, parseSheetMessage, type PlayerSheetEdit, type SheetMessage } from './sheet.ts';
 import { isPlayerAnnotationType, parsePlayerAnnotation, type PlayerAnnotationMessage } from './annotate.ts';
 import { isBookType, isPlayerBookType, parseBookMessage, parsePlayerBookMessage, type BookMessage, type PlayerBookMessage } from './book.ts';
 import { isDeltaOf, parseDelta, parseSeq, type DeltaMessage, type DeltaOf } from './delta.ts';
@@ -82,6 +83,7 @@ export type GmMessage =
   | RollMessage
   | RollRefused
   | DiceRulesMessage
+  | SheetMessage
   | MarksMessage
   /** The table's log: chat, rolls, who came and went. It belongs to the table, not to a scene. */
   | LogMessage
@@ -107,7 +109,7 @@ export interface PlayerAssetRequest {
   readonly maxSide?: number;
 }
 
-export type PlayerMessage = PlayerAssetRequest | PlayerResync | PlayerMove | PlayerDrag | PlayerDragCancel | PlayerRoll | PlayerLaser | PlayerMeasure | PlayerCursor | PlayerLogMessage | PlayerBookMessage | PlayerPinFound | PlayerAnnotationMessage;
+export type PlayerMessage = PlayerAssetRequest | PlayerResync | PlayerMove | PlayerDrag | PlayerDragCancel | PlayerRoll | PlayerLaser | PlayerMeasure | PlayerCursor | PlayerLogMessage | PlayerBookMessage | PlayerPinFound | PlayerAnnotationMessage | PlayerSheetEdit;
 
 const MAX_CHUNKS = Math.ceil(MAX_ASSET_BYTES / ASSET_CHUNK_BYTES);
 const BASE64 = /^[A-Za-z0-9+/]*={0,2}$/;
@@ -222,6 +224,8 @@ export function parseGmMessage(value: unknown): GmMessage | null {
       return parseRollRefused(value);
     case 'dice-rules':
       return parseDiceRules(value);
+    case 'sheet':
+      return parseSheetMessage(value);
     case 'marks':
       return parseMarks(value);
     case 'delta':
@@ -251,6 +255,7 @@ export function parsePlayerMessage(value: unknown): PlayerMessage | null {
   if (isPlayerLogType(value.t)) return parsePlayerLog(value);
   if (isPlayerBookType(value.t)) return parsePlayerBookMessage(value);
   if (isPlayerAnnotationType(value.t)) return parsePlayerAnnotation(value);
+  if (isPlayerSheetType(value.t)) return parsePlayerSheetEdit(value);
   if (value.t === 'resync') return isSceneId(value.scene) && isDeltaOf(value.of) ? { t: 'resync', scene: value.scene, of: value.of } : null;
   return value.t === 'asset-request' ? parseAssetRequest(value) : null;
 }

@@ -23,6 +23,7 @@ import { confirmAction } from '../../../../ui/confirmDialog';
 import type { AtlasView } from '../../../../atlas-view';
 import { applyTokenDeleteImpact, describeTokenDeleteImpact, findTokenDeleteImpact } from '../utils/tokenDeleteImpact';
 import { tokenSizeSubmenu } from '../../../../react/components/context-menu/tokenSizeMenu';
+import { characterSheetEntry, sheetsForPlayerCharacters } from '../../../../characterSheets/obsidian/sheetEntries';
 import { playerCharacterEntry, setPlayerCharacters } from '../../../../react/components/context-menu/playerCharacterMenu';
 import type { TransferMode } from '../../../../services/assetTransfer/transferPlan';
 import type { CreateScenePrefill } from '../hooks/useAssetCrud';
@@ -227,6 +228,9 @@ export function buildAssetContextMenuEntries(
       const create = createStatblockEntry(deps.app, { collectionId: deps.collectionId, from: 'asset-manager', token, onStart: deps.onClose });
       if (create) entries.push(create);
     }
+    // Its character sheet, opened or made, after the statblock's own entries.
+    const sheet = characterSheetEntry(deps.app, { name: asset.name, imagePath: asset.imagePath ?? asset.imageUrl, statblockPath: asset.statblockPath });
+    if (sheet) entries.push(sheet);
   }
 
 
@@ -245,7 +249,8 @@ export function buildAssetContextMenuEntries(
   if (asset.type === 'tokens' && assetService) {
     const tokenIds = selectedAssets.filter((a) => a.type === 'tokens').map((a) => a.id);
     entries.push(playerCharacterEntry(asset.playerCharacter === true, (on) => runInBackground(
-      setPlayerCharacters(deps.app, assetService, tokenIds, on),
+      // A new player character gets its sheet, as one made in the Players tab does.
+      setPlayerCharacters(deps.app, assetService, tokenIds, on).then(() => (on ? sheetsForPlayerCharacters(deps.app, selectedAssets.filter((a) => a.type === 'tokens').map((a) => ({ name: a.name, imagePath: a.imagePath ?? a.imageUrl, statblockPath: a.statblockPath }))) : undefined)),
       'Marking player characters',
       t('token.playerCharacterFailed'),
     )));

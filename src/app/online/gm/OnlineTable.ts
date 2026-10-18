@@ -151,12 +151,13 @@ export class OnlineTable {
         this.bound()?.share.playerLeft(player);
         this.image.playerLeft(player);
         this.books.share.playerLeft(player);
+        this.books.sheets.playerLeft(player);
         this.found.playerLeft(player);
         ownership.left(player);
         this.log.left(player);
       },
       // The log, the shown image and the books are the table's, so they hear players while no scene is shared too.
-      message: (from, body) => void (this.log.receive(from, body) || this.image.receive(from, body) || this.found.receive(from, body) || this.books.share.receive(from, body) || this.bound()?.share.receive(from, body)),
+      message: (from, body) => void (this.log.receive(from, body) || this.image.receive(from, body) || this.found.receive(from, body) || this.books.sheets.receive(from, body) || this.books.share.receive(from, body) || this.bound()?.share.receive(from, body)),
       access: (closesAt) => this.setClosing(closesAt),
     }, this.gate);
     this.stopOwnership = ownership.onChange(() => this.bound()?.share.ownersChanged());
@@ -284,6 +285,7 @@ export class OnlineTable {
     this.log.resend(to);
     this.image.resend(to);
     this.books.share.resend(to);
+    this.books.sheets.resend(to);
   }
 
   /** Players see no scene while the shared tab is gone, so nothing of what they saw lingers or moves. */

@@ -7,6 +7,7 @@ import { isPlayerCharacter, libraryTokenOf, type PlacedTokenSource } from '../..
 import { playerVisionChanges } from '../../../characters/playerVision';
 import { runInBackground } from '../../../utils/backgroundTask';
 import { t } from '../../../i18n';
+import { sheetsForPlayerCharacters } from '../../../characterSheets/obsidian/sheetEntries';
 
 /**
  * Marks library tokens as player characters or no longer, and tells every list of them.
@@ -49,7 +50,8 @@ export function placedPlayerCharacterEntry(app: App, token: PlacedTokenSource, s
       if (changes.length > 0) updateTokens(changes);
     }
     runInBackground(
-      setPlayerCharacters(app, assets, [asset.id], on),
+      // A new player character gets its sheet, as one made in the Players tab does.
+      setPlayerCharacters(app, assets, [asset.id], on).then(() => (on ? sheetsForPlayerCharacters(app, [{ name: asset.name, imagePath: asset.imagePath, statblockPath: asset.statblockPath }]) : undefined)),
       `Marking token ${asset.id} as a player character`,
       t('token.playerCharacterFailed'),
     );

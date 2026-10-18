@@ -107,6 +107,8 @@ message's `body`.
 | Dice | `dice.tsx` | Rolls thrown in 3D with the plugin's `DiceRollStack` |
 | Chat and dice log | `logPanel.ts` | The plugin's `TableLogPanel` with `LogState` |
 | Book | `book.ts`, `book*.ts` | Character with editable resources, items, equipment slots (equip, hide default slots, add own ones), free notes, quests with their whole text and images, notes on a quest, purse, world map with the maps its entrances lead into and the player's own pins. The GM takes a write without answering, so the page applies it to its own copy with the plugin's `applyBookMessage` (on the message as the GM's parser cleans it); a refused write is answered with the whole book |
+| Character sheet | `bookSheet.tsx` | The book's Fiche tab: the plugin's own sheet (`src/app/characterSheets/CharacterSheet.tsx`), editable. A change shows at once and goes to the GM once typing pauses (`sheet-edit`, `sheet-row`); what the GM sends back does not undo a change of the last two seconds. Current hit points are the token's resource (`book-resource`). A click on a modifier, save, skill, initiative or attack rolls it, named after it |
+| Documents | `bookSheet.tsx`, `reader.ts` | The notes the GM linked to the character, opened in the reader |
 | Found notes | `reader.ts`, `documentView.ts` | The note a found pin lets players read, opened from the log or the pin |
 | Notices | `notice.ts` | A new item, a refused roll, a roll without a scene, a book that is full |
 | Words | `text.ts` | Every text the page writes itself |
@@ -116,6 +118,31 @@ The chat panel is in English: the plugin ships no French locale.
 On a screen under 640 px wide the toolbar takes a row of its own under the log's and the book's buttons, and the widget bar sits above them instead of at the top.
 
 The log stays open beside the book and the toolbar: a press in anything marked `data-keeps-log-open` is no press outside it (`LOG_KEEPS_OPEN` in the plugin's `usePanelDismissal.ts`).
+
+### Character sheets
+
+A character sheet is a statblock note whose frontmatter names its system: `atlas-sheet: dnd5e-2024`
+(`src/app/characterSheets/`). Its values are frontmatter keys; `name`, `ac`, `hp`, `stats`, `speed`,
+`languages` and `traits` are Fantasy Statblocks' own, and every write also sets `statblock: true`,
+`saves`, `skillsaves`, `senses` and `actions` worked out from the sheet, so Fantasy Statblocks, the
+token's statblock link and Atlas's hit points read the same note. `atlas-player-notes` lists the
+notes linked for the character's player as `[[links]]`. A system is one `SheetSystem`
+(`dnd5e2024.ts`): its fields (`sheetFields.ts`, which also checks every value read or sent), what
+follows from them, and the keys it writes for Fantasy Statblocks.
+
+The GM opens a sheet in its own tab (`CharacterSheetView`, view `atlas-character-sheet`): from a
+token's menu in the library or on the map (Créer / Ouvrir la fiche de personnage), from Link
+Statblock (Créer une fiche de personnage, or linking a note that is a sheet), when a token is made in
+the Players tab without a statblock role, when a token is made a player character, and with the
+commands Nouvelle fiche de personnage and Ouvrir la fiche de personnage de cette note. New sheets go
+to `Personnages/`. The sheet's Documents tab links notes for the player.
+
+At the table, `SheetShare` (`src/app/online/gm/book/`) sends each player `sheet`: the sheet of the
+statblock note of the character they play, and the linked notes as found notes are sent (opening
+inline, whole text and images by hash, served to that player alone). It sends again when their
+character, the note or a linked note changes. A player's `sheet-edit` or `sheet-row` is applied by
+the sheet's system and written into the note at once; one that is refused is answered with the sheet
+as the note keeps it. A player edits only their own character's sheet, at 8 edits a second (burst 40).
 
 ### What players make on the map
 
@@ -134,6 +161,7 @@ page from a real relay, drive it in `/usr/bin/chromium`, and play the GM with th
 | `tests/book.browser.test.ts` | Every page of the book, each write reaching the GM and showing without an answer, the world map's levels and pins, quest images, found notes, a refused roll; markup in names stays text |
 | `tests/diagnostics.test.ts` | Feedback and error reports kept in the data folder; malformed, too large, web-page and flooding requests refused |
 | `tests/phone.browser.test.ts` | At 390 × 844, every control on screen and apart; a touch drag moves the own token |
+| `tests/sheet.browser.test.ts` | The Fiche tab: the sheet's values and worked-out bonuses, a roll from it, a field, a proficiency, hit points and an equipment row reaching the GM, an older sheet not undoing a fresh change, and a linked document read whole |
 | `tests/toolbar.browser.test.ts` | The toolbar's menus, the log open beside the book, and what each tool sends: a pen stroke, a stamp, a text, a partial erase, delete all, a kept circle, the laser's colour, a d20 with advantage. `ATLAS_SHOTS=<dir>` writes screenshots |
 
 ## What the player page can import

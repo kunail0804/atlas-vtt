@@ -12,9 +12,11 @@ import { characterPage, itemsPage, pursePage } from './bookPages.ts';
 import { questsPage } from './bookQuests.ts';
 import { worldMapPage } from './bookWorldMap.ts';
 import { TEXT } from './text.ts';
+import { BookSheet, type SheetPorts } from './bookSheet.tsx';
+import type { SheetMessage } from '../../../src/app/online/protocol/sheet.ts';
 
-const TABS: readonly Tab[] = ['character', 'items', 'equipment', 'notes', 'quests', 'purse', 'map'];
-const PAGES: Readonly<Record<Tab, (context: PageContext) => HTMLElement>> = {
+const TABS: readonly Tab[] = ['character', 'sheet', 'documents', 'items', 'equipment', 'notes', 'quests', 'purse', 'map'];
+const PAGES: Readonly<Record<Exclude<Tab, 'sheet' | 'documents'>, (context: PageContext) => HTMLElement>> = {
   character: characterPage, items: itemsPage, equipment: equipmentPage, notes: notesPage, quests: questsPage, purse: pursePage, map: worldMapPage,
 };
 
@@ -37,7 +39,11 @@ export class BookPanel {
   /** Told whether the player has a book, for the toolbar's button. */
   private readonly available: (has: boolean) => void;
 
-  constructor(host: HTMLElement, assets: AssetLoader, send: (message: PlayerMessage) => void, tell: (text: string) => void, available: (has: boolean) => void) {
+  /** The character sheet and the notes the GM linked to it. */
+  private readonly sheet: BookSheet;
+
+  constructor(host: HTMLElement, assets: AssetLoader, send: (message: PlayerMessage) => void, tell: (text: string) => void, available: (has: boolean) => void, sheet: Omit<SheetPorts, 'send' | 'setHitPoints'>) {
+    this.sheet = new BookSheet({ ...sheet, send, setHitPoints: (current) => this.setHitPoints(current) });
     this.assets = assets;
     this.send = send;
     this.tell = tell;
@@ -71,7 +77,20 @@ export class BookPanel {
       this.tell(TEXT.book.newItem(message.item.name));
     }
     this.available(this.book !== null);
+    this.sheet.setCharacter(this.book?.character ?? null);
     if (!this.panel.hidden) this.render();
+  }
+
+  /** The character sheet and its notes, as the GM sent them. */
+  receiveSheet(message: SheetMessage): void {
+    this.sheet.receive(message);
+    if (!this.panel.hidden && this.ui.tab === 'documents') this.render();
+  }
+
+  /** The character's hit points, set from its sheet as from its sheet's resource. */
+  private setHitPoints(current: number): void {
+    const resource = this.book?.character?.resources.find((entry) => entry.key === 'hp');
+    if (resource?.key != null && resource.editable) this.write({ t: 'book-resource', key: resource.key, current: Math.max(0, Math.min(resource.max, current)) });
   }
 
   private write(message: PlayerBookMessage): void {
@@ -104,7 +123,9 @@ export class BookPanel {
 
   private render(): void {
     for (const choice of this.panel.querySelectorAll<HTMLElement>('.book-tab')) choice.setAttribute('aria-pressed', String(choice.dataset.tab === this.ui.tab));
-    this.panel.classList.toggle('book-wide', this.ui.tab === 'map');
+    this.panel.classList.toggle('book-wide', this.ui.tab === 'map' || this.ui.tab === 'sheet');
+    if (this.ui.tab === 'sheet') return this.body.replaceChildren(this.sheet.sheetPage());
+    if (this.ui.tab === 'documents') return this.body.replaceChildren(this.sheet.documentsPage());
     const book = this.book;
     if (book === null) return this.body.replaceChildren(node('p', 'book-empty', TEXT.book.coming));
     // The field the player is typing in keeps the focus and the caret through the redraw.
@@ -113,7 +134,8 @@ export class BookPanel {
     const caret: readonly [number | null, number | null] | null = active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement ? [active.selectionStart, active.selectionEnd] : null;
     const scroll = this.body.scrollTop;
     const context: PageContext = { book, assets: this.assets, write: (message) => this.write(message), redraw: () => this.render(), drafts: this.drafts, ui: this.ui };
-    this.body.replaceChildren(PAGES[this.ui.tab](context));
+    const tab = this.ui.tab;
+    this.body.replaceChildren(PAGES[tab](context));
     this.body.scrollTop = scroll;
     if (field === undefined) return;
     const again = this.body.querySelector<HTMLElement>(`[data-field="${CSS.escape(field)}"]`);

@@ -50,6 +50,8 @@
     "src/app/online/tableLog/**/*.ts",
     "src/app/online/tableLog/**/*.tsx",
     "src/app/online/gm/book/bookStore.ts",
+    "src/app/characterSheets/*.ts",
+    "src/app/characterSheets/*.tsx",
     "src/app/pixi/drawingEraseUtils.ts",
     "src/app/pixi/fog/FogCursorPreview.ts",
     "src/app/react/components/dice/DiceTray.tsx",

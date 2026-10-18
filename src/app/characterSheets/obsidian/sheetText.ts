@@ -1,0 +1,21 @@
+/** The GM's words around a character sheet in Obsidian. */
+export const SHEET_TEXT = {
+  title: 'Fiche de personnage',
+  loading: 'Lecture de la fiche…',
+  notASheet: 'Cette note n\'est pas une fiche de personnage.',
+  noFile: 'Cette fiche n\'existe plus.',
+  noMap: 'Ouvre une scène d\'Atlas pour lancer les dés depuis la fiche.',
+  pickNote: 'Note à donner au joueur…',
+  notesHint: 'Les notes liées ici apparaissent dans le livre du joueur qui joue ce personnage, en lecture seule.',
+  noNotes: 'Aucune note liée pour l\'instant.',
+  linkNote: 'Lier une note…',
+  open: 'Ouvrir',
+  unlink: 'Retirer',
+  missing: '(introuvable)',
+  createSheet: 'Créer une fiche de personnage',
+  openSheet: 'Ouvrir la fiche de personnage',
+  created: (name: string): string => `Fiche de personnage créée pour ${name}.`,
+  createFailed: 'La fiche de personnage n\'a pas pu être créée.',
+  newSheetCommand: 'Nouvelle fiche de personnage',
+  openSheetCommand: 'Ouvrir la fiche de personnage de cette note',
+} as const;

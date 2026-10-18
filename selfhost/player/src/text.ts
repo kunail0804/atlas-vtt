@@ -8,7 +8,7 @@ export const TEXT = {
     open: 'Mon livre',
     close: 'Fermer',
     coming: 'Ton livre arrive…',
-    tabs: { character: 'Personnage', items: 'Objets', equipment: 'Équipement', notes: 'Notes', quests: 'Quêtes', purse: 'Bourse', map: 'Carte' },
+    tabs: { character: 'Personnage', sheet: 'Fiche', documents: 'Documents', items: 'Objets', equipment: 'Emplacements', notes: 'Notes', quests: 'Quêtes', purse: 'Bourse', map: 'Carte' },
     noCharacter: 'Le MJ ne t\'a pas encore donné de personnage.',
     noItems: 'Aucun objet pour l\'instant.',
     noQuests: 'Aucune quête pour l\'instant.',
@@ -55,6 +55,12 @@ export const TEXT = {
     kinds: { treasure: 'Trésor', danger: 'Danger', dungeon: 'Donjon', person: 'Personnage', note: 'Note' } satisfies Record<PinKind, string>,
   },
   reader: { close: 'Fermer' },
+  sheet: {
+    coming: 'Ta fiche de personnage arrive…',
+    none: 'Le MJ n\'a pas encore créé la fiche de ton personnage.',
+    noDocuments: 'Le MJ ne t\'a donné aucun document pour l\'instant.',
+    read: 'Lire',
+  },
   toolbar: {
     chat: 'Chat et dés',
     deleteMine: 'Effacer tous mes dessins',
