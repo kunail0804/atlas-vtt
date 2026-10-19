@@ -9,9 +9,9 @@ export const DND5E_LABELS = {
     insight: 'Intuition', intimidation: 'Intimidation', investigation: 'Investigation', medicine: 'Médecine', nature: 'Nature', perception: 'Perception',
     performance: 'Représentation', persuasion: 'Persuasion', religion: 'Religion', 'sleight-of-hand': 'Escamotage', stealth: 'Discrétion', survival: 'Survie',
   } as Readonly<Record<string, string>>,
-  tabs: { main: 'Principal', spells: 'Sorts', equipment: 'Équipement', traits: 'Traits', story: 'Histoire', notes: 'Documents' },
-  name: 'Nom du personnage', class: 'Classe', subclass: 'Sous-classe', level: 'Niveau', species: 'Espèce', background: 'Historique',
-  alignment: 'Alignement', xp: 'XP', inspiration: 'Inspiration', proficiency: 'Bonus de maîtrise',
+  tabs: { main: 'Principal', spells: 'Sorts', traits: 'Traits', story: 'Histoire', notes: 'Documents', book: 'Livre' },
+  name: 'Nom du personnage', class: 'Classe', subclass: 'Sous-classe', level: 'Niveau', background: 'Historique',
+  alignment: 'Alignement', xp: 'XP', proficiency: 'Bonus de maîtrise',
   savesTitle: 'Jets de sauvegarde', skillsTitle: 'Compétences', proficient: 'Maîtrise', expertise: 'Expertise', passive: 'Perception passive',
   ac: 'CA', initiative: 'Initiative', initiativeBonus: 'Bonus d\'initiative', speed: 'Vitesse',
   hpMax: 'PV max', hpCurrent: 'PV actuels', hpTemp: 'PV temporaires', hitDice: 'Dés de vie', hitDiceSpent: 'Dépensés',
@@ -20,11 +20,15 @@ export const DND5E_LABELS = {
   languages: 'Langues', proficiencies: 'Autres maîtrises',
   spellAbility: 'Caractéristique d\'incantation', spellDc: 'DD des sorts', spellAttack: 'Attaque de sort', slots: 'Emplacements', slotsSpent: 'Utilisés',
   spellLevel: 'Niv.', spellName: 'Sort', prepared: 'Préparé', none: '—',
-  coins: { cp: 'PC', sp: 'PA', ep: 'PE', gp: 'PO', pp: 'PP' },
-  item: 'Objet', quantity: 'Qté', weight: 'Poids',
   traitName: 'Trait', traitDesc: 'Description',
   personality: 'Traits de personnalité', ideals: 'Idéaux', bonds: 'Liens', flaws: 'Défauts', appearance: 'Apparence', backstory: 'Histoire du personnage',
   add: 'Ajouter', remove: 'Retirer',
   check: (what: string): string => `Test de ${what}`,
   save: (what: string): string => `Sauvegarde de ${what}`,
+} as const;
+
+/** The words the two rule sets name differently. */
+export const DND5E_EDITION_LABELS = {
+  'dnd5e-2014': { species: 'Race', inspiration: 'Inspiration' },
+  'dnd5e-2024': { species: 'Espèce', inspiration: 'Inspiration héroïque' },
 } as const;

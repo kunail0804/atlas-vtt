@@ -45,7 +45,9 @@ function slotSettings(context: PageContext): HTMLElement {
   const section = node('details', 'book-slot-settings');
   section.append(node('summary', '', TEXT.equipment.manage));
   const slots = context.book.slots;
-  const write = (next: BookSlots): void => context.write({ t: 'book-slots', slots: next });
+  const write = (next: BookSlots): void => {
+    context.write({ t: 'book-slots', slots: next });
+  };
   for (const id of DEFAULT_SLOTS) {
     const hidden = slots.hidden.includes(id);
     const row = node('div', 'book-slot-setting');

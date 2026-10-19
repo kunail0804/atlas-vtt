@@ -7,6 +7,7 @@ import { obsidianHttp } from './account/obsidianHttp.ts';
 import { secretTokenStore } from './account/tokenStore.ts';
 import { activeAtlasLeaf } from './atlasView.ts';
 import { BookShelf } from './book/BookShelf.ts';
+import { setActiveShelf } from './book/activeShelf.ts';
 import { readBooks } from './book/bookStore.ts';
 import { CompanionDiagnostics } from './companionDiagnostics.ts';
 import { companionTimers, every, stopCompanionTimers } from './companionTimers.ts';
@@ -119,6 +120,7 @@ export class OnlineFeature extends Component {
     this.savedTable = readSavedTable(record.table);
     this.savedLog = this.savedTable === null ? undefined : record.tableLog;
     this.books = new BookShelf(readBooks(record.books), () => this.saveSoon());
+    setActiveShelf(this.books);
     this.online = new OnlineControl(this.app, ownership, (table) => {
       this.savedTable = table;
       void this.saveSettings();
@@ -209,6 +211,7 @@ export class OnlineFeature extends Component {
 
   onunload(): void {
     this.live = false;
+    setActiveShelf(null);
     this.docks?.dispose();
     this.docks = null;
     this.logs?.dispose();

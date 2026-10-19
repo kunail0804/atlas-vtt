@@ -18,4 +18,18 @@ export const SHEET_TEXT = {
   createFailed: 'La fiche de personnage n\'a pas pu être créée.',
   newSheetCommand: 'Nouvelle fiche de personnage',
   openSheetCommand: 'Ouvrir la fiche de personnage de cette note',
+  rules: 'Règles',
+  book: {
+    hint: 'Le livre du joueur qui joue ce personnage : ses objets et sa bourse. Ce que tu changes ici lui parvient tout de suite pendant une partie.',
+    needsOnline: 'Active « Online play » dans les fonctionnalités expérimentales pour voir le livre de ce personnage.',
+    noToken: 'Aucun token n\'est lié à cette fiche : lie-en un pour que ce personnage ait un livre.',
+    noCollection: 'Hors collection',
+    which: 'Livre',
+    noItems: 'Aucun objet pour l\'instant.',
+    invalid: 'Pas enregistré : un texte est vide ou trop long, ou il y a trop de propriétés (16 au plus).',
+    full: 'Le livre de ce personnage ne peut pas contenir plus d\'objets.',
+    addItem: 'Ajouter un objet', edit: 'Modifier', remove: 'Supprimer', save: 'Enregistrer l\'objet', cancel: 'Annuler', equipped: 'équipé',
+    name: 'Nom de l\'objet', type: 'Type', rarity: 'Rareté', price: 'Prix', description: 'Description', properties: 'Propriétés, une par ligne : « CA : 14 »',
+    purse: 'Bourse', coin: 'Monnaie', amount: 'Quantité', addCoin: 'Ajouter une monnaie', savePurse: 'Enregistrer la bourse',
+  },
 } as const;

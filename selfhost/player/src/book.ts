@@ -8,7 +8,8 @@ import { button, closeButton, node } from './bookDom.ts';
 import './book.scss';
 import { equipmentPage } from './bookEquipment.ts';
 import { notesPage } from './bookNotes.ts';
-import { characterPage, itemsPage, pursePage } from './bookPages.ts';
+import { itemsPage } from './bookItems.ts';
+import { characterPage, pursePage } from './bookPages.ts';
 import { questsPage } from './bookQuests.ts';
 import { worldMapPage } from './bookWorldMap.ts';
 import { TEXT } from './text.ts';
@@ -93,23 +94,34 @@ export class BookPanel {
     if (resource?.key != null && resource.editable) this.write({ t: 'book-resource', key: resource.key, current: Math.max(0, Math.min(resource.max, current)) });
   }
 
-  private write(message: PlayerBookMessage): void {
+  private write(message: PlayerBookMessage): boolean {
     const book = this.book;
     // What the GM reads is the message as it crossed the wire, so the page cleans that, not the object it made.
     const parsed = parsePlayerBookMessage(JSON.parse(JSON.stringify(message)) as Record<string, unknown>);
-    if (book === null || parsed === null) return;
-    if (!fitsPlayerFrame(message)) return this.tell(TEXT.book.tooLong);
+    if (book === null) return false;
+    if (parsed === null) {
+      this.tell(TEXT.book.invalid);
+      return false;
+    }
+    if (!fitsPlayerFrame(message)) {
+      this.tell(TEXT.book.tooLong);
+      return false;
+    }
     if (parsed.t === 'book-resource') {
       const character = book.character;
       if (character !== null) this.book = { ...book, character: { ...character, resources: character.resources.map((resource) => (resource.key === parsed.key ? { ...resource, current: parsed.current } : resource)) } };
     } else {
       const { items, notes, pins, purse, slots, equipped } = book;
       const written = applyBookMessage({ items, notes, pins, purse, slots, equipped }, parsed, Date.now(), new Set(book.quests.map((quest) => quest.id)));
-      if (written === null) return this.tell(TEXT.book.full);
+      if (written === null) {
+        this.tell(TEXT.book.full);
+        return false;
+      }
       this.book = { ...book, ...written };
     }
     this.send(message);
     this.render();
+    return true;
   }
 
   toggle(): void {

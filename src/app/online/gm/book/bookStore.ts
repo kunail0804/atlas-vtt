@@ -53,7 +53,9 @@ function mayNameQuest(book: StoredBook, quests: ReadonlySet<string>, note: { rea
  * A book after what its player wrote, as the protocol's parser cleaned it: a note or pin is put in
  * place of the one of its id or added (a note on a quest only on a quest in `quests`, the ids of
  * those the book is sent), a deletion
- * takes one away (none is no error), the purse is replaced whole. A note is stamped with `now`, the GM's clock. An item goes into a slot only where
+ * takes one away (none is no error), the purse is replaced whole. A note is stamped with `now`, the GM's clock. An
+ * item the player writes is put in place of the one of its id, keeping when it came and its rarity's colour
+ * while the rarity is the same, or added, stamped with `now`; one taken away leaves its slot too. An item goes into a slot only where
  * the book holds it and shows the slot; slots are replaced whole, and an item whose slot went is back
  * in the bag. Null when the book takes no more, or not this.
  */
@@ -74,6 +76,16 @@ export function applyBookMessage(book: StoredBook, message: Exclude<PlayerBookMe
       return { ...book, pins: without(book.pins, message.id) };
     case 'book-purse':
       return { ...book, purse: message.purse };
+    case 'book-item-put': {
+      const held = book.items.find((item) => item.id === message.item.id);
+      const item: BookItem = held === undefined
+        ? { ...message.item, tone: null, at: now }
+        : { ...message.item, tone: held.rarity === message.item.rarity ? held.tone : null, at: held.at };
+      const items = put(book.items, item, MAX_BOOK_ITEMS);
+      return items === null ? null : { ...book, items };
+    }
+    case 'book-item-delete':
+      return { ...book, items: without(book.items, message.id), equipped: book.equipped.filter((entry) => entry.item !== message.id) };
     case 'book-equip':
       return mayEquip(book, message.item, message.slot) ? { ...book, equipped: withEquipped(book.equipped, message.item, message.slot) } : null;
     case 'book-slots':

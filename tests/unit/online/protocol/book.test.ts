@@ -106,6 +106,18 @@ describe('book messages to a player', () => {
 });
 
 describe('what a player writes into their book', () => {
+  it('reads an item its player writes, without the GM\'s colour or clock, and its deletion', () => {
+    const { tone: _tone, at: _at, ...draft } = ITEM;
+    expect(parsePlayerMessage({ t: 'book-item-put', item: { ...ITEM, extra: 1 } })).toEqual({ t: 'book-item-put', item: draft });
+    expect(parsePlayerMessage({ t: 'book-item-put', item: { ...draft, type: null, rarity: null, price: null, description: null, properties: [] } }))
+      .toEqual({ t: 'book-item-put', item: { ...draft, type: null, rarity: null, price: null, description: null, properties: [] } });
+    expect(parsePlayerMessage({ t: 'book-item-put', item: { ...draft, name: '   ' } })).toBeNull();
+    expect(parsePlayerMessage({ t: 'book-item-put', item: { ...draft, id: 'x' } })).toBeNull();
+    expect(parsePlayerMessage({ t: 'book-item-put', item: { ...draft, properties: [{ label: 'Weight' }] } })).toBeNull();
+    expect(parsePlayerMessage({ t: 'book-item-delete', id: ID })).toEqual({ t: 'book-item-delete', id: ID });
+    expect(parsePlayerMessage({ t: 'book-item-delete', id: 'x' })).toBeNull();
+  });
+
   it('reads notes, pins, the purse and deletions, cleaned', () => {
     expect(parsePlayerMessage({ t: 'book-note', note: { id: ID, title: '  A‮ title ', body: 'one\r\n\r\n\r\n\r\ntwo  \n' } })).toEqual({ t: 'book-note', note: { id: ID, title: 'A title', body: 'one\n\ntwo' } });
     expect(parsePlayerMessage({ t: 'book-note', note: { id: ID, title: '', body: '' } })).toEqual({ t: 'book-note', note: { id: ID, title: '', body: '' } });

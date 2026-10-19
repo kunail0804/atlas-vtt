@@ -88,14 +88,15 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player\'s char
     await until(() => sentOf('book-resource').length >= 1, 'hit points sent', 5_000);
     expect(sentOf('book-resource').at(-1)).toEqual({ t: 'book-resource', key: 'hp', current: 15 });
 
-    // A row of equipment: added at once, its name once the typing pauses.
-    await page.click('.atlas-sheet-tab >> text=Équipement');
+    // A row of attacks: added at once, its name once the typing pauses. What the character carries is the book's, not the sheet's.
+    expect(await page.locator('.atlas-sheet-tab >> text=Équipement').count()).toBe(0);
+    await page.click('.atlas-sheet-tab >> text=Principal');
     await page.click('.atlas-sheet-add >> text=Ajouter');
     await until(() => sentOf('sheet-row').length === 1, 'row sent', 5_000);
-    await page.fill('[aria-label="Objet"]', 'Corde');
-    await until(() => sentOf('sheet-row').some((row) => (row.row as { name?: string } | null)?.name === 'Corde'), 'row name sent', 5_000);
-    expect(sentOf('sheet-row').at(-1)).toEqual({ t: 'sheet-row', key: 'equipment', index: 0, row: { name: 'Corde', quantity: 0, weight: '', notes: '' } });
-    await shot('sheet-equipment');
+    await page.fill('[aria-label="Nom"]', 'Dague');
+    await until(() => sentOf('sheet-row').some((row) => (row.row as { name?: string } | null)?.name === 'Dague'), 'row name sent', 5_000);
+    expect(sentOf('sheet-row').at(-1)).toEqual({ t: 'sheet-row', key: 'attacks', index: 0, row: { name: 'Dague', bonus: '', damage: '', notes: '' } });
+    await shot('sheet-attack');
 
     // The GM's documents: the note's whole text, fetched by hash.
     send({ t: 'sheet', sheet: { system: 'dnd5e-2024', values }, notes: [{ title: 'Famille de Mira', body: 'Ta sœur…', text: { hash: loreHash, size: lore.length, mime: 'text/markdown' } }] } as GmMessage, player);
@@ -106,5 +107,12 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player\'s char
     await page.waitForFunction(() => document.querySelector('.reader .doc-text')?.textContent?.includes('Port-Brume'), null, { timeout: 5_000 });
     expect(await page.textContent('.reader-title')).toBe('Famille de Mira');
     await shot('sheet-document');
+
+    // The GM put the sheet under the 2014 rules: the same sheet, in that edition's words.
+    await page.click('.reader-close');
+    send({ t: 'sheet', sheet: { system: 'dnd5e-2014', values }, notes: [] } as GmMessage, player);
+    await page.click('.book-tab[data-tab="sheet"]');
+    await page.waitForSelector('.atlas-sheet[data-system="dnd5e-2014"]', { timeout: 5_000 });
+    expect(await page.locator('[aria-label="Race"]').count()).toBe(1);
   }, 60_000);
 });

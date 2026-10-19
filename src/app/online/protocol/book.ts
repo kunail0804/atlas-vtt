@@ -41,6 +41,11 @@ export interface BookItem {
   readonly at: number;
 }
 
+/**
+ * An item as its player writes it into their book: new, or in place of the one of its id (one the GM
+ * handed over included). The GM stamps it and keeps the colour of a rarity it did not change.
+ */
+export type BookItemDraft = Omit<BookItem, 'tone' | 'at'>;
 /** A note as its player writes it; shown as text only. A note written on a quest names it, and is not among the free notes. */
 export interface BookNoteDraft {
   readonly id: string;
@@ -103,11 +108,13 @@ export type PlayerBookMessage =
   | { readonly t: 'book-pin'; readonly pin: BookPin }
   | { readonly t: 'book-pin-delete'; readonly id: string }
   | { readonly t: 'book-purse'; readonly purse: readonly PurseRow[] }
+  | { readonly t: 'book-item-put'; readonly item: BookItemDraft }
+  | { readonly t: 'book-item-delete'; readonly id: string }
   | BookResourceMessage
   | SlotMessage;
 
 const GM_TYPES: readonly unknown[] = ['book', 'book-sheet', 'book-item'];
-const PLAYER_TYPES: readonly unknown[] = ['book-note', 'book-note-delete', 'book-pin', 'book-pin-delete', 'book-purse', 'book-resource', 'book-equip', 'book-slots'];
+const PLAYER_TYPES: readonly unknown[] = ['book-note', 'book-note-delete', 'book-pin', 'book-pin-delete', 'book-purse', 'book-item-put', 'book-item-delete', 'book-resource', 'book-equip', 'book-slots'];
 
 export const isBookType = (t: unknown): t is BookMessage['t'] => GM_TYPES.includes(t);
 export const isPlayerBookType = (t: unknown): t is PlayerBookMessage['t'] => PLAYER_TYPES.includes(t);
@@ -156,6 +163,15 @@ export function parseBookItem(value: unknown): BookItem | null {
   if (name === null || type === undefined || rarity === undefined || price === undefined || tone === undefined || properties === null) return null;
   if (description === null && value.description !== null) return null;
   return { id: value.id, name, type, rarity, tone, price, description, properties, at: value.at };
+}
+
+/** An item as its player sent it, cleaned: it has a name; its other lines may be missing. */
+export function parseBookItemDraft(value: unknown): BookItemDraft | null {
+  if (!isRecord(value)) return null;
+  const item = parseBookItem({ ...value, tone: null, at: 0 });
+  if (item === null) return null;
+  const { tone: _tone, at: _at, ...draft } = item;
+  return draft;
 }
 
 /** A note as its player sent it, cleaned; a title may be empty. */
@@ -249,8 +265,13 @@ export function parsePlayerBookMessage(value: Record<string, unknown>): PlayerBo
       const pin = parseBookPin(value.pin);
       return pin === null ? null : { t: 'book-pin', pin };
     }
+    case 'book-item-put': {
+      const item = parseBookItemDraft(value.item);
+      return item === null ? null : { t: 'book-item-put', item };
+    }
     case 'book-note-delete':
     case 'book-pin-delete':
+    case 'book-item-delete':
       return isId(value.id) ? { t: value.t, id: value.id } : null;
     case 'book-purse': {
       const purse = parsePurse(value.purse);

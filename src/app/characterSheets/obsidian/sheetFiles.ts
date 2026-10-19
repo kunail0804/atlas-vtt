@@ -2,6 +2,8 @@ import { normalizePath, TFile, type App } from 'obsidian';
 import { frontmatterOfText } from '../../statblocks/notes/statblockSource';
 import { applySheetEdit, readNoteSheet, sheetFrontmatter, type NoteSheet, type SheetEdit } from '../sheetNote.ts';
 import { MAX_PLAYER_NOTES, PLAYER_NOTES_KEY, type SheetSystem } from '../sheetSystem.ts';
+import { sheetSystem } from '../sheetSystems.ts';
+import { readFields } from '../sheetFields.ts';
 
 /** The note at a vault path, when it is Markdown. */
 export function sheetFile(app: App, path: string): TFile | null {
@@ -49,6 +51,22 @@ export function editSheetFile(app: App, file: TFile, edit: SheetEdit): Promise<N
     if (values === null) return null;
     await writeValues(app, file, sheet.system, values);
     return { ...sheet, values };
+  });
+}
+
+/**
+ * Puts a note's sheet under another system: its values read again by that system's fields, so what both
+ * hold is kept, and written with its marker. Null where the note is no sheet or the system is unknown.
+ */
+export function setSheetSystem(app: App, file: TFile, systemId: string): Promise<NoteSheet | null> {
+  return queued(file.path, async () => {
+    const sheet = await readSheetFile(app, file);
+    const system = sheetSystem(systemId);
+    if (sheet === null || system === null) return null;
+    if (system.id === sheet.system.id) return sheet;
+    const values = readFields(system.fields, sheet.values);
+    await writeValues(app, file, system, values);
+    return { ...sheet, system, values };
   });
 }
 

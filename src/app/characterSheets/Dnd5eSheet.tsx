@@ -1,6 +1,6 @@
 import React, { useState, type ReactElement } from 'react';
 import { ABILITIES, ALIGNMENTS, DND5E_2024_FIELDS, SKILLS, deriveDnd5e, signed } from './dnd5e2024.ts';
-import { DND5E_LABELS as L } from './dnd5eLabels.ts';
+import { DND5E_EDITION_LABELS, DND5E_LABELS as L } from './dnd5eLabels.ts';
 import type { SheetRow, SheetValue, SheetValues } from './sheetFields.ts';
 import { Check, NumberInput, Roll, RowsTable, TextInput, type RowColumn } from './sheetInputs.tsx';
 
@@ -21,6 +21,8 @@ export interface CharacterSheetProps {
   readonly hitPoints?: SheetHitPoints | undefined;
   /** Shown as a tab of its own after the sheet's (the notes the GM links for the player, or the GM's own linking of them). */
   readonly notes?: ReactElement | undefined;
+  /** The character's book (its items and coins), as a tab of its own: the GM's way into it. */
+  readonly book?: ReactElement | undefined;
 }
 
 type Tab = keyof typeof L.tabs;
@@ -37,6 +39,7 @@ export const diceOf = (text: string): string | null => /^\s*(\d*d\d+(?:\s*[+-]\s
 const toHit = (text: string): string | null => (/^\s*[+-]?\d+\s*$/.test(text) ? d20(Number(text)) : null);
 
 const cells = DND5E_2024_FIELDS;
+const isTab = (id: string): id is Tab => Object.hasOwn(L.tabs, id);
 const rowCells = (key: string): Record<string, RowColumn['spec']> => {
   const spec = cells[key];
   return spec?.kind === 'rows' ? { ...spec.cells } : {};
@@ -44,11 +47,12 @@ const rowCells = (key: string): Record<string, RowColumn['spec']> => {
 
 /**
  * A 2024 character sheet as Roll20 lays one out: who the character is above, then the abilities,
- * saving throws and skills beside combat on the first tab, and spells, equipment, traits and story
- * on the others. Everything that follows from the sheet is worked out (`deriveDnd5e`), never typed;
+ * saving throws and skills beside combat on the first tab, and spells, traits and story on the others,
+ * under the 2014 or the 2024 rules (`system`), which name a few things differently. Everything that follows from the sheet is worked out (`deriveDnd5e`), never typed;
  * a modifier, a save, a skill, the initiative and an attack roll when clicked.
  */
-export function Dnd5eSheet({ values, editable, onSet, onRow, onRoll, hitPoints, notes }: CharacterSheetProps): ReactElement {
+export function Dnd5eSheet({ system, values, editable, onSet, onRow, onRoll, hitPoints, notes, book }: CharacterSheetProps & { system: keyof typeof DND5E_EDITION_LABELS }): ReactElement {
+  const E = DND5E_EDITION_LABELS[system];
   const [tab, setTab] = useState<Tab>('main');
   const derived = deriveDnd5e(values);
   const stats = nums(values.stats, 6);
@@ -57,17 +61,17 @@ export function Dnd5eSheet({ values, editable, onSet, onRow, onRoll, hitPoints, 
     const current = list(values[key]);
     onSet(key, on ? [...current, id] : current.filter((entry) => entry !== id));
   };
-  const tabs = (Object.keys(L.tabs) as Tab[]).filter((id) => id !== 'notes' || notes !== undefined);
+  const tabs = Object.keys(L.tabs).filter(isTab).filter((id) => (id !== 'notes' || notes !== undefined) && (id !== 'book' || book !== undefined));
 
   return (
-    <div className="atlas-sheet" data-system="dnd5e-2024">
+    <div className="atlas-sheet" data-system={system}>
       <header className="atlas-sheet-header">
         <TextInput className="atlas-sheet-name" value={str(values.name)} onChange={set('name')} editable={editable} label={L.name} maxLength={120} />
         <div className="atlas-sheet-identity">
           <Labelled label={L.class}><TextInput value={str(values.class)} onChange={set('class')} editable={editable} label={L.class} /></Labelled>
           <Labelled label={L.subclass}><TextInput value={str(values.subclass)} onChange={set('subclass')} editable={editable} label={L.subclass} /></Labelled>
           <Labelled label={L.level}><NumberInput value={num(values.level, 1)} onChange={set('level')} editable={editable} label={L.level} min={1} max={20} /></Labelled>
-          <Labelled label={L.species}><TextInput value={str(values.species)} onChange={set('species')} editable={editable} label={L.species} /></Labelled>
+          <Labelled label={E.species}><TextInput value={str(values.species)} onChange={set('species')} editable={editable} label={E.species} /></Labelled>
           <Labelled label={L.background}><TextInput value={str(values.background)} onChange={set('background')} editable={editable} label={L.background} /></Labelled>
           <Labelled label={L.alignment}>
             <select className="atlas-sheet-input" aria-label={L.alignment} value={str(values.alignment)} disabled={!editable} onChange={(event) => onSet('alignment', event.target.value)}>
@@ -79,7 +83,7 @@ export function Dnd5eSheet({ values, editable, onSet, onRow, onRoll, hitPoints, 
         </div>
         <div className="atlas-sheet-badges">
           <Badge label={L.proficiency} value={signed(derived.proficiency)} />
-          <label className="atlas-sheet-badge"><span>{L.inspiration}</span><Check value={values.inspiration === true} onChange={set('inspiration')} editable={editable} label={L.inspiration} /></label>
+          <label className="atlas-sheet-badge"><span>{E.inspiration}</span><Check value={values.inspiration === true} onChange={set('inspiration')} editable={editable} label={E.inspiration} /></label>
         </div>
       </header>
 
@@ -193,23 +197,6 @@ export function Dnd5eSheet({ values, editable, onSet, onRow, onRoll, hitPoints, 
         </div>
       )}
 
-      {tab === 'equipment' && (
-        <div className="atlas-sheet-page">
-          <div className="atlas-sheet-coins">
-            {(['cp', 'sp', 'ep', 'gp', 'pp'] as const).map((coin) => (
-              <Labelled key={coin} label={L.coins[coin]}><NumberInput value={num(values[coin])} onChange={set(coin)} editable={editable} label={L.coins[coin]} min={0} max={1_000_000} /></Labelled>
-            ))}
-          </div>
-          <RowsTable label={L.tabs.equipment} rows={rows(values.equipment)} editable={editable} onRow={(index, row) => onRow('equipment', index, row)} addLabel={L.add} removeLabel={L.remove}
-            columns={[
-              { key: 'name', label: L.item, spec: rowCells('equipment').name!, width: '1.6fr' },
-              { key: 'quantity', label: L.quantity, spec: rowCells('equipment').quantity!, width: '64px' },
-              { key: 'weight', label: L.weight, spec: rowCells('equipment').weight!, width: '80px' },
-              { key: 'notes', label: L.notes, spec: rowCells('equipment').notes!, width: '1.6fr' },
-            ]} />
-        </div>
-      )}
-
       {tab === 'traits' && (
         <div className="atlas-sheet-page">
           <RowsTable label={L.tabs.traits} rows={rows(values.traits)} editable={editable} onRow={(index, row) => onRow('traits', index, row)} addLabel={L.add} removeLabel={L.remove} onRoll={onRoll}
@@ -229,6 +216,7 @@ export function Dnd5eSheet({ values, editable, onSet, onRow, onRoll, hitPoints, 
       )}
 
       {tab === 'notes' && notes}
+      {tab === 'book' && book}
     </div>
   );
 }

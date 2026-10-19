@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { DND5E_2024, deriveDnd5e, proficiencyBonus } from '../../../src/app/characterSheets/dnd5e2024.ts';
+import { DND5E_2014, DND5E_2024, deriveDnd5e, proficiencyBonus } from '../../../src/app/characterSheets/dnd5e2024.ts';
+import { sheetSystem } from '../../../src/app/characterSheets/sheetSystems.ts';
 import { readField } from '../../../src/app/characterSheets/sheetFields.ts';
 import { applySheetEdit, newSheet, readNoteSheet, sheetFrontmatter } from '../../../src/app/characterSheets/sheetNote.ts';
 import { parseGmMessage, parsePlayerMessage } from '../../../src/app/online/protocol/index.ts';
@@ -51,11 +52,26 @@ describe('the 2024 rules on a character sheet', () => {
     expect(applySheetEdit(DND5E_2024, mira, { op: 'set', key: 'level', value: 6 })?.level).toBe(6);
     expect(applySheetEdit(DND5E_2024, mira, { op: 'set', key: 'level', value: 21 })).toBeNull();
     expect(applySheetEdit(DND5E_2024, mira, { op: 'set', key: 'atlas-sheet', value: 'x' })).toBeNull();
-    expect(applySheetEdit(DND5E_2024, mira, { op: 'set', key: 'equipment', value: 'x' })).toBeNull();
-    const added = applySheetEdit(DND5E_2024, mira, { op: 'row', key: 'equipment', index: 0, row: { name: 'Corde', quantity: 1, extra: 'ignoré' } });
-    expect(added?.equipment).toEqual([{ name: 'Corde', quantity: 1, weight: '', notes: '' }]);
-    expect(applySheetEdit(DND5E_2024, added ?? mira, { op: 'row', key: 'equipment', index: 0, row: null })?.equipment).toEqual([]);
-    expect(applySheetEdit(DND5E_2024, mira, { op: 'row', key: 'equipment', index: 3, row: { name: 'x' } })).toBeNull();
+    expect(applySheetEdit(DND5E_2024, mira, { op: 'set', key: 'attacks', value: 'x' })).toBeNull();
+    const added = applySheetEdit(DND5E_2024, mira, { op: 'row', key: 'attacks', index: 0, row: { name: 'Dague', bonus: '+5', extra: 'ignoré' } });
+    expect(added?.attacks).toEqual([{ name: 'Dague', bonus: '+5', damage: '', notes: '' }]);
+    expect(applySheetEdit(DND5E_2024, added ?? mira, { op: 'row', key: 'attacks', index: 0, row: null })?.attacks).toEqual([]);
+    expect(applySheetEdit(DND5E_2024, mira, { op: 'row', key: 'attacks', index: 3, row: { name: 'x' } })).toBeNull();
+  });
+
+  it('leave what the character carries and its coins to the book', () => {
+    for (const system of [DND5E_2024, DND5E_2014]) {
+      for (const key of ['equipment', 'cp', 'sp', 'ep', 'gp', 'pp']) expect(Object.hasOwn(system.fields, key)).toBe(false);
+      expect(applySheetEdit(system, mira, { op: 'set', key: 'gp', value: 10 })).toBeNull();
+    }
+  });
+
+  it('know the 2014 rules beside the 2024 ones, with the same fields and what follows from them', () => {
+    expect(sheetSystem('dnd5e-2014')).toBe(DND5E_2014);
+    expect(sheetSystem('dnd5e-2024')).toBe(DND5E_2024);
+    expect(DND5E_2014.fields).toBe(DND5E_2024.fields);
+    expect(DND5E_2014.derive(mira)).toEqual(DND5E_2024.derive(mira));
+    expect(readNoteSheet({ ...sheetFrontmatter(DND5E_2014, mira) })?.system).toBe(DND5E_2014);
   });
 });
 

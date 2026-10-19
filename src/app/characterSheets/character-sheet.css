@@ -52,5 +52,9 @@ textarea.atlas-sheet-input { min-height: 72px; resize: vertical; }
 .atlas-sheet-add { align-self: flex-start; padding: 4px 10px; border: 1px solid var(--background-modifier-border); border-radius: 8px; background: transparent; color: var(--text-muted); font: inherit; cursor: pointer; }
 .atlas-sheet-slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 6px; }
 .atlas-sheet-slot { display: grid; grid-template-columns: 16px 1fr 1fr; gap: 4px; align-items: center; font-weight: 700; }
-.atlas-sheet-coins { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
 .atlas-sheet-story { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.atlas-sheet-rules { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; }
+.atlas-sheet-rules .atlas-sheet-input { width: auto; }
+.atlas-sheet-book-form, .atlas-sheet-book-item { display: flex; flex-direction: column; gap: 6px; }
+.atlas-sheet-book-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.atlas-sheet-book-coin { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 6px; margin-bottom: 6px; }

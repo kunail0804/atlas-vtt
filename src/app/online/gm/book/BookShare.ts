@@ -100,6 +100,7 @@ export class BookShare implements LootRecipientSource {
   private readonly listeners = new Set<() => void>();
   private told = '[]';
   private stopPoll: (() => void) | null = null;
+  private stopShelf: (() => void) | null = null;
 
   constructor(ports: BookSharePorts, shelf: BookShelf) {
     this.ports = ports;
@@ -113,12 +114,18 @@ export class BookShare implements LootRecipientSource {
 
   start(): void {
     this.stopPoll ??= every(this.ports, BOOK_POLL_MS, () => this.update());
+    // What the GM writes from a character's sheet reaches whoever plays that character at once.
+    this.stopShelf ??= this.shelf.subscribe((collection, key, by) => {
+      if (by === 'gm') this.gmWrote(collection, key);
+    });
     this.update();
   }
 
   stop(): void {
     this.stopPoll?.();
     this.stopPoll = null;
+    this.stopShelf?.();
+    this.stopShelf = null;
     for (const timer of this.owed.values()) this.ports.clearTimer(timer);
     this.owed.clear();
   }
@@ -240,6 +247,14 @@ export class BookShare implements LootRecipientSource {
     this.sent.set(player, sent);
     this.bookAt.set(player, this.ports.now());
     this.ports.send({ t: 'book', book }, player);
+  }
+
+  /** The GM wrote into a character's book: whoever plays it now gets the whole book. */
+  private gmWrote(collection: string, key: string): void {
+    for (const player of this.ports.players()) {
+      const character = this.characters.of(player.id);
+      if (player.online && character !== null && character.collection === collection && character.key === key) this.sendBook(player.id);
+    }
   }
 
   /** The player is owed their whole book (a write of theirs was refused): now, or once `REFUSAL_BOOK_MS` have passed since their last. */

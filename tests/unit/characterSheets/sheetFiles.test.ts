@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { TFile, type App } from 'obsidian';
 import { describe, expect, it } from 'vitest';
-import { editSheetFile, linkedNote, readSheetFile, setPlayerNotes } from '../../../src/app/characterSheets/obsidian/sheetFiles.ts';
+import { editSheetFile, linkedNote, readSheetFile, setPlayerNotes, setSheetSystem } from '../../../src/app/characterSheets/obsidian/sheetFiles.ts';
 import { DND5E_2024 } from '../../../src/app/characterSheets/dnd5e2024.ts';
 import { newSheet, sheetFrontmatter } from '../../../src/app/characterSheets/sheetNote.ts';
 
@@ -33,7 +33,7 @@ describe('a character sheet\'s note', () => {
     expect((await readSheetFile(note.app, note.sheet))?.values.level).toBe(2);
     const [first, second, refused] = await Promise.all([
       editSheetFile(note.app, note.sheet, { op: 'set', key: 'level', value: 3 }),
-      editSheetFile(note.app, note.sheet, { op: 'row', key: 'equipment', index: 0, row: { name: 'Corde', quantity: 2 } }),
+      editSheetFile(note.app, note.sheet, { op: 'row', key: 'attacks', index: 0, row: { name: 'Dague', damage: '1d4+3' } }),
       editSheetFile(note.app, note.sheet, { op: 'set', key: 'level', value: 30 }),
     ]);
     expect(first?.values.level).toBe(3);
@@ -41,7 +41,17 @@ describe('a character sheet\'s note', () => {
     expect(second?.values.level).toBe(3);
     expect(refused).toBeNull();
     expect(note.writes).toBe(2);
-    expect(note.frontmatter).toMatchObject({ level: 3, equipment: [{ name: 'Corde', quantity: 2, weight: '', notes: '' }], image: 'art/mira.webp', custom: 'gardé', statblock: true, 'atlas-sheet': 'dnd5e-2024' });
+    expect(note.frontmatter).toMatchObject({ level: 3, attacks: [{ name: 'Dague', bonus: '', damage: '1d4+3', notes: '' }], image: 'art/mira.webp', custom: 'gardé', statblock: true, 'atlas-sheet': 'dnd5e-2024' });
+  });
+
+  it('goes under the 2014 rules and back with every value kept, and refuses a system it does not know', async () => {
+    const note = vault();
+    await editSheetFile(note.app, note.sheet, { op: 'set', key: 'class', value: 'Roublarde' });
+    expect((await setSheetSystem(note.app, note.sheet, 'dnd5e-2014'))?.system.id).toBe('dnd5e-2014');
+    expect(note.frontmatter).toMatchObject({ 'atlas-sheet': 'dnd5e-2014', class: 'Roublarde', level: 2, image: 'art/mira.webp', custom: 'gardé' });
+    expect(await setSheetSystem(note.app, note.sheet, 'pathfinder')).toBeNull();
+    expect((await setSheetSystem(note.app, note.sheet, 'dnd5e-2024'))?.values.class).toBe('Roublarde');
+    expect(note.frontmatter['atlas-sheet']).toBe('dnd5e-2024');
   });
 
   it('keeps the notes linked for its player, each once', async () => {

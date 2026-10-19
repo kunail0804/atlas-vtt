@@ -97,6 +97,38 @@ describe('a book as the GM keeps it', () => {
     expect(({} as Record<string, unknown>).constructor).toBe(Object);
   });
 
+  it('takes an item its player writes: added and stamped, changed in place, taken away with its slot', () => {
+    const rope = { id: id(1), name: 'Corde', type: 'Matériel', rarity: null, price: '1 po', description: null, properties: [{ label: 'Poids', value: '5 lb' }] };
+    const book = written([{ t: 'book-item-put', item: rope }]);
+    expect(book.items).toEqual([{ ...rope, tone: null, at: 1000 }]);
+    // A handed item keeps when it came, and its rarity's colour while the rarity is the same.
+    const sword = { ...item(2), rarity: 'Rare', tone: 'rare' as const, at: 50 };
+    const held = { ...withItem(book, sword), equipped: [{ slot: 'main-hand', item: sword.id }] };
+    const renamed = applyBookMessage(held, { t: 'book-item-put', item: { ...sword, name: 'Lame' } }, 9000, new Set());
+    expect(renamed?.items.find((kept) => kept.id === sword.id)).toMatchObject({ name: 'Lame', tone: 'rare', at: 50 });
+    const rarer = applyBookMessage(held, { t: 'book-item-put', item: { ...sword, rarity: 'Légendaire' } }, 9000, new Set());
+    expect(rarer?.items.find((kept) => kept.id === sword.id)?.tone).toBeNull();
+    const gone = applyBookMessage(held, { t: 'book-item-delete', id: sword.id }, 9000, new Set());
+    expect(gone?.items.map((kept) => kept.id)).toEqual([id(1)]);
+    expect(gone?.equipped).toEqual([]);
+    let full = EMPTY_BOOK;
+    for (let count = 0; count < MAX_BOOK_ITEMS; count += 1) full = withItem(full, item(count + 10));
+    expect(applyBookMessage(full, { t: 'book-item-put', item: rope }, 1, new Set())).toBeNull();
+  });
+
+  it('tells who listens which book was kept and who wrote it, and where a character has books', () => {
+    const shelf = new BookShelf();
+    const heard: string[] = [];
+    const stop = shelf.subscribe((collection, character, by) => heard.push(`${collection}|${character}|${by}`));
+    shelf.keep('Cairn', 'art/a.png', written([note(1)]));
+    shelf.keep('Dnd', 'art/a.png', written([note(2)]), 'gm');
+    stop();
+    shelf.keep('Dnd', 'art/b.png', written([note(3)]));
+    expect(heard).toEqual(['Cairn|art/a.png|table', 'Dnd|art/a.png|gm']);
+    expect(shelf.collectionsOf('art/a.png')).toEqual(['Cairn', 'Dnd']);
+    expect(shelf.collectionsOf('art/z.png')).toEqual([]);
+  });
+
   it('tells its keeper of every change and forgets a book that is empty again', () => {
     let saves = 0;
     const shelf = new BookShelf({}, () => (saves += 1));

@@ -17,6 +17,7 @@ export const TEXT = {
     equippedIn: (slot: string): string => `Équipé : ${slot}`,
     full: 'Ton livre ne peut pas en contenir plus.',
     tooLong: 'Ce texte est trop long pour être envoyé.',
+    invalid: 'Ce n\'est pas enregistré : un texte est vide ou trop long.',
     refused: 'Le MJ n\'a pas accepté cette modification.',
   },
   notes: { title: 'Titre', body: 'Ta note…', add: 'Ajouter la note', save: 'Enregistrer', cancel: 'Annuler', edit: 'Modifier', remove: 'Supprimer', untitled: 'Sans titre', onQuest: 'Mes notes sur cette quête', addOnQuest: 'Ajouter une note' },
@@ -26,6 +27,11 @@ export const TEXT = {
     rewards: 'Récompenses',
     showOnMap: 'Voir sur la carte',
     open: 'Ouvrir la quête',
+  },
+  items: {
+    add: 'Ajouter un objet', edit: 'Modifier', remove: 'Supprimer', save: 'Enregistrer l\'objet', cancel: 'Annuler',
+    name: 'Nom de l\'objet', type: 'Type', rarity: 'Rareté', price: 'Prix', description: 'Description',
+    properties: 'Propriétés, une par ligne : « CA : 14 »',
   },
   purse: { save: 'Enregistrer la bourse', addRow: 'Ajouter une monnaie', coin: 'Monnaie', defaultCoin: 'Or' },
   equipment: {

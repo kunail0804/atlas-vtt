@@ -1,8 +1,6 @@
 import { MAX_COIN_NAME, MAX_PURSE_ROWS } from '../../../src/app/online/protocol/book.ts';
-import { shownSlots } from '../../../src/app/online/protocol/bookSlots.ts';
 import type { PageContext } from './bookContext.ts';
 import { assetImage, bound, button, node } from './bookDom.ts';
-import { slotName } from './bookEquipment.ts';
 import { TEXT } from './text.ts';
 
 export function characterPage(context: PageContext): HTMLElement {
@@ -31,30 +29,12 @@ export function characterPage(context: PageContext): HTMLElement {
     row.append(node('span', 'book-resource-name', resource.name), bar, node('span', 'book-resource-value', fixed ? String(resource.max) : `${resource.current} / ${resource.max}`));
     if (resource.editable && resource.key !== null && !fixed) {
       const key = resource.key;
-      const step = (delta: number): void => context.write({ t: 'book-resource', key, current: Math.max(0, Math.min(resource.max, resource.current + delta)) });
+      const step = (delta: number): void => {
+        context.write({ t: 'book-resource', key, current: Math.max(0, Math.min(resource.max, resource.current + delta)) });
+      };
       row.append(button('−', () => step(-1)), button('+', () => step(1)));
     }
     page.append(row);
-  }
-  return page;
-}
-
-export function itemsPage(context: PageContext): HTMLElement {
-  const page = node('div', 'book-page');
-  const { items, equipped, slots } = context.book;
-  if (items.length === 0) page.append(node('p', 'book-empty', TEXT.book.noItems));
-  const shown = shownSlots(slots);
-  for (const item of [...items].reverse()) {
-    const card = node('article', 'book-item');
-    if (item.tone !== null) card.dataset.tone = item.tone;
-    card.append(node('h3', 'book-item-name', item.name));
-    const meta = [item.type, item.rarity, item.price].filter((part): part is string => part !== null && part !== '').join(' · ');
-    if (meta !== '') card.append(node('p', 'book-item-meta', meta));
-    const slot = shown.find((candidate) => equipped.some((entry) => entry.item === item.id && entry.slot === candidate.id));
-    if (slot !== undefined) card.append(node('p', 'book-item-slot', TEXT.book.equippedIn(slotName(slot))));
-    if (item.description !== null) card.append(node('p', 'book-text', item.description));
-    for (const property of item.properties) card.append(node('p', 'book-item-property', `${property.label} : ${property.value}`));
-    page.append(card);
   }
   return page;
 }

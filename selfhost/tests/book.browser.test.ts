@@ -133,6 +133,38 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player book in
     await tab('items');
     expect(await page.locator('.book-item-slot').allTextContents()).toEqual(['Équipé : Main principale']);
 
+    // The player adds an item of their own: it shows at once, and the GM gets it whole.
+    await page.click('.book-button >> text=Ajouter un objet');
+    await page.fill('[aria-label="Nom de l\'objet"]', 'Lanterne');
+    await page.fill('[aria-label="Type"]', 'Matériel');
+    await page.fill('textarea[aria-label^="Propriétés"]', 'Durée : 6 h\nsans deux-points');
+    await page.click('.book-item-form button[type=submit]');
+    await until(() => sentOf('book-item-put').length === 1, 'item sent', 5_000);
+    const added = sentOf('book-item-put')[0]?.item as { id: string };
+    expect(added).toMatchObject({ name: 'Lanterne', type: 'Matériel', rarity: null, properties: [{ label: 'Durée', value: '6 h' }] });
+    expect(added.id).toMatch(/^[0-9a-f]{24}$/);
+    expect(await page.locator('.book-item-name').allTextContents()).toContain('Lanterne');
+    // And changes one the GM handed over, in place.
+    await page.locator('.book-item', { hasText: 'Corde' }).locator('button >> text=Modifier').click();
+    await page.fill('[aria-label="Nom de l\'objet"]', 'Corde en soie');
+    await page.click('.book-item-form button[type=submit]');
+    await until(() => sentOf('book-item-put').length === 2, 'item edit sent', 5_000);
+    expect(sentOf('book-item-put')[1]?.item).toMatchObject({ id: 'd'.repeat(24), name: 'Corde en soie' });
+    // And takes their own away.
+    await page.locator('.book-item', { hasText: 'Lanterne' }).locator('button >> text=Supprimer').click();
+    await until(() => sentOf('book-item-delete').length === 1, 'item delete sent', 5_000);
+    expect(sentOf('book-item-delete')[0]).toEqual({ t: 'book-item-delete', id: added.id });
+    expect(await page.locator('.book-item-name').allTextContents()).not.toContain('Lanterne');
+    // An item the GM could not take (a property longer than a book holds) stays in the form as typed.
+    await page.click('.book-button >> text=Ajouter un objet');
+    await page.fill('[aria-label="Nom de l\'objet"]', 'Parchemin');
+    await page.fill('textarea[aria-label^="Propriétés"]', `Texte : ${'x'.repeat(250)}`);
+    await page.click('.book-item-form button[type=submit]');
+    await page.waitForTimeout(300);
+    expect(sentOf('book-item-put')).toHaveLength(2);
+    expect(await page.inputValue('[aria-label="Nom de l\'objet"]')).toBe('Parchemin');
+    await page.click('.book-item-form button >> text=Annuler');
+
     // Notes: a new one shows at once, without the GM sending anything back; edited in place; deleted.
     await tab('notes');
     await page.fill('.book-form input', 'Indice');

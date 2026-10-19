@@ -7,7 +7,9 @@ import { CharacterSheet } from '../CharacterSheet.tsx';
 import type { SheetRow, SheetValue } from '../sheetFields.ts';
 import { applySheetEdit, type NoteSheet, type SheetEdit } from '../sheetNote.ts';
 import { MAX_PLAYER_NOTES } from '../sheetSystem.ts';
-import { editSheetFile, linkedNote, noteLink, readSheetFile, setPlayerNotes, sheetFile } from './sheetFiles.ts';
+import { SHEET_SYSTEMS } from '../sheetSystems.ts';
+import { editSheetFile, linkedNote, noteLink, readSheetFile, setPlayerNotes, setSheetSystem, sheetFile } from './sheetFiles.ts';
+import { SheetBook } from './SheetBook.tsx';
 import { SHEET_TEXT } from './sheetText.ts';
 
 export const CHARACTER_SHEET_VIEW_TYPE = 'atlas-character-sheet';
@@ -85,16 +87,33 @@ export function SheetEditor({ app, file }: { app: App; file: TFile }): ReactElem
       reload();
     });
   };
+  const switchSystem = (id: string): void => {
+    pending.current += 1;
+    void setSheetSystem(app, file, id).finally(() => {
+      pending.current -= 1;
+      reload();
+    });
+  };
   const roll = (formula: string, label: string): void => {
     const name = typeof sheet.values.name === 'string' ? sheet.values.name : file.basename;
     if (rollStatblockDice(app, formula, { statblockPath: file.path, abilityName: label, tokenName: name }) === null) showNotice(SHEET_TEXT.noMap);
   };
   return (
-    <CharacterSheet system={sheet.system.id} values={sheet.values} editable
+    <>
+      {/* Only the GM picks the rules a sheet follows: the player's page has no such choice. */}
+      <label className="atlas-sheet-rules">
+        <span className="atlas-sheet-label">{SHEET_TEXT.rules}</span>
+        <select className="atlas-sheet-input" aria-label={SHEET_TEXT.rules} value={sheet.system.id} onChange={(event) => switchSystem(event.target.value)}>
+          {SHEET_SYSTEMS.map((system) => <option key={system.id} value={system.id}>{system.name}</option>)}
+        </select>
+      </label>
+      <CharacterSheet system={sheet.system.id} values={sheet.values} editable
       onSet={(key: string, value: SheetValue) => edit({ op: 'set', key, value })}
       onRow={(key: string, index: number, row: SheetRow | null) => edit({ op: 'row', key, index, row })}
       onRoll={roll}
-      notes={<PlayerNotes app={app} file={file} links={sheet.playerNotes} />} />
+      notes={<PlayerNotes app={app} file={file} links={sheet.playerNotes} />}
+      book={<SheetBook app={app} file={file} />} />
+    </>
   );
 }
 

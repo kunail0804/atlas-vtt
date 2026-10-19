@@ -106,7 +106,7 @@ message's `body`.
 | Widgets | `widgets.ts` | Counters, clocks and timers; a running timer counts on its own |
 | Dice | `dice.tsx` | Rolls thrown in 3D with the plugin's `DiceRollStack` |
 | Chat and dice log | `logPanel.ts` | The plugin's `TableLogPanel` with `LogState` |
-| Book | `book.ts`, `book*.ts` | Character with editable resources, items, equipment slots (equip, hide default slots, add own ones), free notes, quests with their whole text and images, notes on a quest, purse, world map with the maps its entrances lead into and the player's own pins. The GM takes a write without answering, so the page applies it to its own copy with the plugin's `applyBookMessage` (on the message as the GM's parser cleans it); a refused write is answered with the whole book |
+| Book | `book.ts`, `book*.ts` | Character with editable resources, items the player adds, changes and takes away (`book-item-put`, `book-item-delete`, those the GM handed over too; `bookItems.ts`), equipment slots (equip, hide default slots, add own ones), free notes, quests with their whole text and images, notes on a quest, purse, world map with the maps its entrances lead into and the player's own pins. The GM takes a write without answering, so the page applies it to its own copy with the plugin's `applyBookMessage` (on the message as the GM's parser cleans it); a refused write is answered with the whole book |
 | Character sheet | `bookSheet.tsx` | The book's Fiche tab: the plugin's own sheet (`src/app/characterSheets/CharacterSheet.tsx`), editable. A change shows at once and goes to the GM once typing pauses (`sheet-edit`, `sheet-row`); what the GM sends back does not undo a change of the last two seconds. Current hit points are the token's resource (`book-resource`). A click on a modifier, save, skill, initiative or attack rolls it, named after it |
 | Documents | `bookSheet.tsx`, `reader.ts` | The notes the GM linked to the character, opened in the reader |
 | Found notes | `reader.ts`, `documentView.ts` | The note a found pin lets players read, opened from the log or the pin |
@@ -121,8 +121,13 @@ The log stays open beside the book and the toolbar: a press in anything marked `
 
 ### Character sheets
 
-A character sheet is a statblock note whose frontmatter names its system: `atlas-sheet: dnd5e-2024`
-(`src/app/characterSheets/`). Its values are frontmatter keys; `name`, `ac`, `hp`, `stats`, `speed`,
+A character sheet is a statblock note whose frontmatter names its system: `atlas-sheet: dnd5e-2024` or
+`dnd5e-2014` (`src/app/characterSheets/`). Both have the same fields and work out the same values; the 2014
+sheet says Race and Inspiration where the 2024 one says Espèce and Inspiration héroïque. The GM switches a
+sheet from one to the other with Règles above it (`setSheetSystem`), keeping every value; players cannot.
+What the character carries and its coins are not on the sheet: they are its book's. A sheet written before
+keeps its `equipment` and `cp` to `pp` keys in its frontmatter untouched, but the sheet no longer reads them and
+nothing moves them into the book. Its values are frontmatter keys; `name`, `ac`, `hp`, `stats`, `speed`,
 `languages` and `traits` are Fantasy Statblocks' own, and every write also sets `statblock: true`,
 `saves`, `skillsaves`, `senses` and `actions` worked out from the sheet, so Fantasy Statblocks, the
 token's statblock link and Atlas's hit points read the same note. `atlas-player-notes` lists the
@@ -136,6 +141,13 @@ Statblock (Créer une fiche de personnage, or linking a note that is a sheet), w
 the Players tab without a statblock role, when a token is made a player character, and with the
 commands Nouvelle fiche de personnage and Ouvrir la fiche de personnage de cette note. New sheets go
 to `Personnages/`. The sheet's Documents tab links notes for the player.
+
+The sheet's Livre tab (`SheetBook.tsx`) is the GM's way into the character's book: its items and purse,
+which the GM adds to, changes and takes from. It needs online play on, which keeps the books
+(`activeShelf.ts`). The book is found by the tokens linked to the note (and its `image`): every
+collection's book of that artwork, else a new one in the collection of its first token. A write from there
+is kept as the GM's (`BookShelf.keep(…, 'gm')`), and `BookShare` sends the whole book at once to whoever
+plays that character.
 
 At the table, `SheetShare` (`src/app/online/gm/book/`) sends each player `sheet`: the sheet of the
 statblock note of the character they play, and the linked notes as found notes are sent (opening

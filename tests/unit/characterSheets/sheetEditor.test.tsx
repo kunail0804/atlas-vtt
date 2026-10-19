@@ -61,4 +61,17 @@ describe('the GM\'s character sheet', () => {
     expect(frontmatter()).not.toHaveProperty('atlas-player-notes');
     expect(screen.getByText('Aucune note liée pour l\'instant.')).toBeTruthy();
   });
+
+  it('lets the GM switch the sheet to the 2014 rules, whose words it then uses', async () => {
+    const { app, file, frontmatter } = vault();
+    render(<SheetEditor app={app} file={file} />);
+    await settle();
+    expect(screen.getByLabelText('Espèce')).toBeTruthy();
+    fireEvent.change(screen.getByLabelText('Règles'), { target: { value: 'dnd5e-2014' } });
+    await settle();
+    expect(frontmatter()).toMatchObject({ 'atlas-sheet': 'dnd5e-2014', name: 'Mira', level: 2 });
+    expect((screen.getByLabelText('Règles') as HTMLSelectElement).value).toBe('dnd5e-2014');
+    expect(screen.getByLabelText('Race')).toBeTruthy();
+    expect(screen.queryByRole('tab', { name: 'Équipement' })).toBeNull();
+  });
 });

@@ -25,7 +25,8 @@ export interface BookUi {
 export interface PageContext {
   readonly book: PlayerBook;
   readonly assets: AssetLoader;
-  readonly write: (message: PlayerBookMessage) => void;
+  /** False where the page did not take the write (malformed, too long, a full book): the player was told. */
+  readonly write: (message: PlayerBookMessage) => boolean;
   readonly redraw: () => void;
   readonly drafts: Map<string, string>;
   readonly ui: BookUi;

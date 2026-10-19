@@ -1,11 +1,12 @@
 import type { ReactElement } from 'react';
 import React from 'react';
+import { isDnd5eSystem } from './dnd5e2024.ts';
 import { Dnd5eSheet, type CharacterSheetProps } from './Dnd5eSheet.tsx';
 import './character-sheet.css';
 
 /** The sheet of a system, by its id; null for a system this Atlas draws no sheet for. */
 export function CharacterSheet({ system, ...props }: CharacterSheetProps & { system: string }): ReactElement | null {
-  if (system === 'dnd5e-2024') return <Dnd5eSheet {...props} />;
+  if (isDnd5eSystem(system)) return <Dnd5eSheet system={system} {...props} />;
   return null;
 }
 

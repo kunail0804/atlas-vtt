@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { giveLoot, lootRecipients } from '../../../../src/app/loot/lootRecipients';
 import type { LootDraw } from '../../../../src/app/loot/lootRoller';
 import { BookShelf } from '../../../../src/app/online/gm/book/BookShelf.ts';
-import { readBooks } from '../../../../src/app/online/gm/book/bookStore.ts';
+import { EMPTY_BOOK, readBooks } from '../../../../src/app/online/gm/book/bookStore.ts';
 import { FakeSocket, workspace } from './fakeTable.ts';
 import { ANA, BEN, BRANNOCH, BRANNOCH_ART, CAL, cave, delivered, DOOM, MAP, MIRA_ART, MIRA_DOOM, ofType, openTable, traffic, WORLD_MAP, type Delivered } from './bookTableHarness.ts';
 import { advanceSettled as advance } from './settled.ts';
@@ -119,6 +119,32 @@ describe('the players\' books at a running table', () => {
     for (const secret of ['Doom', String(DOOM), String(MIRA_DOOM)]) expect(toAll).not.toContain(secret);
     online.stop();
     expect(lootRecipients()).toEqual([]);
+  });
+
+  it('sends the whole book at once to whoever plays the character when the GM writes into it, and to nobody else', async () => {
+    const shelf = new BookShelf();
+    const { socket, from } = await openTable(shelf, PLAYERS);
+    from(ANA, { t: 'book-purse', purse: [{ name: 'Thorns', amount: 40 }] });
+    await advance(1_000);
+    const [collection] = shelf.collectionsOf(BRANNOCH_ART);
+    expect(collection).toBeDefined();
+    const books = (player: string): number => ofType(delivered(socket), 'book').filter(({ to }) => to === player).length;
+    const [ana, ben] = [books(ANA), books(BEN)];
+    // A write of the table is not sent back: the player's page already shows it.
+    shelf.keep(collection!, BRANNOCH_ART, { ...shelf.of(collection!, BRANNOCH_ART), purse: [{ name: 'Thorns', amount: 41 }] });
+    await advance(100);
+    expect(books(ANA)).toBe(ana);
+    const rope: BookItem = { id: 'c'.repeat(24), name: 'Rope', type: null, rarity: null, tone: null, price: null, description: null, properties: [], at: 1 };
+    shelf.keep(collection!, BRANNOCH_ART, { ...shelf.of(collection!, BRANNOCH_ART), items: [rope] }, 'gm');
+    await advance(100);
+    expect(books(ANA)).toBe(ana + 1);
+    expect(books(BEN)).toBe(ben);
+    expect(held(delivered(socket), ANA)?.items.map((item) => item.name)).toEqual(['Rope']);
+    // The same artwork's book in another collection is nobody's at this table.
+    const sent = delivered(socket).length;
+    shelf.keep(`${collection!}-other`, BRANNOCH_ART, { ...EMPTY_BOOK, items: [rope] }, 'gm');
+    await advance(100);
+    expect(delivered(socket).length).toBe(sent);
   });
 
   it('follows the token with the sheet alone, and takes a book away at once when the GM gives its character to someone else', async () => {

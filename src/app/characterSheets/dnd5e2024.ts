@@ -18,7 +18,11 @@ const SHORT: CellSpec = { kind: 'text', max: 40 };
 const LONG = (max: number): CellSpec => ({ kind: 'longtext', max });
 const NUMBER = (min: number, max: number): CellSpec => ({ kind: 'int', min, max });
 
-/** Every field of a 2024 character sheet, by its frontmatter key; `name`, `ac`, `hp`, `stats`, `speed`, `languages` and `traits` are Fantasy Statblocks' own. */
+/**
+ * Every field of a 5e character sheet, 2014 or 2024 rules alike, by its frontmatter key; `name`, `ac`, `hp`,
+ * `stats`, `speed`, `languages` and `traits` are Fantasy Statblocks' own. What the character carries and its
+ * coins are not here: they are its player's book's.
+ */
 export const DND5E_2024_FIELDS: Readonly<Record<string, FieldSpec>> = {
   name: LINE,
   class: LINE,
@@ -49,8 +53,6 @@ export const DND5E_2024_FIELDS: Readonly<Record<string, FieldSpec>> = {
   'spell-slots': { kind: 'ints', length: 9, min: 0, max: 9 },
   'spell-slots-spent': { kind: 'ints', length: 9, min: 0, max: 9 },
   'spell-list': { kind: 'rows', max: 80, cells: { level: NUMBER(0, 9), name: SHORT, prepared: { kind: 'bool' }, notes: LINE } },
-  equipment: { kind: 'rows', max: 80, cells: { name: SHORT, quantity: NUMBER(0, 9_999), weight: SHORT, notes: LINE } },
-  cp: NUMBER(0, 1_000_000), sp: NUMBER(0, 1_000_000), ep: NUMBER(0, 1_000_000), gp: NUMBER(0, 1_000_000), pp: NUMBER(0, 1_000_000),
   traits: { kind: 'rows', max: 40, cells: { name: SHORT, desc: LONG(2_000) } },
   personality: LONG(1_000),
   ideals: LONG(1_000),
@@ -130,3 +132,12 @@ export const DND5E_2024: SheetSystem<Dnd5eDerived> = {
   derive: deriveDnd5e,
   statblockKeys: dnd5eStatblockKeys,
 };
+
+/**
+ * The same sheet under the 2014 rules. Nothing the sheet works out differs between the two yet, so a
+ * sheet switched from one to the other keeps every value; only its words do (`DND5E_EDITION_LABELS`).
+ */
+export const DND5E_2014: SheetSystem<Dnd5eDerived> = { ...DND5E_2024, id: 'dnd5e-2014', name: 'D&D 5e (2014)' };
+
+/** Whether a system is one of the 5e sheets, which `Dnd5eSheet` draws. */
+export const isDnd5eSystem = (id: string): id is 'dnd5e-2014' | 'dnd5e-2024' => id === DND5E_2014.id || id === DND5E_2024.id;
