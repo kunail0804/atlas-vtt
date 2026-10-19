@@ -157,6 +157,15 @@ describe('mine', () => {
     expect(parseGmMessage({ t: 'mine', scene: 's', tokens: [id, 'gm-token'] })).toBeNull();
     expect(parseGmMessage({ t: 'mine', scene: 's', tokens: Array.from({ length: MAX_TOKENS + 1 }, () => id) })).toBeNull();
   });
+
+  it('reads the bars of a player\'s own tokens, and refuses bars of a token it does not name or a malformed bar', () => {
+    const id = '0'.repeat(24);
+    const bar = { colour: '#22c55e', direction: 'drains', defeats: true, current: 4, max: 30 };
+    expect(parseGmMessage({ t: 'mine', scene: 's', tokens: [id], bars: { [id]: [bar] } })).toEqual({ t: 'mine', scene: 's', tokens: [id], bars: { [id]: [bar] } });
+    expect(parseGmMessage({ t: 'mine', scene: 's', tokens: [id], bars: { ['1'.repeat(24)]: [bar] } })).toBeNull();
+    expect(parseGmMessage({ t: 'mine', scene: 's', tokens: [id], bars: { [id]: [{ ...bar, colour: 'red' }] } })).toBeNull();
+    expect(parseGmMessage({ t: 'mine', scene: 's', tokens: [id], bars: { [id]: [bar, bar, bar] } })).toBeNull();
+  });
 });
 
 describe('token lists', () => {

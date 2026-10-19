@@ -3,6 +3,7 @@ import type { GmMessage } from '../../../../src/app/online/protocol/index.ts';
 import { describe, expect, it } from 'vitest';
 import { Ownership, readOwnership } from '../../../../src/app/online/gm/ownership.ts';
 import { TOKEN_INTERVAL_MS } from '../../../../src/app/online/gm/TokenShare.ts';
+import type { ResourceDefinition } from '../../../../src/app/resources/resourceTypes';
 import { sceneState, shareHarness, token, tokenLists, type ShareHarness } from './shareHarness.ts';
 
 const ANA = 'a'.repeat(20);
@@ -76,5 +77,30 @@ describe('mine flags', () => {
     const before = share.sent.length;
     owners.give(['f'], BEN);
     expect(share.sent.slice(before).map(({ to }) => to)).toEqual([BEN]);
+  });
+
+  it('give a player the bars of their own creature, players\' resources or not, and no one else', async () => {
+    const hidden: ResourceDefinition = { key: 'hp', name: 'HP', field: 'hp', direction: 'drains', color: '#22c55e', visibleToPlayers: false, slot: 0 };
+    const hurt = (current: number): ReturnType<typeof sceneState> => withTokens(
+      token('f', { x: 1, kind: 'character', resources: { hp: { current, max: 30 } } }),
+      token('r', { x: 2, kind: 'character', resources: { hp: { current: 9, max: 9 } } }),
+      // Not a creature: it has no bars, whatever resources it holds.
+      token('x', { x: 3, resources: { hp: { current: 5, max: 5 } } }));
+    const { share, owners } = await table(hurt(30));
+    share.rules = { resources: [hidden], conditions: [] };
+    owners.give(['f', 'x'], ANA);
+    // The list everyone gets settles first, so what follows reaches Ana through her own message alone.
+    await share.set(hurt(30));
+    await share.advance(TOKEN_INTERVAL_MS);
+    await share.advance(TOKEN_INTERVAL_MS);
+    const bar = { colour: '#22c55e', direction: 'drains', defeats: false, max: 30 };
+    expect(mineTo(share, ANA).at(-1)?.bars).toEqual({ [aliasAt(share, 1)!]: [{ ...bar, current: 30 }] });
+    expect(tokenLists(share.sent).at(-1)?.tokens.every((entry) => (entry.ui?.bars.length ?? 0) === 0)).toBe(true);
+    expect(mineTo(share, BEN).at(-1)?.bars).toBeUndefined();
+    const lists = tokenLists(share.sent).length;
+    await share.set(hurt(12));
+    await share.advance(TOKEN_INTERVAL_MS);
+    expect(tokenLists(share.sent).length).toBe(lists);
+    expect(mineTo(share, ANA).at(-1)?.bars).toEqual({ [aliasAt(share, 1)!]: [{ ...bar, current: 12 }] });
   });
 });

@@ -3,6 +3,8 @@ import type { Viewport } from 'pixi-viewport';
 import type { LivePlace } from '../../../src/app/online/protocol/live.ts';
 import type { PlayerMessage } from '../../../src/app/online/protocol/game.ts';
 import type { SharedToken } from '../../../src/app/online/protocol/tokens.ts';
+import type { SharedBar } from '../../../src/app/online/protocol/tokenUI.ts';
+import { loadedTokenRingTexture, loadTokenRingTexture } from '../../../src/app/pixi/token-renderer/tokenRingTexture.ts';
 import type { AssetLoader } from './assets.ts';
 import { drawTokenUI } from './tokenUI.ts';
 
@@ -30,6 +32,8 @@ export class TokenLayer {
   private readonly send: (message: PlayerMessage) => void;
   private readonly drawn = new Map<string, Drawn>();
   private mine = new Set<string>();
+  /** The bars of the player's own tokens as their owner sees them, by id: shown in place of those everyone sees. */
+  private ownBars: Readonly<Record<string, readonly SharedBar[]>> = {};
   private scene: string | null = null;
   private dragging: { id: string; offsetX: number; offsetY: number; lastSent: number } | null = null;
   /** Off while the laser or the ruler holds the pointer. */
@@ -45,12 +49,19 @@ export class TokenLayer {
     viewport.on('globalpointermove', (event: FederatedPointerEvent) => this.dragTo(event));
     window.addEventListener('pointerup', () => this.drop());
     window.addEventListener('pointercancel', () => this.drop());
+    // Tokens drawn before the ring's artwork arrived show a plain ring until then.
+    if (loadedTokenRingTexture() === null) {
+      void loadTokenRingTexture().then((texture) => {
+        if (texture !== null) for (const drawn of this.drawn.values()) this.draw(drawn);
+      });
+    }
   }
 
   /** A new scene: every token goes. */
   reset(scene: string | null): void {
     this.scene = scene;
     this.mine = new Set();
+    this.ownBars = {};
     this.dragging = null;
     this.viewport.plugins.resume('drag');
     for (const drawn of this.drawn.values()) drawn.group.destroy({ children: true });
@@ -61,9 +72,10 @@ export class TokenLayer {
     this.dragsEnabled = enabled;
   }
 
-  setMine(ids: readonly string[]): void {
+  setMine(ids: readonly string[], bars: Readonly<Record<string, readonly SharedBar[]>> = {}): void {
     this.mine = new Set(ids);
-    for (const drawn of this.drawn.values()) this.style(drawn);
+    this.ownBars = bars;
+    for (const drawn of this.drawn.values()) this.draw(drawn);
   }
 
   /** The whole token list: tokens not in it go, the order is the list's. */
@@ -121,10 +133,6 @@ export class TokenLayer {
     const radius = token.size / 2;
     // The shapes inside are passive: the group itself takes the pointer, over the token's disc.
     group.hitArea = new Circle(0, 0, Math.max(radius, (token.ring?.size ?? 0) / 2));
-    if (token.ring !== null) {
-      const ring = new Graphics().circle(0, 0, token.ring.size / 2).fill({ color: token.ring.colour });
-      group.addChildAt(ring, 0);
-    }
     if (token.art === null) {
       group.addChild(new Graphics().circle(0, 0, radius).fill({ color: 0x5b6270 }));
     } else if (drawn.artHash !== token.art.hash) {
@@ -157,9 +165,14 @@ export class TokenLayer {
       // A downed creature is greyed out, under its skull.
       art.tint = token.ui?.downed === true ? 0x6b6b6b : 0xffffff;
     }
+    if (token.ring !== null) group.addChild(ringOf(token.size, token.ring));
     const outer = token.ring?.size ?? token.size;
     let nameTop = outer / 2 + 4;
-    if (token.ui !== null) nameTop = drawTokenUI(group, token.ui, token.size, outer).nameTop;
+    if (token.ui !== null) {
+      const own = this.mine.has(token.id) ? this.ownBars[token.id] : undefined;
+      const ui = own === undefined ? token.ui : { ...token.ui, bars: own };
+      nameTop = drawTokenUI(group, ui, token.size, outer).nameTop;
+    }
     // A creature shows its name only where the GM's nameplate does; other tokens show the name they are sent.
     const showName = token.name !== null && token.name !== '' && (token.ui === null || token.ui.nameplate);
     if (showName) {
@@ -211,4 +224,23 @@ export class TokenLayer {
     if (moved) this.send({ t: 'move', scene: this.scene, id: held.id, x: drawn.group.x, y: drawn.group.y });
     else this.send({ t: 'drag-cancel', scene: this.scene, id: held.id });
   }
+}
+
+/**
+ * The ring around a framed token, over its art as the GM's map draws it (`SpriteFactory.createTokenRing`):
+ * the ring's artwork tinted with its colour, or a plain ring of that colour until the artwork has loaded.
+ */
+function ringOf(tokenSize: number, ring: NonNullable<SharedToken['ring']>): Sprite | Graphics {
+  const colour = Number.parseInt(ring.colour.slice(1), 16);
+  const texture = loadedTokenRingTexture();
+  if (texture === null) {
+    const width = Math.max(2, (ring.size - tokenSize) / 2);
+    return new Graphics().circle(0, 0, ring.size / 2 - width / 2).stroke({ width, color: colour, alpha: 0.95 });
+  }
+  const sprite = new Sprite(texture);
+  sprite.anchor.set(0.5);
+  sprite.width = ring.size;
+  sprite.height = ring.size;
+  sprite.tint = colour;
+  return sprite;
 }

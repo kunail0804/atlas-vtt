@@ -17,6 +17,7 @@ import { isRecord } from './shape.ts';
 import { MAX_SCENE_ID, parseDragCancel, parseMoveRefused, parsePlayerMove, parseSnapGrid, type MoveRefused, type PlayerDrag, type PlayerDragCancel, type PlayerMove, type SnapGrid } from './moves.ts';
 import { parseRules, type RulesMessage } from './rules.ts';
 import { MAX_TOKEN_SIZE, MAX_TOKENS, parseTokens, TOKEN_ID_PATTERN, type SharedToken } from './tokens.ts';
+import { parseBars, type SharedBar } from './tokenUI.ts';
 import { parseWidgetBar, type SharedWidgetBar } from './widgets.ts';
 
 /** What the players see of the shared scene; null while nothing is shared. */
@@ -43,8 +44,11 @@ export type GmMessage =
    * snaps to when dropped (null: it does not snap). `seq` numbers it for the deltas that follow (`DeltaMessage`).
    */
   | { readonly t: 'tokens'; readonly scene: string; readonly seq?: number; readonly tokens: readonly SharedToken[]; readonly cell: number; readonly snap: SnapGrid | null }
-  /** Sent to one player: the ids of the tokens in scene `scene`'s list that are theirs. */
-  | { readonly t: 'mine'; readonly scene: string; readonly tokens: readonly string[] }
+  /**
+   * Sent to one player: the ids of the tokens in scene `scene`'s list that are theirs, and by id the
+   * bars of those of them that have some as their owner sees them (every resource, players' or not).
+   */
+  | { readonly t: 'mine'; readonly scene: string; readonly tokens: readonly string[]; readonly bars?: Readonly<Record<string, readonly SharedBar[]>> }
   | { readonly t: 'asset-chunk'; readonly hash: string; readonly index: number; readonly count: number; readonly data: string }
   | { readonly t: 'asset-refused'; readonly hash: string }
   | AssetVariant
@@ -116,6 +120,19 @@ const BASE64 = /^[A-Za-z0-9+/]*={0,2}$/;
 
 const isSceneId = (value: unknown): value is string => typeof value === 'string' && value.length <= MAX_SCENE_ID;
 const isBase64Chunk = (value: unknown): value is string => typeof value === 'string' && value.length <= (ASSET_CHUNK_BYTES / 3) * 4 && BASE64.test(value);
+
+/** The owner's bars of a `mine` message, by token id: only tokens it names, each list well-formed; null otherwise. */
+function parseOwnBars(value: unknown, tokens: readonly string[]): Record<string, SharedBar[]> | null {
+  if (!isRecord(value)) return null;
+  const named = new Set(tokens);
+  const bars: Record<string, SharedBar[]> = {};
+  for (const [id, list] of Object.entries(value)) {
+    const parsed = parseBars(list);
+    if (!named.has(id) || parsed === null) return null;
+    bars[id] = parsed;
+  }
+  return bars;
+}
 
 function parseScene(value: unknown): SharedScene | null | undefined {
   if (value === null) return null;
@@ -202,7 +219,10 @@ export function parseGmMessage(value: unknown): GmMessage | null {
     case 'mine': {
       if (typeof value.scene !== 'string' || value.scene.length > MAX_SCENE_ID || !Array.isArray(value.tokens) || value.tokens.length > MAX_TOKENS) return null;
       const tokens = value.tokens.filter((id): id is string => typeof id === 'string' && TOKEN_ID_PATTERN.test(id));
-      return tokens.length === value.tokens.length ? { t: 'mine', scene: value.scene, tokens } : null;
+      if (tokens.length !== value.tokens.length) return null;
+      if (value.bars === undefined) return { t: 'mine', scene: value.scene, tokens };
+      const bars = parseOwnBars(value.bars, tokens);
+      return bars === null ? null : { t: 'mine', scene: value.scene, tokens, bars };
     }
     case 'asset-chunk':
       if (!isHash(value.hash) || !isCount(value.count, MAX_CHUNKS) || !isCount(value.index, value.count - 1) || !isBase64Chunk(value.data)) return null;

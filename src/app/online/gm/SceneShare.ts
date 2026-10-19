@@ -8,6 +8,7 @@ import { AssetAnswers } from './assetAnswers.ts';
 import { imageMimeType, REPEAT_REQUEST_MS, sha256Hex } from './assetServe.ts';
 import type { ScaleImage } from './assetVariants.ts';
 import { MineShare } from './mineShare.ts';
+import { NO_TOKEN_RULES, ownerBarsOf } from './tokenUI.ts';
 import { InputShare } from './InputShare.ts';
 import { LiveShare } from './LiveShare.ts';
 import type { LoggedRoll, RollRequest } from './log/TableLog.ts';
@@ -86,7 +87,9 @@ export class SceneShare {
     this.store = store;
     this.ports = ports;
     const seats = ports.seats;
-    const mine = seats === undefined ? null : new MineShare(seats, (body, to) => ports.send(body, to));
+    // A player's own bars change with the token's resources, which need not change the list everyone is sent.
+    const mine = seats === undefined ? null : new MineShare(seats, (body, to) => ports.send(body, to),
+      (tokenId) => ownerBarsOf(store.getState().objects.tokens[tokenId], ports.tokenRules?.() ?? NO_TOKEN_RULES));
     this.mine = mine;
     this.tokens = new TokenShare(store, ports, (listed) => mine?.setList(listed));
     this.live = ports.sendLive === undefined ? null : new LiveShare(store, { ...ports, sendLive: (body, key) => ports.sendLive?.(body, key) }, () => ({
@@ -241,6 +244,7 @@ export class SceneShare {
     if (key === this.key) {
       this.marks.update();
       this.tokens.update();
+      this.mine?.update();
       this.live?.update();
       this.layers.update();
       return this.inputs.update();

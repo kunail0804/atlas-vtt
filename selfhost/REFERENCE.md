@@ -95,7 +95,7 @@ message's `body`.
 | Scene | `sceneView.ts` | Routes every scene message to its layer |
 | Map | `mapLayer.ts` | Draws the map at its own size; serves as the grid's `MapImageView` |
 | Grid | `sceneView.ts` | The plugin's `GridSystem` |
-| Tokens | `tokenLayer.ts`, `tokenUI.ts` | Draws tokens with their bars, conditions and the downed mark; drags the player's own (`drag`, `move`, `drag-cancel`), by mouse or touch; follows `live` and `move-refused` |
+| Tokens | `tokenLayer.ts`, `tokenUI.ts` | Draws tokens with the GM's ring artwork, their bars, conditions and the downed mark; the player's own tokens show the bars `mine` carries, every resource as their owner sees it, where everyone else's list holds only the players' resources; drags the player's own (`drag`, `move`, `drag-cancel`), by mouse or touch; follows `live` and `move-refused` |
 | Fog | `fogLayer.ts` | The plugin's `FogCanvasCompositor`, solid for players |
 | Dynamic lighting | `litScene.ts`, `playerLighting.ts`, `litMarks.ts` | The plugin's `LightingRenderer` in the players' view; door badges, sensed outlines, explored memory. The map stays covered until sight is current |
 | Marks | `marks.ts` | Lasers, measures and cursors with the plugin's overlays; the player's own laser, line, circle and cone, kept on the map while Persist Measurements is on |

@@ -82,6 +82,11 @@ function parseList<T>(value: unknown, max: number, parse: (entry: unknown) => T 
   return parsed;
 }
 
+/** A token's bars as one list, or null when the list or any bar in it is malformed. */
+export function parseBars(value: unknown): SharedBar[] | null {
+  return parseList(value, MAX_TOKEN_BARS, parseBar);
+}
+
 /** A token's UI, null for a token without one, or undefined when it is malformed. A list from an older companion has none. */
 export function parseTokenUI(value: unknown): SharedTokenUI | null | undefined {
   if (value === null || value === undefined) return null;
