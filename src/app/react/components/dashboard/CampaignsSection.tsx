@@ -34,13 +34,15 @@ interface CampaignsSectionProps {
   playingId: string | null;
   parties: CampaignParties;
   onOpenCampaign: (id: string) => void;
+  /** Opens a campaign the GM just created. */
+  onCreatedCampaign: (id: string) => void;
 }
 
 /**
  * The campaigns as cards, the most recently played first, and the card that begins a new one, in
  * place. Many campaigns are searched by name and description.
  */
-export function CampaignsSection({ app, service, campaigns, isLoading, worldMaps, presets, playingId, parties, onOpenCampaign }: CampaignsSectionProps): React.JSX.Element {
+export function CampaignsSection({ app, service, campaigns, isLoading, worldMaps, presets, playingId, parties, onOpenCampaign, onCreatedCampaign }: CampaignsSectionProps): React.JSX.Element {
   const { sets } = useDiceSets(app);
   const [isCreating, setIsCreating] = useState(false);
   const [search, setSearch] = useState('');
@@ -82,7 +84,7 @@ export function CampaignsSection({ app, service, campaigns, isLoading, worldMaps
             <div className="dashboard-card campaign-card campaign-card--new is-naming">
               <NewCampaignField
                 service={service}
-                onCreated={(id) => { setIsCreating(false); setSearch(''); onOpenCampaign(id); }}
+                onCreated={(id) => { setIsCreating(false); setSearch(''); onCreatedCampaign(id); }}
                 onCancel={() => setIsCreating(false)}
               />
             </div>

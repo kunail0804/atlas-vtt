@@ -23,6 +23,7 @@ import { followTemplateBodies } from './src/app/statblocks/library/templateBodyN
 import { registerHostedDialogRelease } from './src/app/statblocks/editor/hostedDialog';
 import { editInStatblockPane } from './src/app/statblocks/editor/create/entryPoints';
 import { registerStatblockFileMenu } from './src/app/statblocks/editor/create/statblockCommands';
+import { registerCompendiumFileMenu } from './src/app/compendium/compendiumFileMenu';
 import { disposeImageProcessing } from './src/app/imageProcessing/imageProcessing';
 import { disposeSpectralEngine } from './src/app/pixi/spectralEngine/spectralEngineService';
 import { registerLootQueryView } from './src/app/loot/lootQueryView';
@@ -199,6 +200,7 @@ export default class AtlasVTTPlugin extends Plugin {
       assetManager: this.globalAssetManager,
     });
     registerStatblockFileMenu(this);
+    registerCompendiumFileMenu(this);
 
     this.app.workspace.onLayoutReady(() => {
       registerColorSwatchIcons();

@@ -1,0 +1,74 @@
+@use '../../../../../../styles/tokens' as *;
+@use '../../../../../../styles/mixins' as *;
+
+// The compendium source picker (CompendiumSourcesDialog.tsx), in the body of a settings dialog:
+// game systems, each with its books below it, then the file install and what is running.
+
+.compendium-sources {
+  @include atlas-flex-col($spacing-l);
+  @include atlas-scrollbar;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: $spacing-l;
+}
+
+.compendium-sources__intro,
+.compendium-sources__status {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: $font-ui-small;
+}
+
+.compendium-sources__error {
+  margin: 0;
+  color: var(--text-error);
+  font-size: $font-ui-small;
+}
+
+.compendium-sources__system {
+  @include atlas-flex-col($spacing-s);
+  @include atlas-inset-surface;
+  padding: $spacing-m;
+  border-radius: $radius-l;
+}
+
+.compendium-sources__system-row,
+.compendium-sources__book-label {
+  @include atlas-flex-row($spacing-s);
+  min-width: 0;
+  cursor: pointer;
+}
+
+.compendium-sources__system-name {
+  font-weight: $font-weight-semibold;
+}
+
+.compendium-sources__books {
+  @include atlas-flex-col($spacing-xs);
+  margin: 0;
+  padding: 0 0 0 $spacing-xl;
+  list-style: none;
+}
+
+.compendium-sources__book {
+  @include atlas-flex-row($spacing-s);
+  min-height: 28px;
+}
+
+.compendium-sources__book-label {
+  flex: 1;
+}
+
+.compendium-sources__book-name {
+  @include atlas-truncate;
+}
+
+.compendium-sources__remove svg {
+  width: $icon-s;
+  height: $icon-s;
+}
+
+.compendium-sources__actions {
+  @include atlas-flex-row($spacing-s);
+}

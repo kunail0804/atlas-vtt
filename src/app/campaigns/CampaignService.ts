@@ -2,7 +2,8 @@ import { t } from '../i18n';
 import type { CampaignStorage } from './CampaignFiles';
 import type { Campaign, CampaignChanges, StoredCampaign } from './campaignTypes';
 import { withScenePlayed } from './campaignUsage';
-import { campaignName, MAX_CAMPAIGN_DESCRIPTION, parseCampaign } from './campaignValidation';
+import { campaignName, MAX_CAMPAIGN_DESCRIPTION, MAX_CAMPAIGN_SOURCES, parseCampaign } from './campaignValidation';
+import { isSourceId } from '../compendium/sourceFormat';
 import { isAssetId } from './campaignValues';
 import { campaignFolderOf } from './campaignPaths';
 import { readCampaignSystem, withSystemChanges } from './campaignSystem';
@@ -49,11 +50,13 @@ export class CampaignService {
 
   /**
    * Sets the campaign's settings; a field given as undefined is removed. `system` is changed field
-   * by field, and must leave a system Atlas can read (`readCampaignSystem`).
+   * by field, and must leave a system Atlas can read (`readCampaignSystem`). An empty list of
+   * `sources` removes the field.
    */
   update(id: string, changes: CampaignChanges): void {
     if (changes.description !== undefined && changes.description.length > MAX_CAMPAIGN_DESCRIPTION) throw new Error('The description is too long.');
-    const { system, ...rest } = changes;
+    if (changes.sources !== undefined && (changes.sources.length > MAX_CAMPAIGN_SOURCES || !changes.sources.every(isSourceId))) throw new Error('Not a list of compendium sources.');
+    const { system, sources, ...rest } = changes;
     const before = this.storage.entries().find((entry) => entry.id === id);
     if (system !== undefined && readCampaignSystem(withSystemChanges(before?.system, system)) === undefined) throw new Error('Not a game system.');
     this.modify(id, (stored) => {
@@ -62,6 +65,8 @@ export class CampaignService {
         if (value === undefined || value === '') delete next[key];
         else next[key] = value;
       }
+      if (sources !== undefined && sources.length > 0) next.sources = [...sources];
+      else if ('sources' in changes) delete next.sources;
       if (system !== undefined) next.system = withSystemChanges(stored.system, system);
       else if ('system' in changes) delete next.system;
       return next;

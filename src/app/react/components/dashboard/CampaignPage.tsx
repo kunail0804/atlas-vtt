@@ -10,6 +10,7 @@ import { t } from '../../../i18n';
 import { campaignActivity, campaignHueStyle, PlayingMark } from './CampaignCard';
 import { CampaignDescriptionField, CampaignNameField } from './CampaignFields';
 import { CampaignSystemSetting } from './CampaignSystemSetting';
+import { CampaignSourcesSetting } from './compendium/CampaignSourcesSetting';
 import { campaignSystemName } from './campaignSystemName';
 import { useDiceSets } from '../../hooks/useDiceSets';
 import type { WorldMapChoices } from './libraryPictures';
@@ -37,6 +38,8 @@ interface CampaignPageProps {
   /** The player characters on its last scene. */
   party: readonly PartyFace[];
   onBack: () => void;
+  /** The campaign was just created: its page opens on the compendium source picker. */
+  isNew: boolean;
 }
 
 /**
@@ -44,7 +47,7 @@ interface CampaignPageProps {
  * name and Play over it, then the world map to open for its pins, the game system, the description
  * and the quests, edited where they stand.
  */
-export function CampaignPage({ app, campaign, campaigns, service, worldMaps, presets, isPlaying, onPlay, onStop, party, onBack }: CampaignPageProps): React.JSX.Element {
+export function CampaignPage({ app, campaign, campaigns, service, worldMaps, presets, isPlaying, onPlay, onStop, party, onBack, isNew }: CampaignPageProps): React.JSX.Element {
   const locked = campaign.readOnly === true;
   const artwork = useWorldMapArtwork(app, service, campaign);
   const { sets } = useDiceSets(app);
@@ -111,6 +114,7 @@ export function CampaignPage({ app, campaign, campaigns, service, worldMaps, pre
           <aside className="campaign-page__side">
             <WorldMapCard app={app} campaign={campaign} service={service} worldMaps={worldMaps} artwork={artwork} disabled={locked} />
             <CampaignSystemSetting app={app} campaign={campaign} service={service} disabled={locked} />
+            <CampaignSourcesSetting app={app} campaign={campaign} service={service} disabled={locked} openAtStart={isNew} />
           </aside>
           <div className="campaign-page__main">
             <CampaignDescriptionField campaign={campaign} service={service} disabled={locked} />

@@ -156,6 +156,17 @@ character, the note or a linked note changes. A player's `sheet-edit` or `sheet-
 the sheet's system and written into the note at once; one that is refused is answered with the sheet
 as the note keeps it. A player edits only their own character's sheet, at 8 edits a second (burst 40).
 
+### Compendium
+
+The compendium is notes in `Compendium/<game system>/<book>/`, installed from source zips
+(`src/app/compendium/`, format and build in `compendium/README.md`). A campaign lists the sources it uses
+in `sources` (source ids such as `dnd5e-2014/srd-5.1`); its page shows them under Compendium, whose picker
+also opens when the campaign is created. Atlas offers SRD 5.1 and SRD 5.2.1 in English, downloaded from the
+GitHub release `compendium-v1` and checked against the size and SHA-256 in `officialSources.ts`. An install
+writes a record to `atlas-vtt/compendium/`; an update or a removal never touches a file the GM changed. A
+folder `Compendium/<system>/<book>` exports as a personal source from its file menu. The character sheet
+does not read the compendium yet.
+
 ### What players make on the map
 
 Players draw and write with `draw`, `place-text` and `erase` (`src/app/online/protocol/annotate.ts`). The GM's `PlayerAnnotations` (`src/app/online/gm/PlayerAnnotations.ts`) keeps each as Atlas's own drawing or text, with the key `drawing_player_<id>` or `text_player_<id>` and `author` set to the player's relay id, so the GM sees it, saves it with the map and can erase or undo it (each is one undo step). `annotations` then carries `id` and `by` for a player's own. A player erases only their own; each keeps at most `MAX_PLAYER_ANNOTATIONS` (400) in a scene, within 10 % past the map's edges, at 20 a second (burst 60). A stroke longer than `MAX_STROKE_POINTS` (150) goes as several, since a player's frame holds 4 KiB.

@@ -15,6 +15,7 @@ import { cover } from './cover';
 import { creator } from './creator';
 import { csm } from './csm';
 import { campaign } from './campaign';
+import { compendium } from './compendium';
 import { quest } from './quest';
 import { dashboard } from './dashboard';
 import { dice } from './dice';
@@ -104,6 +105,7 @@ export const en = {
   ...creator,
   ...csm,
   ...campaign,
+  ...compendium,
   ...quest,
   ...dashboard,
   ...dice,

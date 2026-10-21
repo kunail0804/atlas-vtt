@@ -32,6 +32,8 @@ export interface HomePageProps {
   onCreateMap: () => void;
   onOpenAssetManager: () => void;
   onOpenCampaign: (id: string) => void;
+  /** Opens a campaign the GM just created. */
+  onCreatedCampaign: (id: string) => void;
 }
 
 /**
@@ -81,6 +83,7 @@ export function HomePage(props: HomePageProps): React.JSX.Element {
             playingId={props.playingId}
             parties={props.parties}
             onOpenCampaign={props.onOpenCampaign}
+            onCreatedCampaign={props.onCreatedCampaign}
           />
         )}
 

@@ -23,6 +23,8 @@ export interface Campaign {
   readonly used?: CampaignUsage;
   /** The game system every map plays by while the campaign is played; without one, each map's collection's. */
   readonly system?: CampaignSystem;
+  /** The compendium sources the campaign uses, by source id (`dnd5e-2014/srd-5.1`). */
+  readonly sources?: readonly string[];
   /** Written by a newer Atlas: read, never changed here. */
   readonly readOnly?: true;
 }
@@ -45,6 +47,6 @@ export type StoredCampaign = StoredRecord;
  * The fields a campaign's settings change; a field given as undefined is removed. `system` changes
  * the stored system field by field (`CampaignService.update`).
  */
-export type CampaignChanges = Partial<Pick<Campaign, 'description' | 'worldMap'>> & {
+export type CampaignChanges = Partial<Pick<Campaign, 'description' | 'worldMap' | 'sources'>> & {
   readonly system?: Partial<CampaignSystem> | undefined;
 };

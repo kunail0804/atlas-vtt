@@ -31,6 +31,8 @@ export function Dashboard({ app, campaignStorage, onOpenScene, onCreateMap, onOp
   const play = CampaignPlay.forApp(app);
   const playingId = useCampaignPlay(play);
   const [openId, setOpenId] = useState<string | null>(null);
+  // The campaign created last, whose page opens on its compendium source picker.
+  const [createdId, setCreatedId] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const parties = useCampaignParties(app, campaigns, rootRef);
   const openCampaign = openId === null ? undefined : campaigns.find((campaign) => campaign.id === openId);
@@ -66,6 +68,7 @@ export function Dashboard({ app, campaignStorage, onOpenScene, onCreateMap, onOp
           onStop={() => play.stop()}
           party={parties.get(openCampaign.id) ?? []}
           onBack={() => setOpenId(null)}
+          isNew={openCampaign.id === createdId}
         />
       ) : (
         <HomePage
@@ -83,6 +86,7 @@ export function Dashboard({ app, campaignStorage, onOpenScene, onCreateMap, onOp
           onCreateMap={onCreateMap}
           onOpenAssetManager={onOpenAssetManager}
           onOpenCampaign={setOpenId}
+          onCreatedCampaign={(id) => { setCreatedId(id); setOpenId(id); }}
         />
       )}
     </div>

@@ -9,6 +9,7 @@ import type { ImportReview } from '../../../../services/collectionBundle/importR
 import { describeError } from '../../../../utils/errors';
 import { t } from '../../../../i18n';
 import { showNotice } from '../../../../ui/notice';
+import { downloadBlob } from '../../../../utils/downloadBlob';
 
 /** Where an export or import stands; the asset manager blocks while one is set. */
 export type CollectionTransfer =
@@ -45,14 +46,6 @@ function describeImport(result: CollectionImportResult): string {
   if (result.keptLocal > 0) parts.push(t('bundle.keptLocal', { count: result.keptLocal }));
   const backup = result.backupCount > 0 ? t('bundle.backedUp', { folder: result.backupFolder }) : '';
   return `${t('bundle.updated', { name, parts: parts.join(', '), backup })}${switched}`;
-}
-
-function downloadBlob(blob: Blob, fileName: string): void {
-  const url = URL.createObjectURL(blob);
-  const link = document.body.createEl('a', { href: url, attr: { download: fileName } });
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
 }
 
 /**
