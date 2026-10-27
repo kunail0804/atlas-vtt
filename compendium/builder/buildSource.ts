@@ -9,10 +9,12 @@ import { registerSpells, spellNotes } from './spells.ts';
 import type { SourceDefinition } from './sources.ts';
 import { sourceIdOf, sourceRootOf } from '../../src/app/compendium/sourceFormat.ts';
 
+const PARTIAL = 'This source holds the part of the SRD that 5e-database transcribes, not the whole document: some rules, backgrounds and feats are missing.';
+
 /** The note at the top of the source's folder: what it is, its licence and its attribution. */
 function attributionNote(context: BuildContext, source: SourceDefinition, root: string): Note {
   const properties = { ...entryProperties(context, 'rule'), name: `${source.book.name} attribution`, license: source.license.name };
-  const body = `${source.attribution}\n\nLicence: [${source.license.name}](${source.license.url})`;
+  const body = `${source.attribution}\n\nLicence: [${source.license.name}](${source.license.url})\n\n${PARTIAL}`;
   return { path: `${root}/Attribution.md`, text: noteText(properties, body) };
 }
 

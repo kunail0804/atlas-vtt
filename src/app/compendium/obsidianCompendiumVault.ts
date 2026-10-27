@@ -2,6 +2,7 @@ import { TFile, TFolder, type App } from 'obsidian';
 import { ensureFolder } from '../plugin/vaultFolders';
 import { sha256 } from '../utils/hashing';
 import { trashVaultItem } from '../utils/trashVaultItem';
+import { COMPENDIUM_ROOT } from './sourceFormat';
 import type { CompendiumVault } from './sourceInstall';
 
 const parentOf = (path: string): string => path.slice(0, Math.max(0, path.lastIndexOf('/')));
@@ -42,6 +43,12 @@ export function obsidianCompendiumVault(app: App): CompendiumVault {
     trashEmptyFolders: async (root) => {
       const folder = app.vault.getFolderByPath(root);
       if (folder) await trashEmpty(folder);
+      // Then the rule set's folder, when its last book is gone; the Compendium folder itself stays.
+      for (let parent = parentOf(root); parent.startsWith(`${COMPENDIUM_ROOT}/`); parent = parentOf(parent)) {
+        const current = app.vault.getFolderByPath(parent);
+        if (!current || current.children.length > 0) break;
+        await trashVaultItem(app, current);
+      }
     },
     readText: async (path) => {
       const file = app.vault.getAbstractFileByPath(path);

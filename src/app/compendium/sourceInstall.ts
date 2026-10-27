@@ -9,6 +9,9 @@ import { planImport, resolvePlan, type PlanItemInput } from '../services/collect
 import { installRecordPath, parseInstalledSource, type InstalledSource } from './installedSources';
 import type { OpenedSource } from './sourceZip';
 
+/** How many files an install writes or trashes between two progress reports. */
+const PROGRESS_STEP = 25;
+
 /** The vault as the installer uses it, so tests can run it on memory. */
 export interface CompendiumVault {
   /** SHA-256 of the file's bytes, or null when there is no such file. */
@@ -17,7 +20,7 @@ export interface CompendiumVault {
   write(path: string, data: Uint8Array): Promise<void>;
   /** Moves the file to the trash. */
   trash(path: string): Promise<void>;
-  /** Trashes the empty folders inside `root`, and `root` itself when it ends up empty. */
+  /** Trashes the empty folders inside `root`, then `root` and the folders above it inside the compendium when they end up empty. */
   trashEmptyFolders(root: string): Promise<void>;
   readText(path: string): Promise<string | null>;
   writeText(path: string, text: string): Promise<void>;
@@ -52,16 +55,16 @@ export async function installSource(vault: CompendiumVault, source: OpenedSource
   const inputs: PlanItemInput[] = [];
   for (const path of paths) {
     const base = record?.files[path];
-    const source = theirs.get(path) ?? null;
+    const sourceHash = theirs.get(path) ?? null;
     inputs.push({
       key: path,
       kind: 'file',
       unit: path,
-      theirs: source,
+      theirs: sourceHash,
       // A source file is installed byte for byte, so what it carried is what the vault got.
       base: base ? { source: base.sha256, installed: base.sha256 } : null,
       mine: await vault.fingerprint(path),
-      theirsInstalled: source ?? undefined,
+      theirsInstalled: sourceHash ?? undefined,
     });
   }
   const plan = planImport(inputs);
@@ -80,7 +83,8 @@ export async function installSource(vault: CompendiumVault, source: OpenedSource
       removed += 1;
     }
     done += 1;
-    onProgress(done, actions.size);
+    // Every few files: each call re-renders the picker, and a source holds about a thousand notes.
+    if (done % PROGRESS_STEP === 0 || done === actions.size) onProgress(done, actions.size);
   }
   if (removed > 0) await vault.trashEmptyFolders(manifest.root);
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import JSZip from 'jszip';
-import { at, ID, zipped } from './sourceZips';
+import { at, ID, ROOT, zipped } from './sourceZips';
 import { installRecordPath, parseInstalledSource } from '../../../src/app/compendium/installedSources';
 import { installSource, readInstalledSource, removeSource } from '../../../src/app/compendium/sourceInstall';
 import { openSource, type OpenedSource } from '../../../src/app/compendium/sourceZip';
@@ -96,5 +96,20 @@ describe('install records', () => {
     expect(parseInstalledSource(text)?.manifest.id).toBe(ID);
     expect(parseInstalledSource('{')).toBeNull();
     expect(parseInstalledSource(JSON.stringify({ manifest: { id: 'x' }, files: {}, installedAt: 1 }))).toBeNull();
+  });
+
+  it('ignores a recorded file outside the source folder, so removing the source never trashes it', async () => {
+    const vault = memoryCompendiumVault({ 'Notes/Mine.md': 'mine' });
+    await installSource(vault, await source(1, { [at('A.md')]: 'a' }));
+    const stored = JSON.parse(vault.files.get(installRecordPath(ID)) ?? '{}') as { files: Record<string, unknown> };
+    const mine = await vault.fingerprint('Notes/Mine.md');
+    stored.files['Notes/Mine.md'] = { sha256: mine };
+    stored.files[`${ROOT}/../Mine.md`] = { sha256: mine };
+    const record = parseInstalledSource(JSON.stringify(stored));
+    if (!record) throw new Error('not read');
+
+    expect(Object.keys(record.files)).toEqual([at('A.md')]);
+    expect(await removeSource(vault, record)).toEqual({ removed: 1, kept: [] });
+    expect(vault.files.get('Notes/Mine.md')).toBe('mine');
   });
 });

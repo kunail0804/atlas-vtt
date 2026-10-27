@@ -28,8 +28,8 @@ export const OFFICIAL_SOURCES: readonly OfficialSource[] = [
     language: 'en',
     license: 'CC BY 4.0',
     url: `${RELEASE}/dnd5e-2014__srd-5.1.zip`,
-    size: 1177832,
-    sha256: 'c46b4b265fc0a4e5a88319f59494374821ed8b73f3d086c2f731826ea18a5ea6',
+    size: 1178088,
+    sha256: '95a410eeb45c3a9e51ae724bbc673f634efcf0f4971cbffc4c35757d254a847d',
   },
   {
     id: 'dnd5e-2024/srd-5.2.1',
@@ -39,7 +39,7 @@ export const OFFICIAL_SOURCES: readonly OfficialSource[] = [
     language: 'en',
     license: 'CC BY 4.0',
     url: `${RELEASE}/dnd5e-2024__srd-5.2.1.zip`,
-    size: 971230,
-    sha256: '0c76bc2cb3d9fe630524415d33dae7918c75c42dd5ef7390a30e6cd535611056',
+    size: 971364,
+    sha256: 'a44a65d3aacf706b7a5cd4f62024d5ec6ef222ca7b4f8a82599639bcefe437e7',
   },
 ];

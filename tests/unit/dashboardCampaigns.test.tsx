@@ -98,6 +98,19 @@ describe('the campaigns on the dashboard', () => {
     expect(screen.getByRole('button', { name: /The Witherwild/ })).toBeTruthy();
   });
 
+  it('opens the compendium sources of a campaign just made once, not each time the GM comes back to it', async () => {
+    await renderDashboard();
+    fireEvent.click(screen.getByRole('button', { name: 'New campaign' }));
+    fireEvent.change(nameField(), { target: { value: 'Cairn' } });
+    fireEvent.keyDown(nameField(), { key: 'Enter' });
+    expect(await screen.findByText('Compendium of Cairn')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Dashboard' }));
+    fireEvent.click(screen.getByRole('button', { name: /Cairn/ }));
+    expect(await screen.findByRole('button', { name: 'Dashboard' })).toBeTruthy();
+    expect(screen.queryByText('Compendium of Cairn')).toBeNull();
+  });
+
   it('cancels a new campaign with Escape, and names a taken name while it is typed', async () => {
     const { storage } = await renderDashboard([{ id: 'a', name: 'Cairn', createdAt: Date.now() - 3 * DAY }]);
     fireEvent.click(screen.getByRole('button', { name: 'New campaign' }));

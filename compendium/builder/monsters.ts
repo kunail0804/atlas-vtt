@@ -122,7 +122,8 @@ export function monsterNotes(context: BuildContext): Note[] {
       subtype: text(monster.subtype),
       alignment: text(monster.alignment),
       ac: armor.value,
-      'ac-note': armor.note,
+      // Fantasy Statblocks' key for what gives the armour class; the built-in templates do not show it yet.
+      ac_class: armor.note,
       hp: num(monster.hit_points),
       hit_dice: text(monster.hit_points_roll) || text(monster.hit_dice),
       speed: speedText(monster.speed),

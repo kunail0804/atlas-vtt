@@ -67,7 +67,10 @@ export function Dashboard({ app, campaignStorage, onOpenScene, onCreateMap, onOp
           onPlay={() => play.play(openCampaign.id)}
           onStop={() => play.stop()}
           party={parties.get(openCampaign.id) ?? []}
-          onBack={() => setOpenId(null)}
+          onBack={() => {
+            setOpenId(null);
+            setCreatedId(null);
+          }}
           isNew={openCampaign.id === createdId}
         />
       ) : (

@@ -1,19 +1,19 @@
 import { ATLAS_VTT_DIR } from '../services/assetPaths';
 import { isRecord } from '../utils/guards';
-import { isSourceId, sourceManifestProblem, type CompendiumSourceManifest } from './sourceFormat';
+import { isPathInside, isSourceId, sourceManifestProblem, type CompendiumSourceManifest } from './sourceFormat';
 
 /** Install records live here, one JSON file per source, and sync with the vault. */
 export const INSTALLS_DIR = `${ATLAS_VTT_DIR}/compendium`;
 
-/** One installed file: what the source carried and what the vault held right after the install (the same bytes). */
+/** One installed file: the fingerprint of the source's copy, which the vault may no longer hold if the GM kept an edit. */
 export interface InstalledFile {
   sha256: string;
 }
 
 /**
- * What the vault got from a source's last install: the manifest without its file list, and the
- * fingerprint of every file written. The next update compares against it to tell the GM's edits
- * from the source's changes.
+ * A source's last install: the manifest without its file list, and the fingerprint of every file the
+ * source carried, written or kept. The next update compares against it to tell the GM's edits from
+ * the source's changes.
  */
 export interface InstalledSource {
   manifest: Omit<CompendiumSourceManifest, 'files'>;
@@ -36,7 +36,8 @@ export function parseInstalledSource(text: string): InstalledSource | null {
   if (sourceManifestProblem({ ...parsed.manifest, files: [] }) !== null || !isSourceId(parsed.manifest.id)) return null;
   const files: Record<string, InstalledFile> = {};
   for (const [path, file] of Object.entries(parsed.files)) {
-    if (isRecord(file) && typeof file.sha256 === 'string') files[path] = { sha256: file.sha256 };
+    // A path outside the source's folder is ignored: removing the source must never touch another note.
+    if (isRecord(file) && typeof file.sha256 === 'string' && isPathInside(path, String(parsed.manifest.root))) files[path] = { sha256: file.sha256 };
   }
   const { files: _files, ...manifest } = parsed.manifest as unknown as CompendiumSourceManifest;
   return { manifest, installedAt: parsed.installedAt, files };

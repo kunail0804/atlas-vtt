@@ -102,7 +102,7 @@ describe('building the SRD notes', () => {
     const { properties } = note('Monsters/Goblin.md');
     expect(properties).toMatchObject({
       statblock: true, 'atlas-template': 'builtin:5e-2014-monster', 'atlas-compendium': 'monster',
-      ac: 15, 'ac-note': 'leather armor, shield', hp: 7, hit_dice: '2d6', speed: '30 ft.', stats: [8, 14, 10, 10, 8, 8],
+      ac: 15, ac_class: 'leather armor, shield', hp: 7, hit_dice: '2d6', speed: '30 ft.', stats: [8, 14, 10, 10, 8, 8],
       saves: [{ dexterity: 4 }], skillsaves: [{ stealth: 6 }], condition_immunities: 'Charmed',
       senses: 'darkvision 60 ft., passive Perception 9', cr: '1/4',
       traits: [{ name: 'Nimble Escape', desc: 'Disengage or Hide.' }],

@@ -22,6 +22,11 @@ they open in Atlas and in Fantasy Statblocks.
 The notes come from the JSON of [5e-bits/5e-database](https://github.com/5e-bits/5e-database) (MIT),
 which transcribes SRD 5.1 and SRD 5.2.1 (both CC BY 4.0). The build reads the English files.
 
+The database does not transcribe the whole SRD, so the sources hold part of it. Spells, monsters,
+classes, species, equipment and magic items are there. The 2014 source has one background and one
+feat, and the 2024 source has no rules text beyond the weapon properties and masteries. Each
+source's `Attribution.md` note says so.
+
 1. Clone the database into a folder of its own:
 
    ```sh
