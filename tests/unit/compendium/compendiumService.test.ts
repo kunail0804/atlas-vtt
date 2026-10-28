@@ -88,3 +88,69 @@ describe('the vault\'s compendium', () => {
     expect(vi.mocked(requestUrl)).toHaveBeenLastCalledWith(expect.objectContaining({ url: 'https://example.org/srd.zip', method: 'GET' }));
   });
 });
+
+describe('the GM\'s own books and entries', () => {
+  const HOMEBREW = 'Compendium/D&D 5e 2014/Homebrew';
+
+  it('makes an empty book in the system of an installed source and records it, so campaigns can choose it', async () => {
+    const { app, files } = createInMemoryApp();
+    const service = CompendiumService.forApp(app);
+    await service.installFile({ arrayBuffer: async () => zipped(1, { [at('A.md')]: 'a' }) });
+    const changes = vi.fn();
+    service.onChange(changes);
+
+    const id = await service.createBook(' D&D 5e 2014 ', 'Homebrew');
+    expect(id).toBe('dnd5e-2014/homebrew');
+    expect(app.vault.getFolderByPath(HOMEBREW)).not.toBeNull();
+    const record = JSON.parse(files.get(installRecordPath(id)) ?? 'null');
+    expect(record.manifest).toMatchObject({ id, system: { id: 'dnd5e-2014', name: 'D&D 5e 2014' }, book: { id: 'homebrew', name: 'Homebrew' }, version: 1, root: HOMEBREW });
+    expect(record.files).toEqual({});
+    expect((await service.installed()).map((source) => source.manifest.id)).toEqual([id, ID]);
+    expect(changes).toHaveBeenCalledTimes(1);
+
+    await expect(service.createBook('D&D 5e 2014', 'Homebrew')).rejects.toThrow('already has a book named Homebrew');
+    await expect(service.createBook('D&D 5e 2014', 'SRD 5.1')).rejects.toThrow('already has a book named SRD 5.1');
+    await expect(service.createBook('D&D 5e 2014', 'Bad/Name')).rejects.toThrow('A name may not');
+  });
+
+  it('removes nothing the GM wrote when their book is removed', async () => {
+    const { app, files } = createInMemoryApp();
+    const service = CompendiumService.forApp(app);
+    const id = await service.createBook('Shadowdark', 'Mine');
+    const book = { id, systemId: 'shadowdark', systemName: 'Shadowdark', name: 'Mine', root: 'Compendium/Shadowdark/Mine' };
+    const file = await service.createEntry(book, 'spell', 'Light');
+    await service.remove(id);
+    expect(files.has(file.path)).toBe(true);
+    expect(files.has(installRecordPath(id))).toBe(false);
+  });
+
+  it('writes an entry into its kind\'s folder of the book, beside one of the same name', async () => {
+    const { app, files } = createInMemoryApp();
+    const service = CompendiumService.forApp(app);
+    const book = { id: 'pf2e/mine', systemId: 'pf2e', systemName: 'Pathfinder 2e', name: 'Mine', root: 'Compendium/Pathfinder 2e/Mine' };
+
+    const first = await service.createEntry(book, 'magic-item', 'Ring of Ash');
+    const second = await service.createEntry(book, 'magic-item', 'Ring of Ash');
+    expect(first.path).toBe('Compendium/Pathfinder 2e/Mine/Magic Items/Ring of Ash.md');
+    expect(second.path).toBe('Compendium/Pathfinder 2e/Mine/Magic Items/Ring of Ash 2.md');
+    expect(files.get(first.path)).toBe('---\natlas-compendium: magic-item\natlas-system: pf2e\natlas-source: pf2e/mine\nname: Ring of Ash\n---\n');
+  });
+
+  it('makes a monster of a system with a built-in monster template a native statblock of that template', async () => {
+    const { app, files } = createInMemoryApp();
+    const service = CompendiumService.forApp(app);
+    const book = { id: 'dnd5e-2024/mine', systemId: 'dnd5e-2024', systemName: 'D&D 5e 2024', name: 'Mine', root: 'Compendium/D&D 5e 2024/Mine' };
+
+    const file = await service.createEntry(book, 'monster', 'Ash Wolf');
+    expect(file.path).toBe('Compendium/D&D 5e 2024/Mine/Monsters/Ash Wolf.md');
+    const text = files.get(file.path) ?? '';
+    expect(text).toContain('statblock: true');
+    expect(text).toContain('atlas-template: builtin:5e-2024-monster');
+    expect(text).toContain('name: Ash Wolf');
+    expect(text).toContain('atlas-compendium: monster');
+    expect(text).toContain('atlas-source: dnd5e-2024/mine');
+
+    const other = await service.createEntry({ ...book, id: 'pf2e/mine', systemId: 'pf2e', root: 'Compendium/Pathfinder 2e/Mine' }, 'monster', 'Ash Wolf');
+    expect(files.get(other.path)).not.toContain('statblock');
+  });
+});

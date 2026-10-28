@@ -11,6 +11,8 @@ export interface TabSwitcherProps {
   onTabChange: (tab: Tab) => void;
   /** How many assets each tab holds; null while they are being counted. */
   assetCounts: Record<Tab, number> | null;
+  /** The compendium, shown after the asset types; while it is open no asset type is current. */
+  compendium?: { open: boolean; onOpen: () => void } | undefined;
 }
 
 /** A tab's count, or its placeholder while the collection is being counted: never a wrong 0. */
@@ -23,9 +25,11 @@ function TabCount({ count }: { count: number | undefined }): React.JSX.Element {
  * the current type as a menu button instead (the toolbar's `data-compact`
  * steps pick one), so the toolbar stays a single row.
  */
-export function TabSwitcher({ activeTab, onTabChange, assetCounts }: TabSwitcherProps): React.JSX.Element {
+export function TabSwitcher({ activeTab, onTabChange, assetCounts, compendium }: TabSwitcherProps): React.JSX.Element {
   const labelId = useId();
-  const activeName = getTabDisplayName(activeTab);
+  const compendiumOpen = compendium?.open === true;
+  const activeName = compendiumOpen ? t('compendium.browser.tab') : getTabDisplayName(activeTab);
+  const isCurrent = (tab: Tab): boolean => !compendiumOpen && activeTab === tab;
 
   return (
     <>
@@ -35,14 +39,24 @@ export function TabSwitcher({ activeTab, onTabChange, assetCounts }: TabSwitcher
           <button
             key={tab}
             type="button"
-            className={`atlas-tab-button ${activeTab === tab ? 'atlas-active' : ''}`}
+            className={`atlas-tab-button ${isCurrent(tab) ? 'atlas-active' : ''}`}
             onClick={() => onTabChange(tab)}
-            aria-current={activeTab === tab ? 'page' : undefined}
+            aria-current={isCurrent(tab) ? 'page' : undefined}
           >
             <span className="atlas-tab-label">{getTabDisplayName(tab)}</span>
             <TabCount count={assetCounts?.[tab]} />
           </button>
         ))}
+        {compendium && (
+          <button
+            type="button"
+            className={`atlas-tab-button atlas-tab-button--compendium ${compendiumOpen ? 'atlas-active' : ''}`}
+            onClick={compendium.onOpen}
+            aria-current={compendiumOpen ? 'page' : undefined}
+          >
+            <span className="atlas-tab-label">{t('compendium.browser.tab')}</span>
+          </button>
+        )}
       </nav>
 
       <HeaderMenu
@@ -53,17 +67,20 @@ export function TabSwitcher({ activeTab, onTabChange, assetCounts }: TabSwitcher
         triggerContent={
           <>
             <span className="atlas-tab-label">{activeName}</span>
-            <TabCount count={assetCounts?.[activeTab]} />
+            {!compendiumOpen && <TabCount count={assetCounts?.[activeTab]} />}
             <ChevronDown className="atlas-am-tab-menu-chevron" />
           </>
         }
-        items={tabs.map((tab) => ({
-          key: tab,
-          label: getTabDisplayName(tab),
-          ...(assetCounts ? { detail: assetCounts[tab] } : {}),
-          checked: tab === activeTab,
-          onSelect: () => onTabChange(tab),
-        }))}
+        items={[
+          ...tabs.map((tab) => ({
+            key: tab,
+            label: getTabDisplayName(tab),
+            ...(assetCounts ? { detail: assetCounts[tab] } : {}),
+            checked: isCurrent(tab),
+            onSelect: () => onTabChange(tab),
+          })),
+          ...(compendium ? [{ key: 'compendium', label: t('compendium.browser.tab'), checked: compendiumOpen, separated: true, onSelect: compendium.onOpen }] : []),
+        ]}
       />
     </>
   );

@@ -2,25 +2,25 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { NoteRegistry, Property } from './notes.ts';
 import { records, type Json } from './values.ts';
+import { ENTRY_FOLDERS, ENTRY_KIND_KEY, ENTRY_SOURCE_KEY, ENTRY_SYSTEM_KEY, type EntryKind } from '../../src/app/compendium/sourceFormat.ts';
 
 export type Edition = '2014' | '2024';
 
-/** The kinds of compendium note, written as `atlas-compendium` in each note's frontmatter. */
-export type EntryKind = 'spell' | 'monster' | 'class' | 'subclass' | 'species' | 'background' | 'feat' | 'item' | 'magic-item' | 'condition' | 'rule';
+export type { EntryKind };
 
 /** The folders inside a source, one per kind of entry. */
 export const FOLDERS = {
-  spells: 'Spells',
-  monsters: 'Monsters',
-  classes: 'Classes',
-  subclasses: 'Subclasses',
-  species: 'Species',
-  backgrounds: 'Backgrounds',
-  feats: 'Feats',
-  equipment: 'Equipment',
-  magicItems: 'Magic Items',
-  conditions: 'Conditions',
-  rules: 'Rules',
+  spells: ENTRY_FOLDERS.spell,
+  monsters: ENTRY_FOLDERS.monster,
+  classes: ENTRY_FOLDERS.class,
+  subclasses: ENTRY_FOLDERS.subclass,
+  species: ENTRY_FOLDERS.species,
+  backgrounds: ENTRY_FOLDERS.background,
+  feats: ENTRY_FOLDERS.feat,
+  equipment: ENTRY_FOLDERS.item,
+  magicItems: ENTRY_FOLDERS['magic-item'],
+  conditions: ENTRY_FOLDERS.condition,
+  rules: ENTRY_FOLDERS.rule,
 } as const;
 
 export interface BuildContext {
@@ -52,5 +52,5 @@ export function dataReader(databaseDir: string, edition: Edition): (name: string
 
 /** The frontmatter every compendium note starts with. */
 export function entryProperties(context: BuildContext, kind: EntryKind): Record<string, Property> {
-  return { 'atlas-compendium': kind, 'atlas-system': context.systemId, 'atlas-source': context.sourceId };
+  return { [ENTRY_KIND_KEY]: kind, [ENTRY_SYSTEM_KEY]: context.systemId, [ENTRY_SOURCE_KEY]: context.sourceId };
 }

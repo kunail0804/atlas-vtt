@@ -1,0 +1,231 @@
+@use '../../../../../../styles/tokens' as *;
+@use '../../../../../../styles/mixins' as *;
+@use '../../../../react/components/statblock/statblock-preview-surface' as *;
+
+// The compendium in the asset manager (CompendiumPane.tsx): its sidebar of campaign, books and
+// kinds, the entries in the body's left column, the selected entry's statblock or note on the
+// right; and the forms of its New entry and New book dialogs.
+
+$list-width: 320px;
+$preview-max-width: 560px;
+
+.atlas-compendium-sidebar {
+  &__section {
+    @include atlas-flex-col($gap: $spacing-s);
+  }
+
+  &__heading,
+  &__row,
+  &__book {
+    @include atlas-flex-row($gap: $spacing-xs);
+    min-width: 0;
+  }
+
+  &__heading {
+    justify-content: space-between;
+  }
+
+  &__campaign {
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__list {
+    @include atlas-flex-col($gap: 2px);
+  }
+
+  &__hint {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: $font-ui-smaller;
+    text-wrap: pretty;
+  }
+}
+
+.atlas-compendium-search {
+  @include atlas-flex-row($gap: $spacing-xs);
+  min-width: 0;
+
+  svg {
+    width: $icon-s;
+    height: $icon-s;
+    flex-shrink: 0;
+    color: var(--text-faint);
+  }
+
+  input {
+    min-width: 0;
+    width: 220px;
+  }
+}
+
+.atlas-compendium-body {
+  display: grid;
+  grid-template-columns: $list-width minmax(0, 1fr);
+
+  @media (max-width: $breakpoint-m) {
+    grid-template-columns: minmax(0, 1fr);
+
+    .atlas-compendium-preview {
+      display: none;
+    }
+  }
+}
+
+.atlas-compendium-list {
+  @include atlas-flex-col($gap: 2px);
+  min-height: 0;
+  overflow-y: auto;
+  padding: $spacing-s;
+  border-right: $border-width-s solid var(--divider-color);
+  @include atlas-scrollbar-while-scrolling;
+
+  &__empty {
+    margin: 0;
+    padding: $spacing-xl $spacing-l;
+    color: var(--text-faint);
+    font-size: $font-ui-small;
+    text-align: center;
+    text-wrap: pretty;
+  }
+
+  &__row {
+    @include atlas-flex-col($gap: 2px);
+    flex-shrink: 0;
+    padding: $spacing-s;
+    border-radius: $radius-l;
+    cursor: pointer;
+    transition: background-color $transition-fast $transition-ease;
+    // Rows off screen skip layout and paint, which keeps a whole source fast.
+    content-visibility: auto;
+    contain-intrinsic-size: auto 44px;
+
+    @media (hover: hover) and (pointer: fine) {
+      &:hover {
+        background-color: var(--background-modifier-hover);
+      }
+    }
+
+    &[aria-selected='true'] {
+      background-color: color-mix(in oklch, var(--interactive-accent) 14%, transparent);
+
+      .atlas-compendium-list__name {
+        color: var(--text-accent);
+      }
+    }
+  }
+
+  &__name {
+    @include atlas-truncate;
+    color: var(--text-normal);
+    font-size: $font-ui-small;
+    font-weight: $font-weight-medium;
+  }
+
+  &__detail {
+    @include atlas-truncate;
+    color: var(--text-muted);
+    font-size: $font-ui-smaller;
+  }
+}
+
+.atlas-compendium-preview {
+  @include atlas-flex-col($gap: $spacing-s);
+  min-height: 0;
+  padding: $spacing-l;
+  background: var(--background-secondary);
+  @include atlas-statblock-contained-card;
+
+  &--empty {
+    align-items: center;
+    justify-content: center;
+    color: var(--text-faint);
+    font-size: $font-ui-small;
+
+    svg {
+      width: $icon-xl;
+      height: $icon-xl;
+      stroke-width: 1.5;
+    }
+  }
+
+  &__header,
+  &__path,
+  &__body {
+    width: 100%;
+    max-width: $preview-max-width;
+    margin-inline: auto;
+  }
+
+  &__header {
+    @include atlas-flex-row($gap: $spacing-xs);
+    flex-shrink: 0;
+  }
+
+  &__title {
+    @include atlas-truncate;
+    flex: 1;
+    margin: 0;
+    font-size: $font-ui-medium;
+  }
+
+  &__path {
+    @include atlas-truncate;
+    flex-shrink: 0;
+    color: var(--text-faint);
+    font-size: $font-ui-smaller;
+  }
+
+  &__body {
+    @include atlas-flex-col;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+
+    .atlas-fantasy-statblock,
+    .atlas-statblock-missing-hint {
+      width: 100%;
+    }
+  }
+
+  &__note {
+    font-size: $font-ui-small;
+    user-select: text;
+  }
+}
+
+.atlas-compendium-form {
+  @include atlas-flex-col($gap: $spacing-m);
+  @include atlas-scrollbar;
+  // Takes the dialog's height, as the source picker does, so Cancel and Save sit at its foot.
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: $spacing-l;
+
+  &__field {
+    @include atlas-flex-col($gap: $spacing-xs);
+    font-size: $font-ui-small;
+    color: var(--text-muted);
+
+    input,
+    select {
+      width: 100%;
+    }
+  }
+
+  &__hint,
+  &__error {
+    margin: 0;
+    font-size: $font-ui-small;
+    text-wrap: pretty;
+  }
+
+  &__hint {
+    color: var(--text-muted);
+  }
+
+  &__error {
+    color: var(--text-error);
+  }
+}

@@ -14,8 +14,13 @@ own notes as a personal source and install it in another vault.
 
 Each note's frontmatter starts with `atlas-compendium` (spell, monster, class, subclass, species,
 background, feat, item, magic-item, condition, rule), `atlas-system` and `atlas-source`. Monster notes are
-native statblocks of the built-in 5E template of their edition (`statblock: true`, `atlas-template`), so
-they open in Atlas and in Fantasy Statblocks.
+native statblocks of the built-in 5E template of their edition (`statblock: true`, `atlas-template`). The
+compendium tab of the asset manager and a linked token's preview show them as statblocks; a note opened in
+Obsidian shows one beside it only while the experimental Statblock editor is on, and Fantasy Statblocks reads
+them only with its "Parse Frontmatter" setting on.
+
+`src/app/compendium/sourceFormat.ts` holds the kinds, their folders and the monster template of each
+system; the build and Atlas read the same list.
 
 ## Build the SRD sources
 
@@ -64,6 +69,22 @@ An update compares each file three ways, as a collection import does (`importPla
 install wrote (the record in `atlas-vtt/compendium/`), what the vault holds and what the source
 carries. A file the GM changed or deleted stays as the GM left it. Removing a source moves its untouched
 files to the trash and keeps the changed ones.
+
+## The compendium tab
+
+The asset manager's **Compendium** tab, after the asset types, lists the entries of a campaign's books: the
+campaign this device plays, else the most recently played one. **Every installed source** lists every book
+of the vault. The sidebar filters by book and by kind, and the toolbar searches the names. The selected
+entry shows beside the list: a monster's statblock, or any other note's properties and text. **Open the
+note** opens it in a new tab and closes the manager; **Delete** moves it to the trash.
+
+- The gear next to the campaign opens the source picker.
+- **New book…** makes an empty personal source in a game system the vault has or a new one, records it as
+  installed and adds it to the campaign.
+- **New entry…** writes a note into a book's folder of its kind (`Monsters/`, `Spells/`…) with
+  `atlas-compendium`, `atlas-system`, `atlas-source` and `name`. A monster of a system with a built-in monster
+  template (`MONSTER_TEMPLATES`) is a native statblock of that template.
+- The upload button beside a personal book exports it, as the folder's file menu does.
 
 ## Personal sources
 

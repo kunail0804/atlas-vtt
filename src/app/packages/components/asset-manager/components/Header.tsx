@@ -26,6 +26,8 @@ export interface HeaderProps {
   activeTab: Tab;
   onTabChange: (tab: Tab) => void;
   assetCounts: Record<Tab, number> | null;
+  /** Opens the compendium in place of the assets. */
+  onOpenCompendium?: () => void;
   onCreateTokens?: () => void;
   onCreateMap?: () => void;
   onCreateCollection?: () => void;
@@ -52,6 +54,7 @@ export function Header({
   activeTab,
   onTabChange,
   assetCounts,
+  onOpenCompendium,
   onCreateTokens,
   onCreateMap,
   onCreateCollection,
@@ -103,7 +106,12 @@ export function Header({
         </div>
 
         <div className="atlas-am-toolbar-center">
-          <TabSwitcher activeTab={activeTab} onTabChange={onTabChange} assetCounts={assetCounts} />
+          <TabSwitcher
+            activeTab={activeTab}
+            onTabChange={onTabChange}
+            assetCounts={assetCounts}
+            compendium={onOpenCompendium ? { open: false, onOpen: onOpenCompendium } : undefined}
+          />
         </div>
 
         <div className="atlas-am-toolbar-right">

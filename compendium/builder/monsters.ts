@@ -5,10 +5,10 @@
  */
 
 import { entryProperties, FOLDERS, type BuildContext } from './context.ts';
+import { MONSTER_TEMPLATES } from '../../src/app/compendium/sourceFormat.ts';
 import { noteText, type Note, type Property } from './notes.ts';
 import { capitalize, indexOf, isJson, list, nameOf, num, prose, records, text, type Json } from './values.ts';
 
-const TEMPLATE = { '2014': 'builtin:5e-2014-monster', '2024': 'builtin:5e-2024-monster' } as const;
 const ABILITIES = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'] as const;
 const ABILITY_NAMES: Readonly<Record<string, string>> = {
   STR: 'strength', DEX: 'dexterity', CON: 'constitution', INT: 'intelligence', WIS: 'wisdom', CHA: 'charisma',
@@ -114,7 +114,7 @@ export function monsterNotes(context: BuildContext): Note[] {
     const stats = ABILITIES.map((ability) => num(monster[ability]) ?? 10);
     const properties: Record<string, Property | undefined> = {
       statblock: true,
-      'atlas-template': TEMPLATE[context.edition],
+      'atlas-template': MONSTER_TEMPLATES[context.systemId],
       ...entryProperties(context, 'monster'),
       name: nameOf(monster),
       size: text(monster.size),

@@ -8,7 +8,7 @@ import { useAssetManagerEffects } from '../../src/app/packages/components/asset-
 
 type EffectDeps = Parameters<typeof useAssetManagerEffects>[0];
 
-function setup({ subModalOpen = false, changeTab = vi.fn() } = {}) {
+function setup({ subModalOpen = false, compendiumDialogOpen = false, changeTab = vi.fn() } = {}) {
   const app = { vault: { adapter: { exists: async () => true, write: async () => {} } } } as any;
   const settings = new SettingsService(app);
   const mapAction = vi.fn();
@@ -35,6 +35,7 @@ function setup({ subModalOpen = false, changeTab = vi.fn() } = {}) {
       } as unknown as EffectDeps['crud'],
       tags: { isTagManagerOpen: false } as EffectDeps['tags'],
       statblock: { linkingStatblockAsset: null } as EffectDeps['statblock'],
+      compendiumDialogOpen,
     });
     return <div className="workspace-leaf mod-active"><div data-view-id="map">
       {isOpen && <div ref={modalRef} className="atlas-asset-manager-modal" tabIndex={-1} data-testid="manager">
@@ -115,4 +116,14 @@ it('switches tabs with Tab, Shift+Tab and Cmd+1 to 5 through the tab change that
   fireEvent.keyDown(manager, { key: '5', ctrlKey: true });
   fireEvent.keyDown(manager, { key: '6', metaKey: true });
   expect(changeTab.mock.calls.map(([tab]) => tab)).toEqual(['encounters', 'scenes', 'tokens', 'party']);
+});
+
+it('leaves Escape and Tab to a dialog of the compendium while one is open', () => {
+  const { changeTab } = setup({ compendiumDialogOpen: true });
+  fireEvent.keyDown(document.body, { key: 'a' });
+  const manager = screen.getByTestId('manager');
+  fireEvent.keyDown(manager, { key: 'Tab' });
+  fireEvent.keyDown(manager, { key: 'Escape' });
+  expect(screen.queryByTestId('manager')).not.toBeNull();
+  expect(changeTab).not.toHaveBeenCalled();
 });

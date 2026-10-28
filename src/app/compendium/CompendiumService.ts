@@ -1,11 +1,15 @@
 import { requestUrl, TFile, TFolder, type App } from 'obsidian';
 import { sha256 } from '../utils/hashing';
-import { INSTALLS_DIR, parseInstalledSource, type InstalledSource } from './installedSources';
+import { INSTALLS_DIR, installRecordPath, parseInstalledSource, type InstalledSource } from './installedSources';
 import { obsidianCompendiumVault } from './obsidianCompendiumVault';
-import type { OfficialSource } from './officialSources';
+import { OFFICIAL_SOURCES, type OfficialSource } from './officialSources';
 import { installSource, readInstalledSource, removeSource, type CompendiumVault, type InstallProgress, type InstallResult, type RemoveResult } from './sourceInstall';
 import { openSource } from './sourceZip';
-import { exportSource, sourceFolderNames, type ExportedSource } from './sourceExport';
+import { exportSource, personalManifest, sourceFolderNames, type ExportedSource } from './sourceExport';
+import { MONSTER_TEMPLATES, isFolderName, sourceManifestProblem, type EntryKind } from './sourceFormat';
+import { entryFolder, entryProperties, newEntryText, type CompendiumBook } from './compendiumEntries';
+import { ensureFolder } from '../plugin/vaultFolders';
+import { createStatblockNote, freeNotePath, noteFileName } from '../statblocks/notes/createStatblockNote';
 
 /**
  * The vault's compendium: which sources it has installed, installing one from Atlas' list or
@@ -81,6 +85,49 @@ export class CompendiumService {
     } finally {
       this.notify();
     }
+  }
+
+  /**
+   * Creates an empty personal book, `Compendium/<system>/<book>`, and records it as installed so
+   * campaigns can choose it. Its system takes the id of an installed system of the same name.
+   * Returns the new source's id. Throws with a message for the GM when the book cannot be made.
+   */
+  async createBook(systemName: string, bookName: string): Promise<string> {
+    const folder = { system: systemName.trim(), book: bookName.trim() };
+    if (!isFolderName(folder.system) || !isFolderName(folder.book)) throw new Error('A name may not be empty, start with a dot, or hold any of * " \\ / < > : | ? # ^ [ ]');
+    const installed = await this.installed();
+    const manifest = personalManifest(folder, [], installed);
+    if (installed.some((source) => source.manifest.id === manifest.id || source.manifest.root === manifest.root)) {
+      throw new Error(`${folder.system} already has a book named ${folder.book}.`);
+    }
+    if (OFFICIAL_SOURCES.some((source) => source.id === manifest.id)) throw new Error(`${folder.book} is one of Atlas' sources: install it from the compendium list instead.`);
+    const problem = sourceManifestProblem(manifest);
+    if (problem) throw new Error(problem);
+    await ensureFolder(this.app, manifest.root);
+    const { files: _files, ...rest } = manifest;
+    const record: InstalledSource = { manifest: rest, installedAt: Date.now(), files: {} };
+    await this.vault.writeText(installRecordPath(manifest.id), `${JSON.stringify(record)}\n`);
+    this.notify();
+    return manifest.id;
+  }
+
+  /**
+   * Creates a new entry in a book and returns its note. A monster of a system with a built-in
+   * monster template is a native statblock of that template; every other entry is a note with the
+   * entry's properties.
+   */
+  async createEntry(book: CompendiumBook, kind: EntryKind, name: string): Promise<TFile> {
+    const folderPath = entryFolder(book, kind);
+    const properties = entryProperties(book, kind, name.trim());
+    const templateId = kind === 'monster' ? MONSTER_TEMPLATES[book.systemId] : undefined;
+    if (templateId !== undefined) {
+      const { name: _name, ...values } = properties;
+      const created = await createStatblockNote(this.app, { name: name.trim(), templateId, folder: folderPath, values });
+      return created.file;
+    }
+    const folder = await ensureFolder(this.app, folderPath);
+    const path = freeNotePath(this.app, folder, noteFileName(name));
+    return this.app.vault.create(path, newEntryText(book, kind, name.trim()));
   }
 
   /** Calls `listener` after every install or removal made here. */

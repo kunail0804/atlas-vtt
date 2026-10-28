@@ -33,6 +33,8 @@ import { useCreatureFilters } from './hooks/useCreatureFilters';
 import { useCollectionFilterDefinitions } from './hooks/useCollectionFilterDefinitions';
 import { useFilterSearch, useSearchKeywords } from './hooks/useFilterSearch';
 import { ActiveFilterBar } from './components/search/ActiveFilterBar';
+import { TabSwitcher } from './components/TabSwitcher';
+import { CompendiumPane } from './compendium/CompendiumPane';
 import { DIALOG_EXIT_DURATION, dialogBackdropVariants, useDialogWindowVariants } from '../primitives/dialogMotion';
 import { t } from '../../../i18n';
 
@@ -47,6 +49,9 @@ const wrapperVariants = {
 export default function AssetManager({ isOpen, onClose, initialTab, onExitComplete }: AssetManagerProps): React.JSX.Element {
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState<Tab>('tokens');
+  // The compendium takes the place of the assets while it is open; the asset type stays as it was.
+  const [compendiumOpen, setCompendiumOpen] = useState(false);
+  const [compendiumDialogOpen, setCompendiumDialogOpen] = useState(false);
   const [selectedCollection, setSelectedCollection] = useState(() => AssetService.defaultCollectionId());
   const [collapsedSections, setCollapsedSections] = useState<{ folders: boolean; assets: boolean }>({ folders: false, assets: false });
   const [draggedItems, setDraggedItems] = useState<{ type: 'asset' | 'folder'; ids: string[] } | null>(null);
@@ -66,10 +71,16 @@ export default function AssetManager({ isOpen, onClose, initialTab, onExitComple
   useLeaveHiddenFolder(data, sel);
 
   const changeTab = useCallback((tab: Tab): void => {
+    setCompendiumOpen(false);
     if (tab === activeTab) return;
     setActiveTab(tab);
     sel.resetForTab();
   }, [activeTab, sel.resetForTab]);
+
+  const openCompendium = useCallback((): void => {
+    setCompendiumOpen(true);
+    sel.resetForTab();
+  }, [sel.resetForTab]);
 
   const memory = useRememberedPlace({
     isOpen, initialTab, data, sel,
@@ -171,6 +182,7 @@ export default function AssetManager({ isOpen, onClose, initialTab, onExitComple
     modalRef, containerRef,
     activeTab, changeTab,
     data, sel, crud, tags, statblock,
+    compendiumDialogOpen: compendiumOpen && compendiumDialogOpen,
   });
 
   const anyModalOpen = crud.isTokenCreatorOpen || crud.isMapCreatorOpen;
@@ -209,9 +221,17 @@ export default function AssetManager({ isOpen, onClose, initialTab, onExitComple
               exit="exit"
             >
               <div
-                className={`atlas-asset-manager-container ${sidebar.isFloating ? 'atlas-sidebar-floating' : ''}`}
+                className={`atlas-asset-manager-container ${sidebar.isFloating && !compendiumOpen ? 'atlas-sidebar-floating' : ''}`}
                 ref={containerRef}
               >
+                {compendiumOpen ? (
+                  <CompendiumPane
+                    app={data.app}
+                    tabs={<TabSwitcher activeTab={activeTab} onTabChange={changeTab} assetCounts={data.assetCounts} compendium={{ open: true, onOpen: openCompendium }} />}
+                    onClose={onClose}
+                    onDialogChange={setCompendiumDialogOpen}
+                  />
+                ) : (<>
                 <Sidebar
                   selectedTagIds={sel.selectedTagIds}
                   onSelectTag={sel.handleTagSelect}
@@ -236,6 +256,7 @@ export default function AssetManager({ isOpen, onClose, initialTab, onExitComple
                   activeTab={activeTab}
                   onTabChange={changeTab}
                   assetCounts={data.assetCounts}
+                  onOpenCompendium={openCompendium}
                   onCreateTokens={() => crud.setIsTokenCreatorOpen(true)}
                   onCreateMap={crud.handleCreateMap}
                   onCreateCollection={crud.handleCreateCollection}
@@ -297,13 +318,14 @@ export default function AssetManager({ isOpen, onClose, initialTab, onExitComple
                     </AssetTagMenuContext.Provider>
                   </div>
                 </div>
+                </>)}
               </div>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {isOpen && !anyModalOpen && !crud.inputModalState?.isOpen && !crud.settingsModalCollectionId && !crud.isCreateSceneModalOpen && !crud.isMoveModalOpen && !tags.isTagManagerOpen && !statblock.linkingStatblockAsset && (
+      {isOpen && !compendiumOpen && !anyModalOpen && !crud.inputModalState?.isOpen && !crud.settingsModalCollectionId && !crud.isCreateSceneModalOpen && !crud.isMoveModalOpen && !tags.isTagManagerOpen && !statblock.linkingStatblockAsset && (
         settings?.shouldShowTutorial('assets') ? <Tutorial settings={settings} id="assets" steps={[
           { title: t('am.tour.libraryTitle'), body: t('am.tour.libraryBody'), selector: '.atlas-am-toolbar-center' },
           { title: t('am.tour.collectionTitle'), body: t('am.tour.collectionBody'), selector: '.atlas-collections' },

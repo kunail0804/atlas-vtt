@@ -164,8 +164,10 @@ in `sources` (source ids such as `dnd5e-2014/srd-5.1`); its page shows them unde
 also opens when the campaign is created. Atlas offers SRD 5.1 and SRD 5.2.1 in English, downloaded from the
 GitHub release `compendium-v1` and checked against the size and SHA-256 in `officialSources.ts`. An install
 writes a record to `atlas-vtt/compendium/`; an update or a removal never touches a file the GM changed. A
-folder `Compendium/<system>/<book>` exports as a personal source from its file menu. The character sheet
-does not read the compendium yet.
+folder `Compendium/<system>/<book>` exports as a personal source from its file menu. The asset manager's
+Compendium tab (`src/app/packages/components/asset-manager/compendium/`) lists a campaign's entries, shows
+the selected one, and makes, opens, deletes and exports; `compendium/README.md` describes it. The character
+sheet does not read the compendium yet.
 
 ### What players make on the map
 

@@ -12,6 +12,40 @@ export const SOURCE_FILES_DIR = 'files';
 /** Every compendium note lives under this vault folder. */
 export const COMPENDIUM_ROOT = 'Compendium';
 
+/** The kinds of compendium note. A note names its kind in its frontmatter under `ENTRY_KIND_KEY`. */
+export const ENTRY_KINDS = ['spell', 'monster', 'class', 'subclass', 'species', 'background', 'feat', 'item', 'magic-item', 'condition', 'rule'] as const;
+export type EntryKind = (typeof ENTRY_KINDS)[number];
+
+export const ENTRY_KIND_KEY = 'atlas-compendium';
+export const ENTRY_SYSTEM_KEY = 'atlas-system';
+export const ENTRY_SOURCE_KEY = 'atlas-source';
+
+/** The folder inside a source that holds each kind of note. */
+export const ENTRY_FOLDERS: Readonly<Record<EntryKind, string>> = {
+  spell: 'Spells',
+  monster: 'Monsters',
+  class: 'Classes',
+  subclass: 'Subclasses',
+  species: 'Species',
+  background: 'Backgrounds',
+  feat: 'Feats',
+  item: 'Equipment',
+  'magic-item': 'Magic Items',
+  condition: 'Conditions',
+  rule: 'Rules',
+};
+
+/** The built-in statblock template of a game system's monsters, by system id. A system missing here has none. */
+export const MONSTER_TEMPLATES: Readonly<Record<string, string>> = {
+  'dnd5e-2014': 'builtin:5e-2014-monster',
+  'dnd5e-2024': 'builtin:5e-2024-monster',
+};
+
+/** Whether `value` is one of the kinds of compendium note. */
+export function isEntryKind(value: unknown): value is EntryKind {
+  return typeof value === 'string' && (ENTRY_KINDS as readonly string[]).includes(value);
+}
+
 /** A game system or a book: a stable id and the name shown in the source picker. */
 export interface SourceLabel {
   id: string;

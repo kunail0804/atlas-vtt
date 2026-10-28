@@ -30,6 +30,7 @@ function headerProps(tokens: number): HeaderProps {
     activeTab: 'tokens',
     onTabChange: noop,
     assetCounts: { scenes: 12, maps: 34, encounters: 5, tokens, party: 4 },
+    onOpenCompendium: noop,
     onCreateFolder: noop,
     sidebarToggleLabel: 'Hide sidebar',
     onToggleSidebar: noop,

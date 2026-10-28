@@ -24,15 +24,17 @@ interface EffectDeps {
   crud: AssetCrudActions;
   tags: TagsAndCollectionsState;
   statblock: StatblockLinkState;
+  /** A dialog of the compendium is open, over the manager. */
+  compendiumDialogOpen?: boolean;
 }
 
 export function useAssetManagerEffects({
   isOpen, onClose,
   modalRef, containerRef,
   activeTab, changeTab,
-  data, sel, crud, tags, statblock,
+  data, sel, crud, tags, statblock, compendiumDialogOpen = false,
 }: EffectDeps): void {
-  const isAnySubModalOpen =
+  const isAnySubModalOpen = compendiumDialogOpen ||
     crud.isTokenCreatorOpen || crud.isMapCreatorOpen ||
     crud.isCreateSceneModalOpen || crud.inputModalState.isOpen ||
     crud.isMoveModalOpen || crud.settingsModalCollectionId !== null || crud.isCreateCollectionModalOpen ||
