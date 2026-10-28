@@ -107,3 +107,26 @@ export function entryProperties(book: CompendiumBook, kind: EntryKind, name: str
 export function newEntryText(book: CompendiumBook, kind: EntryKind, name: string): string {
   return `---\n${stringifyYaml(entryProperties(book, kind, name))}---\n`;
 }
+
+/** Room left in a file name for the ` 2.md` that keeps two entries of one name apart. */
+const MAX_STEM = 100;
+
+/**
+ * The file name of a new entry, without `.md`: what a compendium folder accepts (`isFolderName`),
+ * so the entry is listed. Characters Obsidian refuses or that break links become `-`, control
+ * characters a space, and a long name is cut.
+ */
+export function entryFileStem(name: string): string {
+  const visible = [...name].map((character) => {
+    const code = character.charCodeAt(0);
+    return code < 0x20 || code === 0x7f ? ' ' : character;
+  }).join('');
+  const cleaned = visible
+    .replace(/[*"\\/<>:|?#^[\]]/g, '-')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/^\.+/, '')
+    .slice(0, MAX_STEM)
+    .trim();
+  return cleaned === '' ? 'Untitled' : cleaned;
+}

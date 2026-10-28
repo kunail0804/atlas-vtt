@@ -27,6 +27,8 @@ export interface NewStatblockNote {
   values?: Readonly<Record<string, FieldValue>> | undefined;
   /** The Markdown below the frontmatter; the text in the template's note where not given. */
   body?: string | undefined;
+  /** The note's file name without `.md`, where it must differ from the name (a compendium entry's); from the name where not given. */
+  fileStem?: string | undefined;
 }
 
 export interface CreatedStatblockNote {
@@ -40,7 +42,7 @@ const FALLBACK_NAME = 'New statblock';
 /** Creates the note and links the token to it. Throws when the note cannot be created. */
 export async function createStatblockNote(app: App, note: NewStatblockNote): Promise<CreatedStatblockNote> {
   const folder = await targetFolder(app, note.folder);
-  const path = freeNotePath(app, folder, noteFileName(note.name));
+  const path = freeNotePath(app, folder, note.fileStem ?? noteFileName(note.name));
   const body = note.body ?? await savedTemplateBody(app, note.templateId);
   const file = await app.vault.create(path, statblockNoteText({ ...note, name: shownName(note.name, path), body }));
   const linked = note.tokenImagePath === undefined

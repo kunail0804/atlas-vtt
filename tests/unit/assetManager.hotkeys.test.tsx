@@ -8,7 +8,7 @@ import { useAssetManagerEffects } from '../../src/app/packages/components/asset-
 
 type EffectDeps = Parameters<typeof useAssetManagerEffects>[0];
 
-function setup({ subModalOpen = false, compendiumDialogOpen = false, changeTab = vi.fn() } = {}) {
+function setup({ subModalOpen = false, compendiumOpen = false, compendiumDialogOpen = false, changeTab = vi.fn() } = {}) {
   const app = { vault: { adapter: { exists: async () => true, write: async () => {} } } } as any;
   const settings = new SettingsService(app);
   const mapAction = vi.fn();
@@ -35,6 +35,7 @@ function setup({ subModalOpen = false, compendiumDialogOpen = false, changeTab =
       } as unknown as EffectDeps['crud'],
       tags: { isTagManagerOpen: false } as EffectDeps['tags'],
       statblock: { linkingStatblockAsset: null } as EffectDeps['statblock'],
+      compendiumOpen,
       compendiumDialogOpen,
     });
     return <div className="workspace-leaf mod-active"><div data-view-id="map">
@@ -126,4 +127,15 @@ it('leaves Escape and Tab to a dialog of the compendium while one is open', () =
   fireEvent.keyDown(manager, { key: 'Escape' });
   expect(screen.queryByTestId('manager')).not.toBeNull();
   expect(changeTab).not.toHaveBeenCalled();
+});
+
+it('leaves Tab to the compendium, where it moves focus between its controls', () => {
+  const { changeTab } = setup({ compendiumOpen: true });
+  fireEvent.keyDown(document.body, { key: 'a' });
+  const manager = screen.getByTestId('manager');
+  const tab = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true });
+  manager.dispatchEvent(tab);
+  expect(tab.defaultPrevented).toBe(false);
+  expect(changeTab).not.toHaveBeenCalled();
+  expect(screen.queryByTestId('manager')).not.toBeNull();
 });

@@ -24,6 +24,8 @@ interface EffectDeps {
   crud: AssetCrudActions;
   tags: TagsAndCollectionsState;
   statblock: StatblockLinkState;
+  /** The compendium is shown in place of the assets: Tab moves focus in it, Ctrl+F finds its search. */
+  compendiumOpen?: boolean;
   /** A dialog of the compendium is open, over the manager. */
   compendiumDialogOpen?: boolean;
 }
@@ -32,7 +34,7 @@ export function useAssetManagerEffects({
   isOpen, onClose,
   modalRef, containerRef,
   activeTab, changeTab,
-  data, sel, crud, tags, statblock, compendiumDialogOpen = false,
+  data, sel, crud, tags, statblock, compendiumOpen = false, compendiumDialogOpen = false,
 }: EffectDeps): void {
   const isAnySubModalOpen = compendiumDialogOpen ||
     crud.isTokenCreatorOpen || crud.isMapCreatorOpen ||
@@ -70,6 +72,7 @@ export function useAssetManagerEffects({
         onClose();
       }
       if (e.key === 'Tab' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        if (compendiumOpen) return;
         e.preventDefault();
         const direction = e.shiftKey ? -1 : 1;
         changeTab(tabs[(tabs.indexOf(activeTab) + direction + tabs.length) % tabs.length]!);
@@ -77,7 +80,8 @@ export function useAssetManagerEffects({
       }
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'f' && !e.shiftKey && !e.altKey) {
         e.preventDefault();
-        containerRef.current?.querySelector<HTMLInputElement>('.atlas-asset-manager-search input')?.select();
+        const search = compendiumOpen ? '.atlas-compendium-search input' : '.atlas-asset-manager-search input';
+        containerRef.current?.querySelector<HTMLInputElement>(search)?.select();
         return;
       }
       if ((e.metaKey || e.ctrlKey) && /^[1-9]$/.test(e.key)) {
@@ -87,7 +91,7 @@ export function useAssetManagerEffects({
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [isOpen, onClose, sel.selectedAssetIds, isAnySubModalOpen, data.app, activeTab, changeTab]);
+  }, [isOpen, onClose, sel.selectedAssetIds, isAnySubModalOpen, data.app, activeTab, changeTab, compendiumOpen]);
 
   useEffect(() => {
     if (!isOpen) return;

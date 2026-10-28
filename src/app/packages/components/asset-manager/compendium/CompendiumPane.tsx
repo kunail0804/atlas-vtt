@@ -132,11 +132,17 @@ export function CompendiumPane({ app, tabs, onClose, onDialogChange }: Compendiu
 
   const createBook = async (systemName: string, bookName: string): Promise<void> => {
     const id = await CompendiumService.forApp(app).createBook(systemName, bookName);
-    // A campaign shows only the books it uses: the new book joins it.
-    if (campaign && campaignService && campaign.readOnly !== true) {
-      campaignService.update(campaign.id, { sources: [...(campaign.sources ?? []), id] });
-    }
     setChosenBookId(id);
+    // A campaign shows only the books it uses: the new book joins it, once.
+    const listed = campaign?.sources ?? [];
+    if (!campaign || !campaignService || campaign.readOnly === true || listed.includes(id)) return;
+    try {
+      campaignService.update(campaign.id, { sources: [...listed, id] });
+    } catch (error) {
+      // The book exists either way: the GM can still tick it in the source picker.
+      console.error('[CompendiumPane] Adding the book to the campaign failed:', error);
+      showNotice(t('compendium.browser.bookNotAdded', { name: bookName, error: messageOf(error) }));
+    }
   };
 
   const emptyText = (() => {

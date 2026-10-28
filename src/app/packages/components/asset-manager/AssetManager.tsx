@@ -182,6 +182,7 @@ export default function AssetManager({ isOpen, onClose, initialTab, onExitComple
     modalRef, containerRef,
     activeTab, changeTab,
     data, sel, crud, tags, statblock,
+    compendiumOpen,
     compendiumDialogOpen: compendiumOpen && compendiumDialogOpen,
   });
 

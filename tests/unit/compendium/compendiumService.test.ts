@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { requestUrl } from 'obsidian';
 import { CompendiumService } from '../../../src/app/compendium/CompendiumService';
+import { compendiumEntries } from '../../../src/app/compendium/compendiumEntries';
 import { installRecordPath } from '../../../src/app/compendium/installedSources';
 import type { OfficialSource } from '../../../src/app/compendium/officialSources';
 import { sha256 } from '../../../src/app/utils/hashing';
@@ -152,5 +153,26 @@ describe('the GM\'s own books and entries', () => {
 
     const other = await service.createEntry({ ...book, id: 'pf2e/mine', systemId: 'pf2e', root: 'Compendium/Pathfinder 2e/Mine' }, 'monster', 'Ash Wolf');
     expect(files.get(other.path)).not.toContain('statblock');
+  });
+});
+
+describe('the file name of a new entry', () => {
+  it('is one the compendium lists, whatever the name, and the name stays whole in the note', async () => {
+    const { app, files } = createInMemoryApp();
+    const service = CompendiumService.forApp(app);
+    const book = { id: 'dnd5e-2024/mine', systemId: 'dnd5e-2024', systemName: 'D&D 5e 2024', name: 'Mine', root: 'Compendium/D&D 5e 2024/Mine' };
+    const long = 'a'.repeat(300);
+    const made = [
+      await service.createEntry(book, 'spell', long),
+      await service.createEntry(book, 'spell', 'Tab\tName'),
+      await service.createEntry(book, 'monster', `${long} wolf`),
+      await service.createEntry(book, 'spell', '...'),
+    ];
+    const notes = made.map((file) => ({ path: file.path, frontmatter: undefined }));
+    expect(compendiumEntries([book], notes)).toHaveLength(4);
+    expect(made[1]?.path).toBe('Compendium/D&D 5e 2024/Mine/Spells/Tab Name.md');
+    expect(made[3]?.path).toBe('Compendium/D&D 5e 2024/Mine/Spells/Untitled.md');
+    expect(files.get(made[0]?.path ?? '')).toContain(`name: ${long}`);
+    expect(files.get(made[2]?.path ?? '')).toContain(`name: ${long} wolf`);
   });
 });

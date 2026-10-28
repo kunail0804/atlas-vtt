@@ -51,6 +51,7 @@ export const compendium = {
   'compendium.browser.deleteTitle': 'Delete {name}?',
   'compendium.browser.deleteMessage': 'Atlas moves the note to the trash.',
   'compendium.browser.deleteFailed': 'Could not delete {name}: {error}',
+  'compendium.browser.bookNotAdded': '{name} was made, but could not be added to the campaign: {error}. Tick it in the campaign\'s sources.',
   'compendium.browser.yes': 'Yes',
   'compendium.browser.no': 'No',
   'compendium.browser.readOnly': 'A newer version of Atlas wrote this campaign: its sources cannot be changed here.',

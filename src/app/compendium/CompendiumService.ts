@@ -7,9 +7,9 @@ import { installSource, readInstalledSource, removeSource, type CompendiumVault,
 import { openSource } from './sourceZip';
 import { exportSource, personalManifest, sourceFolderNames, type ExportedSource } from './sourceExport';
 import { MONSTER_TEMPLATES, isFolderName, sourceManifestProblem, type EntryKind } from './sourceFormat';
-import { entryFolder, entryProperties, newEntryText, type CompendiumBook } from './compendiumEntries';
+import { entryFileStem, entryFolder, entryProperties, newEntryText, type CompendiumBook } from './compendiumEntries';
 import { ensureFolder } from '../plugin/vaultFolders';
-import { createStatblockNote, freeNotePath, noteFileName } from '../statblocks/notes/createStatblockNote';
+import { createStatblockNote, freeNotePath } from '../statblocks/notes/createStatblockNote';
 
 /**
  * The vault's compendium: which sources it has installed, installing one from Atlas' list or
@@ -122,11 +122,11 @@ export class CompendiumService {
     const templateId = kind === 'monster' ? MONSTER_TEMPLATES[book.systemId] : undefined;
     if (templateId !== undefined) {
       const { name: _name, ...values } = properties;
-      const created = await createStatblockNote(this.app, { name: name.trim(), templateId, folder: folderPath, values });
+      const created = await createStatblockNote(this.app, { name: name.trim(), templateId, folder: folderPath, values, fileStem: entryFileStem(name) });
       return created.file;
     }
     const folder = await ensureFolder(this.app, folderPath);
-    const path = freeNotePath(this.app, folder, noteFileName(name));
+    const path = freeNotePath(this.app, folder, entryFileStem(name));
     return this.app.vault.create(path, newEntryText(book, kind, name.trim()));
   }
 

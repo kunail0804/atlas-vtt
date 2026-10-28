@@ -158,3 +158,18 @@ describe('the compendium in the asset manager', () => {
     expect(row(/Ash Bolt/).getAttribute('aria-selected')).toBe('true');
   });
 });
+
+it('adds a new book to a campaign that already lists its id only once', async () => {
+  campaigns.update('c-1', (entry) => ({ ...entry, sources: [ID, 'dnd5e-2014/homebrew'] }));
+  vault.app.saveLocalStorage('atlas-vtt:playing-campaign', 'c-1');
+  renderPane();
+  await waitFor(() => expect(rows()).toHaveLength(3));
+  expect(screen.getByText('1 source of this campaign is not in this vault.')).toBeTruthy();
+
+  fireEvent.click(screen.getByRole('button', { name: 'New book…' }));
+  const bookDialog = await screen.findByRole('dialog', { name: 'New book' });
+  fireEvent.change(within(bookDialog).getByLabelText('Name of the book'), { target: { value: 'Homebrew' } });
+  fireEvent.click(within(bookDialog).getByRole('button', { name: 'Save' }));
+  await waitFor(() => expect(screen.queryByText('1 source of this campaign is not in this vault.')).toBeNull());
+  expect(campaigns.current().find((campaign) => campaign.id === 'c-1')?.sources).toEqual([ID, 'dnd5e-2014/homebrew']);
+});
