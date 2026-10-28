@@ -150,7 +150,6 @@ $preview-max-width: 560px;
   }
 
   &__header,
-  &__path,
   &__body {
     width: 100%;
     max-width: $preview-max-width;
@@ -162,16 +161,10 @@ $preview-max-width: 560px;
     flex-shrink: 0;
   }
 
-  &__title {
-    @include atlas-truncate;
-    flex: 1;
-    margin: 0;
-    font-size: $font-ui-medium;
-  }
-
   &__path {
     @include atlas-truncate;
-    flex-shrink: 0;
+    flex: 1;
+    min-width: 0;
     color: var(--text-faint);
     font-size: $font-ui-smaller;
   }
@@ -186,11 +179,6 @@ $preview-max-width: 560px;
     .atlas-statblock-missing-hint {
       width: 100%;
     }
-  }
-
-  &__note {
-    font-size: $font-ui-small;
-    user-select: text;
   }
 }
 

@@ -75,7 +75,9 @@ files to the trash and keeps the changed ones.
 The asset manager's **Compendium** tab, after the asset types, lists the entries of a campaign's books: the
 campaign this device plays, else the most recently played one. **Every installed source** lists every book
 of the vault. The sidebar filters by book and by kind, and the toolbar searches the names. The selected
-entry shows beside the list: a monster's statblock, or any other note's properties and text. **Open the
+entry shows beside the list as a statblock card: a monster's own statblock, and for any other note a card
+made from its properties (in the order `src/app/compendium/entryCard.ts` lists for its kind) and its text.
+The note itself is not changed. **Open the
 note** opens it in a new tab and closes the manager; **Delete** moves it to the trash.
 
 - The gear next to the campaign opens the source picker.

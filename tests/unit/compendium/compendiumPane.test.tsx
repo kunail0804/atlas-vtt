@@ -1,7 +1,7 @@
 import React from 'react';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { TFile } from 'obsidian';
+import { MarkdownRenderer, TFile } from 'obsidian';
 import { parse } from 'yaml';
 import type { StoredCampaign } from '../../../src/app/campaigns/campaignTypes';
 import { CompendiumService } from '../../../src/app/compendium/CompendiumService';
@@ -95,8 +95,13 @@ describe('the compendium in the asset manager', () => {
     expect(rows()).toEqual(['Fireball']);
 
     fireEvent.click(row(/Fireball/));
-    expect(screen.getByRole('heading', { name: 'Fireball' })).toBeTruthy();
-    await waitFor(() => expect(document.querySelector('.atlas-compendium-preview__note')?.textContent).toBe('- **Level**: 3\n- **Ritual**: No\n\nA bright streak.'));
+    expect(screen.getByText(at('Spells/Fireball.md'))).toBeTruthy();
+    // A spell is drawn as a statblock card: its properties, then its text.
+    await waitFor(() => {
+      const card = document.querySelector('.atlas-compendium-preview__body')?.textContent ?? '';
+      expect(card).toContain('Level');
+      expect(card).toContain('A bright streak.');
+    });
   });
 
   it('opens an entry in a new tab and closes the manager', async () => {
@@ -172,4 +177,16 @@ it('adds a new book to a campaign that already lists its id only once', async ()
   fireEvent.click(within(bookDialog).getByRole('button', { name: 'Save' }));
   await waitFor(() => expect(screen.queryByText('1 source of this campaign is not in this vault.')).toBeNull());
   expect(campaigns.current().find((campaign) => campaign.id === 'c-1')?.sources).toEqual([ID, 'dnd5e-2014/homebrew']);
+});
+
+it('hands a table in an entry\'s text to Obsidian\'s Markdown renderer whole, lines and all', async () => {
+  const table = '## The Wizard table\n\n| Level | Features |\n| --- | --- |\n| 1 | Spellcasting |';
+  vault.files.set(at('Classes/Wizard.md'), `---\natlas-compendium: class\nname: Wizard\nhit-die: d6\n---\n${table}\n`);
+  const render = vi.spyOn(MarkdownRenderer, 'render');
+  vault.app.saveLocalStorage('atlas-vtt:playing-campaign', 'c-1');
+  renderPane();
+  act(() => vault.emit('create', new TFile(at('Classes/Wizard.md'))));
+  await waitFor(() => expect(rows()).toContain('Wizard'));
+  fireEvent.click(row(/Wizard/));
+  await waitFor(() => expect(render.mock.calls.some(([, markdown]) => markdown === table)).toBe(true));
 });
