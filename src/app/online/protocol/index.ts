@@ -5,6 +5,7 @@ export * from './bookSlots.ts';
 export * from './bookText.ts';
 export * from './build.ts';
 export * from './colours.ts';
+export * from './compendium.ts';
 export * from './delta.ts';
 export * from './deltaReader.ts';
 export * from './diagnostics.ts';

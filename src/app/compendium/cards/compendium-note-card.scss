@@ -1,0 +1,47 @@
+// ═══════════════════════════════════════════════════════════════════════════
+// The card beside a compendium note (compendiumNoteCards.ts)
+// ═══════════════════════════════════════════════════════════════════════════
+// The host has the classes of the statblock beside a note (`.atlas-sb-note-panel`), so it takes
+// that panel's width, edge and scroller. These rules only make the note view's content a row,
+// or a column with the card first in a narrow view, as the statblock panel's do.
+
+@use '../../../../styles/tokens' as *;
+@use '../../statblocks/editor/panel-frame/panel-row' as *;
+
+.workspace-leaf-content.atlas-compendium-note {
+  > .view-content {
+    @include atlas-sb-note-row('.markdown-source-view', '.markdown-reading-view');
+  }
+
+  &.atlas-compendium-note--stacked > .view-content {
+    @include atlas-sb-note-row-stacked('.markdown-source-view', '.markdown-reading-view');
+    overflow-y: auto;
+
+    > .markdown-source-view,
+    > .markdown-reading-view {
+      flex: 0 0 auto;
+      height: auto;
+    }
+
+    > .markdown-source-view .cm-editor,
+    > .markdown-source-view .cm-scroller,
+    > .markdown-reading-view .markdown-preview-view {
+      height: auto;
+      overflow: visible;
+    }
+
+    > .atlas-compendium-note-card {
+      order: -1;
+      flex: 0 0 auto;
+      width: auto;
+      max-height: none;
+      border-inline-start: 0;
+      border-block-end: $border-width-s solid var(--divider-color);
+
+      .atlas-sb-note-panel__scroll {
+        overflow: visible;
+        scrollbar-gutter: auto;
+      }
+    }
+  }
+}

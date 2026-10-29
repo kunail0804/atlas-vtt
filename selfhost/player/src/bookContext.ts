@@ -2,7 +2,7 @@ import type { PlayerBook, PlayerBookMessage } from '../../../src/app/online/prot
 import type { MapPlace } from '../../../src/app/online/protocol/bookMap.ts';
 import type { AssetLoader } from './assets.ts';
 
-export type Tab = 'character' | 'sheet' | 'documents' | 'items' | 'equipment' | 'notes' | 'quests' | 'purse' | 'map';
+export type Tab = 'character' | 'sheet' | 'documents' | 'compendium' | 'items' | 'equipment' | 'notes' | 'quests' | 'purse' | 'map';
 
 /** What the book shows besides the book itself: kept across redraws, never sent. */
 export interface BookUi {

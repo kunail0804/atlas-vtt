@@ -109,6 +109,7 @@ message's `body`.
 | Book | `book.ts`, `book*.ts` | Character with editable resources, items the player adds, changes and takes away (`book-item-put`, `book-item-delete`, those the GM handed over too; `bookItems.ts`), equipment slots (equip, hide default slots, add own ones), free notes, quests with their whole text and images, notes on a quest, purse, world map with the maps its entrances lead into and the player's own pins. The GM takes a write without answering, so the page applies it to its own copy with the plugin's `applyBookMessage` (on the message as the GM's parser cleans it); a refused write is answered with the whole book |
 | Character sheet | `bookSheet.tsx` | The book's Fiche tab: the plugin's own sheet (`src/app/characterSheets/CharacterSheet.tsx`), editable. A change shows at once and goes to the GM once typing pauses (`sheet-edit`, `sheet-row`); what the GM sends back does not undo a change of the last two seconds. Current hit points are the token's resource (`book-resource`). A click on a modifier, save, skill, initiative or attack rolls it, named after it |
 | Documents | `bookSheet.tsx`, `reader.ts` | The notes the GM linked to the character, opened in the reader |
+| Compendium | `bookCompendium.ts`, `markdownText.ts`, `deviceKey.ts` | The compendium pages the GM shared with this player, read as cards and changed where the GM lets them |
 | Found notes | `reader.ts`, `documentView.ts` | The note a found pin lets players read, opened from the log or the pin |
 | Notices | `notice.ts` | A new item, a refused roll, a roll without a scene, a book that is full |
 | Words | `text.ts` | Every text the page writes itself |
@@ -166,8 +167,20 @@ GitHub release `compendium-v1` and checked against the size and SHA-256 in `offi
 writes a record to `atlas-vtt/compendium/`; an update or a removal never touches a file the GM changed. A
 folder `Compendium/<system>/<book>` exports as a personal source from its file menu. The asset manager's
 Compendium tab (`src/app/packages/components/asset-manager/compendium/`) lists a campaign's entries, shows
-the selected one, and makes, opens, deletes and exports; `compendium/README.md` describes it. The character
-sheet does not read the compendium yet.
+the selected one, and makes, opens, deletes, exports and shares; `compendium/README.md` describes it. The
+character sheet does not read the compendium yet.
+
+The GM shares compendium pages with the vault's players (`src/app/players/`, kept in `atlas-vtt/players.json`).
+After every welcome, and when the GM comes back, the player's page sends `identify` with its device key
+(`deviceKey.ts`, kept in the browser for every table). The GM's `CompendiumShare`
+(`src/app/online/gm/compendium/`) finds the player by the key's SHA-256, a new player for a device never
+seen, and sends `compendium`, the list of their pages, by an id that is never the note's path. It sends it
+again when the shares or a note change. `compendium-open` asks for a page whole (`compendium-entry`). A change
+of a page the player may write goes as `compendium-edit` in parts of 1,000 characters at most, since a
+player's frame holds 4 KiB. The GM checks the access once the change is whole, writes the note, and answers
+`compendium-saved`. The book's **Compendium** tab (`bookCompendium.ts`) lists the pages by kind and draws a page
+as a card, its text with `markdownText.ts`, which builds elements and text nodes and never markup. The book's
+button shows once the player has a book or a shared page.
 
 ### What players make on the map
 
@@ -186,6 +199,7 @@ page from a real relay, drive it in `/usr/bin/chromium`, and play the GM with th
 | `tests/book.browser.test.ts` | Every page of the book, each write reaching the GM and showing without an answer, the world map's levels and pins, quest images, found notes, a refused roll; markup in names stays text |
 | `tests/diagnostics.test.ts` | Feedback and error reports kept in the data folder; malformed, too large, web-page and flooding requests refused |
 | `tests/phone.browser.test.ts` | At 390 × 844, every control on screen and apart; a touch drag moves the own token |
+| `tests/compendium.browser.test.ts` | The Compendium tab: the player known by their device, their pages by kind, a monster and a spell read as cards, a change written into the note, a page taken back, the same player after a reload |
 | `tests/sheet.browser.test.ts` | The Fiche tab: the sheet's values and worked-out bonuses, a roll from it, a field, a proficiency, hit points and an equipment row reaching the GM, an older sheet not undoing a fresh change, and a linked document read whole |
 | `tests/toolbar.browser.test.ts` | The toolbar's menus, the log open beside the book, and what each tool sends: a pen stroke, a stamp, a text, a partial erase, delete all, a kept circle, the laser's colour, a d20 with advantage. `ATLAS_SHOTS=<dir>` writes screenshots |
 

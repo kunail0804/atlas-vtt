@@ -97,8 +97,14 @@ $preview-max-width: 560px;
     text-wrap: pretty;
   }
 
+  // The tick for a batch share, the name over its kind, the mark of a page shared with a player.
   &__row {
-    @include atlas-flex-col($gap: 2px);
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: 'check name shared' 'check detail shared';
+    align-items: center;
+    column-gap: $spacing-s;
+    row-gap: 2px;
     flex-shrink: 0;
     padding: $spacing-s;
     border-radius: $radius-l;
@@ -123,7 +129,32 @@ $preview-max-width: 560px;
     }
   }
 
+  &__check {
+    grid-area: check;
+    margin: 0;
+  }
+
+  &__shared {
+    grid-area: shared;
+    width: 14px;
+    height: 14px;
+    color: var(--text-accent);
+  }
+
+  &__select-all {
+    @include atlas-flex-row($gap: $spacing-s);
+    flex-shrink: 0;
+    padding: $spacing-xs $spacing-s;
+    color: var(--text-muted);
+    font-size: $font-ui-smaller;
+
+    input {
+      margin: 0;
+    }
+  }
+
   &__name {
+    grid-area: name;
     @include atlas-truncate;
     color: var(--text-normal);
     font-size: $font-ui-small;
@@ -131,6 +162,7 @@ $preview-max-width: 560px;
   }
 
   &__detail {
+    grid-area: detail;
     @include atlas-truncate;
     color: var(--text-muted);
     font-size: $font-ui-smaller;
@@ -167,6 +199,14 @@ $preview-max-width: 560px;
   &__header {
     @include atlas-flex-row($gap: $spacing-xs);
     flex-shrink: 0;
+  }
+
+  &__shared {
+    width: 100%;
+    max-width: $preview-max-width;
+    margin: 0 auto;
+    color: var(--text-muted);
+    font-size: $font-ui-smaller;
   }
 
   &__path {

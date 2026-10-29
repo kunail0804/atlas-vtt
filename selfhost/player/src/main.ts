@@ -19,6 +19,7 @@ import { AnnotationsView } from './annotations.ts';
 import { WidgetBar } from './widgets.ts';
 import { DiceView } from './dice.tsx';
 import { BookPanel } from './book.ts';
+import { deviceKey } from './deviceKey.ts';
 import { Notice } from './notice.ts';
 import { Reader } from './reader.ts';
 import { TEXT } from './text.ts';
@@ -148,6 +149,7 @@ async function main(): Promise<void> {
     if (message.t === 'shown-image') return viewer.fromGm(message);
     if (message.t === 'book' || message.t === 'book-sheet' || message.t === 'book-item') return book.receive(message);
     if (message.t === 'sheet') return book.receiveSheet(message);
+    if (message.t === 'compendium' || message.t === 'compendium-entry' || message.t === 'compendium-saved') return book.receiveCompendium(message);
     if (message.t === 'initiative') return message.scene === scene.sceneId ? initiative.show(message.list) : undefined;
     if (message.t === 'annotations') return message.scene === scene.sceneId ? annotations.showAnnotations(message) : undefined;
     if (message.t === 'widgets') return message.scene === scene.sceneId ? widgets.show(message.bar) : undefined;
@@ -167,10 +169,14 @@ async function main(): Promise<void> {
         log.setPlayer(event.id, request.name);
         log.setCanSend(gmOnline);
         showToolbar();
+        // Who this player is, from one table to the next: the pages the GM shares with them follow.
+        send({ t: 'identify', key: deviceKey() });
         return refresh();
       case 'gm':
         gmOnline = event.online;
         log.setCanSend(gmOnline);
+        // A GM's Atlas that came back knows no one at the table yet.
+        if (gmOnline) send({ t: 'identify', key: deviceKey() });
         return refresh();
       case 'game':
         return inbox.receive(event.body);

@@ -2,6 +2,7 @@ import { ASSET_CHUNK_BYTES, isCount, isHash, isMaxSide, MAX_ASSET_BYTES, parseAs
 import { isPlayerSheetType, parsePlayerSheetEdit, parseSheetMessage, type PlayerSheetEdit, type SheetMessage } from './sheet.ts';
 import { isPlayerAnnotationType, parsePlayerAnnotation, type PlayerAnnotationMessage } from './annotate.ts';
 import { isBookType, isPlayerBookType, parseBookMessage, parsePlayerBookMessage, type BookMessage, type PlayerBookMessage } from './book.ts';
+import { isCompendiumType, isPlayerCompendiumType, parseCompendiumMessage, parsePlayerCompendiumMessage, type CompendiumMessage, type PlayerCompendiumMessage } from './compendium.ts';
 import { isDeltaOf, parseDelta, parseSeq, type DeltaMessage, type DeltaOf } from './delta.ts';
 import { parseFog, type SharedFog } from './fog.ts';
 import { parseImageMessage, type ImageMessage } from './image.ts';
@@ -93,7 +94,9 @@ export type GmMessage =
   | LogMessage
   | ImageMessage
   /** A player's own pages besides the table: character, items, notes, pins. It belongs to the table, not to a scene. */
-  | BookMessage;
+  | BookMessage
+  /** The compendium pages the GM shares with this player. They belong to the player, not to a table. */
+  | CompendiumMessage;
 
 /** A player whose `tokens`, `sight` or `fog` messages no longer follow on (a delta it cannot apply) asks for the whole message. */
 export interface PlayerResync {
@@ -113,7 +116,7 @@ export interface PlayerAssetRequest {
   readonly maxSide?: number;
 }
 
-export type PlayerMessage = PlayerAssetRequest | PlayerResync | PlayerMove | PlayerDrag | PlayerDragCancel | PlayerRoll | PlayerLaser | PlayerMeasure | PlayerCursor | PlayerLogMessage | PlayerBookMessage | PlayerPinFound | PlayerAnnotationMessage | PlayerSheetEdit;
+export type PlayerMessage = PlayerAssetRequest | PlayerResync | PlayerMove | PlayerDrag | PlayerDragCancel | PlayerRoll | PlayerLaser | PlayerMeasure | PlayerCursor | PlayerLogMessage | PlayerBookMessage | PlayerPinFound | PlayerAnnotationMessage | PlayerSheetEdit | PlayerCompendiumMessage;
 
 const MAX_CHUNKS = Math.ceil(MAX_ASSET_BYTES / ASSET_CHUNK_BYTES);
 const BASE64 = /^[A-Za-z0-9+/]*={0,2}$/;
@@ -260,6 +263,7 @@ export function parseGmMessage(value: unknown): GmMessage | null {
       return parseImageMessage(value);
     default:
       if (isBookType(value.t)) return parseBookMessage(value);
+      if (isCompendiumType(value.t)) return parseCompendiumMessage(value);
       return isSceneId(value.scene) ? parseSceneInput(value, value.scene) : null;
   }
 }
@@ -276,6 +280,7 @@ export function parsePlayerMessage(value: unknown): PlayerMessage | null {
   if (isPlayerBookType(value.t)) return parsePlayerBookMessage(value);
   if (isPlayerAnnotationType(value.t)) return parsePlayerAnnotation(value);
   if (isPlayerSheetType(value.t)) return parsePlayerSheetEdit(value);
+  if (isPlayerCompendiumType(value.t)) return parsePlayerCompendiumMessage(value);
   if (value.t === 'resync') return isSceneId(value.scene) && isDeltaOf(value.of) ? { t: 'resync', scene: value.scene, of: value.of } : null;
   return value.t === 'asset-request' ? parseAssetRequest(value) : null;
 }

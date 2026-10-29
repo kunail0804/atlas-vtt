@@ -1,57 +1,25 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { TFile, type App, type TAbstractFile } from 'obsidian';
-import { BookOpen, ExternalLink, Trash2 } from 'lucide-react';
+import React from 'react';
+import { TFile, type App } from 'obsidian';
+import { BookOpen, ExternalLink, Share2, Trash2 } from 'lucide-react';
 import type { CompendiumEntry } from '../../../../compendium/compendiumEntries';
-import { entryCard } from '../../../../compendium/entryCard';
+import { EntryCardView } from '../../../../compendium/cards/EntryCardView';
 import { cachedFrontmatter, frontmatterSource } from '../../../../statblocks/notes/statblockSource';
 import { LinkedStatblock } from '../../../../statblocks/render/LinkedStatblock';
 import { Button } from '../../primitives/button';
 import { t } from '../../../../i18n';
 
-/** The note's text, read again whenever the note changes; null while it is read. */
-function useNoteText(app: App, file: TFile): string | null {
-  const [text, setText] = useState<string | null>(null);
-  useEffect(() => {
-    let current = true;
-    const read = (): void => {
-      app.vault.cachedRead(file).then((read) => { if (current) setText(read); }, (error: unknown) => {
-        console.error('[CompendiumEntryPreview] Reading the note failed:', error);
-        if (current) setText('');
-      });
-    };
-    setText(null);
-    read();
-    const ref = app.vault.on('modify', (changed: TAbstractFile) => { if (changed.path === file.path) read(); });
-    return () => {
-      current = false;
-      app.vault.offref(ref);
-    };
-  }, [app, file]);
-  return text;
-}
-
-/** Any entry but a native statblock, drawn as a statblock card of its properties and text. */
-function EntryCardView({ app, entry, file }: { app: App; entry: CompendiumEntry; file: TFile }): React.JSX.Element | null {
-  const text = useNoteText(app, file);
-  // One array per card: the statblock reads its template again only when the card changes.
-  const card = useMemo(() => {
-    if (text === null) return null;
-    const made = entryCard(entry.group, text, entry.name, t('compendium.browser.yes'));
-    return { text: made.text, templates: [made.template] };
-  }, [text, entry.group, entry.name]);
-  if (card === null) return null;
-  return <LinkedStatblock app={app} path={entry.path} noteText={card.text} bundleTemplates={card.templates} variant="hover" />;
-}
-
 interface CompendiumEntryPreviewProps {
   app: App;
   entry: CompendiumEntry | null;
+  /** Who the entry is shared with, as a line. */
+  sharedWith: string | null;
+  onShare: (entry: CompendiumEntry) => void;
   onOpen: (entry: CompendiumEntry) => void;
   onDelete: (entry: CompendiumEntry) => void;
 }
 
 /** The selected entry as a statblock card, with Open and Delete. A monster shows its own statblock. */
-export function CompendiumEntryPreview({ app, entry, onOpen, onDelete }: CompendiumEntryPreviewProps): React.JSX.Element {
+export function CompendiumEntryPreview({ app, entry, sharedWith, onShare, onOpen, onDelete }: CompendiumEntryPreviewProps): React.JSX.Element {
   const file = entry ? app.vault.getAbstractFileByPath(entry.path) : null;
   if (!entry || !(file instanceof TFile)) {
     return (
@@ -72,16 +40,21 @@ export function CompendiumEntryPreview({ app, entry, onOpen, onDelete }: Compend
           <ExternalLink aria-hidden />
           <span>{t('compendium.browser.open')}</span>
         </Button>
+        <Button variant="ghost" size="sm" onClick={() => onShare(entry)}>
+          <Share2 aria-hidden />
+          <span>{t('compendium.share.button')}</span>
+        </Button>
         <Button variant="ghost" size="sm" onClick={() => onDelete(entry)}>
           <Trash2 aria-hidden />
           <span>{t('compendium.browser.delete')}</span>
         </Button>
       </div>
+      {sharedWith !== null && <p className="atlas-compendium-preview__shared">{sharedWith}</p>}
       <div className="atlas-compendium-preview__body">
         {/* Keyed by note, so every entry opens scrolled to its top. */}
         {isStatblock
           ? <LinkedStatblock key={entry.path} app={app} path={entry.path} variant="hover" />
-          : <EntryCardView key={entry.path} app={app} entry={entry} file={file} />}
+          : <EntryCardView key={entry.path} app={app} file={file} group={entry.group} name={entry.name} variant="hover" />}
       </div>
     </div>
   );

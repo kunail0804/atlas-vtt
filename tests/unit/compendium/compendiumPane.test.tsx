@@ -212,3 +212,45 @@ it('hands a table in an entry\'s text to Obsidian\'s Markdown renderer whole, li
   fireEvent.click(row(/Wizard/));
   await waitFor(() => expect(render.mock.calls.some(([, markdown]) => markdown === table)).toBe(true));
 });
+
+it('shares a batch of entries with a player the GM made, changes it for one, and removing the player ends it', async () => {
+  vault.app.saveLocalStorage('atlas-vtt:playing-campaign', 'c-1');
+  renderPane();
+  await waitFor(() => expect(rows()).toHaveLength(3));
+  const roster = (): { players: Record<string, { name: string }>; shares: Record<string, Record<string, string>> } =>
+    JSON.parse(vault.files.get('atlas-vtt/players.json') ?? '{"players":{},"shares":{}}') as never;
+
+  fireEvent.click(screen.getByRole('button', { name: 'New player…' }));
+  const playerDialog = await screen.findByRole('dialog', { name: 'New player' });
+  fireEvent.change(within(playerDialog).getByLabelText('Name'), { target: { value: 'Ana' } });
+  fireEvent.click(within(playerDialog).getByRole('button', { name: 'Save' }));
+  await waitFor(() => expect(Object.values(roster().players).map((player) => player.name)).toEqual(['Ana']));
+  const [ana] = Object.keys(roster().players);
+
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Select Fireball' }));
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Select Goblin' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Share 2 pages…' }));
+  const shareDialog = await screen.findByRole('dialog', { name: 'Share 2 pages' });
+  fireEvent.change(within(shareDialog).getByRole('combobox', { name: 'What Ana gets' }), { target: { value: 'read' } });
+  fireEvent.click(within(shareDialog).getByRole('button', { name: 'Save' }));
+  await waitFor(() => expect(roster().shares).toEqual({ [at('Spells/Fireball.md')]: { [ana ?? '']: 'read' }, [at('Monsters/Goblin.md')]: { [ana ?? '']: 'read' } }));
+
+  // One page then: the GM lets Ana change the Fireball.
+  fireEvent.click(row(/Fireball/));
+  const sharedLine = (): string | null | undefined => document.querySelector('.atlas-compendium-preview__shared')?.textContent;
+  await waitFor(() => expect(sharedLine()).toBe('Shared with Ana (read)'));
+  fireEvent.click(within(document.querySelector('.atlas-compendium-preview') as HTMLElement).getByRole('button', { name: 'Share…' }));
+  const oneDialog = await screen.findByRole('dialog', { name: 'Share Fireball' });
+  fireEvent.change(within(oneDialog).getByRole('combobox', { name: 'What Ana gets' }), { target: { value: 'write' } });
+  fireEvent.click(within(oneDialog).getByRole('button', { name: 'Save' }));
+  await waitFor(() => expect(sharedLine()).toBe('Shared with Ana (read and write)'));
+
+  // Ana's pages alone.
+  fireEvent.click(screen.getByRole('button', { name: /^Ana/ }));
+  expect(rows()).toEqual(['Fireball', 'Goblin']);
+
+  dialogs.confirmAction.mockResolvedValueOnce(true);
+  fireEvent.click(screen.getByRole('button', { name: 'Remove Ana' }));
+  await waitFor(() => expect(roster()).toEqual(expect.objectContaining({ players: {}, shares: {} })));
+  expect(rows()).toEqual(['Fireball', 'Goblin', 'SRD 5.1 attribution']);
+});

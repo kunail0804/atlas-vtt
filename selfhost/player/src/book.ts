@@ -15,9 +15,11 @@ import { worldMapPage } from './bookWorldMap.ts';
 import { TEXT } from './text.ts';
 import { BookSheet, type SheetPorts } from './bookSheet.tsx';
 import type { SheetMessage } from '../../../src/app/online/protocol/sheet.ts';
+import type { CompendiumMessage } from '../../../src/app/online/protocol/compendium.ts';
+import { CompendiumPages } from './bookCompendium.ts';
 
-const TABS: readonly Tab[] = ['character', 'sheet', 'documents', 'items', 'equipment', 'notes', 'quests', 'purse', 'map'];
-const PAGES: Readonly<Record<Exclude<Tab, 'sheet' | 'documents'>, (context: PageContext) => HTMLElement>> = {
+const TABS: readonly Tab[] = ['character', 'sheet', 'documents', 'compendium', 'items', 'equipment', 'notes', 'quests', 'purse', 'map'];
+const PAGES: Readonly<Record<Exclude<Tab, 'sheet' | 'documents' | 'compendium'>, (context: PageContext) => HTMLElement>> = {
   character: characterPage, items: itemsPage, equipment: equipmentPage, notes: notesPage, quests: questsPage, purse: pursePage, map: worldMapPage,
 };
 
@@ -43,12 +45,20 @@ export class BookPanel {
   /** The character sheet and the notes the GM linked to it. */
   private readonly sheet: BookSheet;
 
+  /** The compendium pages the GM shared with this player, whether or not they play a character. */
+  private readonly compendium: CompendiumPages;
+
   constructor(host: HTMLElement, assets: AssetLoader, send: (message: PlayerMessage) => void, tell: (text: string) => void, available: (has: boolean) => void, sheet: Omit<SheetPorts, 'send' | 'setHitPoints'>) {
     this.sheet = new BookSheet({ ...sheet, send, setHitPoints: (current) => this.setHitPoints(current) });
     this.assets = assets;
     this.send = send;
     this.tell = tell;
     this.available = available;
+    this.compendium = new CompendiumPages({
+      send, tell,
+      redraw: () => { if (!this.panel.hidden && this.ui.tab === 'compendium') this.render(); },
+      changed: () => this.tellAvailable(),
+    });
     this.panel = node('aside', 'atlas-vtt-plugin book');
     // A press in the book leaves the log open beside it.
     this.panel.dataset.keepsLogOpen = '';
@@ -77,9 +87,19 @@ export class BookPanel {
       this.book = { ...this.book, items: [...this.book.items.filter((item) => item.id !== message.item.id), message.item] };
       this.tell(TEXT.book.newItem(message.item.name));
     }
-    this.available(this.book !== null);
+    this.tellAvailable();
     this.sheet.setCharacter(this.book?.character ?? null);
     if (!this.panel.hidden) this.render();
+  }
+
+  /** The compendium pages the GM shared, as the GM sent them. */
+  receiveCompendium(message: CompendiumMessage): void {
+    this.compendium.receive(message);
+  }
+
+  /** The book's button shows once there is a book or a shared page to open. */
+  private tellAvailable(): void {
+    this.available(this.book !== null || this.compendium.hasPages);
   }
 
   /** The character sheet and its notes, as the GM sent them. */
@@ -138,16 +158,21 @@ export class BookPanel {
     this.panel.classList.toggle('book-wide', this.ui.tab === 'map' || this.ui.tab === 'sheet');
     if (this.ui.tab === 'sheet') return this.body.replaceChildren(this.sheet.sheetPage());
     if (this.ui.tab === 'documents') return this.body.replaceChildren(this.sheet.documentsPage());
+    if (this.ui.tab === 'compendium') return this.renderKeepingFocus(() => this.compendium.page());
     const book = this.book;
     if (book === null) return this.body.replaceChildren(node('p', 'book-empty', TEXT.book.coming));
-    // The field the player is typing in keeps the focus and the caret through the redraw.
+    const context: PageContext = { book, assets: this.assets, write: (message) => this.write(message), redraw: () => this.render(), drafts: this.drafts, ui: this.ui };
+    const tab = this.ui.tab;
+    this.renderKeepingFocus(() => PAGES[tab](context));
+  }
+
+  /** Draws a page again: the field the player is typing in keeps the focus and the caret, the page its scroll. */
+  private renderKeepingFocus(build: () => HTMLElement): void {
     const active = document.activeElement;
     const field = active instanceof HTMLElement && this.body.contains(active) ? active.dataset.field : undefined;
     const caret: readonly [number | null, number | null] | null = active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement ? [active.selectionStart, active.selectionEnd] : null;
     const scroll = this.body.scrollTop;
-    const context: PageContext = { book, assets: this.assets, write: (message) => this.write(message), redraw: () => this.render(), drafts: this.drafts, ui: this.ui };
-    const tab = this.ui.tab;
-    this.body.replaceChildren(PAGES[tab](context));
+    this.body.replaceChildren(build());
     this.body.scrollTop = scroll;
     if (field === undefined) return;
     const again = this.body.querySelector<HTMLElement>(`[data-field="${CSS.escape(field)}"]`);

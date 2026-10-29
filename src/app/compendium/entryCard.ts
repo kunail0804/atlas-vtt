@@ -97,7 +97,7 @@ function hashOf(text: string): string {
 const blockId = (index: number): string => `cc${index.toString(36).padStart(6, '0')}`;
 
 /** The note's frontmatter and body; an empty frontmatter where it has none or it cannot be read. */
-function splitNote(text: string): { frontmatter: Record<string, unknown>; body: string } {
+export function splitNote(text: string): { frontmatter: Record<string, unknown>; body: string } {
   const match = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(text);
   if (!match) return { frontmatter: {}, body: text.trim() };
   let parsed: unknown;
@@ -110,12 +110,18 @@ function splitNote(text: string): { frontmatter: Record<string, unknown>; body: 
   return { frontmatter, body: text.slice(match[0].length).trim() };
 }
 
+/** One line of a card: a property, its label, and its value as text or as a list. */
+export interface CardRow {
+  readonly key: string;
+  readonly label: string;
+  readonly value: string | readonly string[];
+}
+
 /**
- * The card of a compendium note: its text as a statblock of a template made for it. A true
- * property shows as `yes`; false and empty ones are left off. `name` falls back to `fallbackName`.
+ * The lines a card shows of an entry's properties: those its kind lists, in that order, then the
+ * others the note has. A true property shows as `yes`; false and empty ones are left off.
  */
-export function entryCard(group: EntryGroup, noteText: string, fallbackName: string, yes: string): EntryCard {
-  const { frontmatter, body } = splitNote(noteText);
+export function cardRows(group: EntryGroup, frontmatter: Readonly<Record<string, unknown>>, yes: string): CardRow[] {
   const known = ROWS[group];
   const rows: Row[] = [...known];
   for (const key of Object.keys(frontmatter)) {
@@ -123,29 +129,48 @@ export function entryCard(group: EntryGroup, noteText: string, fallbackName: str
     if (known.some(([knownKey]) => knownKey === key)) continue;
     rows.push(Array.isArray(frontmatter[key]) ? [key, labelOf(key), 'list'] : [key, labelOf(key)]);
   }
+  const shown: CardRow[] = [];
+  for (const [key, label, list] of rows) {
+    const value = frontmatter[key];
+    if (list === 'list') {
+      const items = listOf(value, yes);
+      if (items.length > 0) shown.push({ key, label, value: items });
+    } else {
+      const text = textOf(value, yes);
+      if (text !== '') shown.push({ key, label, value: text });
+    }
+  }
+  return shown;
+}
 
+/** The name an entry's card shows: its `name` property, else `fallbackName`. */
+export function cardName(frontmatter: Readonly<Record<string, unknown>>, fallbackName: string): string {
+  return typeof frontmatter.name === 'string' && frontmatter.name.trim() !== '' ? frontmatter.name : fallbackName;
+}
+
+/**
+ * The card of a compendium note: its text as a statblock of a template made for it. A true
+ * property shows as `yes`; false and empty ones are left off. `name` falls back to `fallbackName`.
+ * `withText: false` leaves the note's text off, for a card drawn beside the note itself.
+ */
+export function entryCard(group: EntryGroup, noteText: string, fallbackName: string, yes: string, options: { withText?: boolean } = {}): EntryCard {
+  const { frontmatter, body } = splitNote(noteText);
   const values: Record<string, unknown> = {};
   const fields: TemplateField[] = [{ key: 'name', label: 'Name', type: 'text' }];
   const blocks: TemplateBlock[] = [];
-  for (const [property, label, list] of rows) {
-    const value = frontmatter[property];
+  for (const row of cardRows(group, frontmatter, yes)) {
     // A field of the card's own: a property such as `level` or `type` would be taken for a part of the header.
     const key = `card_${fields.length}`;
-    if (list === 'list') {
-      const items = listOf(value, yes);
-      if (items.length === 0) continue;
-      values[key] = items;
-      fields.push({ key, label, type: 'list' });
-      blocks.push({ id: blockId(blocks.length), type: 'tags', field: key, label, look: 'comma' });
+    values[key] = row.value;
+    if (typeof row.value === 'string') {
+      fields.push({ key, label: row.label, type: 'text' });
+      blocks.push({ id: blockId(blocks.length), type: 'stat', field: key, label: row.label, look: 'run-in' });
     } else {
-      const text = textOf(value, yes);
-      if (text === '') continue;
-      values[key] = text;
-      fields.push({ key, label, type: 'text' });
-      blocks.push({ id: blockId(blocks.length), type: 'stat', field: key, label, look: 'run-in' });
+      fields.push({ key, label: row.label, type: 'list' });
+      blocks.push({ id: blockId(blocks.length), type: 'tags', field: key, label: row.label, look: 'comma' });
     }
   }
-  if (body !== '') {
+  if (body !== '' && options.withText !== false) {
     if (blocks.length > 0) blocks.push({ id: blockId(blocks.length), type: 'divider' });
     values[BODY_KEY] = body;
     fields.push({ key: BODY_KEY, label: 'Text', type: 'markdown' });
@@ -161,8 +186,7 @@ export function entryCard(group: EntryGroup, noteText: string, fallbackName: str
     header: { hidden: ['token', 'level', 'type', 'hp', 'description'] },
     layout: { maxColumns: 1, columnWidth: 22, blocks },
   });
-  const name = typeof frontmatter.name === 'string' && frontmatter.name.trim() !== '' ? frontmatter.name : fallbackName;
-  const card = { statblock: true, [TEMPLATE_KEY]: id, name, ...values };
+  const card = { statblock: true, [TEMPLATE_KEY]: id, name: cardName(frontmatter, fallbackName), ...values };
   return {
     text: `---\n${stringifyYaml(card)}---\n`,
     template: { template, name: labelOf(group), status: 'ok', builtIn: false, path: null },

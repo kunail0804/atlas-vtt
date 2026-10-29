@@ -23,6 +23,7 @@ import { LOST_NOTICES, type OnlineTableEvents } from './tableEvents.ts';
 
 export type { OnlineTableEvents };
 import { FoundShare } from './pins/FoundShare.ts';
+import { tableCompendium, type TableCompendium } from './compendium/tableCompendium.ts';
 
 /** How often the presented tab is looked for, and the shared one checked. */
 const WATCH_MS = 1_000;
@@ -56,6 +57,8 @@ export class OnlineTable {
   private readonly books: TableBook;
   /** The readable pins players find, and the notes they found. */
   private readonly found: FoundShare;
+  /** The compendium pages the GM shares with the vault's players, sent to them while they sit here. */
+  private readonly compendium: TableCompendium;
   /** The join link players open. */
   readonly link: string;
   private readonly stopOwnership: () => void;
@@ -101,6 +104,7 @@ export class OnlineTable {
       app, send: (body, to) => this.connection.send(body, to), now: () => timers.now(), nameOf: (player) => ownership.nameOf(player),
       readImage: (path) => readVaultImage(app, path), scaleImage: scaleInWindow, layers: () => this.bound()?.share.layers ?? null,
     });
+    this.compendium = tableCompendium(app, (body, to) => this.connection.send(body, to), (player) => ownership.nameOf(player));
     this.books = tableBook({
       app, shelf, ownership, randomId: () => randomHex(12),
       send: (body, to) => this.connection.send(body, to),
@@ -153,11 +157,12 @@ export class OnlineTable {
         this.books.share.playerLeft(player);
         this.books.sheets.playerLeft(player);
         this.found.playerLeft(player);
+        this.compendium.share.playerLeft(player);
         ownership.left(player);
         this.log.left(player);
       },
       // The log, the shown image and the books are the table's, so they hear players while no scene is shared too.
-      message: (from, body) => void (this.log.receive(from, body) || this.image.receive(from, body) || this.found.receive(from, body) || this.books.sheets.receive(from, body) || this.books.share.receive(from, body) || this.bound()?.share.receive(from, body)),
+      message: (from, body) => void (this.log.receive(from, body) || this.image.receive(from, body) || this.found.receive(from, body) || this.compendium.share.receive(from, body) || this.books.sheets.receive(from, body) || this.books.share.receive(from, body) || this.bound()?.share.receive(from, body)),
       access: (closesAt) => this.setClosing(closesAt),
     }, this.gate);
     this.stopOwnership = ownership.onChange(() => this.bound()?.share.ownersChanged());
@@ -209,6 +214,7 @@ export class OnlineTable {
     this.connection.start();
     this.books.start();
     this.found.start();
+    this.compendium.start();
     this.watch.check();
     this.stopWatchTimer = every(companionTimers(), WATCH_MS, () => this.watch.check());
     // Atlas presenting another scene is followed at once; the timer catches everything else
@@ -249,6 +255,7 @@ export class OnlineTable {
     this.gate.dispose();
     this.log.dispose();
     this.books.stop();
+    this.compendium.stop();
     this.closing = null;
     this.events.ended(end);
   }

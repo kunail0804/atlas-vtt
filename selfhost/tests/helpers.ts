@@ -61,6 +61,8 @@ export class TestGm {
   readonly gone: { id: string; full: boolean }[] = [];
   readonly pauses: number[] = [];
   gateFrame: GateFrame = { code: null, ask: false };
+  /** Told each player message as it arrives, after it is kept in `messages`. */
+  onMessage: ((from: string, body: unknown) => void) | null = null;
 
   constructor(gmOrigin: string, code: string, secret: string) {
     const events: TableEvents = {
@@ -68,7 +70,10 @@ export class TestGm {
       welcome: () => undefined,
       joined: (player) => this.joined.push(player),
       left: (id) => this.left.push(id),
-      message: (from, body) => this.messages.push({ from, body }),
+      message: (from, body) => {
+        this.messages.push({ from, body });
+        this.onMessage?.(from, body);
+      },
       access: () => undefined,
     };
     const gate: GateEvents = {

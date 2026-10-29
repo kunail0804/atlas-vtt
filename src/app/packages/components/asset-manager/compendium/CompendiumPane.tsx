@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { TFile, type App } from 'obsidian';
 import { AnimatePresence } from 'framer-motion';
-import { BookPlus, FilePlus, Library, Search, Settings, Trash2, Upload } from 'lucide-react';
+import { BookPlus, FilePlus, Library, Pencil, Search, Settings, Share2, Trash2, Upload, UserPlus, Users } from 'lucide-react';
 import { CampaignFiles } from '../../../../campaigns/CampaignFiles';
 import { CampaignPlay } from '../../../../campaigns/campaignPlay';
 import { useCampaigns } from '../../../../campaigns/useCampaigns';
@@ -21,13 +21,17 @@ import { t } from '../../../../i18n';
 import { CompendiumEntryPreview } from './CompendiumEntryPreview';
 import { NewBookDialog } from './NewBookDialog';
 import { NewEntryDialog } from './NewEntryDialog';
+import { PlayerDialog } from './PlayerDialog';
+import { ShareDialog } from './ShareDialog';
+import { useRoster } from '../../../../players/useRoster';
+import type { ShareAccess } from '../../../../players/roster';
 import { useCompendiumEntries } from './useCompendiumEntries';
 
 /** The value of the campaign list that shows every installed source, whatever campaign uses it. */
 const WHOLE_VAULT = '';
 const GROUPS: readonly EntryGroup[] = [...ENTRY_KINDS, 'other'];
 
-type OpenDialog = 'sources' | 'entry' | 'book' | null;
+type OpenDialog = 'sources' | 'entry' | 'book' | 'share' | 'player' | null;
 
 interface CompendiumPaneProps {
   app: App;
@@ -74,6 +78,17 @@ export function CompendiumPane({ app, tabs, onClose, onDialogChange }: Compendiu
   const [search, setSearch] = useState('');
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [dialog, setDialog] = useState<OpenDialog>(null);
+  const { roster, service: players } = useRoster(app);
+  /** The entries ticked for a batch share, by path. */
+  const [checked, setChecked] = useState<ReadonlySet<string>>(new Set());
+  /** The player whose pages the list shows; null for every entry. */
+  const [chosenPlayer, setChosenPlayer] = useState<string | null>(null);
+  /** The player the player dialog changes; null makes a new one. */
+  const [editedPlayer, setEditedPlayer] = useState<string | null>(null);
+  /** The pages the share dialog shares. */
+  const [sharing, setSharing] = useState<readonly string[]>([]);
+  /** Counts the dialogs opened: each opening is a dialog of its own, never one still closing. */
+  const [opening, setOpening] = useState(0);
   const dialogOpen = dialog !== null;
   useEffect(() => {
     onDialogChange(dialogOpen);
@@ -82,7 +97,47 @@ export function CompendiumPane({ app, tabs, onClose, onDialogChange }: Compendiu
 
   const bookId = books.some((book) => book.id === chosenBookId) ? chosenBookId : null;
   const filter = { group, bookId, search };
-  const shown = entries.filter((entry) => entryMatches(entry, filter));
+  const playerFilter = chosenPlayer !== null && chosenPlayer in roster.players ? chosenPlayer : null;
+  const shown = entries.filter((entry) => entryMatches(entry, filter) && (playerFilter === null || roster.shares[entry.path]?.[playerFilter] !== undefined));
+  const ticked = shown.filter((entry) => checked.has(entry.path));
+  const playerList = Object.entries(roster.players).sort((a, b) => a[1].name.localeCompare(b[1].name));
+  const sharedCount = (id: string): number => entries.filter((entry) => roster.shares[entry.path]?.[id] !== undefined).length;
+  /** "Alice (read), Bob (read and write)", for the note at `path`. */
+  const sharedWith = (path: string): string => {
+    const names = Object.entries(roster.shares[path] ?? {})
+      .map(([id, access]) => ({ name: roster.players[id]?.name ?? id, access }))
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map(({ name, access }) => t(access === 'write' ? 'compendium.share.writeBy' : 'compendium.share.readBy', { name }));
+    return names.length === 0 ? t('compendium.share.notShared') : t('compendium.share.sharedWith', { names: names.join(', ') });
+  };
+  const toggleChecked = (path: string): void => {
+    const next = new Set(checked);
+    if (!next.delete(path)) next.add(path);
+    setChecked(next);
+  };
+  const openShare = (paths: readonly string[]): void => {
+    if (paths.length === 0) return;
+    setSharing(paths);
+    setOpening((count) => count + 1);
+    setDialog('share');
+  };
+  const openPlayer = (id: string | null): void => {
+    setEditedPlayer(id);
+    setOpening((count) => count + 1);
+    setDialog('player');
+  };
+  const removePlayer = async (id: string): Promise<void> => {
+    const name = roster.players[id]?.name ?? id;
+    const confirmed = await confirmAction({
+      title: t('compendium.player.removeTitle', { name }),
+      message: [t('compendium.player.removeMessage')],
+      confirmLabel: t('common.delete'),
+      destructive: true,
+    });
+    if (!confirmed) return;
+    if (chosenPlayer === id) setChosenPlayer(null);
+    await players.remove(id);
+  };
   const counts = groupCounts(entries, filter);
   const bookCounts = new Map<string, number>();
   for (const entry of entries) bookCounts.set(entry.bookId, (bookCounts.get(entry.bookId) ?? 0) + 1);
@@ -262,6 +317,46 @@ export function CompendiumPane({ app, tabs, onClose, onDialogChange }: Compendiu
             </div>
           </div>
 
+          <div className="atlas-compendium-sidebar__section">
+            <div className="atlas-compendium-sidebar__heading">
+              <div className="atlas-section-title">{t('compendium.player.heading')}</div>
+              <LabelTooltip label={t('compendium.player.new')}>
+                <Button variant="ghost" size="icon" className="atlas-collection-header-btn" aria-label={t('compendium.player.new')} onClick={() => openPlayer(null)}>
+                  <UserPlus />
+                </Button>
+              </LabelTooltip>
+            </div>
+            <div className="atlas-compendium-sidebar__list">
+              {playerList.length > 0 && (
+                <button type="button" className={`atlas-tag-button ${playerFilter === null ? 'atlas-active' : ''}`} aria-pressed={playerFilter === null} onClick={() => setChosenPlayer(null)}>
+                  <Users className="atlas-tag-icon" />
+                  <span className="atlas-tag-text">{t('compendium.player.all')}</span>
+                </button>
+              )}
+              {playerList.length === 0 && <p className="atlas-compendium-sidebar__hint">{t('compendium.share.noPlayers')}</p>}
+              {playerList.map(([id, player]) => (
+                <div key={id} className="atlas-compendium-sidebar__book">
+                  <LabelTooltip label={t('compendium.player.filter', { name: player.name })} describe>
+                    <button type="button" className={`atlas-tag-button ${playerFilter === id ? 'atlas-active' : ''}`} aria-pressed={playerFilter === id} onClick={() => setChosenPlayer(id)}>
+                      <span className="atlas-tag-text">{player.name}</span>
+                      <span className="atlas-tag-count">{sharedCount(id)}</span>
+                    </button>
+                  </LabelTooltip>
+                  <LabelTooltip label={t('compendium.player.edit', { name: player.name })}>
+                    <Button variant="ghost" size="icon" className="atlas-collection-header-btn" aria-label={t('compendium.player.edit', { name: player.name })} onClick={() => openPlayer(id)}>
+                      <Pencil />
+                    </Button>
+                  </LabelTooltip>
+                  <LabelTooltip label={t('compendium.player.remove', { name: player.name })}>
+                    <Button variant="ghost" size="icon" className="atlas-collection-header-btn" aria-label={t('compendium.player.remove', { name: player.name })} onClick={() => { void removePlayer(id); }}>
+                      <Trash2 />
+                    </Button>
+                  </LabelTooltip>
+                </div>
+              ))}
+            </div>
+          </div>
+
           {missing.length > 0 && (
             <section className="atlas-compendium-sidebar__section" aria-label={t('compendium.missing')}>
               <div className="atlas-section-title">{t('compendium.missing')}</div>
@@ -310,6 +405,18 @@ export function CompendiumPane({ app, tabs, onClose, onDialogChange }: Compendiu
                 onChange={(event) => setSearch(event.target.value)}
               />
             </label>
+            <LabelTooltip label={ticked.length > 0 ? t('compendium.share.buttonMany', { count: ticked.length }) : t('compendium.share.button')}>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="atlas-collection-header-btn"
+                aria-label={ticked.length > 0 ? t('compendium.share.buttonMany', { count: ticked.length }) : t('compendium.share.button')}
+                disabled={ticked.length === 0 && selected === null}
+                onClick={() => openShare(ticked.length > 0 ? ticked.map((entry) => entry.path) : selected ? [selected.path] : [])}
+              >
+                <Share2 />
+              </Button>
+            </LabelTooltip>
             <LabelTooltip label={t('compendium.browser.newEntry')}>
               <Button
                 variant="default"
@@ -329,6 +436,18 @@ export function CompendiumPane({ app, tabs, onClose, onDialogChange }: Compendiu
       <div className="atlas-asset-manager-body atlas-compendium-body">
         <div className="atlas-compendium-list" role="listbox" aria-label={t('compendium.browser.tab')}>
           {shown.length === 0 && <p className="atlas-compendium-list__empty">{emptyText}</p>}
+          {shown.length > 0 && (
+            <label className="atlas-compendium-list__select-all">
+              <input
+                type="checkbox"
+                aria-label={ticked.length === shown.length ? t('compendium.share.clear') : t('compendium.share.selectAll')}
+                checked={ticked.length === shown.length}
+                ref={(box) => { if (box) box.indeterminate = ticked.length > 0 && ticked.length < shown.length; }}
+                onChange={() => setChecked(ticked.length === shown.length ? new Set() : new Set(shown.map((entry) => entry.path)))}
+              />
+              <span>{ticked.length > 0 ? t('compendium.share.selected', { count: ticked.length }) : t('compendium.share.selectAll')}</span>
+            </label>
+          )}
           {shown.map((entry) => (
             <div
               key={entry.path}
@@ -343,7 +462,22 @@ export function CompendiumPane({ app, tabs, onClose, onDialogChange }: Compendiu
                 else if (event.key === ' ') { event.preventDefault(); setSelectedPath(entry.path); }
               }}
             >
+              <input
+                type="checkbox"
+                className="atlas-compendium-list__check"
+                aria-label={t('compendium.share.select', { name: entry.name })}
+                checked={checked.has(entry.path)}
+                onClick={(event) => event.stopPropagation()}
+                onDoubleClick={(event) => event.stopPropagation()}
+                onKeyDown={(event) => event.stopPropagation()}
+                onChange={() => toggleChecked(entry.path)}
+              />
               <span className="atlas-compendium-list__name">{entry.name}</span>
+              {roster.shares[entry.path] !== undefined && (
+                <LabelTooltip label={sharedWith(entry.path)} describe>
+                  <Users className="atlas-compendium-list__shared" aria-label={t('compendium.share.shared')} />
+                </LabelTooltip>
+              )}
               <span className="atlas-compendium-list__detail">
                 {t(`compendium.kind.${entry.group}`)}
                 {bookId === null && books.length > 1 ? ` · ${bookName(entry.bookId)}` : ''}
@@ -351,7 +485,14 @@ export function CompendiumPane({ app, tabs, onClose, onDialogChange }: Compendiu
             </div>
           ))}
         </div>
-        <CompendiumEntryPreview app={app} entry={selected} onOpen={openEntry} onDelete={(entry) => { void deleteEntry(entry); }} />
+        <CompendiumEntryPreview
+          app={app}
+          entry={selected}
+          sharedWith={selected ? sharedWith(selected.path) : null}
+          onShare={(entry) => openShare([entry.path])}
+          onOpen={openEntry}
+          onDelete={(entry) => { void deleteEntry(entry); }}
+        />
       </div>
 
       <AnimatePresence>
@@ -365,6 +506,30 @@ export function CompendiumPane({ app, tabs, onClose, onDialogChange }: Compendiu
             initialBookId={bookId}
             initialKind={group !== null && isEntryKind(group) ? group : null}
             onCreate={createEntry}
+            onClose={() => setDialog(null)}
+          />
+        )}
+        {dialog === 'share' && (
+          <ShareDialog
+            key={`share-${opening}`}
+            roster={roster}
+            paths={sharing}
+            name={sharing.length === 1 ? entries.find((entry) => entry.path === sharing[0])?.name ?? null : null}
+            onSave={(changes: Readonly<Record<string, ShareAccess | null>>) => players.share(sharing, changes)}
+            onClose={() => setDialog(null)}
+          />
+        )}
+        {dialog === 'player' && (
+          <PlayerDialog
+            key={`player-${opening}`}
+            roster={roster}
+            playerId={editedPlayer}
+            onCreate={async (name) => { await players.add(name); }}
+            onRename={(id, name) => players.rename(id, name)}
+            onMerge={async (id, into) => {
+              await players.merge(id, into);
+              if (chosenPlayer === id) setChosenPlayer(into);
+            }}
             onClose={() => setDialog(null)}
           />
         )}

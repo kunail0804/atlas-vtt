@@ -35,7 +35,12 @@ function utf8Length(text: string): number {
   return bytes;
 }
 
+/** The bytes a player's message takes on the wire, in the frame that carries it. */
+export function playerFrameBytes(body: unknown): number {
+  return utf8Length(JSON.stringify({ v: PROTOCOL_VERSION, t: 'send', body }));
+}
+
 /** Whether the relay takes a player's message: a long note in a script of many bytes a character may not fit one frame. */
 export function fitsPlayerFrame(body: PlayerBookMessage): boolean {
-  return utf8Length(JSON.stringify({ v: PROTOCOL_VERSION, t: 'send', body })) <= MAX_PLAYER_FRAME;
+  return playerFrameBytes(body) <= MAX_PLAYER_FRAME;
 }

@@ -15,9 +15,12 @@ own notes as a personal source and install it in another vault.
 Each note's frontmatter starts with `atlas-compendium` (spell, monster, class, subclass, species,
 background, feat, item, magic-item, condition, rule), `atlas-system` and `atlas-source`. Monster notes are
 native statblocks of the built-in 5E template of their edition (`statblock: true`, `atlas-template`). The
-compendium tab of the asset manager and a linked token's preview show them as statblocks; a note opened in
-Obsidian shows one beside it only while the experimental Statblock editor is on, and Fantasy Statblocks reads
-them only with its "Parse Frontmatter" setting on.
+compendium tab of the asset manager and a linked token's preview show them as statblocks. A compendium note
+opened in Obsidian shows its entry as a read-only card beside it (`src/app/compendium/cards/`): a monster its
+statblock, any other entry the card of its properties. While the experimental Statblock editor is on, a
+monster shows the editable statblock instead. Fantasy Statblocks reads monsters only with its "Parse
+Frontmatter" setting on. Both 5E monster templates show `ac_class` after the armour class: "15 (leather
+armor, shield)".
 
 `src/app/compendium/sourceFormat.ts` holds the kinds, their folders and the monster template of each
 system; the build and Atlas read the same list.
@@ -65,6 +68,11 @@ is created. The GM ticks a whole game system or single books; saving downloads w
 and stores the choice in the campaign's `sources`. Sources are installed once per vault and every
 campaign can use them.
 
+Every game system in the picker has a **Personal** book (`<system>/personal`). It is ticked with the first
+book of its system and made when the GM saves. The GM's own entries go there, so the books Atlas publishes
+stay as published. A book installed in the vault has a remove button. **Not in this vault** lists the
+sources a campaign names that the vault lacks, to untick them.
+
 An update compares each file three ways, as a collection import does (`importPlan.ts`): what the last
 install wrote (the record in `atlas-vtt/compendium/`), what the vault holds and what the source
 carries. A file the GM changed or deleted stays as the GM left it. Removing a source moves its untouched
@@ -86,11 +94,38 @@ note** opens it in a new tab and closes the manager; **Delete** moves it to the 
 - **New entry…** writes a note into a book's folder of its kind (`Monsters/`, `Spells/`…) with
   `atlas-compendium`, `atlas-system`, `atlas-source` and `name`. A monster of a system with a built-in monster
   template (`MONSTER_TEMPLATES`) is a native statblock of that template.
-- The upload button beside a personal book exports it, as the folder's file menu does.
+- The upload button beside a personal book exports it, as the folder's file menu does. The trash button
+  beside a book removes it from the vault after the GM confirms, and from the campaign shown.
+- **Not in this vault** lists the campaign's sources the vault lacks.
+- **New entry…** offers the campaign's Personal book first.
+
+## Sharing pages with players
+
+The GM shares compendium pages with players from the compendium tab. The tick on each row selects
+entries for a batch share; **Share…** in the toolbar shares the ticked entries, or the selected one, and the
+preview's **Share…** shares the entry shown. For each player the GM chooses **Not shared**, **Read** or
+**Read and write**, and changes or takes it back the same way. The preview says who has the entry, and a
+row shared with anyone shows a mark.
+
+A player is one person for the whole vault, in every campaign and at every table
+(`src/app/players/`). The player's page keeps a key of its own in the browser and sends it after joining.
+Atlas keeps only its SHA-256, in `atlas-vtt/players.json`, with the players' names and the shares. A device
+never seen makes a new player of the name given. A player the GM made under **Players** with **New player…**
+takes the first device that joins under that name. **Rename or merge** says that two players are the same
+person, who joined from two devices: one keeps both players' devices and pages. Shares outlive a table and a
+campaign. Removing a player under **Players** ends them, and so does deleting the note. A renamed or moved
+note keeps its shares.
+
+The player reads the shared pages in the **Compendium** tab of their book: a list by kind, and each page as
+a card of its lines, its named entries (a monster's actions) and its text. Where the GM gave **Read and
+write**, **Modifier** edits the page's simple properties and its text; the GM's Atlas writes them into the note
+and every player who has the page open gets it again. The protocol is `src/app/online/protocol/compendium.ts`.
 
 ## Personal sources
 
-Right-click a folder `Compendium/<game system>/<book>` and choose **Export as compendium source**. Atlas
+Right-click a folder `Compendium/<game system>/<book>` and choose **Export as compendium source**, or run the
+command **Export a compendium book as a source**: it exports the book of the note open, else the book the GM
+picks. Atlas
 saves the zip to the downloads folder and records the source as installed in this vault. Another
 vault installs it with **Install from a file…** in the source picker. A personal source must not be
 published: books outside the SRD are copyrighted.
