@@ -6,7 +6,7 @@ import { OFFICIAL_SOURCES, type OfficialSource } from './officialSources';
 import { installSource, readInstalledSource, removeSource, type CompendiumVault, type InstallProgress, type InstallResult, type RemoveResult } from './sourceInstall';
 import { openSource } from './sourceZip';
 import { exportSource, personalManifest, sourceFolderNames, type ExportedSource } from './sourceExport';
-import { MONSTER_TEMPLATES, isFolderName, sourceManifestProblem, type EntryKind } from './sourceFormat';
+import { MONSTER_TEMPLATES, isFolderName, sourceIdOf, sourceManifestProblem, sourceRootOf, type CompendiumSourceManifest, type EntryKind, type SourceLabel } from './sourceFormat';
 import { entryFileStem, entryFolder, entryProperties, newEntryText, type CompendiumBook } from './compendiumEntries';
 import { ensureFolder } from '../plugin/vaultFolders';
 import { createStatblockNote, freeNotePath } from '../statblocks/notes/createStatblockNote';
@@ -101,6 +101,27 @@ export class CompendiumService {
       throw new Error(`${folder.system} already has a book named ${folder.book}.`);
     }
     if (OFFICIAL_SOURCES.some((source) => source.id === manifest.id)) throw new Error(`${folder.book} is one of Atlas' sources: install it from the compendium list instead.`);
+    return this.recordBook(manifest);
+  }
+
+  /**
+   * Makes a system's personal book (`PERSONAL_BOOK_ID`) under the ids the source picker named,
+   * unless the vault has it already. Returns its source id.
+   */
+  async ensurePersonalBook(system: SourceLabel, book: SourceLabel): Promise<string> {
+    const id = sourceIdOf(system, book);
+    const installed = await this.installed();
+    if (installed.some((source) => source.manifest.id === id)) return id;
+    const manifest = {
+      ...personalManifest({ system: system.name, book: book.name }, [], []),
+      id, system, book, root: sourceRootOf(system, book),
+    };
+    if (installed.some((source) => source.manifest.root === manifest.root)) throw new Error(`${system.name} already has a book named ${book.name}.`);
+    return this.recordBook(manifest);
+  }
+
+  /** Makes the folder of an empty source and writes its install record. */
+  private async recordBook(manifest: CompendiumSourceManifest): Promise<string> {
     const problem = sourceManifestProblem(manifest);
     if (problem) throw new Error(problem);
     await ensureFolder(this.app, manifest.root);

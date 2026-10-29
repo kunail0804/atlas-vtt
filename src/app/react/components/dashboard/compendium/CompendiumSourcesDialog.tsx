@@ -4,7 +4,8 @@ import { Trash2 } from 'lucide-react';
 import type { Campaign } from '../../../../campaigns/campaignTypes';
 import type { CampaignService } from '../../../../campaigns/CampaignService';
 import { OFFICIAL_SOURCES } from '../../../../compendium/officialSources';
-import { downloadsFor, sourceTree, systemSelection, toggleSystem, type BookChoice } from '../../../../compendium/sourceTree';
+import { booksToMake, downloadsFor, sourceTree, systemSelection, toggleBook, toggleSystem, type BookChoice } from '../../../../compendium/sourceTree';
+import { CompendiumService } from '../../../../compendium/CompendiumService';
 import { Button } from '../../../../packages/components/primitives/button';
 import { t } from '../../../../i18n';
 import { SettingsDialog } from '../../collection-settings/SettingsDialog';
@@ -22,6 +23,7 @@ interface CompendiumSourcesDialogProps {
 const megabytes = (bytes: number): string => `${(bytes / 1_000_000).toFixed(1)} MB`;
 
 function stateLabel(book: BookChoice): string {
+  if (book.state.kind === 'new') return t('compendium.personalNew');
   if (book.state.kind === 'available') return t('compendium.download', { size: megabytes(book.state.official.size) });
   return book.state.kind === 'outdated' ? t('compendium.outdated') : t('compendium.installed');
 }
@@ -34,21 +36,30 @@ export function CompendiumSourcesDialog({ app, campaign, service, onClose }: Com
   const { sources } = useInstalledSources(app);
   const installs = useSourceInstalls(app);
   const [chosen, setChosen] = useState<Set<string>>(() => new Set(campaign.sources ?? []));
-  const tree = sources === undefined ? [] : sourceTree(OFFICIAL_SOURCES, sources);
+  const tree = sources === undefined ? [] : sourceTree(OFFICIAL_SOURCES, sources, t('compendium.personalBook'));
   const known = new Set(tree.flatMap((system) => system.books.map((book) => book.id)));
   const missing = sources === undefined ? [] : [...chosen].filter((id) => !known.has(id));
   const busy = installs.busy !== null;
 
-  const toggleBook = (id: string): void => {
+  const [makeError, setMakeError] = useState<string | null>(null);
+
+  const toggleMissing = (id: string): void => {
     const next = new Set(chosen);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
+    if (!next.delete(id)) next.add(id);
     setChosen(next);
   };
 
   const save = async (): Promise<void> => {
     if (busy) return;
     if (!(await installs.download(downloadsFor(tree, chosen)))) return;
+    setMakeError(null);
+    try {
+      for (const { system, book } of booksToMake(tree, chosen)) await CompendiumService.forApp(app).ensurePersonalBook(system, book);
+    } catch (error) {
+      console.error('[CompendiumSourcesDialog] Making a personal book failed:', error);
+      setMakeError(t('compendium.personalFailed', { error: error instanceof Error ? error.message : String(error) }));
+      return;
+    }
     try {
       service.update(campaign.id, { sources: [...chosen] });
       onClose();
@@ -81,6 +92,7 @@ export function CompendiumSourcesDialog({ app, campaign, service, onClose }: Com
     >
       <div className="compendium-sources">
         <p className="compendium-sources__intro">{t('compendium.intro')}</p>
+        <p className="compendium-sources__intro">{t('compendium.personalIntro')}</p>
         {sources === undefined && <p className="compendium-sources__status">{t('compendium.loading')}</p>}
         {tree.map((system) => (
           <section key={system.id} className="compendium-sources__system" aria-label={system.name}>
@@ -97,12 +109,12 @@ export function CompendiumSourcesDialog({ app, campaign, service, onClose }: Com
               {system.books.map((book) => (
                 <li key={book.id} className="compendium-sources__book">
                   <label className="compendium-sources__book-label">
-                    <input type="checkbox" checked={chosen.has(book.id)} disabled={busy} onChange={() => toggleBook(book.id)} />
+                    <input type="checkbox" checked={chosen.has(book.id)} disabled={busy} onChange={() => setChosen(toggleBook(system, book.id, chosen))} />
                     <span className="compendium-sources__book-name">{book.name}</span>
                   </label>
                   {book.personal && <span className="atlas-csm-tag">{t('compendium.personal')}</span>}
                   <span className={`atlas-csm-tag${book.state.kind === 'outdated' ? ' atlas-csm-tag--accent' : ''}`}>{stateLabel(book)}</span>
-                  {book.state.kind !== 'available' && (
+                  {book.state.kind !== 'available' && book.state.kind !== 'new' && (
                     <Button
                       variant="ghost"
                       size="icon"
@@ -127,7 +139,7 @@ export function CompendiumSourcesDialog({ app, campaign, service, onClose }: Com
               {missing.map((id) => (
                 <li key={id} className="compendium-sources__book">
                   <label className="compendium-sources__book-label">
-                    <input type="checkbox" checked disabled={busy} onChange={() => toggleBook(id)} />
+                    <input type="checkbox" checked disabled={busy} onChange={() => toggleMissing(id)} />
                     <span className="compendium-sources__book-name">{id}</span>
                   </label>
                 </li>
@@ -140,6 +152,7 @@ export function CompendiumSourcesDialog({ app, campaign, service, onClose }: Com
         </div>
         {installs.busy !== null && <p className="compendium-sources__status" role="status">{installs.busy}</p>}
         {installs.error !== null && <p className="compendium-sources__error" role="alert">{installs.error}</p>}
+        {makeError !== null && <p className="compendium-sources__error" role="alert">{makeError}</p>}
       </div>
     </SettingsDialog>
   );

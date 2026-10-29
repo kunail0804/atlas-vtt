@@ -110,18 +110,55 @@ function isSkipped(node: Node): boolean {
   return SKIPPED_TAGS.has(parent.tagName);
 }
 
+/**
+ * Column names that make a table's bare bonuses rolls: "Attack Bonus", "To Hit", "Save",
+ * "Check", "Initiative", "Mod". Any other column's "+2" is a value to read, such as a class
+ * table's Proficiency Bonus or Rage Damage.
+ */
+const ROLL_COLUMN = /\b(?:attack|atk|to hit|saves?|saving|checks?|initiative|init|mod|modifier|roll|skill)\b/i;
+
+/** A matched roll with no die in it: `+2`, `ATK: +4`. */
+const isBareBonus = (matched: string): boolean => !/d\d/i.test(matched);
+
+/** The name of the column a table cell stands in: its header cell's text, else the first row's. */
+function columnNameOf(cell: HTMLTableCellElement): string {
+  const table = cell.closest('table');
+  const row = cell.parentElement;
+  if (!table || !(row instanceof HTMLTableRowElement)) return '';
+  const index = Array.prototype.indexOf.call(row.cells, cell);
+  const headerRow = table.tHead?.rows[0] ?? table.rows[0];
+  if (!headerRow || headerRow === row) return '';
+  return headerRow.cells[index]?.textContent?.trim() ?? '';
+}
+
+/**
+ * Whether a bare bonus in this text rolls. In running text it does ("+5 to hit"). In a
+ * table it does only in a column named for a roll (`ROLL_COLUMN`), and never in a header.
+ */
+function bareBonusRolls(textNode: Text): boolean {
+  const cell = textNode.parentElement?.closest('td, th');
+  if (!(cell instanceof HTMLTableCellElement)) return true;
+  if (cell.tagName === 'TH') return false;
+  return ROLL_COLUMN.test(columnNameOf(cell));
+}
+
 function linkTextNode(textNode: Text): void {
   const text = textNode.nodeValue ?? '';
   DICE_PATTERN.lastIndex = 0;
   if (!DICE_PATTERN.test(text)) return;
 
+  const bareRolls = bareBonusRolls(textNode);
   DICE_PATTERN.lastIndex = 0;
   const fragment = createFragment();
   let cursor = 0;
+  let linked = 0;
   let match: RegExpExecArray | null;
 
   while ((match = DICE_PATTERN.exec(text)) !== null) {
     const [matched] = match;
+    // Left as text: the cursor stays, so it goes out with the text before the next roll.
+    if (!bareRolls && isBareBonus(matched)) continue;
+    linked += 1;
     if (match.index > cursor) {
       fragment.append(text.slice(cursor, match.index));
     }
@@ -138,6 +175,7 @@ function linkTextNode(textNode: Text): void {
     cursor = match.index + matched.length;
   }
 
+  if (linked === 0) return;
   if (cursor < text.length) {
     fragment.append(text.slice(cursor));
   }

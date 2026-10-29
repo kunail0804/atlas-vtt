@@ -55,6 +55,8 @@ describe('the compendium source picker', () => {
     fireEvent.click(screen.getByLabelText('All of D&D 5e 2014'));
     expect((screen.getByRole('checkbox', { name: 'SRD 5.1' }) as HTMLInputElement).checked).toBe(true);
     expect((screen.getByRole('checkbox', { name: 'SRD 5.2.1' }) as HTMLInputElement).checked).toBe(false);
+    const personal = screen.getAllByRole('checkbox', { name: 'Personal' }) as HTMLInputElement[];
+    expect(personal.map((box) => box.checked)).toEqual([true, false]);
 
     vi.mocked(requestUrl).mockResolvedValueOnce({ status: 200, arrayBuffer: zip } as never);
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
@@ -62,7 +64,11 @@ describe('the compendium source picker', () => {
     await waitFor(() => expect(onClose).toHaveBeenCalled());
     expect(vi.mocked(requestUrl)).toHaveBeenCalledTimes(1);
     expect(files.get(at('Spells/Fireball.md'))).toBe('fire');
-    expect(service.get(CAMPAIGN.id)?.sources).toEqual([ID]);
+    expect(service.get(CAMPAIGN.id)?.sources).toEqual([ID, 'dnd5e-2014/personal']);
+    // The personal book is made with the ids the picker named, beside the SRD.
+    const record = JSON.parse(files.get('atlas-vtt/compendium/dnd5e-2014__personal.json') ?? 'null') as { manifest: { root: string; system: { id: string } } } | null;
+    expect(record?.manifest.root).toBe('Compendium/D&D 5e 2014/Personal');
+    expect(record?.manifest.system.id).toBe('dnd5e-2014');
   });
 
   it('keeps the dialog open and the campaign unchanged when a download fails', async () => {

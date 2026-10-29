@@ -1,6 +1,7 @@
 import React, { useId, useState } from 'react';
 import type { CompendiumBook } from '../../../../compendium/compendiumEntries';
 import { OFFICIAL_SOURCES } from '../../../../compendium/officialSources';
+import { PERSONAL_BOOK_ID } from '../../../../compendium/sourceTree';
 import { ENTRY_KINDS, MONSTER_TEMPLATES, isEntryKind, type EntryKind } from '../../../../compendium/sourceFormat';
 import { SettingsDialog } from '../../../../react/components/collection-settings/SettingsDialog';
 import { t } from '../../../../i18n';
@@ -21,7 +22,13 @@ export function NewEntryDialog({ books, initialBookId, initialKind, onCreate, on
   const ids = { name: useId(), kind: useId(), book: useId() };
   const [name, setName] = useState('');
   const [kind, setKind] = useState<EntryKind>(initialKind ?? 'monster');
-  const [bookId, setBookId] = useState(() => books.find((book) => book.id === initialBookId)?.id ?? books[0]?.id ?? '');
+  // The book chosen in the sidebar, else a personal one: the books Atlas publishes stay as published.
+  const [bookId, setBookId] = useState(() => (
+    books.find((book) => book.id === initialBookId)
+    ?? books.find((book) => book.id.endsWith(`/${PERSONAL_BOOK_ID}`))
+    ?? books.find((book) => !OFFICIAL_SOURCES.some((source) => source.id === book.id))
+    ?? books[0]
+  )?.id ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const book = books.find((candidate) => candidate.id === bookId);

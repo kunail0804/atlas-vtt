@@ -105,3 +105,20 @@ describe('the 5E (2014 rules) template', () => {
     expect(FIVE_E_2014_MONSTER.template.lookups).toEqual({ xp: experienceTable() });
   });
 });
+
+describe('the armour class line of both 5E monsters', () => {
+  /** The AC line as the template's pattern writes it for these values. */
+  function armorLine(template: StatblockTemplate, values: Record<string, unknown>): string {
+    const block = flattenReadingOrder(template.layout.blocks).find((candidate) => candidate.type === 'stat' && candidate.field === 'ac');
+    if (block?.type !== 'stat' || block.pattern === undefined) throw new Error('the AC block has no pattern');
+    const ast = parsePattern(block.pattern);
+    if (isExpressionError(ast)) throw new Error(ast.message);
+    return renderPattern(ast, (ref) => values[ref]).text;
+  }
+
+  it.each([FIVE_E_2014_MONSTER, FIVE_E_2024_MONSTER])('names what gives it, as the compendium writes it in ac_class ($id)', (builtIn) => {
+    expect(builtIn.template.fields.some((field) => field.key === 'ac_class')).toBe(true);
+    expect(armorLine(builtIn.template, { ac: 15, ac_class: 'leather armor, shield' })).toBe('15 (leather armor, shield)');
+    expect(armorLine(builtIn.template, { ac: 12 })).toBe('12');
+  });
+});

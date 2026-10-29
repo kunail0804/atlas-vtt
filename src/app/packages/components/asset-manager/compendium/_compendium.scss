@@ -40,6 +40,14 @@ $preview-max-width: 560px;
     font-size: $font-ui-smaller;
     text-wrap: pretty;
   }
+
+  &__missing {
+    margin: 0;
+    padding-inline-start: $spacing-l;
+    color: var(--text-faint);
+    font-size: $font-ui-small;
+    overflow-wrap: anywhere;
+  }
 }
 
 .atlas-compendium-search {

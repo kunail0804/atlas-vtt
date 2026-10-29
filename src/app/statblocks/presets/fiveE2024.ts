@@ -16,7 +16,7 @@ import { builtIn, hiddenParts, nameField, portraitField, runInStat, sizeField } 
 const MODIFIER = 'floor((value - 10) / 2)';
 const DEXTERITY_MODIFIER = 'floor((stats.1 - 10) / 2)';
 
-export const FIVE_E_2024_MONSTER: BuiltInTemplate = builtIn('builtin:5e-2024-monster', '5E (2024 rules)', 5, {
+export const FIVE_E_2024_MONSTER: BuiltInTemplate = builtIn('builtin:5e-2024-monster', '5E (2024 rules)', 6, {
   // A bonus without dice rolls with the system's dice set, whatever the collection rolls (revision 5).
   diceSetId: D20_DICE_SET_ID,
   source: SRD_5_2_1_SOURCE,
@@ -28,6 +28,8 @@ export const FIVE_E_2024_MONSTER: BuiltInTemplate = builtIn('builtin:5e-2024-mon
     { key: 'subtype', label: 'Subtype', type: 'text' },
     { key: 'alignment', label: 'Alignment', type: 'text' },
     { key: 'ac', label: 'AC', type: 'number', meaning: 'armor' },
+    // What gives the armour class, "natural armor" or "leather armor, shield": Fantasy Statblocks' key (revision 6).
+    { key: 'ac_class', label: 'Armor', type: 'text' },
     { key: 'initiative', label: 'Initiative', type: 'number', meaning: 'initiative' },
     { key: 'hp', label: 'HP', type: 'number', meaning: 'hit-points' },
     { key: 'hit_dice', label: 'Hit Dice', type: 'dice' },
@@ -64,7 +66,7 @@ export const FIVE_E_2024_MONSTER: BuiltInTemplate = builtIn('builtin:5e-2024-mon
       { id: 'b5divid0', type: 'divider' },
       {
         id: 'b5row001', type: 'row', align: 'start', blocks: [
-          runInStat('b5ac0000', 'ac'),
+          { id: 'b5ac0000', type: 'stat', field: 'ac', look: 'run-in', pattern: '{ac}[ ({ac_class})]' },
           {
             id: 'b5init00', type: 'stat', field: 'initiative', look: 'run-in', pattern: '{initiative|signed} ({=initiative + 10})',
             whenEmpty: 'fallback', fallback: `{=${DEXTERITY_MODIFIER}|signed} ({=${DEXTERITY_MODIFIER} + 10})`,

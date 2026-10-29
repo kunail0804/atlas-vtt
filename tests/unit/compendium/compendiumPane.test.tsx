@@ -169,14 +169,36 @@ it('adds a new book to a campaign that already lists its id only once', async ()
   vault.app.saveLocalStorage('atlas-vtt:playing-campaign', 'c-1');
   renderPane();
   await waitFor(() => expect(rows()).toHaveLength(3));
-  expect(screen.getByText('1 source of this campaign is not in this vault.')).toBeTruthy();
+  const missing = screen.getByRole('region', { name: 'Not in this vault' });
+  expect(within(missing).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['dnd5e-2014/homebrew']);
 
   fireEvent.click(screen.getByRole('button', { name: 'New book…' }));
   const bookDialog = await screen.findByRole('dialog', { name: 'New book' });
   fireEvent.change(within(bookDialog).getByLabelText('Name of the book'), { target: { value: 'Homebrew' } });
   fireEvent.click(within(bookDialog).getByRole('button', { name: 'Save' }));
-  await waitFor(() => expect(screen.queryByText('1 source of this campaign is not in this vault.')).toBeNull());
+  await waitFor(() => expect(screen.queryByRole('region', { name: 'Not in this vault' })).toBeNull());
   expect(campaigns.current().find((campaign) => campaign.id === 'c-1')?.sources).toEqual([ID, 'dnd5e-2014/homebrew']);
+});
+
+it('removes a book from the vault once the GM confirms, and from the campaign shown', async () => {
+  vault.app.saveLocalStorage('atlas-vtt:playing-campaign', 'c-1');
+  renderPane();
+  await waitFor(() => expect(rows()).toHaveLength(3));
+  dialogs.confirmAction.mockResolvedValueOnce(true);
+  fireEvent.click(screen.getByRole('button', { name: 'Remove SRD 5.1 from the vault' }));
+  await waitFor(() => expect(vault.files.has(at('Spells/Fireball.md'))).toBe(false));
+  expect(campaigns.current().find((campaign) => campaign.id === 'c-1')?.sources ?? []).toEqual([]);
+});
+
+it('offers the campaign\'s personal book first for a new entry', async () => {
+  const id = await CompendiumService.forApp(vault.app).ensurePersonalBook({ id: 'dnd5e-2014', name: 'D&D 5e 2014' }, { id: 'personal', name: 'Personal' });
+  campaigns.update('c-1', (entry) => ({ ...entry, sources: [ID, id] }));
+  vault.app.saveLocalStorage('atlas-vtt:playing-campaign', 'c-1');
+  renderPane();
+  await waitFor(() => expect(rows()).toHaveLength(3));
+  fireEvent.click(screen.getByRole('button', { name: 'New entry…' }));
+  const entryDialog = await screen.findByRole('dialog', { name: 'New compendium entry' });
+  expect((within(entryDialog).getByLabelText('Book') as HTMLSelectElement).value).toBe('dnd5e-2014/personal');
 });
 
 it('hands a table in an entry\'s text to Obsidian\'s Markdown renderer whole, lines and all', async () => {

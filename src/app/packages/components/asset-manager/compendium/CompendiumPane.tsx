@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { TFile, type App } from 'obsidian';
 import { AnimatePresence } from 'framer-motion';
-import { BookPlus, FilePlus, Library, Search, Settings, Upload } from 'lucide-react';
+import { BookPlus, FilePlus, Library, Search, Settings, Trash2, Upload } from 'lucide-react';
 import { CampaignFiles } from '../../../../campaigns/CampaignFiles';
 import { CampaignPlay } from '../../../../campaigns/campaignPlay';
 import { useCampaigns } from '../../../../campaigns/useCampaigns';
@@ -12,6 +12,7 @@ import { OFFICIAL_SOURCES } from '../../../../compendium/officialSources';
 import { ENTRY_KINDS, isEntryKind, type EntryKind } from '../../../../compendium/sourceFormat';
 import { CompendiumSourcesDialog } from '../../../../react/components/dashboard/compendium/CompendiumSourcesDialog';
 import { useInstalledSources } from '../../../../react/components/dashboard/compendium/useInstalledSources';
+import { useSourceInstalls } from '../../../../react/components/dashboard/compendium/useSourceInstalls';
 import { confirmAction } from '../../../../ui/confirmDialog';
 import { showNotice } from '../../../../ui/notice';
 import { Button } from '../../primitives/button';
@@ -62,9 +63,10 @@ export function CompendiumPane({ app, tabs, onClose, onDialogChange }: Compendiu
     () => (installed === undefined ? [] : booksOf(installed, campaign ? campaignSources ?? [] : null)),
     [installed, campaign, campaignSources],
   );
-  const missingCount = campaign && installed
-    ? (campaignSources ?? []).filter((id) => !installed.some((source) => source.manifest.id === id)).length
-    : 0;
+  const missing = campaign && installed
+    ? (campaignSources ?? []).filter((id) => !installed.some((source) => source.manifest.id === id))
+    : [];
+  const installs = useSourceInstalls(app);
   const entries = useCompendiumEntries(app, books);
 
   const [group, setGroup] = useState<EntryGroup | null>(null);
@@ -145,6 +147,26 @@ export function CompendiumPane({ app, tabs, onClose, onDialogChange }: Compendiu
     }
   };
 
+  /** Removes a book from the vault, after the GM says so; the campaign shown stops listing it. */
+  const removeBook = async (book: CompendiumBook): Promise<void> => {
+    if (!(await installs.remove(book.id, book.name))) return;
+    if (chosenBookId === book.id) setChosenBookId(null);
+    setSelectedPath(null);
+    const listed = campaign?.sources ?? [];
+    if (!campaign || !campaignService || campaign.readOnly === true || !listed.includes(book.id)) return;
+    try {
+      campaignService.update(campaign.id, { sources: listed.filter((id) => id !== book.id) });
+    } catch (error) {
+      console.error('[CompendiumPane] Taking the book off the campaign failed:', error);
+    }
+  };
+
+  /** A source the campaign lists but the vault lacks, by name where Atlas knows it. */
+  const missingName = (id: string): string => {
+    const official = OFFICIAL_SOURCES.find((source) => source.id === id);
+    return official ? `${official.system.name} · ${official.book.name}` : id;
+  };
+
   const emptyText = (() => {
     if (installed === undefined) return t('compendium.browser.loading');
     if (books.length === 0) return campaign ? t('compendium.browser.noBooks') : t('compendium.browser.noBooksVault');
@@ -176,7 +198,7 @@ export function CompendiumPane({ app, tabs, onClose, onDialogChange }: Compendiu
               )}
             </div>
             {campaign?.readOnly === true && <p className="atlas-compendium-sidebar__hint">{t('compendium.browser.readOnly')}</p>}
-            {missingCount > 0 && <p className="atlas-compendium-sidebar__hint">{t('compendium.browser.missing', { count: missingCount })}</p>}
+
           </div>
 
           <div className="atlas-compendium-sidebar__section">
@@ -209,6 +231,18 @@ export function CompendiumPane({ app, tabs, onClose, onDialogChange }: Compendiu
                         <span className="atlas-tag-count">{bookCounts.get(book.id) ?? 0}</span>
                       </button>
                     </LabelTooltip>
+                    <LabelTooltip label={t('compendium.remove', { name: book.name })}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="atlas-collection-header-btn"
+                        aria-label={t('compendium.remove', { name: book.name })}
+                        disabled={installs.busy !== null}
+                        onClick={() => { void removeBook(book); }}
+                      >
+                        <Trash2 />
+                      </Button>
+                    </LabelTooltip>
                     {personal && (
                       <LabelTooltip label={t('compendium.browser.exportBook', { name: book.name })}>
                         <Button
@@ -227,6 +261,16 @@ export function CompendiumPane({ app, tabs, onClose, onDialogChange }: Compendiu
               })}
             </div>
           </div>
+
+          {missing.length > 0 && (
+            <section className="atlas-compendium-sidebar__section" aria-label={t('compendium.missing')}>
+              <div className="atlas-section-title">{t('compendium.missing')}</div>
+              <p className="atlas-compendium-sidebar__hint">{t('compendium.browser.missingHint')}</p>
+              <ul className="atlas-compendium-sidebar__missing">
+                {missing.map((id) => <li key={id}>{missingName(id)}</li>)}
+              </ul>
+            </section>
+          )}
 
           <div className="atlas-compendium-sidebar__section">
             <div className="atlas-section-title">{t('compendium.browser.kinds')}</div>

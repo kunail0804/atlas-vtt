@@ -13,7 +13,7 @@ import { SRD_5_1_SOURCE } from './attributions';
 import { experienceTable } from './fiveEChallenge';
 import { builtIn, centredColumns, hiddenParts, nameField, portraitField, runInStat, sizeField } from './presetParts';
 
-export const FIVE_E_2014_MONSTER: BuiltInTemplate = builtIn('builtin:5e-2014-monster', '5E (2014 rules)', 6, {
+export const FIVE_E_2014_MONSTER: BuiltInTemplate = builtIn('builtin:5e-2014-monster', '5E (2014 rules)', 7, {
   // A bonus without dice rolls with the system's dice set, whatever the collection rolls (revision 6).
   diceSetId: D20_DICE_SET_ID,
   source: SRD_5_1_SOURCE,
@@ -25,6 +25,8 @@ export const FIVE_E_2014_MONSTER: BuiltInTemplate = builtIn('builtin:5e-2014-mon
     { key: 'subtype', label: 'Subtype', type: 'text' },
     { key: 'alignment', label: 'Alignment', type: 'text' },
     { key: 'ac', label: 'Armor Class', type: 'number', meaning: 'armor' },
+    // What gives the armour class, "natural armor" or "leather armor, shield": Fantasy Statblocks' key (revision 7).
+    { key: 'ac_class', label: 'Armor', type: 'text' },
     { key: 'hp', label: 'Hit Points', type: 'number', meaning: 'hit-points' },
     { key: 'hit_dice', label: 'Hit Dice', type: 'dice' },
     { key: 'speed', label: 'Speed', type: 'text' },
@@ -57,7 +59,7 @@ export const FIVE_E_2014_MONSTER: BuiltInTemplate = builtIn('builtin:5e-2014-mon
     blocks: [
       { id: 'e4line00', type: 'line', fields: ['size', 'subtype', 'alignment'], pattern: '{size}[ ({subtype})][, {alignment}]' },
       { id: 'e4divid0', type: 'divider' },
-      runInStat('e4ac0000', 'ac'),
+      { id: 'e4ac0000', type: 'stat', field: 'ac', look: 'run-in', pattern: '{ac}[ ({ac_class})]' },
       runInStat('e4speed0', 'speed'),
       { id: 'e4divid1', type: 'divider' },
       {

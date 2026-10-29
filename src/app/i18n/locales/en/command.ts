@@ -5,6 +5,7 @@ export const command = {
   'command.createTokenFromStatblock': 'Create token from statblock image',
   'command.dismissImageFromPlayerView': 'Dismiss image from player view',
   'command.displayImageOnPlayerView': 'Display image on player view',
+  'command.exportCompendiumSource': 'Export a compendium book as a source',
   'command.importStatblockTokens': 'Import tokens from Fantasy Statblocks',
   'command.openDashboard': 'Open dashboard',
   'command.openPlayerWindow': 'Open player window',
