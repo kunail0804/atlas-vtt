@@ -2,7 +2,7 @@ import type { App, EventRef, TFile } from 'obsidian';
 import type { GmMessage } from '../../protocol/index.ts';
 import { cardName } from '../../../compendium/entryCard';
 import { editedValue, pageContentOf, withBody } from '../../../compendium/sharedPage';
-import { ENTRY_KIND_KEY, isEntryKind } from '../../../compendium/sourceFormat';
+import { COMPENDIUM_ROOT, ENTRY_KIND_KEY, isEntryKind } from '../../../compendium/sourceFormat';
 import { t } from '../../../i18n';
 import { PlayerRoster } from '../../../players/PlayerRoster';
 import { sharesOf } from '../../../players/roster';
@@ -33,7 +33,10 @@ export function tableCompendium(app: App, send: (body: GmMessage, to: string) =>
       if (file === null) return null;
       const frontmatter: Readonly<Record<string, unknown>> = app.metadataCache.getFileCache(file)?.frontmatter ?? {};
       const kind = frontmatter[ENTRY_KIND_KEY];
-      return { title: cardName(frontmatter, noteName(path)), kind: isEntryKind(kind) ? kind : 'other' };
+      // `Compendium/<system>/<book>/…`: the folders name the book and its system.
+      const [root, system, book] = path.split('/');
+      const inBook = root === COMPENDIUM_ROOT && path.split('/').length > 3 && system !== undefined && book !== undefined;
+      return { title: cardName(frontmatter, noteName(path)), kind: isEntryKind(kind) ? kind : 'other', ...(inBook && { source: book, system }) };
     },
     read: async (path) => {
       const file = app.vault.getFileByPath(path);

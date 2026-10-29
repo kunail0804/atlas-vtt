@@ -1,8 +1,8 @@
 /**
  * The card beside every compendium note: a Markdown view whose note names a kind of entry
  * (`atlas-compendium: spell`) shows that entry as a statblock card, read-only, beside the note or
- * above it in a narrow view. A monster shows its statblock; every other entry its properties, the
- * note's text being beside it. Where Atlas' statblock editor shows the statblock already (a native
+ * above it in a narrow view. A monster shows its statblock; every other entry its properties, then
+ * the note's text, as the compendium tab draws it. Where Atlas' statblock editor shows the statblock already (a native
  * statblock while the experimental switch is on), the card stays away.
  */
 
@@ -17,7 +17,6 @@ import { STACK_BELOW, loadPanelPrefs, panelWidth, savePanelPrefs } from '../../s
 import { observeResize } from '../../utils/observeResize';
 import { noteName } from '../../utils/pathUtils';
 import { ENTRY_KIND_KEY, isEntryKind } from '../sourceFormat';
-import { cardRows } from '../entryCard';
 import { NoteCardRoot, type NoteCardShown } from './NoteCardRoot';
 
 /** On the view's container while its card shows: the content becomes a row. */
@@ -35,8 +34,6 @@ export function noteCardOf(app: App, file: TFile): NoteCardShown | null {
     // The statblock editor shows this statblock beside the note already.
     return experimentalFeatureOn(app, 'statblockEditor') ? null : { kind: 'statblock' };
   }
-  // A card of the name alone says nothing the note does not.
-  if (cardRows(kind, frontmatter, 'yes').length === 0) return null;
   return { kind: 'card', group: kind, name: noteName(file.path) };
 }
 

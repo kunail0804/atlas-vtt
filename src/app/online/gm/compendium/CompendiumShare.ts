@@ -27,8 +27,8 @@ export interface CompendiumSharePorts {
   identify(key: string, name: string): Promise<string | null>;
   /** The pages shared with one of the vault's players now. */
   sharesOf(playerId: string): readonly PlayerShare[];
-  /** The title and kind of a note, from what the vault knows of it now; null for a note that is gone. */
-  describe(path: string): { title: string; kind: string } | null;
+  /** The title, kind and book of a note, from what the vault knows of it now; null for a note that is gone. */
+  describe(path: string): { title: string; kind: string; source?: string; system?: string } | null;
   read(path: string): Promise<PageRead | null>;
   /** Writes a player's change into the note: only the properties of `allowed`. False where it failed. */
   write(path: string, edit: PageEdit, allowed: readonly string[]): Promise<boolean>;
@@ -148,7 +148,10 @@ export class CompendiumShare {
       if (described === null) continue;
       const id = pageIdOf(share.path);
       pages.set(id, share);
-      list.push({ id, title: described.title, kind: described.kind, access: share.access });
+      list.push({
+        id, title: described.title, kind: described.kind, access: share.access,
+        ...(described.source !== undefined && { source: described.source }), ...(described.system !== undefined && { system: described.system }),
+      });
     }
     list.sort((a, b) => a.title.localeCompare(b.title));
     this.listed.set(player, pages);
@@ -174,8 +177,10 @@ export class CompendiumShare {
     // Still theirs once read, with the access they have now.
     const now = this.listed.get(player)?.get(id);
     if (read === null || now === undefined) return;
+    const described = this.ports.describe(share.path);
     const page: SharedPageContent = {
       id, title: read.title, kind: read.kind, access: now.access, ...read.content,
+      ...(described?.source !== undefined && { source: described.source }), ...(described?.system !== undefined && { system: described.system }),
       ...(now.access === 'write' && { fields: read.fields }),
     };
     this.ports.send({ t: 'compendium-entry', page }, player);

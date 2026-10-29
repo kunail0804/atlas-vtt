@@ -5,8 +5,9 @@ import { obsidianCompendiumVault } from './obsidianCompendiumVault';
 import { OFFICIAL_SOURCES, type OfficialSource } from './officialSources';
 import { installSource, readInstalledSource, removeSource, type CompendiumVault, type InstallProgress, type InstallResult, type RemoveResult } from './sourceInstall';
 import { openSource } from './sourceZip';
+import { PERSONAL_BOOK_ID } from './sourceTree';
 import { exportSource, personalManifest, sourceFolderNames, type ExportedSource } from './sourceExport';
-import { MONSTER_TEMPLATES, isFolderName, sourceIdOf, sourceManifestProblem, sourceRootOf, type CompendiumSourceManifest, type EntryKind, type SourceLabel } from './sourceFormat';
+import { ENTRY_KIND_KEY, ENTRY_SOURCE_KEY, ENTRY_SYSTEM_KEY, MONSTER_TEMPLATES, isEntryKind, isFolderName, sourceIdOf, sourceManifestProblem, sourceRootOf, type CompendiumSourceManifest, type EntryKind, type SourceLabel } from './sourceFormat';
 import { entryFileStem, entryFolder, entryProperties, newEntryText, type CompendiumBook } from './compendiumEntries';
 import { ensureFolder } from '../plugin/vaultFolders';
 import { createStatblockNote, freeNotePath } from '../statblocks/notes/createStatblockNote';
@@ -151,6 +152,28 @@ export class CompendiumService {
     return this.app.vault.create(path, newEntryText(book, kind, name.trim()));
   }
 
+  /**
+   * Copies entries into a book: each note goes to the book's folder of its kind under a free name,
+   * and names the book as its source. The copies are the GM's to change; the notes copied stay as
+   * they were. Returns the copies.
+   */
+  async copyEntries(paths: readonly string[], book: CompendiumBook): Promise<TFile[]> {
+    const copies: TFile[] = [];
+    for (const path of paths) {
+      const file = this.app.vault.getFileByPath(path);
+      if (!file) continue;
+      const kind: unknown = this.app.metadataCache.getFileCache(file)?.frontmatter?.[ENTRY_KIND_KEY];
+      const folder = await ensureFolder(this.app, isEntryKind(kind) ? entryFolder(book, kind) : book.root);
+      const copy = await this.app.vault.create(freeNotePath(this.app, folder, file.basename), await this.app.vault.read(file));
+      await this.app.fileManager.processFrontMatter(copy, (frontmatter: Record<string, unknown>) => {
+        frontmatter[ENTRY_SOURCE_KEY] = book.id;
+        frontmatter[ENTRY_SYSTEM_KEY] = book.systemId;
+      });
+      copies.push(copy);
+    }
+    return copies;
+  }
+
   /** Calls `listener` after every install or removal made here. */
   onChange(listener: () => void): () => void {
     this.listeners.add(listener);
@@ -159,6 +182,8 @@ export class CompendiumService {
 
   private async install(data: ArrayBuffer, onProgress?: InstallProgress): Promise<InstallResult> {
     const opened = await openSource(data);
+    // Each vault's Personal books are its own: a zip of another vault's would take this one's.
+    if (opened.manifest.book.id === PERSONAL_BOOK_ID) throw new Error(`${opened.manifest.book.name} is the Personal book of another vault: it cannot be installed. Ask for its entries in a book of their own.`);
     try {
       return await installSource(this.vault, opened, onProgress);
     } finally {

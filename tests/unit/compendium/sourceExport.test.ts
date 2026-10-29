@@ -7,6 +7,7 @@ import { openSource } from '../../../src/app/compendium/sourceZip';
 import { createInMemoryApp } from '../../mocks/inMemoryVault';
 import { memoryCompendiumVault } from './memoryCompendiumVault';
 import { zipped } from './sourceZips';
+import { sha256 } from '../../../src/app/utils/hashing';
 
 const TASHA = 'Compendium/D&D 5e 2014/Tasha';
 
@@ -60,4 +61,28 @@ describe('exporting a personal source', () => {
     await expect(service.exportFolder('Compendium/Empty/Book')).rejects.toThrow(/no notes/);
     await expect(service.exportFolder('Compendium/D&D 5e 2014/SRD 5.1')).rejects.toThrow(/one of Atlas' sources/);
   });
+
+  it('refuses the Personal book, a folder whose id another book has, and a zip of another vault\'s Personal book', async () => {
+    const { app } = createInMemoryApp({ files: {
+      'Compendium/D&D 5e 2014/Personal/Spells/Mine.md': 'mine',
+      'Compendium/Homebrew/My Book/A.md': 'a',
+      'Compendium/Homebrew/My-Book/B.md': 'b',
+    } });
+    const service = CompendiumService.forApp(app);
+    await expect(service.exportFolder('Compendium/D&D 5e 2014/Personal')).rejects.toThrow(/cannot be exported/);
+    await service.exportFolder('Compendium/Homebrew/My Book');
+    await expect(service.exportFolder('Compendium/Homebrew/My-Book')).rejects.toThrow(/has the id homebrew\/my-book already/);
+    const path = 'Compendium/D&D 5e 2014/Personal/Spells/Theirs.md';
+    const manifest = {
+      format: 1, type: 'atlas-compendium-source', id: 'dnd5e-2014/personal', system: { id: 'dnd5e-2014', name: 'D&D 5e 2014' },
+      book: { id: 'personal', name: 'Personal' }, version: 1, language: 'en', root: 'Compendium/D&D 5e 2014/Personal',
+      files: [{ path, sha256: await sha256(new TextEncoder().encode('theirs')) }],
+    };
+    const theirs = await zipped(1, {}, (zip) => {
+      zip.file('manifest.json', JSON.stringify(manifest));
+      zip.file(`files/${path}`, 'theirs');
+    });
+    await expect(service.installFile({ arrayBuffer: async () => theirs })).rejects.toThrow(/cannot be installed/);
+  });
 });
+

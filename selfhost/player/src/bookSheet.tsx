@@ -80,17 +80,8 @@ export class BookSheet {
   }
 
   /** The notes the GM linked for the player, each opened in the reader. */
-  documentsPage(): HTMLElement {
-    const page = node('div', 'book-page');
-    if (this.notes.length === 0) page.append(node('p', 'book-empty', TEXT.sheet.noDocuments));
-    for (const note of this.notes) {
-      const card = node('article', 'book-note book-document');
-      card.append(node('h3', 'book-item-name', note.title));
-      if (note.body !== '') card.append(node('p', 'book-text', note.body.length > 220 ? `${note.body.slice(0, 220)}…` : note.body));
-      card.append(button(TEXT.sheet.read, () => this.ports.openNote(note)));
-      page.append(card);
-    }
-    return page;
+  documents(): readonly { readonly title: string; readonly open: () => void }[] {
+    return this.notes.map((note) => ({ title: note.title, open: () => this.ports.openNote(note) }));
   }
 
   private edit(edit: SheetEdit, value: SheetValue | null): void {

@@ -194,8 +194,21 @@ html, body, #app { margin: 0; height: 100%; background: #101114; color: var(--te
 .doc-text { white-space: pre-wrap; font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
 .doc-image { display: block; max-width: 100%; height: auto; margin: 8px 0; border-radius: 8px; }
 /* The compendium pages the GM shares (bookCompendium.ts): a list by kind, a page as a statblock card. */
-.cpd-list { display: flex; flex-direction: column; gap: 4px; }
-.cpd-kind-heading { margin: 10px 0 2px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
+.cpd-list { display: flex; flex-direction: column; gap: 6px; }
+.cpd-folder { border-radius: 10px; }
+.cpd-source { background: var(--background-secondary); padding: 4px 8px; }
+.cpd-kind { margin: 2px 0 2px 6px; }
+.cpd-folder-title { display: flex; align-items: center; gap: 8px; padding: 6px 2px; cursor: pointer; list-style: none; }
+.cpd-folder-title::-webkit-details-marker { display: none; }
+.cpd-folder-title::before { content: '▸'; width: 12px; color: var(--text-muted); transition: transform 0.15s; }
+.cpd-folder[open] > .cpd-folder-title::before { transform: rotate(90deg); }
+.cpd-source > .cpd-folder-title { font-weight: 600; font-size: 14px; }
+.cpd-kind > .cpd-folder-title { font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
+.cpd-folder-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.cpd-folder-count { font-size: 11px; color: var(--text-faint); }
+.cpd-folder-body { display: flex; flex-direction: column; gap: 4px; padding-bottom: 4px; }
+.cpd-kind > .cpd-folder-body { padding-left: 14px; }
+.cpd-source .book-button { background: var(--background-primary); }
 .cpd-entry { display: flex; justify-content: space-between; align-items: center; gap: 8px; text-align: start; }
 .cpd-badge { font-size: 11px; color: var(--interactive-accent); }
 .cpd-back { align-self: flex-start; }

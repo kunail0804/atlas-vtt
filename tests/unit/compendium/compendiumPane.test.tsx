@@ -145,7 +145,9 @@ describe('the compendium in the asset manager', () => {
     expect((within(bookDialog).getByLabelText('Game system') as HTMLSelectElement).value).toBe('D&D 5e 2014');
     fireEvent.change(within(bookDialog).getByLabelText('Name of the book'), { target: { value: 'Homebrew' } });
     fireEvent.click(within(bookDialog).getByRole('button', { name: 'Save' }));
-    await waitFor(() => expect(campaigns.current().find((campaign) => campaign.id === 'c-1')?.sources).toEqual([ID, 'dnd5e-2014/homebrew']));
+    // The campaign got its Personal book on the fly when the tab showed it.
+    await waitFor(() => expect(campaigns.current().find((campaign) => campaign.id === 'c-1')?.sources).toEqual([ID, 'dnd5e-2014/personal', 'dnd5e-2014/homebrew']));
+    expect(vault.files.has('atlas-vtt/compendium/dnd5e-2014__personal.json')).toBe(true);
     await waitFor(() => expect(screen.getByRole('button', { name: /^Homebrew/ }).getAttribute('aria-pressed')).toBe('true'));
     expect(rows()).toEqual([]);
 
@@ -177,7 +179,7 @@ it('adds a new book to a campaign that already lists its id only once', async ()
   fireEvent.change(within(bookDialog).getByLabelText('Name of the book'), { target: { value: 'Homebrew' } });
   fireEvent.click(within(bookDialog).getByRole('button', { name: 'Save' }));
   await waitFor(() => expect(screen.queryByRole('region', { name: 'Not in this vault' })).toBeNull());
-  expect(campaigns.current().find((campaign) => campaign.id === 'c-1')?.sources).toEqual([ID, 'dnd5e-2014/homebrew']);
+  await waitFor(() => expect(campaigns.current().find((campaign) => campaign.id === 'c-1')?.sources).toEqual([ID, 'dnd5e-2014/homebrew', 'dnd5e-2014/personal']));
 });
 
 it('removes a book from the vault once the GM confirms, and from the campaign shown', async () => {
@@ -187,7 +189,9 @@ it('removes a book from the vault once the GM confirms, and from the campaign sh
   dialogs.confirmAction.mockResolvedValueOnce(true);
   fireEvent.click(screen.getByRole('button', { name: 'Remove SRD 5.1 from the vault' }));
   await waitFor(() => expect(vault.files.has(at('Spells/Fireball.md'))).toBe(false));
-  expect(campaigns.current().find((campaign) => campaign.id === 'c-1')?.sources ?? []).toEqual([]);
+  await waitFor(() => expect(campaigns.current().find((campaign) => campaign.id === 'c-1')?.sources ?? []).not.toContain(ID));
+  // The Personal book stays, and offers neither removal nor export.
+  expect(screen.queryByRole('button', { name: 'Remove Personal from the vault' })).toBeNull();
 });
 
 it('offers the campaign\'s personal book first for a new entry', async () => {
@@ -229,7 +233,7 @@ it('shares a batch of entries with a player the GM made, changes it for one, and
 
   fireEvent.click(screen.getByRole('checkbox', { name: 'Select Fireball' }));
   fireEvent.click(screen.getByRole('checkbox', { name: 'Select Goblin' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Share 2 pages…' }));
+  fireEvent.click(within(screen.getByRole('toolbar', { name: '2 entries selected' })).getByRole('button', { name: 'Share 2 pages…' }));
   const shareDialog = await screen.findByRole('dialog', { name: 'Share 2 pages' });
   fireEvent.change(within(shareDialog).getByRole('combobox', { name: 'What Ana gets' }), { target: { value: 'read' } });
   fireEvent.click(within(shareDialog).getByRole('button', { name: 'Save' }));
@@ -253,4 +257,31 @@ it('shares a batch of entries with a player the GM made, changes it for one, and
   fireEvent.click(screen.getByRole('button', { name: 'Remove Ana' }));
   await waitFor(() => expect(roster()).toEqual(expect.objectContaining({ players: {}, shares: {} })));
   expect(rows()).toEqual(['Fireball', 'Goblin', 'SRD 5.1 attribution']);
+});
+
+it('copies ticked entries into a book of the GM\'s own, and deletes ticked entries at once', async () => {
+  const id = await CompendiumService.forApp(vault.app).ensurePersonalBook({ id: 'dnd5e-2014', name: 'D&D 5e 2014' }, { id: 'personal', name: 'Personal' });
+  campaigns.update('c-1', (entry) => ({ ...entry, sources: [ID, id] }));
+  vault.app.saveLocalStorage('atlas-vtt:playing-campaign', 'c-1');
+  renderPane();
+  await waitFor(() => expect(rows()).toHaveLength(3));
+
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Select Fireball' }));
+  const bar = screen.getByRole('toolbar', { name: '1 entry selected' });
+  fireEvent.click(within(bar).getByRole('button', { name: 'Copy 1 entry into a book of your own…' }));
+  const copyDialog = await screen.findByRole('dialog', { name: 'Copy 1 entry' });
+  fireEvent.click(within(copyDialog).getByRole('button', { name: 'Save' }));
+  const copy = 'Compendium/D&D 5e 2014/Personal/Spells/Fireball.md';
+  await waitFor(() => expect(vault.files.get(copy)).toContain('atlas-source: dnd5e-2014/personal'));
+  expect(vault.files.get(at('Spells/Fireball.md'))).toContain('atlas-compendium: spell');
+  // The list shows the book copied into: back to every book.
+  fireEvent.click(screen.getByRole('button', { name: /^All books/ }));
+
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Select Goblin' }));
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Select SRD 5.1 attribution' }));
+  dialogs.confirmAction.mockResolvedValueOnce(true);
+  fireEvent.click(within(screen.getByRole('toolbar', { name: '2 entries selected' })).getByRole('button', { name: 'Delete 2 entries…' }));
+  await waitFor(() => expect(vault.files.has(at('Monsters/Goblin.md'))).toBe(false));
+  expect(vault.files.has(at('Attribution.md'))).toBe(false);
+  expect(screen.queryByRole('toolbar', { name: /selected/ })).toBeNull();
 });

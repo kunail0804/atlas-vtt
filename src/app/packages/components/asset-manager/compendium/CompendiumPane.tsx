@@ -1,7 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { TFile, type App } from 'obsidian';
 import { AnimatePresence } from 'framer-motion';
-import { BookPlus, FilePlus, Library, Pencil, Search, Settings, Share2, Trash2, Upload, UserPlus, Users } from 'lucide-react';
+import { BookPlus, Copy, FilePlus, Library, Pencil, X, Search, Settings, Share2, Trash2, Upload, UserPlus, Users } from 'lucide-react';
 import { CampaignFiles } from '../../../../campaigns/CampaignFiles';
 import { CampaignPlay } from '../../../../campaigns/campaignPlay';
 import { useCampaigns } from '../../../../campaigns/useCampaigns';
@@ -9,6 +9,7 @@ import { CompendiumService } from '../../../../compendium/CompendiumService';
 import { exportCompendiumBook } from '../../../../compendium/compendiumFileMenu';
 import { booksOf, entryMatches, groupCounts, type CompendiumBook, type CompendiumEntry, type EntryGroup } from '../../../../compendium/compendiumEntries';
 import { OFFICIAL_SOURCES } from '../../../../compendium/officialSources';
+import { PERSONAL_BOOK_ID, isPersonalBookId } from '../../../../compendium/sourceTree';
 import { ENTRY_KINDS, isEntryKind, type EntryKind } from '../../../../compendium/sourceFormat';
 import { CompendiumSourcesDialog } from '../../../../react/components/dashboard/compendium/CompendiumSourcesDialog';
 import { useInstalledSources } from '../../../../react/components/dashboard/compendium/useInstalledSources';
@@ -21,6 +22,7 @@ import { t } from '../../../../i18n';
 import { CompendiumEntryPreview } from './CompendiumEntryPreview';
 import { NewBookDialog } from './NewBookDialog';
 import { NewEntryDialog } from './NewEntryDialog';
+import { CopyDialog } from './CopyDialog';
 import { PlayerDialog } from './PlayerDialog';
 import { ShareDialog } from './ShareDialog';
 import { useRoster } from '../../../../players/useRoster';
@@ -31,7 +33,7 @@ import { useCompendiumEntries } from './useCompendiumEntries';
 const WHOLE_VAULT = '';
 const GROUPS: readonly EntryGroup[] = [...ENTRY_KINDS, 'other'];
 
-type OpenDialog = 'sources' | 'entry' | 'book' | 'share' | 'player' | null;
+type OpenDialog = 'sources' | 'entry' | 'book' | 'share' | 'player' | 'copy' | null;
 
 interface CompendiumPaneProps {
   app: App;
@@ -72,6 +74,33 @@ export function CompendiumPane({ app, tabs, onClose, onDialogChange }: Compendiu
     : [];
   const installs = useSourceInstalls(app);
   const entries = useCompendiumEntries(app, books);
+
+  // A campaign that uses books of a system has that system's Personal book, made on the fly.
+  const ensured = useRef(new Set<string>());
+  useEffect(() => {
+    if (!campaign || !campaignService || campaign.readOnly === true || installed === undefined) return;
+    const listed = campaign.sources ?? [];
+    const systems = new Map<string, { id: string; name: string }>();
+    for (const source of installed) {
+      if (listed.includes(source.manifest.id) && !isPersonalBookId(source.manifest.id)) systems.set(source.manifest.system.id, source.manifest.system);
+    }
+    const lacking = [...systems.values()].filter((system) => !listed.includes(`${system.id}/${PERSONAL_BOOK_ID}`) && !ensured.current.has(`${campaign.id}:${system.id}`));
+    if (lacking.length === 0) return;
+    for (const system of lacking) ensured.current.add(`${campaign.id}:${system.id}`);
+    void (async () => {
+      const made: string[] = [];
+      for (const system of lacking) {
+        try {
+          made.push(await CompendiumService.forApp(app).ensurePersonalBook(system, { id: PERSONAL_BOOK_ID, name: t('compendium.personalBook') }));
+        } catch (error) {
+          console.error('[CompendiumPane] Making a Personal book failed:', error);
+        }
+      }
+      const current = campaignService.get(campaign.id)?.sources ?? [];
+      const added = made.filter((id) => !current.includes(id));
+      if (added.length > 0) campaignService.update(campaign.id, { sources: [...current, ...added] });
+    })();
+  }, [app, campaign, campaignService, installed]);
 
   const [group, setGroup] = useState<EntryGroup | null>(null);
   const [chosenBookId, setChosenBookId] = useState<string | null>(null);
@@ -126,6 +155,36 @@ export function CompendiumPane({ app, tabs, onClose, onDialogChange }: Compendiu
     setOpening((count) => count + 1);
     setDialog('player');
   };
+  /** Moves every ticked entry to the trash, once the GM confirms. */
+  const deleteTicked = async (): Promise<void> => {
+    const doomed = [...ticked];
+    if (doomed.length === 0) return;
+    const confirmed = await confirmAction({
+      title: t('compendium.batch.deleteTitle', { count: doomed.length }),
+      message: [t('compendium.batch.deleteMessage')],
+      confirmLabel: t('common.delete'),
+      destructive: true,
+    });
+    if (!confirmed) return;
+    const failed: string[] = [];
+    for (const entry of doomed) {
+      const file = app.vault.getAbstractFileByPath(entry.path);
+      if (!(file instanceof TFile)) continue;
+      try {
+        await app.fileManager.trashFile(file);
+      } catch (error) {
+        console.error('[CompendiumPane] Deleting a note failed:', error);
+        failed.push(entry.name);
+      }
+    }
+    setChecked(new Set());
+    if (selected !== null && doomed.some((entry) => entry.path === selected.path)) setSelectedPath(null);
+    if (failed.length > 0) showNotice(t('compendium.batch.deleteFailed', { names: failed.join(', ') }));
+  };
+
+  /** The books entries can be copied into: those of the GM's own. */
+  const ownBooks = books.filter((book) => !OFFICIAL_SOURCES.some((source) => source.id === book.id));
+
   const removePlayer = async (id: string): Promise<void> => {
     const name = roster.players[id]?.name ?? id;
     const confirmed = await confirmAction({
@@ -272,7 +331,9 @@ export function CompendiumPane({ app, tabs, onClose, onDialogChange }: Compendiu
                 <span className="atlas-tag-count">{entries.length}</span>
               </button>
               {books.map((book) => {
-                const personal = !OFFICIAL_SOURCES.some((source) => source.id === book.id);
+                // A system's Personal book is Atlas' to keep: never removed or exported from here.
+                const own = isPersonalBookId(book.id);
+                const personal = !own && !OFFICIAL_SOURCES.some((source) => source.id === book.id);
                 return (
                   <div key={book.id} className="atlas-compendium-sidebar__book">
                     <LabelTooltip label={`${book.systemName} · ${book.name}`} describe>
@@ -286,7 +347,7 @@ export function CompendiumPane({ app, tabs, onClose, onDialogChange }: Compendiu
                         <span className="atlas-tag-count">{bookCounts.get(book.id) ?? 0}</span>
                       </button>
                     </LabelTooltip>
-                    <LabelTooltip label={t('compendium.remove', { name: book.name })}>
+                    {!own && <LabelTooltip label={t('compendium.remove', { name: book.name })}>
                       <Button
                         variant="ghost"
                         size="icon"
@@ -297,7 +358,7 @@ export function CompendiumPane({ app, tabs, onClose, onDialogChange }: Compendiu
                       >
                         <Trash2 />
                       </Button>
-                    </LabelTooltip>
+                    </LabelTooltip>}
                     {personal && (
                       <LabelTooltip label={t('compendium.browser.exportBook', { name: book.name })}>
                         <Button
@@ -436,6 +497,31 @@ export function CompendiumPane({ app, tabs, onClose, onDialogChange }: Compendiu
       <div className="atlas-asset-manager-body atlas-compendium-body">
         <div className="atlas-compendium-list" role="listbox" aria-label={t('compendium.browser.tab')}>
           {shown.length === 0 && <p className="atlas-compendium-list__empty">{emptyText}</p>}
+          {ticked.length > 0 && (
+            <div className="atlas-compendium-list__batch" role="toolbar" aria-label={t('compendium.share.selected', { count: ticked.length })}>
+              <span className="atlas-compendium-list__batch-count">{t('compendium.share.selected', { count: ticked.length })}</span>
+              <LabelTooltip label={t('compendium.share.buttonMany', { count: ticked.length })}>
+                <Button variant="ghost" size="icon" className="atlas-collection-header-btn" aria-label={t('compendium.share.buttonMany', { count: ticked.length })} onClick={() => openShare(ticked.map((entry) => entry.path))}>
+                  <Share2 />
+                </Button>
+              </LabelTooltip>
+              <LabelTooltip label={t('compendium.batch.copy', { count: ticked.length })}>
+                <Button variant="ghost" size="icon" className="atlas-collection-header-btn" aria-label={t('compendium.batch.copy', { count: ticked.length })} onClick={() => { setOpening((count) => count + 1); setDialog('copy'); }}>
+                  <Copy />
+                </Button>
+              </LabelTooltip>
+              <LabelTooltip label={t('compendium.batch.delete', { count: ticked.length })}>
+                <Button variant="ghost" size="icon" className="atlas-collection-header-btn" aria-label={t('compendium.batch.delete', { count: ticked.length })} onClick={() => { void deleteTicked(); }}>
+                  <Trash2 />
+                </Button>
+              </LabelTooltip>
+              <LabelTooltip label={t('compendium.share.clear')}>
+                <Button variant="ghost" size="icon" className="atlas-collection-header-btn" aria-label={t('compendium.share.clear')} onClick={() => setChecked(new Set())}>
+                  <X />
+                </Button>
+              </LabelTooltip>
+            </div>
+          )}
           {shown.length > 0 && (
             <label className="atlas-compendium-list__select-all">
               <input
@@ -516,6 +602,20 @@ export function CompendiumPane({ app, tabs, onClose, onDialogChange }: Compendiu
             paths={sharing}
             name={sharing.length === 1 ? entries.find((entry) => entry.path === sharing[0])?.name ?? null : null}
             onSave={(changes: Readonly<Record<string, ShareAccess | null>>) => players.share(sharing, changes)}
+            onClose={() => setDialog(null)}
+          />
+        )}
+        {dialog === 'copy' && (
+          <CopyDialog
+            key={`copy-${opening}`}
+            books={ownBooks}
+            count={ticked.length}
+            onCopy={async (book) => {
+              const copies = await CompendiumService.forApp(app).copyEntries(ticked.map((entry) => entry.path), book);
+              setChecked(new Set());
+              setChosenBookId(book.id);
+              setSelectedPath(copies[0]?.path ?? null);
+            }}
             onClose={() => setDialog(null)}
           />
         )}

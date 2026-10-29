@@ -9,6 +9,7 @@ import { sha256 } from '../utils/hashing';
 import type { InstalledSource } from './installedSources';
 import { installRecordPath } from './installedSources';
 import { OFFICIAL_SOURCES } from './officialSources';
+import { PERSONAL_BOOK_ID } from './sourceTree';
 import {
   COMPENDIUM_ROOT, SOURCE_FORMAT, SOURCE_MANIFEST, SOURCE_TYPE, isFolderName, sourceIdOf, sourceManifestProblem, sourceRootOf, zipPathOf,
   type CompendiumSourceManifest, type SourceFile, type SourceLabel,
@@ -78,6 +79,11 @@ export async function exportSource(
     files.push({ path, sha256: await sha256(data) });
   }
   const manifest = personalManifest(folder, files, installed);
+  // A system's Personal book is each vault's own: installed elsewhere it would take that vault's.
+  if (manifest.book.id === PERSONAL_BOOK_ID) throw new Error(`${manifest.book.name} is the Personal book of ${manifest.system.name}: it cannot be exported. Copy its entries into a book of your own to share them.`);
+  // Two folders whose names give one id ("My Book", "My-Book"): the record of the other would be overwritten.
+  const other = installed.find((source) => source.manifest.id === manifest.id && source.manifest.root !== manifest.root);
+  if (other) throw new Error(`${other.manifest.root} has the id ${manifest.id} already. Rename this folder before exporting it.`);
   // Exporting it would record Atlas' own source as a personal one, and its updates would stop.
   if (OFFICIAL_SOURCES.some((source) => source.id === manifest.id)) throw new Error(`${manifest.book.name} is one of Atlas' sources: install it from the compendium list instead.`);
   const problem = sourceManifestProblem(manifest);

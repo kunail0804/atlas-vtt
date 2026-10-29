@@ -22,6 +22,9 @@ export interface SharedPage {
   /** The kind of entry: `spell`, `monster`, … or `other`. */
   readonly kind: string;
   readonly access: CompendiumAccess;
+  /** The book it comes from ("SRD 5.1", "Personal") and its game system, where it has one. */
+  readonly source?: string;
+  readonly system?: string;
 }
 
 /** One line of a page's card: "Casting Time: 1 action". */
@@ -93,7 +96,10 @@ const isCount = (value: unknown, max: number): value is number => Number.isInteg
 function parsePage(value: unknown): SharedPage | null {
   if (!isRecord(value) || typeof value.id !== 'string' || !PAGE_ID.test(value.id) || typeof value.kind !== 'string' || !KIND.test(value.kind) || !isAccess(value.access)) return null;
   const title = bookLine(value.title, MAX_PAGE_TITLE);
-  return title === null ? null : { id: value.id, title, kind: value.kind, access: value.access };
+  const source = value.source === undefined ? undefined : bookLine(value.source, MAX_PAGE_TITLE);
+  const system = value.system === undefined ? undefined : bookLine(value.system, MAX_PAGE_TITLE);
+  if (title === null || source === null || system === null) return null;
+  return { id: value.id, title, kind: value.kind, access: value.access, ...(source !== undefined && { source }), ...(system !== undefined && { system }) };
 }
 
 function parseList<T>(value: unknown, max: number, parse: (item: unknown) => T | null): T[] | null {

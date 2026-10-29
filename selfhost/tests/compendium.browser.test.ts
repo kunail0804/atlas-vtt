@@ -70,7 +70,7 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the compendium pag
         return identified.id;
       },
       sharesOf: (id) => sharesOf(roster, id),
-      describe: (notePath) => (notePath === FIRE ? { title: 'Fireball', kind: 'spell' } : notePath === GOBLIN ? { title: 'Goblin', kind: 'monster' } : null),
+      describe: (notePath) => (notePath === FIRE ? { title: 'Fireball', kind: 'spell', source: 'SRD', system: 'X' } : notePath === GOBLIN ? { title: 'Goblin', kind: 'monster', source: 'Personal', system: 'X' } : null),
       read,
       write: async (notePath, edit, allowed) => {
         if (notePath !== FIRE) return false;
@@ -95,8 +95,17 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the compendium pag
     await page.click('.atlas-bottom-toolbar-row__end button');
     await page.click('.book-tab[data-tab="compendium"]');
     await page.waitForSelector('.cpd-entry');
-    expect(await page.locator('.cpd-kind-heading').allTextContents()).toEqual(['Sorts', 'Créatures']);
+    // By book, then by kind, each a folder the player closes and opens.
+    expect(await page.locator('.cpd-source > .cpd-folder-title .cpd-folder-name').allTextContents()).toEqual(['Personal', 'SRD']);
+    expect(await page.locator('.cpd-kind > .cpd-folder-title .cpd-folder-name').allTextContents()).toEqual(['Créatures', 'Sorts']);
     await shot('compendium-list');
+    await page.click('.cpd-source:has-text("SRD") > .cpd-folder-title');
+    expect(await page.locator('.cpd-entry:has-text("Fireball")').isVisible()).toBe(false);
+    // Closed through a redraw from the GM too.
+    share.sharesChanged();
+    await page.waitForTimeout(200);
+    expect(await page.locator('.cpd-entry:has-text("Fireball")').isVisible()).toBe(false);
+    await page.click('.cpd-source:has-text("SRD") > .cpd-folder-title');
 
     await page.click('.cpd-entry:has-text("Goblin")');
     await page.waitForSelector('.cpd-card');

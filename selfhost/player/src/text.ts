@@ -8,7 +8,7 @@ export const TEXT = {
     open: 'Mon livre',
     close: 'Fermer',
     coming: 'Ton livre arrive…',
-    tabs: { character: 'Personnage', sheet: 'Fiche', documents: 'Documents', compendium: 'Compendium', items: 'Objets', equipment: 'Emplacements', notes: 'Notes', quests: 'Quêtes', purse: 'Bourse', map: 'Carte' },
+    tabs: { character: 'Personnage', sheet: 'Fiche', compendium: 'Compendium', items: 'Objets', equipment: 'Emplacements', notes: 'Notes', quests: 'Quêtes', purse: 'Bourse', map: 'Carte' },
     noCharacter: 'Le MJ ne t\'a pas encore donné de personnage.',
     noItems: 'Aucun objet pour l\'instant.',
     noQuests: 'Aucune quête pour l\'instant.',
@@ -22,6 +22,8 @@ export const TEXT = {
   },
   compendium: {
     none: 'Le MJ ne t\'a encore partagé aucune page du compendium.',
+    documents: 'Documents du personnage',
+    otherSource: 'Autres pages',
     loading: 'La page arrive…',
     back: '← Toutes les pages',
     edit: 'Modifier',
@@ -86,8 +88,6 @@ export const TEXT = {
   sheet: {
     coming: 'Ta fiche de personnage arrive…',
     none: 'Le MJ n\'a pas encore créé la fiche de ton personnage.',
-    noDocuments: 'Le MJ ne t\'a donné aucun document pour l\'instant.',
-    read: 'Lire',
   },
   toolbar: {
     chat: 'Chat et dés',

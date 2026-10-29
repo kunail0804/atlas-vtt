@@ -55,8 +55,8 @@ describe('the compendium source picker', () => {
     fireEvent.click(screen.getByLabelText('All of D&D 5e 2014'));
     expect((screen.getByRole('checkbox', { name: 'SRD 5.1' }) as HTMLInputElement).checked).toBe(true);
     expect((screen.getByRole('checkbox', { name: 'SRD 5.2.1' }) as HTMLInputElement).checked).toBe(false);
-    const personal = screen.getAllByRole('checkbox', { name: 'Personal' }) as HTMLInputElement[];
-    expect(personal.map((box) => box.checked)).toEqual([true, false]);
+    // The Personal book is no choice: Atlas adds it.
+    expect(screen.queryByRole('checkbox', { name: 'Personal' })).toBeNull();
 
     vi.mocked(requestUrl).mockResolvedValueOnce({ status: 200, arrayBuffer: zip } as never);
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));

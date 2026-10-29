@@ -3,7 +3,8 @@ import { downloadBlob } from '../utils/downloadBlob';
 import { showNotice } from '../ui/notice';
 import { t } from '../i18n';
 import { CompendiumService } from './CompendiumService';
-import { sourceFolderNames } from './sourceExport';
+import { slugOf, sourceFolderNames } from './sourceExport';
+import { PERSONAL_BOOK_ID } from './sourceTree';
 import { COMPENDIUM_ROOT } from './sourceFormat';
 
 /** Exports the folder `Compendium/<system>/<book>` as a source zip to the downloads folder, telling the GM how it went. */
@@ -18,14 +19,17 @@ export async function exportCompendiumBook(app: App, path: string): Promise<void
   }
 }
 
-/** Every folder `Compendium/<system>/<book>` of the vault, by system then book. */
+/** Whether a book folder is a system's Personal book, which is never exported. */
+export const isPersonalFolder = (path: string): boolean => slugOf(path.slice(path.lastIndexOf('/') + 1)) === PERSONAL_BOOK_ID;
+
+/** Every folder `Compendium/<system>/<book>` of the vault that can be exported, by system then book. */
 export function compendiumBookFolders(app: App): TFolder[] {
   const root = app.vault.getFolderByPath(COMPENDIUM_ROOT);
   if (!(root instanceof TFolder)) return [];
   const foldersIn = (folder: TFolder): TFolder[] => folder.children
     .filter((child): child is TFolder => child instanceof TFolder)
     .map((child) => app.vault.getFolderByPath(child.path) ?? child);
-  const books = foldersIn(root).flatMap(foldersIn).filter((book) => sourceFolderNames(book.path) !== null);
+  const books = foldersIn(root).flatMap(foldersIn).filter((book) => sourceFolderNames(book.path) !== null && !isPersonalFolder(book.path));
   return books.sort((a, b) => a.path.localeCompare(b.path));
 }
 
@@ -71,7 +75,8 @@ function registerExportCommand(plugin: Plugin): void {
       if (folders.length === 0) return false;
       if (checking) return true;
       const active = app.workspace.getActiveFile();
-      const current = active === null ? null : bookFolderOf(active.path);
+      const book = active === null ? null : bookFolderOf(active.path);
+      const current = book !== null && !isPersonalFolder(book) ? book : null;
       if (current !== null) void exportCompendiumBook(app, current);
       else new BookFolderModal(app, folders, (folder) => void exportCompendiumBook(app, folder.path)).open();
       return true;
@@ -86,7 +91,7 @@ function registerExportCommand(plugin: Plugin): void {
 export function registerCompendiumFileMenu(plugin: Plugin): void {
   const { app } = plugin;
   plugin.registerEvent(app.workspace.on('file-menu', (menu, file) => {
-    if (!(file instanceof TFolder) || sourceFolderNames(file.path) === null) return;
+    if (!(file instanceof TFolder) || sourceFolderNames(file.path) === null || isPersonalFolder(file.path)) return;
     menu.addItem((item) => item
       .setTitle(t('compendium.export'))
       .setIcon('package')

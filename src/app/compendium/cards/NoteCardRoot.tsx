@@ -27,7 +27,7 @@ export function NoteCardRoot({ app, file, shown, ...host }: NoteCardRootProps): 
     <PanelHostContent {...host}>
       {shown.kind === 'statblock'
         ? <LinkedStatblock key={file.path} app={app} path={file.path} variant="full" />
-        : <EntryCardView key={file.path} app={app} file={file} group={shown.group} name={shown.name} variant="full" withoutText />}
+        : <EntryCardView key={file.path} app={app} file={file} group={shown.group} name={shown.name} variant="full" />}
     </PanelHostContent>
   );
 }

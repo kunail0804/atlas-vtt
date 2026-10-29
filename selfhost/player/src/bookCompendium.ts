@@ -11,6 +11,8 @@ export interface CompendiumPorts {
   redraw(): void;
   /** The list of pages came or went: the book's button may show or hide. */
   changed(): void;
+  /** The notes the GM linked to the player's character, read in the reader. */
+  documents(): readonly { readonly title: string; readonly open: () => void }[];
 }
 
 /** The kinds in the order the list shows them. */
@@ -28,6 +30,8 @@ export class CompendiumPages {
   private editing: string | null = null;
   private saving: string | null = null;
   private readonly drafts = new Map<string, string>();
+  /** The folders of the list the player closed, by key: they stay closed through redraws. */
+  private readonly closed = new Set<string>();
 
   constructor(private readonly ports: CompendiumPorts) {}
 
@@ -79,22 +83,56 @@ export class CompendiumPages {
     return page;
   }
 
+  /** A folder of the list: a title the player opens and closes, its count, and what it holds. */
+  private folder(key: string, title: string, count: number, className: string): { element: HTMLDetailsElement; body: HTMLElement } {
+    const element = node('details', `cpd-folder ${className}`);
+    element.open = !this.closed.has(key);
+    const summary = node('summary', 'cpd-folder-title');
+    summary.append(node('span', 'cpd-folder-name', title), node('span', 'cpd-folder-count', String(count)));
+    const body = node('div', 'cpd-folder-body');
+    element.append(summary, body);
+    element.addEventListener('toggle', () => {
+      if (element.open) this.closed.delete(key);
+      else this.closed.add(key);
+    });
+    return { element, body };
+  }
+
+  /** The pages by book, then by kind, each a folder; the character's documents first. */
   private list(): HTMLElement {
     const list = node('div', 'cpd-list');
-    if (this.pages.length === 0) {
+    const documents = this.ports.documents();
+    if (this.pages.length === 0 && documents.length === 0) {
       list.append(node('p', 'book-empty', TEXT.compendium.none));
       return list;
     }
-    const kinds = [...KINDS, ...new Set(this.pages.map((page) => page.kind).filter((kind) => !KINDS.includes(kind)))];
-    for (const kind of kinds) {
-      const pages = this.pages.filter((page) => page.kind === kind || (kind === 'other' && !KINDS.includes(page.kind)));
-      if (pages.length === 0) continue;
-      list.append(node('h4', 'cpd-kind-heading', TEXT.compendium.kinds[kind] ?? TEXT.compendium.kinds.other));
-      for (const shared of pages) {
-        const choice = button(shared.title, () => this.open(shared.id), 'book-button cpd-entry');
-        if (shared.access === 'write') choice.append(node('span', 'cpd-badge', TEXT.compendium.writable));
-        list.append(choice);
+    if (documents.length > 0) {
+      const { element, body } = this.folder('documents', TEXT.compendium.documents, documents.length, 'cpd-source');
+      for (const document of documents) body.append(button(document.title, document.open, 'book-button cpd-entry'));
+      list.append(element);
+    }
+    const systems = new Set(this.pages.map((page) => page.system ?? ''));
+    const sourceOf = (page: SharedPage): string => {
+      if (page.source === undefined) return TEXT.compendium.otherSource;
+      return systems.size > 1 && page.system !== undefined ? `${page.source} · ${page.system}` : page.source;
+    };
+    const sources = [...new Set(this.pages.map(sourceOf))].sort((a, b) => (a === TEXT.compendium.otherSource ? 1 : b === TEXT.compendium.otherSource ? -1 : a.localeCompare(b)));
+    for (const source of sources) {
+      const pages = this.pages.filter((page) => sourceOf(page) === source);
+      const folder = this.folder(`source:${source}`, source, pages.length, 'cpd-source');
+      const kinds = [...KINDS, ...new Set(pages.map((page) => page.kind).filter((kind) => !KINDS.includes(kind)))];
+      for (const kind of kinds) {
+        const ofKind = pages.filter((page) => page.kind === kind).sort((a, b) => a.title.localeCompare(b.title));
+        if (ofKind.length === 0) continue;
+        const inner = this.folder(`kind:${source}:${kind}`, TEXT.compendium.kinds[kind] ?? TEXT.compendium.kinds.other, ofKind.length, 'cpd-kind');
+        for (const shared of ofKind) {
+          const choice = button(shared.title, () => this.open(shared.id), 'book-button cpd-entry');
+          if (shared.access === 'write') choice.append(node('span', 'cpd-badge', TEXT.compendium.writable));
+          inner.body.append(choice);
+        }
+        folder.body.append(inner.element);
       }
+      list.append(folder.element);
     }
     return list;
   }

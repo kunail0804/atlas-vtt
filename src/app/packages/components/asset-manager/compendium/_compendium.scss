@@ -141,6 +141,23 @@ $preview-max-width: 560px;
     color: var(--text-accent);
   }
 
+  // What the ticked entries can be given: shared, copied, deleted.
+  &__batch {
+    @include atlas-flex-row($gap: 2px);
+    flex-shrink: 0;
+    padding: $spacing-xs $spacing-s;
+    border-radius: $radius-l;
+    background: color-mix(in oklch, var(--interactive-accent) 12%, transparent);
+  }
+
+  &__batch-count {
+    flex: 1;
+    min-width: 0;
+    color: var(--text-normal);
+    font-size: $font-ui-smaller;
+    font-weight: $font-weight-medium;
+  }
+
   &__select-all {
     @include atlas-flex-row($gap: $spacing-s);
     flex-shrink: 0;

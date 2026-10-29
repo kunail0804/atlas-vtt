@@ -95,14 +95,14 @@ afterEach(async () => {
 const cardOf = (view: NoteView): HTMLElement | null => view.contentEl.querySelector('.atlas-compendium-note-card');
 
 describe('the card beside a compendium note', () => {
-  it('shows a spell\'s properties beside its note, without the text the note shows', async () => {
+  it('shows a spell\'s properties beside its note, then its text', async () => {
     const { cards, open } = setup();
     const view = open(SPELL);
     await act(async () => { cards.start(); });
     expect(view.containerEl.classList.contains('atlas-compendium-note')).toBe(true);
     await waitFor(() => expect(cardOf(view)?.textContent).toContain('Evocation'));
     expect(cardOf(view)?.textContent).toContain('Fireball');
-    expect(cardOf(view)?.textContent).not.toContain('A bright streak');
+    await waitFor(() => expect(cardOf(view)?.textContent).toContain('A bright streak'));
   });
 
   it('shows a monster\'s own statblock, with what gives its armour class', async () => {
@@ -112,9 +112,16 @@ describe('the card beside a compendium note', () => {
     await waitFor(() => expect(cardOf(view)?.textContent).toContain('15 (leather armor, shield)'));
   });
 
-  it('leaves alone a plain note, an entry with nothing but its name, and a statblock the statblock editor shows', async () => {
+  it('shows an entry with nothing but its text, its text on the card', async () => {
+    const { cards, open } = setup();
+    const view = open(CONDITION);
+    await act(async () => { cards.start(); });
+    await waitFor(() => expect(cardOf(view)?.textContent).toContain('You cannot see.'));
+  });
+
+  it('leaves alone a plain note, and a statblock the statblock editor shows', async () => {
     const { cards, open } = setup({ statblockEditor: true });
-    const views = [open(PLAIN), open(CONDITION), open(GOBLIN)];
+    const views = [open(PLAIN), open(GOBLIN)];
     await act(async () => { cards.start(); });
     for (const view of views) {
       expect(cardOf(view)).toBeNull();

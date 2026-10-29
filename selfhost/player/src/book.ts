@@ -18,8 +18,8 @@ import type { SheetMessage } from '../../../src/app/online/protocol/sheet.ts';
 import type { CompendiumMessage } from '../../../src/app/online/protocol/compendium.ts';
 import { CompendiumPages } from './bookCompendium.ts';
 
-const TABS: readonly Tab[] = ['character', 'sheet', 'documents', 'compendium', 'items', 'equipment', 'notes', 'quests', 'purse', 'map'];
-const PAGES: Readonly<Record<Exclude<Tab, 'sheet' | 'documents' | 'compendium'>, (context: PageContext) => HTMLElement>> = {
+const TABS: readonly Tab[] = ['character', 'sheet', 'compendium', 'items', 'equipment', 'notes', 'quests', 'purse', 'map'];
+const PAGES: Readonly<Record<Exclude<Tab, 'sheet' | 'compendium'>, (context: PageContext) => HTMLElement>> = {
   character: characterPage, items: itemsPage, equipment: equipmentPage, notes: notesPage, quests: questsPage, purse: pursePage, map: worldMapPage,
 };
 
@@ -58,6 +58,8 @@ export class BookPanel {
       send, tell,
       redraw: () => { if (!this.panel.hidden && this.ui.tab === 'compendium') this.render(); },
       changed: () => this.tellAvailable(),
+      // The notes the GM links to the character are read in the compendium too: it took the Documents tab's place.
+      documents: () => this.sheet.documents(),
     });
     this.panel = node('aside', 'atlas-vtt-plugin book');
     // A press in the book leaves the log open beside it.
@@ -99,13 +101,14 @@ export class BookPanel {
 
   /** The book's button shows once there is a book or a shared page to open. */
   private tellAvailable(): void {
-    this.available(this.book !== null || this.compendium.hasPages);
+    this.available(this.book !== null || this.compendium.hasPages || this.sheet.documents().length > 0);
   }
 
   /** The character sheet and its notes, as the GM sent them. */
   receiveSheet(message: SheetMessage): void {
     this.sheet.receive(message);
-    if (!this.panel.hidden && this.ui.tab === 'documents') this.render();
+    this.tellAvailable();
+    if (!this.panel.hidden && this.ui.tab === 'compendium') this.render();
   }
 
   /** The character's hit points, set from its sheet as from its sheet's resource. */
@@ -157,7 +160,6 @@ export class BookPanel {
     for (const choice of this.panel.querySelectorAll<HTMLElement>('.book-tab')) choice.setAttribute('aria-pressed', String(choice.dataset.tab === this.ui.tab));
     this.panel.classList.toggle('book-wide', this.ui.tab === 'map' || this.ui.tab === 'sheet');
     if (this.ui.tab === 'sheet') return this.body.replaceChildren(this.sheet.sheetPage());
-    if (this.ui.tab === 'documents') return this.body.replaceChildren(this.sheet.documentsPage());
     if (this.ui.tab === 'compendium') return this.renderKeepingFocus(() => this.compendium.page());
     const book = this.book;
     if (book === null) return this.body.replaceChildren(node('p', 'book-empty', TEXT.book.coming));

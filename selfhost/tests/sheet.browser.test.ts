@@ -100,8 +100,9 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player\'s char
 
     // The GM's documents: the note's whole text, fetched by hash.
     send({ t: 'sheet', sheet: { system: 'dnd5e-2024', values }, notes: [{ title: 'Famille de Mira', body: 'Ta sœur…', text: { hash: loreHash, size: lore.length, mime: 'text/markdown' } }] } as GmMessage, player);
-    await page.click('.book-tab[data-tab="documents"]');
-    await page.click('.book-document button >> text=Lire');
+    // In the Compendium tab, which took the Documents tab's place: the character's documents come first.
+    await page.click('.book-tab[data-tab="compendium"]');
+    await page.click('.cpd-entry >> text=Famille de Mira');
     await until(() => sentOf('asset-request').some((request) => request.hash === loreHash), 'text asked for', 5_000);
     for (const chunk of assetChunks(loreHash, lore)) send(chunk, player);
     await page.waitForFunction(() => document.querySelector('.reader .doc-text')?.textContent?.includes('Port-Brume'), null, { timeout: 5_000 });

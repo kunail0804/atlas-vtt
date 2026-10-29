@@ -4,7 +4,7 @@ import { Trash2 } from 'lucide-react';
 import type { Campaign } from '../../../../campaigns/campaignTypes';
 import type { CampaignService } from '../../../../campaigns/CampaignService';
 import { OFFICIAL_SOURCES } from '../../../../compendium/officialSources';
-import { booksToMake, downloadsFor, sourceTree, systemSelection, toggleBook, toggleSystem, type BookChoice } from '../../../../compendium/sourceTree';
+import { PERSONAL_BOOK_ID, downloadsFor, isPersonalBookId, personalBooksFor, sourceTree, systemSelection, toggleBook, toggleSystem, type BookChoice } from '../../../../compendium/sourceTree';
 import { CompendiumService } from '../../../../compendium/CompendiumService';
 import { Button } from '../../../../packages/components/primitives/button';
 import { t } from '../../../../i18n';
@@ -23,7 +23,6 @@ interface CompendiumSourcesDialogProps {
 const megabytes = (bytes: number): string => `${(bytes / 1_000_000).toFixed(1)} MB`;
 
 function stateLabel(book: BookChoice): string {
-  if (book.state.kind === 'new') return t('compendium.personalNew');
   if (book.state.kind === 'available') return t('compendium.download', { size: megabytes(book.state.official.size) });
   return book.state.kind === 'outdated' ? t('compendium.outdated') : t('compendium.installed');
 }
@@ -35,8 +34,9 @@ function stateLabel(book: BookChoice): string {
 export function CompendiumSourcesDialog({ app, campaign, service, onClose }: CompendiumSourcesDialogProps): React.ReactElement {
   const { sources } = useInstalledSources(app);
   const installs = useSourceInstalls(app);
-  const [chosen, setChosen] = useState<Set<string>>(() => new Set(campaign.sources ?? []));
-  const tree = sources === undefined ? [] : sourceTree(OFFICIAL_SOURCES, sources, t('compendium.personalBook'));
+  // The Personal books are Atlas' to add: the GM chooses the others.
+  const [chosen, setChosen] = useState<Set<string>>(() => new Set((campaign.sources ?? []).filter((id) => !isPersonalBookId(id))));
+  const tree = sources === undefined ? [] : sourceTree(OFFICIAL_SOURCES, sources);
   const known = new Set(tree.flatMap((system) => system.books.map((book) => book.id)));
   const missing = sources === undefined ? [] : [...chosen].filter((id) => !known.has(id));
   const busy = installs.busy !== null;
@@ -53,15 +53,18 @@ export function CompendiumSourcesDialog({ app, campaign, service, onClose }: Com
     if (busy) return;
     if (!(await installs.download(downloadsFor(tree, chosen)))) return;
     setMakeError(null);
+    const own: string[] = [];
     try {
-      for (const { system, book } of booksToMake(tree, chosen)) await CompendiumService.forApp(app).ensurePersonalBook(system, book);
+      for (const system of personalBooksFor(tree, chosen)) {
+        own.push(await CompendiumService.forApp(app).ensurePersonalBook(system, { id: PERSONAL_BOOK_ID, name: t('compendium.personalBook') }));
+      }
     } catch (error) {
       console.error('[CompendiumSourcesDialog] Making a personal book failed:', error);
       setMakeError(t('compendium.personalFailed', { error: error instanceof Error ? error.message : String(error) }));
       return;
     }
     try {
-      service.update(campaign.id, { sources: [...chosen] });
+      service.update(campaign.id, { sources: [...chosen, ...own] });
       onClose();
     } catch (error) {
       console.error('[CompendiumSourcesDialog] Saving the campaign sources failed:', error);
@@ -109,12 +112,12 @@ export function CompendiumSourcesDialog({ app, campaign, service, onClose }: Com
               {system.books.map((book) => (
                 <li key={book.id} className="compendium-sources__book">
                   <label className="compendium-sources__book-label">
-                    <input type="checkbox" checked={chosen.has(book.id)} disabled={busy} onChange={() => setChosen(toggleBook(system, book.id, chosen))} />
+                    <input type="checkbox" checked={chosen.has(book.id)} disabled={busy} onChange={() => setChosen(toggleBook(book.id, chosen))} />
                     <span className="compendium-sources__book-name">{book.name}</span>
                   </label>
                   {book.personal && <span className="atlas-csm-tag">{t('compendium.personal')}</span>}
                   <span className={`atlas-csm-tag${book.state.kind === 'outdated' ? ' atlas-csm-tag--accent' : ''}`}>{stateLabel(book)}</span>
-                  {book.state.kind !== 'available' && book.state.kind !== 'new' && (
+                  {book.state.kind !== 'available' && (
                     <Button
                       variant="ghost"
                       size="icon"
