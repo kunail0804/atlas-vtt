@@ -24,6 +24,8 @@ export const TEXT = {
     none: 'Le MJ ne t\'a encore partagé aucune page du compendium.',
     documents: 'Documents du personnage',
     otherSource: 'Autres pages',
+    backToSheet: '← Retour à la fiche',
+    missing: (name: string): string => `« ${name} » n'est pas dans le compendium de la campagne.`,
     loading: 'La page arrive…',
     back: '← Toutes les pages',
     edit: 'Modifier',

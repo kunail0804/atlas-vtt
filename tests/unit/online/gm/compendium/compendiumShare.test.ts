@@ -116,3 +116,88 @@ describe('the compendium pages shared at a table', () => {
     expect(sent).toHaveLength(1);
   });
 });
+
+describe('the compendium a player\'s sheet reaches at a table', () => {
+  const SHEET = 'Personnages/Mira.md';
+  const WIZARD = 'Compendium/X/Classes/Wizard.md';
+  const SHIELD_SPELL = 'Compendium/X/Spells/Shield.md';
+
+  function sheetHarness(): { share: CompendiumShare; sent: Array<{ body: GmMessage; to: string }>; picks: Array<[string, string, string]>; links: string[] } {
+    const sent: Array<{ body: GmMessage; to: string }> = [];
+    const picks: Array<[string, string, string]> = [];
+    const links: string[] = [];
+    let clock = 0;
+    const share = new CompendiumShare({
+      send: (body, to) => sent.push({ body, to }),
+      nameOf: () => 'Ana',
+      identify: async () => 'ana',
+      sharesOf: () => [],
+      describe: (path) => ({ title: path.split('/').at(-1)?.replace('.md', '') ?? path, kind: path.includes('Classes') ? 'class' : 'spell' }),
+      read: async (path) => ({ title: path, kind: 'class', content: { rows: [], sections: [], text: 'Arcane.' }, fields: [] }),
+      write: async () => true,
+      now: () => (clock += 1000),
+      sheetOf: (player) => (player === 'r1' ? SHEET : null),
+      sheetChoices: async () => [{ path: WIZARD, name: 'Wizard', detail: 'd6' }],
+      pick: async (sheet, kind, entry) => { picks.push([sheet, kind, entry]); return true; },
+      findEntry: async (_kind, name) => (name.toLowerCase() === 'wizard' ? WIZARD : null),
+      sheetLinks: () => links,
+    });
+    return { share, sent, picks, links };
+  }
+
+  it('offers the entries of a kind under ids of their own, and takes one only among those offered, into the player\'s own sheet', async () => {
+    const { share, sent, picks } = sheetHarness();
+    share.receive('r1', { t: 'identify', key: KEY });
+    await flush();
+    share.receive('r1', { t: 'sheet-choices', kind: 'class' });
+    await flush();
+    const offered = sent.find((entry) => entry.body.t === 'sheet-choices')?.body;
+    expect(offered).toEqual({ t: 'sheet-choices', kind: 'class', choices: [{ id: pageIdOf(WIZARD), name: 'Wizard', detail: 'd6' }] });
+    expect(parseGmMessage(JSON.parse(JSON.stringify(offered)))).toEqual(offered);
+
+    share.receive('r1', { t: 'sheet-pick', kind: 'class', id: 'unknown1' });
+    share.receive('r1', { t: 'sheet-pick', kind: 'spell', id: pageIdOf(WIZARD) });
+    share.receive('r1', { t: 'sheet-pick', kind: 'class', id: pageIdOf(WIZARD) });
+    await flush();
+    expect(picks).toEqual([[SHEET, 'class', WIZARD]]);
+  });
+
+  it('opens to the player the entry their sheet names, and says when the campaign has none', async () => {
+    const { share, sent } = sheetHarness();
+    share.receive('r1', { t: 'identify', key: KEY });
+    await flush();
+    share.receive('r1', { t: 'sheet-view', kind: 'class', name: 'Wizard' });
+    share.receive('r1', { t: 'sheet-view', kind: 'class', name: 'Bard' });
+    await flush();
+    const entry = sent.find((item) => item.body.t === 'compendium-entry')?.body;
+    expect(entry?.t === 'compendium-entry' && [entry.page.id, entry.page.access, entry.page.shown]).toEqual([pageIdOf(WIZARD), 'read', true]);
+    expect(sent.some((item) => item.body.t === 'compendium-missing' && item.body.name === 'Bard')).toBe(true);
+    // Opened from the sheet: the player may open it again, never change it.
+    sent.length = 0;
+    share.receive('r1', { t: 'compendium-open', id: pageIdOf(WIZARD) });
+    await flush();
+    expect(sent.map((item) => item.body.t)).toEqual(['compendium-entry']);
+  });
+
+  it('lists the spells the player\'s sheet names as pages to read, again when the sheet changes', async () => {
+    const { share, sent, links } = sheetHarness();
+    share.receive('r1', { t: 'identify', key: KEY });
+    await flush();
+    expect(sent.at(-1)?.body).toEqual({ t: 'compendium', pages: [] });
+    links.push(SHIELD_SPELL);
+    share.noteChanged(SHEET);
+    expect(sent.at(-1)?.body).toEqual({ t: 'compendium', pages: [{ id: pageIdOf(SHIELD_SPELL), title: 'Shield', kind: 'spell', access: 'read' }] });
+  });
+
+  it('gives nothing to a player without a sheet', async () => {
+    const { share, sent, picks } = sheetHarness();
+    share.receive('r2', { t: 'identify', key: KEY });
+    await flush();
+    share.receive('r2', { t: 'sheet-choices', kind: 'class' });
+    share.receive('r2', { t: 'sheet-view', kind: 'class', name: 'Wizard' });
+    await flush();
+    expect(sent.find((item) => item.body.t === 'sheet-choices')?.body).toEqual({ t: 'sheet-choices', kind: 'class', choices: [] });
+    expect(sent.some((item) => item.body.t === 'compendium-entry')).toBe(false);
+    expect(picks).toEqual([]);
+  });
+});

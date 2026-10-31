@@ -8,6 +8,7 @@ import type { BookCharacter } from '../../../src/app/online/protocol/book.ts';
 import type { PlayerMessage } from '../../../src/app/online/protocol/game.ts';
 import type { FoundNote } from '../../../src/app/online/protocol/logShown.ts';
 import type { SheetEditValue, SheetMessage } from '../../../src/app/online/protocol/sheet.ts';
+import type { SheetCompendium } from '../../../src/app/characterSheets/sheetCompendium.ts';
 import { button, node } from './bookDom.ts';
 import { TEXT } from './text.ts';
 
@@ -23,6 +24,8 @@ export interface SheetPorts {
   /** Sets the character's own hit points (their token's), as the book's sheet page does. */
   readonly setHitPoints: (current: number) => void;
   readonly openNote: (note: FoundNote) => void;
+  /** The campaign's compendium, through the GM. */
+  readonly compendium?: SheetCompendium;
 }
 
 /**
@@ -126,6 +129,7 @@ export class BookSheet {
           onSet={(key: string, value: SheetValue) => this.edit({ op: 'set', key, value }, value)}
           onRow={(key: string, index: number, row: SheetRow | null) => this.edit({ op: 'row', key, index, row }, null)}
           onRoll={(formula, label) => this.ports.roll(formula, label)}
+          compendium={this.ports.compendium}
           hitPoints={hp === undefined ? undefined : { current: hp.current, max: hp.max, ...(hp.editable && { set: (current: number) => this.ports.setHitPoints(current) }) }} />
       </div>,
     );

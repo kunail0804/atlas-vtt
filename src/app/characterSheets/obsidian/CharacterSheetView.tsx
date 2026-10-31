@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState, type ReactElement } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { FuzzySuggestModal, ItemView, TFile, type App, type ViewStateResult, type WorkspaceLeaf } from 'obsidian';
 import { showNotice } from '../../ui/notice';
@@ -11,6 +11,7 @@ import { SHEET_SYSTEMS } from '../sheetSystems.ts';
 import { editSheetFile, linkedNote, noteLink, readSheetFile, setPlayerNotes, setSheetSystem, sheetFile } from './sheetFiles.ts';
 import { SheetBook } from './SheetBook.tsx';
 import { SHEET_TEXT } from './sheetText.ts';
+import { gmSheetCompendium } from './sheetCompendiumHost.ts';
 
 export const CHARACTER_SHEET_VIEW_TYPE = 'atlas-character-sheet';
 
@@ -67,6 +68,15 @@ export function SheetEditor({ app, file }: { app: App; file: TFile }): ReactElem
     if (pending.current > 0) return;
     void readSheetFile(app, file).then(setSheet);
   }, [app, file]);
+  const latest = useRef<NoteSheet | null | undefined>(sheet);
+  latest.current = sheet;
+  const compendium = useMemo(() => gmSheetCompendium(app, file, () => latest.current?.values ?? {}, (write) => {
+    pending.current += 1;
+    void write.finally(() => {
+      pending.current -= 1;
+      reload();
+    });
+  }), [app, file, reload]);
   useEffect(() => {
     reload();
     const ref = app.metadataCache.on('changed', (changed) => {
@@ -112,7 +122,8 @@ export function SheetEditor({ app, file }: { app: App; file: TFile }): ReactElem
       onRow={(key: string, index: number, row: SheetRow | null) => edit({ op: 'row', key, index, row })}
       onRoll={roll}
       notes={<PlayerNotes app={app} file={file} links={sheet.playerNotes} />}
-      book={<SheetBook app={app} file={file} />} />
+      book={<SheetBook app={app} file={file} />}
+      compendium={compendium} />
     </>
   );
 }

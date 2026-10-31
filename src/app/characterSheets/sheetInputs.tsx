@@ -77,20 +77,25 @@ export interface RowColumn {
 }
 
 /** A table of rows: each cell edited in place, a row added at the end or taken out. */
-export function RowsTable({ rows, columns, editable, onRow, addLabel, removeLabel, onRoll, label }: Editable & {
+export function RowsTable({ rows, columns, editable, onRow, addLabel, removeLabel, onRoll, label, onView, viewLabel }: Editable & {
   rows: readonly SheetRow[]; columns: readonly RowColumn[]; onRow: (index: number, row: SheetRow | null) => void; addLabel: string; removeLabel: string; label: string;
   onRoll?: ((formula: string, label: string) => void) | undefined;
+  /** Opens what a row names (its compendium entry), from a button of its own. */
+  onView?: ((row: SheetRow) => void) | undefined;
+  viewLabel?: ((row: SheetRow) => string) | undefined;
 }): ReactElement {
+  const extra = [...(onView !== undefined ? ['28px'] : []), ...(editable ? ['28px'] : [])];
   const empty = (): SheetRow => Object.fromEntries(columns.map(({ key, spec }) => [key, spec.kind === 'int' ? Math.max(0, spec.min) : spec.kind === 'bool' ? false : '']));
   return (
     <div className="atlas-sheet-table" role="group" aria-label={label}>
-      <div className="atlas-sheet-table__head" style={{ gridTemplateColumns: template(columns, editable) }}>
+      <div className="atlas-sheet-table__head" style={{ gridTemplateColumns: template(columns, extra) }}>
         {columns.map((column) => <span key={column.key}>{column.label}</span>)}
-        {editable && <span />}
+        {extra.map((_, index) => <span key={`extra-${index}`} />)}
       </div>
       {rows.map((row, index) => (
-        <div key={index} className="atlas-sheet-table__row" style={{ gridTemplateColumns: template(columns, editable) }}>
+        <div key={index} className="atlas-sheet-table__row" style={{ gridTemplateColumns: template(columns, extra) }}>
           {columns.map((column) => <Cell key={column.key} row={row} column={column} editable={editable} onChange={(value) => onRow(index, { ...row, [column.key]: value })} onRoll={onRoll} />)}
+          {onView !== undefined && <button type="button" className="atlas-sheet-view" aria-label={viewLabel?.(row) ?? String(row.name ?? '')} onClick={() => onView(row)}>👁</button>}
           {editable && <button type="button" className="atlas-sheet-remove" aria-label={`${removeLabel} ${index + 1}`} onClick={() => onRow(index, null)}>×</button>}
         </div>
       ))}
@@ -99,7 +104,7 @@ export function RowsTable({ rows, columns, editable, onRow, addLabel, removeLabe
   );
 }
 
-const template = (columns: readonly RowColumn[], editable: boolean): string => [...columns.map((column) => column.width ?? '1fr'), ...(editable ? ['28px'] : [])].join(' ');
+const template = (columns: readonly RowColumn[], extra: readonly string[]): string => [...columns.map((column) => column.width ?? '1fr'), ...extra].join(' ');
 
 function Cell({ row, column, editable, onChange, onRoll }: Editable & { row: SheetRow; column: RowColumn; onChange: (value: string | number | boolean) => void; onRoll: ((formula: string, label: string) => void) | undefined }): ReactElement {
   const value = row[column.key];

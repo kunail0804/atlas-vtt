@@ -26,6 +26,8 @@ const NUMBER = (min: number, max: number): CellSpec => ({ kind: 'int', min, max 
 export const DND5E_2024_FIELDS: Readonly<Record<string, FieldSpec>> = {
   name: LINE,
   class: LINE,
+  /** The classes of a multiclassed character, each with its level and hit die; `class` and `level` follow from them. */
+  classes: { kind: 'rows', max: 6, cells: { name: SHORT, level: NUMBER(1, 20), die: SHORT } },
   subclass: LINE,
   level: NUMBER(1, 20),
   species: LINE,
@@ -125,12 +127,36 @@ function dnd5eStatblockKeys(values: SheetValues): Readonly<Record<string, NoteVa
   };
 }
 
+/**
+ * A sheet whose classes are listed: `class` names them ("Fighter / Wizard"), `level` is the sum of their
+ * levels, and `hit-dice` counts the dice of each ("3d10 + 2d6") where they name theirs. A sheet without
+ * classes keeps what was typed.
+ */
+export function settleDnd5e(values: SheetValues): SheetValues {
+  const classes = (Array.isArray(values.classes) ? (values.classes as readonly SheetRow[]) : []).filter((row) => String(row.name ?? '').trim() !== '');
+  if (classes.length === 0) return values;
+  const levelOf = (row: SheetRow): number => (typeof row.level === 'number' ? row.level : 1);
+  const dice = new Map<string, number>();
+  for (const row of classes) {
+    const die = /^d(\d+)$/i.exec(String(row.die ?? '').trim())?.[1];
+    if (die !== undefined) dice.set(`d${die}`, (dice.get(`d${die}`) ?? 0) + levelOf(row));
+  }
+  const hitDice = [...dice].map(([die, count]) => `${count}${die}`).join(' + ').slice(0, 40);
+  return {
+    ...values,
+    class: classes.map((row) => String(row.name)).join(' / ').slice(0, 120),
+    level: Math.max(1, Math.min(20, classes.reduce((sum, row) => sum + levelOf(row), 0))),
+    ...(hitDice !== '' && { 'hit-dice': hitDice }),
+  };
+}
+
 export const DND5E_2024: SheetSystem<Dnd5eDerived> = {
   id: 'dnd5e-2024',
   name: 'D&D 5e (2024)',
   fields: DND5E_2024_FIELDS,
   derive: deriveDnd5e,
   statblockKeys: dnd5eStatblockKeys,
+  settle: settleDnd5e,
 };
 
 /**

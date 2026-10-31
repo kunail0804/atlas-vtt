@@ -1,6 +1,7 @@
 import { bookLine, bookText, playerFrameBytes } from './bookText.ts';
 import { MAX_PLAYER_FRAME } from './relay.ts';
 import { isRecord } from './shape.ts';
+import { isPickKind, type CompendiumChoice, type PickKind } from '../../characterSheets/sheetCompendium.ts';
 
 /**
  * The compendium pages the GM shares with a player, and the player's own device key, which tells
@@ -53,6 +54,8 @@ export interface SharedPageContent extends SharedPage {
   /** The note's text, Markdown as written. */
   readonly text: string;
   readonly fields?: readonly PageField[];
+  /** Sent because the player asked to read it from their sheet: the page opens it at once. */
+  readonly shown?: true;
 }
 
 /** A player's change of a page: the properties they changed, and the page's whole text. */
@@ -64,14 +67,26 @@ export interface PageEdit {
 export type CompendiumMessage =
   | { readonly t: 'compendium'; readonly pages: readonly SharedPage[] }
   | { readonly t: 'compendium-entry'; readonly page: SharedPageContent }
-  | { readonly t: 'compendium-saved'; readonly id: string; readonly ok: boolean };
+  | { readonly t: 'compendium-saved'; readonly id: string; readonly ok: boolean }
+  /** The entries the player's sheet may take of a kind, by an id of the GM's. */
+  | { readonly t: 'sheet-choices'; readonly kind: PickKind; readonly choices: readonly CompendiumChoice[] }
+  /** The entry the sheet named is in none of the campaign's books. */
+  | { readonly t: 'compendium-missing'; readonly name: string };
 
 export type PlayerCompendiumMessage =
   | { readonly t: 'identify'; readonly key: string }
   | { readonly t: 'compendium-open'; readonly id: string }
-  | { readonly t: 'compendium-edit'; readonly id: string; readonly edit: string; readonly index: number; readonly count: number; readonly data: string };
+  | { readonly t: 'compendium-edit'; readonly id: string; readonly edit: string; readonly index: number; readonly count: number; readonly data: string }
+  /** The entries of a kind the player's own sheet may take. */
+  | { readonly t: 'sheet-choices'; readonly kind: PickKind }
+  /** Takes an entry offered into the player's own sheet. */
+  | { readonly t: 'sheet-pick'; readonly kind: PickKind; readonly id: string }
+  /** Reads the entry of that name the player's sheet names. */
+  | { readonly t: 'sheet-view'; readonly kind: PickKind; readonly name: string };
 
 export const MAX_SHARED_PAGES = 500;
+/** The entries offered for a pick at most. */
+export const MAX_CHOICES = 2_000;
 export const MAX_PAGE_ROWS = 100;
 export const MAX_PAGE_SECTIONS = 20;
 export const MAX_SECTION_ENTRIES = 100;
@@ -134,8 +149,25 @@ const parseField = (value: unknown): PageField | null => {
   return label === null || text === null ? null : { key: value.key, label, value: text };
 };
 
+const CHOICE_ID = /^[0-9a-z]{1,16}$/;
+
+const parseChoice = (value: unknown): CompendiumChoice | null => {
+  if (!isRecord(value) || typeof value.id !== 'string' || !CHOICE_ID.test(value.id)) return null;
+  const name = bookLine(value.name, MAX_PAGE_TITLE);
+  const detail = value.detail === undefined ? undefined : bookLine(value.detail, MAX_PAGE_TITLE, true);
+  return name === null || detail === null ? null : { id: value.id, name, ...(detail !== undefined && detail !== '' && { detail }) };
+};
+
 /** A GM's compendium message as the player's page reads it, or null for anything malformed. */
 export function parseCompendiumMessage(value: Record<string, unknown>): CompendiumMessage | null {
+  if (value.t === 'sheet-choices') {
+    const choices = parseList(value.choices, MAX_CHOICES, parseChoice);
+    return isPickKind(value.kind) && choices !== null ? { t: 'sheet-choices', kind: value.kind, choices } : null;
+  }
+  if (value.t === 'compendium-missing') {
+    const name = bookLine(value.name, MAX_PAGE_TITLE);
+    return name === null ? null : { t: 'compendium-missing', name };
+  }
   if (value.t === 'compendium') {
     const pages = parseList(value.pages, MAX_SHARED_PAGES, parsePage);
     return pages === null ? null : { t: 'compendium', pages };
@@ -150,12 +182,19 @@ export function parseCompendiumMessage(value: Record<string, unknown>): Compendi
   const text = bookText(value.page.text, MAX_PAGE_TEXT);
   const fields = value.page.fields === undefined ? undefined : parseList(value.page.fields, MAX_PAGE_FIELDS, parseField);
   if (page === null || rows === null || sections === null || text === null || fields === null) return null;
-  return { t: 'compendium-entry', page: { ...page, rows, sections, text, ...(fields !== undefined && { fields }) } };
+  const shown = value.page.shown === true ? { shown: true as const } : {};
+  return { t: 'compendium-entry', page: { ...page, rows, sections, text, ...(fields !== undefined && { fields }), ...shown } };
 }
 
 /** A player's compendium message, by shape only: the GM checks what it may do. */
 export function parsePlayerCompendiumMessage(value: Record<string, unknown>): PlayerCompendiumMessage | null {
   if (value.t === 'identify') return typeof value.key === 'string' && DEVICE_KEY.test(value.key) ? { t: 'identify', key: value.key } : null;
+  if (value.t === 'sheet-choices') return isPickKind(value.kind) ? { t: 'sheet-choices', kind: value.kind } : null;
+  if (value.t === 'sheet-view') {
+    const name = bookLine(value.name, MAX_PAGE_TITLE);
+    return isPickKind(value.kind) && name !== null ? { t: 'sheet-view', kind: value.kind, name } : null;
+  }
+  if (value.t === 'sheet-pick') return isPickKind(value.kind) && typeof value.id === 'string' && CHOICE_ID.test(value.id) ? { t: 'sheet-pick', kind: value.kind, id: value.id } : null;
   if (typeof value.id !== 'string' || !PAGE_ID.test(value.id)) return null;
   if (value.t === 'compendium-open') return { t: 'compendium-open', id: value.id };
   if (value.t !== 'compendium-edit' || typeof value.edit !== 'string' || !EDIT_ID.test(value.edit)) return null;
@@ -164,8 +203,10 @@ export function parsePlayerCompendiumMessage(value: Record<string, unknown>): Pl
   return { t: 'compendium-edit', id: value.id, edit: value.edit, index, count, data };
 }
 
-export const isCompendiumType = (value: unknown): boolean => value === 'compendium' || value === 'compendium-entry' || value === 'compendium-saved';
-export const isPlayerCompendiumType = (value: unknown): boolean => value === 'identify' || value === 'compendium-open' || value === 'compendium-edit';
+const GM_TYPES: readonly unknown[] = ['compendium', 'compendium-entry', 'compendium-saved', 'sheet-choices', 'compendium-missing'];
+const PLAYER_TYPES: readonly unknown[] = ['identify', 'compendium-open', 'compendium-edit', 'sheet-choices', 'sheet-pick', 'sheet-view'];
+export const isCompendiumType = (value: unknown): boolean => GM_TYPES.includes(value);
+export const isPlayerCompendiumType = (value: unknown): boolean => PLAYER_TYPES.includes(value);
 
 /** A change of a page as the GM reads it once put together, or null for anything malformed. */
 export function parsePageEdit(text: string): PageEdit | null {

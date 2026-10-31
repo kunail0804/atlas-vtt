@@ -15,6 +15,8 @@ export interface SheetSystem<Derived = unknown> {
   readonly fields: Readonly<Record<string, FieldSpec>>;
   derive(values: SheetValues): Derived;
   statblockKeys(values: SheetValues): Readonly<Record<string, NoteValue>>;
+  /** The values with what follows from others written in (a 5e sheet's class and level from its classes); after every edit. */
+  settle?(values: SheetValues): SheetValues;
 }
 
 /** The frontmatter key that names a note's sheet system; a note with it is a character sheet. */

@@ -17,6 +17,7 @@ import { BookSheet, type SheetPorts } from './bookSheet.tsx';
 import type { SheetMessage } from '../../../src/app/online/protocol/sheet.ts';
 import type { CompendiumMessage } from '../../../src/app/online/protocol/compendium.ts';
 import { CompendiumPages } from './bookCompendium.ts';
+import { PlayerSheetCompendium } from './sheetCompendium.ts';
 
 const TABS: readonly Tab[] = ['character', 'sheet', 'compendium', 'items', 'equipment', 'notes', 'quests', 'purse', 'map'];
 const PAGES: Readonly<Record<Exclude<Tab, 'sheet' | 'compendium'>, (context: PageContext) => HTMLElement>> = {
@@ -47,9 +48,12 @@ export class BookPanel {
 
   /** The compendium pages the GM shared with this player, whether or not they play a character. */
   private readonly compendium: CompendiumPages;
+  private readonly sheetCompendium: PlayerSheetCompendium;
 
   constructor(host: HTMLElement, assets: AssetLoader, send: (message: PlayerMessage) => void, tell: (text: string) => void, available: (has: boolean) => void, sheet: Omit<SheetPorts, 'send' | 'setHitPoints'>) {
-    this.sheet = new BookSheet({ ...sheet, send, setHitPoints: (current) => this.setHitPoints(current) });
+    // The sheet reaches the compendium through the GM; a page it asks to read opens in the compendium tab.
+    this.sheetCompendium = new PlayerSheetCompendium(send, () => this.compendium.expectView());
+    this.sheet = new BookSheet({ ...sheet, send, setHitPoints: (current) => this.setHitPoints(current), compendium: this.sheetCompendium });
     this.assets = assets;
     this.send = send;
     this.tell = tell;
@@ -60,6 +64,8 @@ export class BookPanel {
       changed: () => this.tellAvailable(),
       // The notes the GM links to the character are read in the compendium too: it took the Documents tab's place.
       documents: () => this.sheet.documents(),
+      reveal: () => this.showTab('compendium'),
+      back: () => this.showTab('sheet'),
     });
     this.panel = node('aside', 'atlas-vtt-plugin book');
     // A press in the book leaves the log open beside it.
@@ -96,7 +102,15 @@ export class BookPanel {
 
   /** The compendium pages the GM shared, as the GM sent them. */
   receiveCompendium(message: CompendiumMessage): void {
+    if (message.t === 'sheet-choices') this.sheetCompendium.receive(message.kind, message.choices);
     this.compendium.receive(message);
+  }
+
+  /** Shows a tab of the book, opening the book. */
+  private showTab(tab: Tab): void {
+    this.ui.tab = tab;
+    this.panel.hidden = false;
+    this.render();
   }
 
   /** The book's button shows once there is a book or a shared page to open. */

@@ -3,6 +3,8 @@ import { ABILITIES, ALIGNMENTS, DND5E_2024_FIELDS, SKILLS, deriveDnd5e, signed }
 import { DND5E_EDITION_LABELS, DND5E_LABELS as L } from './dnd5eLabels.ts';
 import type { SheetRow, SheetValue, SheetValues } from './sheetFields.ts';
 import { Check, NumberInput, Roll, RowsTable, TextInput, type RowColumn } from './sheetInputs.tsx';
+import { CompendiumPicker } from './CompendiumPicker.tsx';
+import type { PickKind, SheetCompendium } from './sheetCompendium.ts';
 
 /** The current hit points, where the sheet's host knows them (the token's own value) and how to change them. */
 export interface SheetHitPoints {
@@ -23,6 +25,8 @@ export interface CharacterSheetProps {
   readonly notes?: ReactElement | undefined;
   /** The character's book (its items and coins), as a tab of its own: the GM's way into it. */
   readonly book?: ReactElement | undefined;
+  /** The campaign's compendium, to pick a class, a spell, a weapon… from and to read them; absent where there is none. */
+  readonly compendium?: SheetCompendium | undefined;
 }
 
 type Tab = keyof typeof L.tabs;
@@ -51,9 +55,21 @@ const rowCells = (key: string): Record<string, RowColumn['spec']> => {
  * under the 2014 or the 2024 rules (`system`), which name a few things differently. Everything that follows from the sheet is worked out (`deriveDnd5e`), never typed;
  * a modifier, a save, a skill, the initiative and an attack roll when clicked.
  */
-export function Dnd5eSheet({ system, values, editable, onSet, onRow, onRoll, hitPoints, notes, book }: CharacterSheetProps & { system: keyof typeof DND5E_EDITION_LABELS }): ReactElement {
+export function Dnd5eSheet({ system, values, editable, onSet, onRow, onRoll, hitPoints, notes, book, compendium }: CharacterSheetProps & { system: keyof typeof DND5E_EDITION_LABELS }): ReactElement {
   const E = DND5E_EDITION_LABELS[system];
   const [tab, setTab] = useState<Tab>('main');
+  const [picking, setPicking] = useState<PickKind | null>(null);
+  /** Picking from the compendium: where the sheet may be changed and has one. */
+  const canPick = editable && compendium !== undefined;
+  const classes = rows(values.classes);
+  /** A line of text the compendium may fill: the text, a button to pick it, one to read what it names. */
+  const linked = (key: 'subclass' | 'species' | 'background', kind: PickKind, label: string): ReactElement => (
+    <span className="atlas-sheet-linked">
+      <TextInput value={str(values[key])} onChange={set(key)} editable={editable} label={label} />
+      {canPick && <button type="button" className="atlas-sheet-view" aria-label={L.choose(label)} onClick={() => setPicking(kind)}>🔍</button>}
+      {compendium !== undefined && str(values[key]) !== '' && <button type="button" className="atlas-sheet-view" aria-label={L.view(str(values[key]))} onClick={() => compendium.view(kind, str(values[key]))}>👁</button>}
+    </span>
+  );
   const derived = deriveDnd5e(values);
   const stats = nums(values.stats, 6);
   const set = (key: string) => (value: SheetValue): void => onSet(key, value);
@@ -68,11 +84,29 @@ export function Dnd5eSheet({ system, values, editable, onSet, onRow, onRoll, hit
       <header className="atlas-sheet-header">
         <TextInput className="atlas-sheet-name" value={str(values.name)} onChange={set('name')} editable={editable} label={L.name} maxLength={120} />
         <div className="atlas-sheet-identity">
-          <Labelled label={L.class}><TextInput value={str(values.class)} onChange={set('class')} editable={editable} label={L.class} /></Labelled>
-          <Labelled label={L.subclass}><TextInput value={str(values.subclass)} onChange={set('subclass')} editable={editable} label={L.subclass} /></Labelled>
-          <Labelled label={L.level}><NumberInput value={num(values.level, 1)} onChange={set('level')} editable={editable} label={L.level} min={1} max={20} /></Labelled>
-          <Labelled label={E.species}><TextInput value={str(values.species)} onChange={set('species')} editable={editable} label={E.species} /></Labelled>
-          <Labelled label={L.background}><TextInput value={str(values.background)} onChange={set('background')} editable={editable} label={L.background} /></Labelled>
+          {classes.length === 0 && compendium === undefined
+            ? <Labelled label={L.class}><TextInput value={str(values.class)} onChange={set('class')} editable={editable} label={L.class} /></Labelled>
+            : (
+              <div className="atlas-sheet-labelled atlas-sheet-classes" role="group" aria-label={L.classes}>
+                <span className="atlas-sheet-label">{L.class}</span>
+                {classes.length === 0 && <TextInput value={str(values.class)} onChange={set('class')} editable={editable} label={L.class} />}
+                {classes.map((row, index) => (
+                  <span key={index} className="atlas-sheet-class">
+                    {compendium !== undefined
+                      ? <button type="button" className="atlas-sheet-class__name" aria-label={L.view(String(row.name))} onClick={() => compendium.view('class', String(row.name))}>{String(row.name)}</button>
+                      : <span className="atlas-sheet-class__name">{String(row.name)}</span>}
+                    <NumberInput value={typeof row.level === 'number' ? row.level : 1} onChange={(level) => onRow('classes', index, { ...row, level })} editable={editable} label={`${L.classLevel} ${String(row.name)}`} min={1} max={20} />
+                    {editable && <button type="button" className="atlas-sheet-remove" aria-label={`${L.remove} ${String(row.name)}`} onClick={() => onRow('classes', index, null)}>×</button>}
+                  </span>
+                ))}
+                {canPick && <button type="button" className="atlas-sheet-add" onClick={() => setPicking('class')}>{L.addClass}</button>}
+              </div>
+            )}
+          <Labelled label={L.subclass}>{linked('subclass', 'subclass', L.subclass)}</Labelled>
+          {/* With classes listed, the level is theirs added up. */}
+          <Labelled label={L.level}><NumberInput value={num(values.level, 1)} onChange={set('level')} editable={editable && classes.length === 0} label={L.level} min={1} max={20} /></Labelled>
+          <Labelled label={E.species}>{linked('species', 'species', E.species)}</Labelled>
+          <Labelled label={L.background}>{linked('background', 'background', L.background)}</Labelled>
           <Labelled label={L.alignment}>
             <select className="atlas-sheet-input" aria-label={L.alignment} value={str(values.alignment)} disabled={!editable} onChange={(event) => onSet('alignment', event.target.value)}>
               <option value="">{L.none}</option>
@@ -123,7 +157,10 @@ export function Dnd5eSheet({ system, values, editable, onSet, onRow, onRoll, hit
 
           <section className="atlas-sheet-column">
             <div className="atlas-sheet-combat">
-              <Labelled label={L.ac} big><NumberInput value={num(values.ac, 10)} onChange={set('ac')} editable={editable} label={L.ac} min={0} max={50} /></Labelled>
+              <Labelled label={L.ac} big>
+                <NumberInput value={num(values.ac, 10)} onChange={set('ac')} editable={editable} label={L.ac} min={0} max={50} />
+                {canPick && <button type="button" className="atlas-sheet-add" onClick={() => setPicking('armor')}>{L.armor}</button>}
+              </Labelled>
               <Labelled label={L.initiative} big><Roll value={signed(derived.initiative)} label={L.initiative} formula={d20(derived.initiative)} onRoll={onRoll} /></Labelled>
               <Labelled label={L.speed} big><TextInput value={str(values.speed)} onChange={set('speed')} editable={editable} label={L.speed} /></Labelled>
             </div>
@@ -147,11 +184,13 @@ export function Dnd5eSheet({ system, values, editable, onSet, onRow, onRoll, hit
             </Box>
             <Box title={L.attacks}>
               <RowsTable label={L.attacks} rows={rows(values.attacks)} editable={editable} onRow={(index, row) => onRow('attacks', index, row)} addLabel={L.add} removeLabel={L.remove} onRoll={onRoll}
+                onView={compendium === undefined ? undefined : (row) => compendium.view('weapon', String(row.name ?? ''))} viewLabel={(row) => L.view(String(row.name ?? ''))}
                 columns={[
                   { key: 'name', label: L.attackName, spec: rowCells('attacks').name!, width: '1.4fr' },
                   { key: 'bonus', label: L.attackBonus, spec: rowCells('attacks').bonus!, width: '70px', roll: (row) => toHit(String(row.bonus ?? '')) },
                   { key: 'damage', label: L.damage, spec: rowCells('attacks').damage!, width: '1.4fr', roll: (row) => diceOf(String(row.damage ?? '')) },
                 ]} />
+              {canPick && <button type="button" className="atlas-sheet-add" onClick={() => setPicking('weapon')}>{L.fromCompendium}</button>}
             </Box>
             <Box title={L.languages}><TextInput value={str(values.languages)} onChange={set('languages')} editable={editable} label={L.languages} multiline maxLength={500} /></Box>
             <Box title={L.proficiencies}><TextInput value={str(values.proficiencies)} onChange={set('proficiencies')} editable={editable} label={L.proficiencies} multiline maxLength={1_000} /></Box>
@@ -187,7 +226,9 @@ export function Dnd5eSheet({ system, values, editable, onSet, onRow, onRoll, hit
               })}
             </div>
           </Box>
+          {canPick && <button type="button" className="atlas-sheet-add" onClick={() => setPicking('spell')}>{L.fromCompendium}</button>}
           <RowsTable label={L.tabs.spells} rows={rows(values['spell-list'])} editable={editable} onRow={(index, row) => onRow('spell-list', index, row)} addLabel={L.add} removeLabel={L.remove} onRoll={onRoll}
+            onView={compendium === undefined ? undefined : (row) => compendium.view('spell', String(row.name ?? ''))} viewLabel={(row) => L.view(String(row.name ?? ''))}
             columns={[
               { key: 'level', label: L.spellLevel, spec: rowCells('spell-list').level!, width: '60px' },
               { key: 'name', label: L.spellName, spec: rowCells('spell-list').name!, width: '1.4fr' },
@@ -217,6 +258,7 @@ export function Dnd5eSheet({ system, values, editable, onSet, onRow, onRoll, hit
 
       {tab === 'notes' && notes}
       {tab === 'book' && book}
+      {picking !== null && compendium !== undefined && <CompendiumPicker kind={picking} compendium={compendium} onClose={() => setPicking(null)} />}
     </div>
   );
 }

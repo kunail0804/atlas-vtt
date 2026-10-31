@@ -13,6 +13,10 @@ export interface CompendiumPorts {
   changed(): void;
   /** The notes the GM linked to the player's character, read in the reader. */
   documents(): readonly { readonly title: string; readonly open: () => void }[];
+  /** A page the player asked for from their sheet came: the book shows the compendium tab. */
+  reveal(): void;
+  /** Back from a page read from the sheet: the book shows the sheet again. */
+  back(): void;
 }
 
 /** The kinds in the order the list shows them. */
@@ -32,6 +36,10 @@ export class CompendiumPages {
   private readonly drafts = new Map<string, string>();
   /** The folders of the list the player closed, by key: they stay closed through redraws. */
   private readonly closed = new Set<string>();
+  /** Pages read from the sheet, in no list: kept until the player goes back. */
+  private readonly fromSheet = new Set<string>();
+  /** The player asked to read an entry of their sheet: the next page shown opens. */
+  private awaitingView = false;
 
   constructor(private readonly ports: CompendiumPorts) {}
 
@@ -44,12 +52,24 @@ export class CompendiumPages {
       const had = this.hasPages;
       this.pages = message.pages;
       const kept = new Set(message.pages.map((page) => page.id));
-      for (const id of [...this.contents.keys()]) if (!kept.has(id)) this.contents.delete(id);
-      if (this.shown !== null && !kept.has(this.shown)) this.close();
+      for (const id of [...this.contents.keys()]) if (!kept.has(id) && !this.fromSheet.has(id)) this.contents.delete(id);
+      if (this.shown !== null && !kept.has(this.shown) && !this.fromSheet.has(this.shown)) this.close();
       if (this.editing !== null && this.pages.find((page) => page.id === this.editing)?.access !== 'write') this.stopEditing();
       if (had !== this.hasPages) this.ports.changed();
+    } else if (message.t === 'compendium-missing') {
+      this.awaitingView = false;
+      this.ports.tell(TEXT.compendium.missing(message.name));
+    } else if (message.t === 'sheet-choices') {
+      return;
     } else if (message.t === 'compendium-entry') {
       this.contents.set(message.page.id, message.page);
+      if (message.page.shown === true && this.awaitingView) {
+        this.awaitingView = false;
+        if (!this.pages.some((page) => page.id === message.page.id)) this.fromSheet.add(message.page.id);
+        this.shown = message.page.id;
+        this.stopEditing();
+        this.ports.reveal();
+      }
       if (this.editing === message.page.id && message.page.access !== 'write') this.stopEditing();
     } else {
       if (this.saving === message.id) this.saving = null;
@@ -70,9 +90,16 @@ export class CompendiumPages {
       return page;
     }
     const id = this.shown;
-    page.append(button(TEXT.compendium.back, () => {
+    const fromSheet = this.fromSheet.has(id);
+    page.append(button(fromSheet ? TEXT.compendium.backToSheet : TEXT.compendium.back, () => {
       this.close();
-      this.ports.redraw();
+      if (fromSheet) {
+        this.fromSheet.delete(id);
+        this.contents.delete(id);
+        this.ports.back();
+      } else {
+        this.ports.redraw();
+      }
     }, 'book-button cpd-back'));
     const content = this.contents.get(id);
     if (content === undefined) {
@@ -135,6 +162,11 @@ export class CompendiumPages {
       list.append(folder.element);
     }
     return list;
+  }
+
+  /** The player asked to read an entry of their sheet: its page opens when it comes. */
+  expectView(): void {
+    this.awaitingView = true;
   }
 
   private open(id: string): void {

@@ -108,8 +108,8 @@ message's `body`.
 | Chat and dice log | `logPanel.ts` | The plugin's `TableLogPanel` with `LogState` |
 | Book | `book.ts`, `book*.ts` | Character with editable resources, items the player adds, changes and takes away (`book-item-put`, `book-item-delete`, those the GM handed over too; `bookItems.ts`), equipment slots (equip, hide default slots, add own ones), free notes, quests with their whole text and images, notes on a quest, purse, world map with the maps its entrances lead into and the player's own pins. The GM takes a write without answering, so the page applies it to its own copy with the plugin's `applyBookMessage` (on the message as the GM's parser cleans it); a refused write is answered with the whole book |
 | Character sheet | `bookSheet.tsx` | The book's Fiche tab: the plugin's own sheet (`src/app/characterSheets/CharacterSheet.tsx`), editable. A change shows at once and goes to the GM once typing pauses (`sheet-edit`, `sheet-row`); what the GM sends back does not undo a change of the last two seconds. Current hit points are the token's resource (`book-resource`). A click on a modifier, save, skill, initiative or attack rolls it, named after it |
-| Documents | `bookSheet.tsx`, `reader.ts` | The notes the GM linked to the character, opened in the reader |
-| Compendium | `bookCompendium.ts`, `markdownText.ts`, `deviceKey.ts` | The compendium pages the GM shared with this player, read as cards and changed where the GM lets them |
+| Compendium | `bookCompendium.ts`, `markdownText.ts`, `deviceKey.ts` | The compendium pages the GM shared with this player, in folders by book then kind, read as cards and changed where the GM lets them; the notes the GM linked to the character, opened in the reader |
+| Sheet and compendium | `sheetCompendium.ts` | The sheet's pickers ask the GM for a kind's entries (`sheet-choices`), take one (`sheet-pick`) and open one (`sheet-view`) |
 | Found notes | `reader.ts`, `documentView.ts` | The note a found pin lets players read, opened from the log or the pin |
 | Notices | `notice.ts` | A new item, a refused roll, a roll without a scene, a book that is full |
 | Words | `text.ts` | Every text the page writes itself |
@@ -199,6 +199,7 @@ page from a real relay, drive it in `/usr/bin/chromium`, and play the GM with th
 | `tests/book.browser.test.ts` | Every page of the book, each write reaching the GM and showing without an answer, the world map's levels and pins, quest images, found notes, a refused roll; markup in names stays text |
 | `tests/diagnostics.test.ts` | Feedback and error reports kept in the data folder; malformed, too large, web-page and flooding requests refused |
 | `tests/phone.browser.test.ts` | At 390 × 844, every control on screen and apart; a touch drag moves the own token |
+| `tests/sheetCompendium.browser.test.ts` | The sheet's class picker through the GM: two classes taken, the level following, a class opened and the way back |
 | `tests/compendium.browser.test.ts` | The Compendium tab: the player known by their device, their pages by kind, a monster and a spell read as cards, a change written into the note, a page taken back, the same player after a reload |
 | `tests/sheet.browser.test.ts` | The Fiche tab: the sheet's values and worked-out bonuses, a roll from it, a field, a proficiency, hit points and an equipment row reaching the GM, an older sheet not undoing a fresh change, and a linked document read whole |
 | `tests/toolbar.browser.test.ts` | The toolbar's menus, the log open beside the book, and what each tool sends: a pen stroke, a stamp, a text, a partial erase, delete all, a kept circle, the laser's colour, a d20 with advantage. `ATLAS_SHOTS=<dir>` writes screenshots |

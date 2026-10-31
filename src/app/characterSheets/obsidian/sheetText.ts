@@ -19,6 +19,14 @@ export const SHEET_TEXT = {
   newSheetCommand: 'Nouvelle fiche de personnage',
   openSheetCommand: 'Ouvrir la fiche de personnage de cette note',
   rules: 'Règles',
+  compendium: {
+    notTaken: (name: string): string => `${name} n'a pas pu être ajouté à la fiche.`,
+    noBook: (name: string): string => `${name} est sur la fiche, mais pas dans le livre : active le jeu en ligne et lie un token à cette fiche.`,
+    notFound: (name: string): string => `« ${name} » n'est pas dans le compendium de la campagne.`,
+    noOwnBook: 'La campagne n\'a pas de livre à toi où créer l\'entrée.',
+    createFailed: 'L\'entrée n\'a pas pu être créée.',
+    newName: { class: 'Nouvelle classe', subclass: 'Nouvelle sous-classe', species: 'Nouvelle espèce', background: 'Nouvel historique', weapon: 'Nouvelle arme', armor: 'Nouvelle armure', spell: 'Nouveau sort' },
+  },
   book: {
     hint: 'Le livre du joueur qui joue ce personnage : ses objets et sa bourse. Ce que tu changes ici lui parvient tout de suite pendant une partie.',
     needsOnline: 'Active « Online play » dans les fonctionnalités expérimentales pour voir le livre de ce personnage.',

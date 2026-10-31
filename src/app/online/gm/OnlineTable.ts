@@ -104,7 +104,8 @@ export class OnlineTable {
       app, send: (body, to) => this.connection.send(body, to), now: () => timers.now(), nameOf: (player) => ownership.nameOf(player),
       readImage: (path) => readVaultImage(app, path), scaleImage: scaleInWindow, layers: () => this.bound()?.share.layers ?? null,
     });
-    this.compendium = tableCompendium(app, (body, to) => this.connection.send(body, to), (player) => ownership.nameOf(player));
+    // The books are made below: the sheet of a player's character is looked up when asked.
+    this.compendium = tableCompendium(app, (body, to) => this.connection.send(body, to), (player) => ownership.nameOf(player), (player) => this.books.share.statblockOf(player));
     this.books = tableBook({
       app, shelf, ownership, randomId: () => randomHex(12),
       send: (body, to) => this.connection.send(body, to),

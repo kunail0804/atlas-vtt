@@ -1,4 +1,5 @@
 import type { Ability } from './dnd5e2024.ts';
+import type { PickKind } from './sheetCompendium.ts';
 
 /** The 2024 sheet's words, in one place for every language the sheet will speak. */
 export const DND5E_LABELS = {
@@ -23,6 +24,22 @@ export const DND5E_LABELS = {
   traitName: 'Trait', traitDesc: 'Description',
   personality: 'Traits de personnalité', ideals: 'Idéaux', bonds: 'Liens', flaws: 'Défauts', appearance: 'Apparence', backstory: 'Histoire du personnage',
   add: 'Ajouter', remove: 'Retirer',
+  classes: 'Classes', classLevel: 'Niveau de classe', addClass: '+ Classe', fromCompendium: '+ Du compendium', armor: 'Armure…',
+  view: (what: string): string => `Voir ${what}`,
+  choose: (what: string): string => `Choisir ${what}`,
+  pick: {
+    title: {
+      class: 'Choisir une classe', subclass: 'Choisir une sous-classe', species: 'Choisir une espèce', background: 'Choisir un historique',
+      weapon: 'Ajouter une arme', armor: 'Choisir une armure', spell: 'Ajouter un sort',
+    } satisfies Record<PickKind, string>,
+    search: 'Rechercher…',
+    close: 'Fermer',
+    loading: 'Lecture du compendium…',
+    failed: 'Le compendium ne répond pas.',
+    none: 'Le compendium de la campagne n\'en contient aucune entrée.',
+    noMatch: 'Aucune entrée de ce nom.',
+    create: (kind: PickKind): string => `Créer ${({ class: 'une classe', subclass: 'une sous-classe', species: 'une espèce', background: 'un historique', weapon: 'une arme', armor: 'une armure', spell: 'un sort' } satisfies Record<PickKind, string>)[kind]} dans le compendium`,
+  },
   check: (what: string): string => `Test de ${what}`,
   save: (what: string): string => `Sauvegarde de ${what}`,
 } as const;

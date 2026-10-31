@@ -68,10 +68,11 @@ is created. The GM ticks a whole game system or single books; saving downloads w
 and stores the choice in the campaign's `sources`. Sources are installed once per vault and every
 campaign can use them.
 
-Every game system in the picker has a **Personal** book (`<system>/personal`). It is ticked with the first
-book of its system and made when the GM saves. The GM's own entries go there, so the books Atlas publishes
-stay as published. A book installed in the vault has a remove button. **Not in this vault** lists the
-sources a campaign names that the vault lacks, to untick them.
+Every game system a campaign uses has a **Personal** book (`<system>/personal`), which is no choice: Atlas
+makes it and adds it to the campaign when the picker saves, and when the compendium tab shows a campaign that
+lacks it. The GM's own entries go there, so the books Atlas publishes stay as published. A Personal book is
+never removed from the tab, exported, or installed from another vault's zip. A book installed in the vault has
+a remove button. **Not in this vault** lists the sources a campaign names that the vault lacks, to untick them.
 
 An update compares each file three ways, as a collection import does (`importPlan.ts`): what the last
 install wrote (the record in `atlas-vtt/compendium/`), what the vault holds and what the source
@@ -98,6 +99,8 @@ note** opens it in a new tab and closes the manager; **Delete** moves it to the 
   beside a book removes it from the vault after the GM confirms, and from the campaign shown.
 - **Not in this vault** lists the campaign's sources the vault lacks.
 - **New entry…** offers the campaign's Personal book first.
+- Ticking entries shows a bar that shares them, copies them into a book of the GM's own (where they can be
+  changed), or deletes them.
 
 ## Sharing pages with players
 
@@ -120,12 +123,36 @@ The player reads the shared pages in the **Compendium** tab of their book: a lis
 a card of its lines, its named entries (a monster's actions) and its text. Where the GM gave **Read and
 write**, **Modifier** edits the page's simple properties and its text; the GM's Atlas writes them into the note
 and every player who has the page open gets it again. The protocol is `src/app/online/protocol/compendium.ts`.
+Their list is in folders by book, then by kind; the notes the GM links to their character sit there too.
+
+## The compendium on a character sheet
+
+A 5e sheet picks from the campaign's books (`src/app/characterSheets/sheetCompendium.ts`): the campaign
+played, else the one played last, else every installed book.
+
+- **Class**: **+ Classe** adds a class at level 1 with its hit die; a character may have several. The sheet's
+  level is their levels added up, and its hit dice follow ("3d10 + 2d6"). Each class name opens its entry.
+- **Subclass**, **species**, **background**: the search button picks one, the eye opens it.
+- **Weapon**: **+ Du compendium** under the attacks adds an attack worked out from the character (Strength,
+  Dexterity for a ranged weapon, the better for a finesse one, plus proficiency), and puts the weapon into the
+  character's book, in the main hand or the off hand where free.
+- **Armour**: **Armure…** sets the armour class (its base, Dexterity up to its cap, +2 on top for a shield) and
+  puts it into the book, in the armour slot or the off hand.
+- **Spell**: **+ Du compendium** in the Spells tab adds it to the list, with its level and how it is cast.
+
+The GM's picker has a **+** that makes a new entry of that kind in the campaign's Personal book, named after
+what was searched, and opens it. A player's picker asks the GM (`sheet-choices`, `sheet-pick`): it has no **+**.
+A player who opens an entry of their sheet (`sheet-view`) reads it in their compendium tab while they sit at the
+table, and goes back to the sheet from there. The spells and weapons their sheet names are in their
+compendium list, to read. An item goes into the book only while online play keeps books and a token is linked
+to the sheet; the GM is told otherwise.
 
 ## Personal sources
 
 Right-click a folder `Compendium/<game system>/<book>` and choose **Export as compendium source**, or run the
 command **Export a compendium book as a source**: it exports the book of the note open, else the book the GM
-picks. Atlas
+picks. An export refuses a Personal book, an empty folder, one of Atlas' own sources, and a folder whose id
+another installed book has ("My Book" and "My-Book"). Atlas
 saves the zip to the downloads folder and records the source as installed in this vault. Another
 vault installs it with **Install from a file…** in the source picker. A personal source must not be
 published: books outside the SRD are copyrighted.

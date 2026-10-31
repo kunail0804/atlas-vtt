@@ -31,6 +31,11 @@ export type SheetEdit =
 
 /** The values after `edit`, by the system's own rules; null where the edit is none it allows. */
 export function applySheetEdit(system: SheetSystem, values: SheetValues, edit: SheetEdit): SheetValues | null {
+  const next = editedValues(system, values, edit);
+  return next === null ? null : system.settle?.(next) ?? next;
+}
+
+function editedValues(system: SheetSystem, values: SheetValues, edit: SheetEdit): SheetValues | null {
   const spec = Object.hasOwn(system.fields, edit.key) ? system.fields[edit.key] : undefined;
   if (spec === undefined) return null;
   if (edit.op === 'set') {
