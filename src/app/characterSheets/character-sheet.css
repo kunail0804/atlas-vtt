@@ -62,8 +62,8 @@ textarea.atlas-sheet-input { min-height: 72px; resize: vertical; }
 /* The compendium on the sheet (CompendiumPicker.tsx): a value it fills, the classes with their levels, the list over the sheet. */
 .atlas-sheet-linked { display: flex; align-items: center; gap: 2px; min-width: 0; }
 .atlas-sheet-linked .atlas-sheet-input { flex: 1; min-width: 0; }
-.atlas-sheet-view { flex: none; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--text-muted); font-size: 13px; cursor: pointer; }
-.atlas-sheet-view:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
+.atlas-sheet-lookup { flex: none; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--text-muted); font-size: 13px; cursor: pointer; }
+.atlas-sheet-lookup:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
 .atlas-sheet-classes { grid-column: 1 / -1; display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 4px; }
 .atlas-sheet-classes > .atlas-sheet-label { flex-basis: 100%; }
 .atlas-sheet-class { display: inline-flex; align-items: center; gap: 2px; padding: 2px 4px; border-radius: 8px; background: var(--background-secondary); }

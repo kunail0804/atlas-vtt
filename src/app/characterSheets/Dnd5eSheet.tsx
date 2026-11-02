@@ -66,8 +66,8 @@ export function Dnd5eSheet({ system, values, editable, onSet, onRow, onRoll, hit
   const linked = (key: 'subclass' | 'species' | 'background', kind: PickKind, label: string): ReactElement => (
     <span className="atlas-sheet-linked">
       <TextInput value={str(values[key])} onChange={set(key)} editable={editable} label={label} />
-      {canPick && <button type="button" className="atlas-sheet-view" aria-label={L.choose(label)} onClick={() => setPicking(kind)}>🔍</button>}
-      {compendium !== undefined && str(values[key]) !== '' && <button type="button" className="atlas-sheet-view" aria-label={L.view(str(values[key]))} onClick={() => compendium.view(kind, str(values[key]))}>👁</button>}
+      {canPick && <button type="button" className="atlas-sheet-lookup" aria-label={L.choose(label)} onClick={() => setPicking(kind)}>🔍</button>}
+      {compendium !== undefined && str(values[key]) !== '' && <button type="button" className="atlas-sheet-lookup" aria-label={L.view(str(values[key]))} onClick={() => compendium.view(kind, str(values[key]))}>👁</button>}
     </span>
   );
   const derived = deriveDnd5e(values);

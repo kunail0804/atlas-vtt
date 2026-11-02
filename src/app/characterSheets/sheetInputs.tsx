@@ -95,7 +95,7 @@ export function RowsTable({ rows, columns, editable, onRow, addLabel, removeLabe
       {rows.map((row, index) => (
         <div key={index} className="atlas-sheet-table__row" style={{ gridTemplateColumns: template(columns, extra) }}>
           {columns.map((column) => <Cell key={column.key} row={row} column={column} editable={editable} onChange={(value) => onRow(index, { ...row, [column.key]: value })} onRoll={onRoll} />)}
-          {onView !== undefined && <button type="button" className="atlas-sheet-view" aria-label={viewLabel?.(row) ?? String(row.name ?? '')} onClick={() => onView(row)}>👁</button>}
+          {onView !== undefined && <button type="button" className="atlas-sheet-lookup" aria-label={viewLabel?.(row) ?? String(row.name ?? '')} onClick={() => onView(row)}>👁</button>}
           {editable && <button type="button" className="atlas-sheet-remove" aria-label={`${removeLabel} ${index + 1}`} onClick={() => onRow(index, null)}>×</button>}
         </div>
       ))}
