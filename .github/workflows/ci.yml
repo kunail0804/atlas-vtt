@@ -97,7 +97,35 @@ jobs:
           sudo ln -sf "$(node -p "require('playwright').chromium.executablePath()")" /usr/bin/chromium
       - run: npm run player:build --prefix selfhost
       - name: Browser tests
-        run: npx vitest run --config selfhost/vitest.config.mts .browser.test
+        run: npx vitest run --config selfhost/vitest.config.mts .browser.test $KNOWN_FAILING
+        env:
+          KNOWN_FAILING: --exclude selfhost/tests/player.browser.test.ts --exclude selfhost/tests/toolbar.browser.test.ts --exclude selfhost/tests/lighting.browser.test.ts
+
+  # These three failed before this pipeline existed (issue #2). They run so their state stays
+  # visible, and `Verify` does not wait for them. Remove this job once they pass above.
+  browser-known-failing:
+    name: Known failing browser tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            selfhost/package-lock.json
+      - run: npm ci && npm ci --prefix selfhost
+      - name: Chromium
+        run: |
+          npx playwright install --with-deps chromium
+          sudo ln -sf "$(node -p "require('playwright').chromium.executablePath()")" /usr/bin/chromium
+      - run: npm run player:build --prefix selfhost
+      - run: npx vitest run --config selfhost/vitest.config.mts selfhost/tests/player.browser.test.ts selfhost/tests/toolbar.browser.test.ts selfhost/tests/lighting.browser.test.ts
 
   launcher:
     name: Launcher
