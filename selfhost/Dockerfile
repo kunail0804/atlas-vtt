@@ -27,8 +27,8 @@ RUN node -e ' \
     [statblocks + "manifest.json", "statblocks/manifest.json", "0b5964399a842f1655424182e7813278b8e58f697360be59e20de8f6621f0968"], \
     [statblocks + "styles.css", "statblocks/styles.css", "913e51350ac24c1823fb1fc6d6cb7da3d453686becf936b66c7bdf559733f13b"], \
     ["https://raw.githubusercontent.com/javalent/fantasy-statblocks/4.10.3/LICENSE", "statblocks/LICENSE", "9026b77871aeb3958a7acb259abd69fdaf37f8081499c42283c854388b2a6510"], \
-    ["https://github.com/cloudflare/cloudflared/releases/download/2026.10.0/cloudflared-linux-amd64", "cloudflared", "d33ff2d14475178d2012c2c56beba87389ac5ded27649519f198a7d3134a99db"], \
-    ["https://raw.githubusercontent.com/cloudflare/cloudflared/2026.10.0/LICENSE", "cloudflared-LICENSE", "58d1e17ffe5109a7ae296caafcadfdbe6a7d176f0bc4ab01e12a689b0499d8bd"], \
+    ["https://github.com/cloudflare/cloudflared/releases/download/2026.10.7/cloudflared-linux-amd64", "cloudflared", "1f99fb518b83dec2ba8d870a7cc991d82a77e6196295a3d2754ba17ab9f91872"], \
+    ["https://raw.githubusercontent.com/cloudflare/cloudflared/2026.10.7/LICENSE", "cloudflared-LICENSE", "58d1e17ffe5109a7ae296caafcadfdbe6a7d176f0bc4ab01e12a689b0499d8bd"], \
   ]; \
   (async () => { for (const [url, name, sha] of files) { \
     const bytes = Buffer.from(await (await fetch(url)).arrayBuffer()); \

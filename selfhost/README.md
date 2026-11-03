@@ -82,7 +82,7 @@ plugins: it replaces this build with the official one, which talks to `atlas-vtt
 
 The image holds the relay, the built player page, the plugin build the launcher copies into a
 vault, Fantasy Statblocks 4.10.3 (MIT, `javalent/fantasy-statblocks`, in `/opt/atlas/statblocks`
-with its licence), and `cloudflared` 2026.10.0. Every downloaded file is checked against a pinned
+with its licence), and `cloudflared` 2026.10.7. Every downloaded file is checked against a pinned
 SHA-256.
 
 `atlas start` puts both plugins in the campaign's vault and switches them on in
