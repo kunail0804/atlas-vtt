@@ -68,10 +68,11 @@ jobs:
       - run: npm ci && npm ci --prefix selfhost
       - name: Typecheck
         run: npm run typecheck --prefix selfhost
-      - name: Relay tests
-        run: npx vitest run --config selfhost/vitest.config.mts --exclude 'selfhost/tests/**/*.browser.test.ts'
+      # The relay serves the built page; its security tests read the page's headers.
       - name: Build the player page
         run: npm run player:build --prefix selfhost
+      - name: Relay tests
+        run: npx vitest run --config selfhost/vitest.config.mts --exclude 'selfhost/tests/**/*.browser.test.ts'
 
   browser:
     name: Player page in Chromium
