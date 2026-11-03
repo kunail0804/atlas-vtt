@@ -24,16 +24,10 @@ describe('shared source enforcement', () => {
     },
   );
 
-  it.each(['plugin-ci.yml', 'plugin-beta-release.yml', 'plugin-release.yml'])(
-    'checks dependencies before building in %s', workflow => {
-      const source = readFileSync(`.github/workflows/${workflow}`, 'utf8');
-      const check = source.indexOf('run: npm run check:boundaries');
-      expect(check).toBeGreaterThan(-1);
-      expect(check).toBeLessThan(source.indexOf('run: npm run build:ci'));
-      if (workflow === 'plugin-beta-release.yml') {
-        const step = source.slice(source.lastIndexOf('- name:', check), check);
-        expect(step).toContain("if: steps.existing.outputs.skip != 'true'");
-      }
-    },
-  );
+  it('checks dependencies before building in ci.yml', () => {
+    const source = readFileSync('.github/workflows/ci.yml', 'utf8');
+    const check = source.indexOf('run: npm run check:boundaries');
+    expect(check).toBeGreaterThan(-1);
+    expect(check).toBeLessThan(source.indexOf('run: npm run build:ci'));
+  });
 });

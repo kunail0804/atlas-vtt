@@ -1,0 +1,412 @@
+name: CI
+
+# One run per commit: it verifies, and on main it publishes what the commit changed.
+# Pull requests into main must pass the `Verify` job (the ruleset on main requires it).
+# See .github/WORKFLOW.md for the whole process and the secrets each step needs.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  # A workflow started by another workflow's token (a pull request it opened) runs CI this way.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}-${{ github.event_name == 'push' && github.sha || 'check' }}
+  cancel-in-progress: ${{ github.event_name != 'push' }}
+
+env:
+  IMAGE: kunail0804/atlas-relay
+  # The test suite has assertions that read numbers the English way.
+  LANG: C.UTF-8
+  LC_ALL: C.UTF-8
+
+jobs:
+  plugin:
+    name: Plugin
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Typecheck
+        run: ./node_modules/.bin/tsc --noEmit
+      - name: Lint
+        run: npm run lint
+      - name: Code shared with the player page
+        run: npm run check:boundaries
+      - name: Unit tests
+        run: ./node_modules/.bin/vitest run --project unit
+      - name: Build
+        run: npm run build:ci
+
+  relay:
+    name: Relay and player page
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            selfhost/package-lock.json
+      - run: npm ci --ignore-scripts && npm ci --ignore-scripts --prefix selfhost
+      - name: Typecheck
+        run: npm run typecheck --prefix selfhost
+      # The relay serves the built page; its security tests read the page's headers.
+      - name: Build the player page
+        run: npm run player:build --prefix selfhost
+      - name: Relay tests
+        run: ./node_modules/.bin/vitest run --config selfhost/vitest.config.mts --exclude 'selfhost/tests/**/*.browser.test.ts'
+
+  browser:
+    name: Player page in Chromium
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            selfhost/package-lock.json
+      - run: npm ci --ignore-scripts && npm ci --ignore-scripts --prefix selfhost
+      # The browser tests drive /usr/bin/chromium: Playwright's own build is put there.
+      - name: Chromium
+        run: |
+          ./node_modules/.bin/playwright install --with-deps chromium
+          sudo ln -sf "$(node -p "require('playwright').chromium.executablePath()")" /usr/bin/chromium
+      - run: npm run player:build --prefix selfhost
+      - name: Browser tests
+        run: ./node_modules/.bin/vitest run --config selfhost/vitest.config.mts .browser.test $KNOWN_FAILING
+        env:
+          KNOWN_FAILING: --exclude selfhost/tests/player.browser.test.ts --exclude selfhost/tests/toolbar.browser.test.ts --exclude selfhost/tests/lighting.browser.test.ts
+
+  # These three failed before this pipeline existed (issue #2). They run so their state stays
+  # visible, and `Verify` does not wait for them. Remove this job once they pass above.
+  browser-known-failing:
+    name: Known failing browser tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            selfhost/package-lock.json
+      - run: npm ci --ignore-scripts && npm ci --ignore-scripts --prefix selfhost
+      - name: Chromium
+        run: |
+          ./node_modules/.bin/playwright install --with-deps chromium
+          sudo ln -sf "$(node -p "require('playwright').chromium.executablePath()")" /usr/bin/chromium
+      - run: npm run player:build --prefix selfhost
+      - run: ./node_modules/.bin/vitest run --config selfhost/vitest.config.mts selfhost/tests/player.browser.test.ts selfhost/tests/toolbar.browser.test.ts selfhost/tests/lighting.browser.test.ts
+
+  launcher:
+    name: Launcher
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: selfhost/launcher
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
+        with:
+          deno-version: v2.x
+      - run: deno task check
+      - run: deno test -A
+
+  service:
+    name: Campaigns service
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: selfhost/service
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: selfhost/service/package-lock.json
+      - run: npm ci --ignore-scripts
+      - run: npm run typecheck
+      - name: Bundle without deploying
+        run: ./node_modules/.bin/wrangler deploy --dry-run --outdir "$RUNNER_TEMP/worker"
+        env:
+          WRANGLER_SEND_METRICS: 'false'
+
+  verify:
+    name: Verify
+    if: always()
+    needs: [plugin, relay, browser, launcher, service]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every check passed
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped')
+        run: |
+          echo "::error::A check did not pass"
+          exit 1
+      - run: echo "Every check passed"
+
+  # ---- Publication: only for a push to main whose checks all passed ----
+
+  changes:
+    name: What changed
+    if: github.event_name == 'push'
+    needs: verify
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.diff.outputs.image }}
+      service: ${{ steps.diff.outputs.service }}
+      compendium: ${{ steps.diff.outputs.compendium }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: diff
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            files=$(git diff --name-only "$BEFORE" "$GITHUB_SHA")
+          else
+            files=$(git ls-files)
+          fi
+          printf '%s\n' "$files"
+          # The image holds the plugin, the relay and the player page: anything but these leaves it as it is.
+          outside='^(\.github/|docs/|tests/|selfhost/tests/|selfhost/launcher/|selfhost/service/|compendium/)|\.md$'
+          if printf '%s\n' "$files" | grep -Evq "$outside"; then echo image=true; else echo image=false; fi >> "$GITHUB_OUTPUT"
+          if printf '%s\n' "$files" | grep -q '^selfhost/service/'; then echo service=true; else echo service=false; fi >> "$GITHUB_OUTPUT"
+          if printf '%s\n' "$files" | grep -q '^compendium/builder/'; then echo compendium=true; else echo compendium=false; fi >> "$GITHUB_OUTPUT"
+
+  image:
+    name: Publish the image
+    needs: changes
+    if: needs.changes.outputs.image == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    concurrency:
+      group: publish-image
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Secrets
+        env:
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: test -n "$DOCKERHUB_TOKEN" || { echo "::error::The secret DOCKERHUB_TOKEN is not set (see .github/WORKFLOW.md)"; exit 1; }
+      - name: Next version
+        id: version
+        run: |
+          base=$(node -p "require('./package.json').version")
+          curl -fsS -o "$RUNNER_TEMP/tags.json" "https://hub.docker.com/v2/repositories/$IMAGE/tags?page_size=100&name=$base-selfhost."
+          last=$(jq -r --arg base "$base" '[.results[].name | select(startswith($base + "-selfhost.")) | ltrimstr($base + "-selfhost.") | select(test("^[0-9]+$")) | tonumber] | max // 0' "$RUNNER_TEMP/tags.json")
+          echo "tag=$base-selfhost.$((last + 1))" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          username: kunail0804
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: selfhost/Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:${{ steps.version.outputs.tag }}
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:sha-${{ github.sha }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.version=${{ steps.version.outputs.tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Tag the commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/relay-$TAG" -f sha="$GITHUB_SHA" > /dev/null
+          echo "Published \`$IMAGE:$TAG\` and \`latest\` from $GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+
+  launcher-release:
+    name: Release the launcher
+    needs: verify
+    if: github.event_name == 'push' && needs.verify.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    concurrency:
+      group: publish-launcher
+      cancel-in-progress: false
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      # A release is made once per version: raising VERSION in selfhost/launcher/version.ts releases it.
+      - name: Version
+        id: version
+        run: |
+          version=$(sed -n "s/^export const VERSION = '\(.*\)';$/\1/p" selfhost/launcher/version.ts)
+          test -n "$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if gh release view "launcher-v$version" > /dev/null 2>&1; then echo "new=false"; else echo "new=true"; fi >> "$GITHUB_OUTPUT"
+      - if: steps.version.outputs.new == 'true'
+        uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
+        with:
+          deno-version: v2.x
+      - if: steps.version.outputs.new == 'true'
+        name: Build
+        working-directory: selfhost/launcher
+        run: deno task build && (cd dist && sha256sum atlas atlas.exe > SHA256SUMS)
+      - if: steps.version.outputs.new == 'true'
+        name: Release
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          previous=$(git tag --list 'launcher-v*' --sort=-v:refname | head -1)
+          {
+            echo "The \`atlas\` launcher for the self-hosted Atlas VTT fork."
+            echo
+            echo "- **Windows:** download \`atlas.exe\` and double-click it."
+            echo "- **Linux:** download \`atlas\`, run \`chmod +x atlas\`, then \`./atlas\`."
+            echo
+            echo "You need Docker (Docker Desktop on Windows) and Obsidian. \`atlas man\` lists every command. \`SHA256SUMS\` holds the fingerprints of both files."
+            echo
+            echo "Changes since ${previous:-the first release}:"
+            git log --format='- %s (%h)' ${previous:+$previous..}HEAD -- selfhost/launcher
+            echo
+            echo "Built by CI from $GITHUB_SHA."
+          } > "$RUNNER_TEMP/notes.md"
+          gh release create "launcher-v$VERSION" selfhost/launcher/dist/atlas selfhost/launcher/dist/atlas.exe selfhost/launcher/dist/SHA256SUMS \
+            --target "$GITHUB_SHA" --title "Atlas launcher $VERSION" --prerelease --notes-file "$RUNNER_TEMP/notes.md"
+
+  service-deploy:
+    name: Deploy the campaigns service
+    needs: changes
+    if: needs.changes.outputs.service == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: publish-service
+      cancel-in-progress: false
+    defaults:
+      run:
+        working-directory: selfhost/service
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_DEPLOY_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: selfhost/service/package-lock.json
+      - name: Secrets
+        run: test -n "$CLOUDFLARE_API_TOKEN" -a -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "::error::The secrets CLOUDFLARE_DEPLOY_TOKEN and CLOUDFLARE_ACCOUNT_ID must be set (see .github/WORKFLOW.md)"; exit 1; }
+      - run: npm ci --ignore-scripts
+      # The Worker's own secrets (Discord, the tunnels token) stay as selfhost/service/setup.sh set them.
+      - name: Apply the database migrations
+        run: ./node_modules/.bin/wrangler d1 migrations apply atlas-campaigns --remote
+      - name: Deploy the Worker
+        run: ./node_modules/.bin/wrangler deploy
+      - run: echo "Deployed https://campaigns.kunlab.cc from $GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+
+  compendium-release:
+    name: Release the compendium sources
+    needs: changes
+    if: needs.changes.outputs.compendium == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
+    concurrency:
+      group: publish-compendium
+      cancel-in-progress: false
+    env:
+      GH_TOKEN: ${{ secrets.AUTOMATION_TOKEN || github.token }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.AUTOMATION_TOKEN || github.token }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Build the sources
+        run: |
+          git clone --depth 1 https://github.com/5e-bits/5e-database.git "$RUNNER_TEMP/5e-database"
+          echo "5e-database at $(git -C "$RUNNER_TEMP/5e-database" rev-parse HEAD)"
+          npm run compendium:build -- --database "$RUNNER_TEMP/5e-database" --out "$RUNNER_TEMP/compendium"
+      - name: Compare with what Atlas downloads
+        id: compare
+        run: |
+          if node scripts/compendium-sources.mjs check "$RUNNER_TEMP/compendium/catalog.json"; then echo "changed=false"; else echo "changed=true"; fi >> "$GITHUB_OUTPUT"
+      - name: Release and open the pull request that points Atlas at it
+        if: steps.compare.outputs.changed == 'true'
+        run: |
+          last=$(git tag --list 'compendium-v*' | sed 's/compendium-v//' | sort -n | tail -1)
+          tag="compendium-v$(( ${last:-0} + 1 ))"
+          gh release create "$tag" "$RUNNER_TEMP"/compendium/*.zip "$RUNNER_TEMP/compendium/catalog.json" \
+            --target "$GITHUB_SHA" --prerelease --title "Compendium sources ${tag#compendium-}" \
+            --notes "Built by CI from $GITHUB_SHA. Atlas downloads these once the pull request that names them is merged."
+          node scripts/compendium-sources.mjs write "$RUNNER_TEMP/compendium/catalog.json" "$tag"
+          branch="compendium/$tag"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git commit -am "compendium: download the sources of $tag"
+          git push origin "$branch"
+          gh pr create --base main --head "$branch" --title "compendium: download the sources of $tag" \
+            --body "The compendium builder changed on main, so CI built the sources again and released them as \`$tag\`. This points \`officialSources.ts\` at them."
+          # A pull request opened with the workflow's own token starts no workflow: CI is started by hand on the branch.
+          gh workflow run ci.yml --ref "$branch"

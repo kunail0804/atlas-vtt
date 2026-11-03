@@ -1,0 +1,106 @@
+name: Upstream
+
+# Every Monday: what atlas-vtt/atlas-vtt changed since last week. `upstream-main` follows its main,
+# a dated branch `upstream-sync-<date>` keeps that week's state, and an issue lists the new commits
+# and the files that would conflict with ours. Nothing is merged: take what you want into a branch
+# made from main (see .github/WORKFLOW.md). Never open a pull request from these branches: they hold
+# upstream's workflows, which a pull request would run.
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: upstream
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Follow upstream
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      # Upstream's history changes workflow files, which the workflow's own token may not push.
+      PUSH_TOKEN: ${{ secrets.AUTOMATION_TOKEN }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.AUTOMATION_TOKEN || github.token }}
+      - name: Fetch upstream
+        run: |
+          git remote add upstream https://github.com/atlas-vtt/atlas-vtt.git
+          git fetch --quiet upstream main
+          git fetch --quiet origin upstream-main || true
+      - name: Compare
+        id: compare
+        run: |
+          new=$(git rev-parse upstream/main)
+          old=$(git rev-parse --verify --quiet origin/upstream-main || echo none)
+          echo "new=$new" >> "$GITHUB_OUTPUT"
+          if [ "$new" = "$old" ]; then echo "changed=false" >> "$GITHUB_OUTPUT"; echo "Upstream has not moved since last week." >> "$GITHUB_STEP_SUMMARY"; exit 0; fi
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          range=$([ "$old" = none ] && echo "upstream/main" || echo "$old..upstream/main")
+          count=$(git rev-list --count $range)
+          behind=$(git rev-list --count origin/main..upstream/main)
+          git merge-tree --write-tree --name-only origin/main upstream/main > "$RUNNER_TEMP/merge.txt" || true
+          conflicts=$(awk 'NR > 1 && /^$/ { exit } NR > 1' "$RUNNER_TEMP/merge.txt")
+          {
+            echo "count=$count"
+            echo "behind=$behind"
+            echo "conflicts=$(printf '%s\n' "$conflicts" | grep -c . || true)"
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo "### New commits this week ($count)"
+            echo
+            git log --no-merges --format='- %s ([%h](https://github.com/atlas-vtt/atlas-vtt/commit/%H))' $range | head -150
+            echo
+            echo "### Files that would conflict if upstream/main were merged into main"
+            echo
+            if [ -n "$conflicts" ]; then printf '%s\n' "$conflicts" | sed 's/^/- `/; s/$/`/'; else echo "None."; fi
+          } > "$RUNNER_TEMP/details.md"
+      - name: Branches
+        id: branches
+        if: steps.compare.outputs.changed == 'true'
+        run: |
+          branch="upstream-sync-$(date -u +%Y-%m-%d)"
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+          if [ -z "$PUSH_TOKEN" ]; then
+            echo "pushed=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::AUTOMATION_TOKEN is not set: the branches were not updated (see .github/WORKFLOW.md)"
+            exit 0
+          fi
+          git push --force origin upstream/main:refs/heads/upstream-main
+          git push origin "upstream/main:refs/heads/$branch"
+          echo "pushed=true" >> "$GITHUB_OUTPUT"
+      - name: Issue
+        if: steps.compare.outputs.changed == 'true'
+        env:
+          COUNT: ${{ steps.compare.outputs.count }}
+          BEHIND: ${{ steps.compare.outputs.behind }}
+          CONFLICTS: ${{ steps.compare.outputs.conflicts }}
+          BRANCH: ${{ steps.branches.outputs.branch }}
+          PUSHED: ${{ steps.branches.outputs.pushed }}
+        run: |
+          {
+            echo "Upstream ([atlas-vtt/atlas-vtt](https://github.com/atlas-vtt/atlas-vtt)) has **$COUNT** new commits since last week. main is **$BEHIND** commits behind upstream in all; merging upstream/main whole would conflict in **$CONFLICTS** files."
+            echo
+            if [ "$PUSHED" = true ]; then
+              echo "- This week's upstream: branch [\`$BRANCH\`](https://github.com/$GITHUB_REPOSITORY/tree/$BRANCH); \`upstream-main\` follows it."
+            else
+              echo "- The branches were not updated: the secret \`AUTOMATION_TOKEN\` is not set."
+            fi
+            echo "- Everything upstream has that main has not: [compare](https://github.com/$GITHUB_REPOSITORY/compare/main...atlas-vtt:atlas-vtt:main)"
+            echo "- To take something: branch from main, \`git cherry-pick <commit>\`, open a pull request into main. Close this issue when the week is read."
+            echo
+            cat "$RUNNER_TEMP/details.md"
+          } > "$RUNNER_TEMP/issue.md"
+          # An issue body holds 65,536 characters at most.
+          head -c 60000 "$RUNNER_TEMP/issue.md" > "$RUNNER_TEMP/body.md"
+          gh issue create --title "Upstream: $COUNT new commits ($(date -u +%Y-%m-%d))" --label upstream --body-file "$RUNNER_TEMP/body.md"

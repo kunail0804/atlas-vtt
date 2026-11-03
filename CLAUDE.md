@@ -1,3 +1,16 @@
+# Fork workflow (kunail0804/atlas-vtt)
+
+This repository is a fork whose `main` is its own product; `.github/WORKFLOW.md` is the whole process.
+
+- Work from an issue. Branch from main as `<kind>/<issue>-<few-words>` (`agent/...` for the agent workflow).
+- Open a pull request into main starting with `Closes #<issue>`, saying how the change was verified. Never push
+  to main: its ruleset refuses pushes and merges without the `Verify` check. `gh pr merge --auto --squash`.
+- CI publishes on merge: the Docker image, the launcher when `VERSION` in `selfhost/launcher/version.ts` is
+  raised, the campaigns service when `selfhost/service/` changes, the compendium sources when
+  `compendium/builder/` changes. Never push an image, a release or a deployment by hand.
+- Upstream (`atlas-vtt/atlas-vtt`) is not followed: take a commit from it with `git cherry-pick` on a branch from
+  main. Never open a pull request from an `upstream-*` branch.
+
 # Context
 - We are working on Atlas VTT, a Virtual Tabletop plugin for Obsidian.md
 - **IMPORTANT**: We use PIXI.js v8 (not v7). Obsidian bundles PIXI v7 globally, but we must use our own PIXI v8 imports.
