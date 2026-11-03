@@ -1,0 +1,28 @@
+name: Tâche
+description: Un changement à faire, par toi ou par un agent (ajoute le label `agent` pour qu'il s'en charge).
+labels: [task]
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: But
+      description: Ce qui doit changer, et pourquoi.
+    validations:
+      required: true
+  - type: textarea
+    id: done
+    attributes:
+      label: Terminé quand
+      description: Ce qu'on doit pouvoir constater, une ligne par critère (un test qui passe, un comportement visible).
+    validations:
+      required: true
+  - type: textarea
+    id: excluded
+    attributes:
+      label: Hors périmètre
+      description: Ce qu'il ne faut pas toucher.
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Fichiers concernés, liens, captures.

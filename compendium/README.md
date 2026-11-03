@@ -54,6 +54,8 @@ source's `Attribution.md` note says so.
 
 ## Publish the SRD sources
 
+CI does this on every merge into main that changes `compendium/builder/`: it builds, releases and opens the pull request of step 2 (`.github/WORKFLOW.md`); the steps below are for a local build.
+
 1. Upload the zips to the GitHub release `compendium-v<N>` of `kunail0804/atlas-vtt`.
 2. Copy each zip's `size` and `sha256` from `catalog.json` into `src/app/compendium/officialSources.ts`,
    and set `RELEASE` to the new tag.

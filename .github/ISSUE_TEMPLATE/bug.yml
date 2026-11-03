@@ -1,0 +1,32 @@
+name: Bug
+description: Quelque chose qui ne marche pas comme prévu.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: Ce qui se passe
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Ce qui devrait se passer
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Comment le reproduire
+      placeholder: "1. …\n2. …"
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: "Image (`docker image inspect kunail0804/atlas-relay:latest`), launcher (`atlas --version`)."
+  - type: textarea
+    id: logs
+    attributes:
+      label: Journaux
+      description: "`~/.config/atlas-vtt/atlas.log`, `docker logs`, la console du navigateur."
+      render: text

@@ -1,11 +1,15 @@
-## Change
+Closes #
 
-Describe the problem and resulting behavior. Link the issue if one exists.
+## Ce qui change
 
-## Verification
+## Comment c'est vérifié
 
-State what you tested. For interactions, include concise Obsidian reproduction steps.
+<!-- Commandes lancées et ce qu'elles ont montré. CI refait les vérifications ; dis ce qu'elle ne couvre pas. -->
 
-## User impact
+## Ce qui sera publié au merge
 
-Mention any vault-data migration, compatibility change, or remaining limitation.
+<!-- Coche ce qui s'applique ; CI le publie seule. -->
+- [ ] Image Docker (plugin, relay, page joueur)
+- [ ] Launcher (`VERSION` relevée dans `selfhost/launcher/version.ts`)
+- [ ] Service des campagnes (Cloudflare)
+- [ ] Sources du compendium (`compendium/builder`)

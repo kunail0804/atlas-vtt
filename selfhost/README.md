@@ -80,6 +80,8 @@ plugins: it replaces this build with the official one, which talks to `atlas-vtt
 
 ## Build the campaign image
 
+CI does this on every merge into main that changes the plugin, the relay or the player page (`.github/WORKFLOW.md`); the steps below are for a local build.
+
 The image holds the relay, the built player page, the plugin build the launcher copies into a
 vault, Fantasy Statblocks 4.10.3 (MIT, `javalent/fantasy-statblocks`, in `/opt/atlas/statblocks`
 with its licence), and `cloudflared` 2026.10.7. Every downloaded file is checked against a pinned
@@ -117,6 +119,10 @@ configuration to copy to `~/.cloudflared/config.yml`.
 
 ## Deploy the campaigns service
 
+CI does this on every merge into main that changes `selfhost/service/` (`.github/WORKFLOW.md`); the steps below are for a local build.
+
+`setup.sh` still sets the Worker's secrets, which CI does not touch.
+
 The service (`service/`) runs on Cloudflare Workers with D1 at `https://campaigns.kunlab.cc`. It
 reads its secrets from `~/.config/atlas-vtt-admin/secrets.env`. Run once `npx wrangler login` in
 `service/`, then:
@@ -131,6 +137,8 @@ npm ci
 sets its secrets. It is safe to run again after a change.
 
 ## Build the launcher
+
+CI does this on every merge into main that changes `VERSION` in `launcher/version.ts` (`.github/WORKFLOW.md`); the steps below are for a local build.
 
 The launcher (`launcher/`) is compiled with Deno, for Linux and for Windows, from Linux:
 
