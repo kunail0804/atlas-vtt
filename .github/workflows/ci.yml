@@ -38,15 +38,15 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
+      - run: npm ci --ignore-scripts
       - name: Typecheck
-        run: npx tsc --noEmit
+        run: ./node_modules/.bin/tsc --noEmit
       - name: Lint
         run: npm run lint
       - name: Code shared with the player page
         run: npm run check:boundaries
       - name: Unit tests
-        run: npx vitest run --project unit
+        run: ./node_modules/.bin/vitest run --project unit
       - name: Build
         run: npm run build:ci
 
@@ -65,14 +65,14 @@ jobs:
           cache-dependency-path: |
             package-lock.json
             selfhost/package-lock.json
-      - run: npm ci && npm ci --prefix selfhost
+      - run: npm ci --ignore-scripts && npm ci --ignore-scripts --prefix selfhost
       - name: Typecheck
         run: npm run typecheck --prefix selfhost
       # The relay serves the built page; its security tests read the page's headers.
       - name: Build the player page
         run: npm run player:build --prefix selfhost
       - name: Relay tests
-        run: npx vitest run --config selfhost/vitest.config.mts --exclude 'selfhost/tests/**/*.browser.test.ts'
+        run: ./node_modules/.bin/vitest run --config selfhost/vitest.config.mts --exclude 'selfhost/tests/**/*.browser.test.ts'
 
   browser:
     name: Player page in Chromium
@@ -89,15 +89,15 @@ jobs:
           cache-dependency-path: |
             package-lock.json
             selfhost/package-lock.json
-      - run: npm ci && npm ci --prefix selfhost
+      - run: npm ci --ignore-scripts && npm ci --ignore-scripts --prefix selfhost
       # The browser tests drive /usr/bin/chromium: Playwright's own build is put there.
       - name: Chromium
         run: |
-          npx playwright install --with-deps chromium
+          ./node_modules/.bin/playwright install --with-deps chromium
           sudo ln -sf "$(node -p "require('playwright').chromium.executablePath()")" /usr/bin/chromium
       - run: npm run player:build --prefix selfhost
       - name: Browser tests
-        run: npx vitest run --config selfhost/vitest.config.mts .browser.test $KNOWN_FAILING
+        run: ./node_modules/.bin/vitest run --config selfhost/vitest.config.mts .browser.test $KNOWN_FAILING
         env:
           KNOWN_FAILING: --exclude selfhost/tests/player.browser.test.ts --exclude selfhost/tests/toolbar.browser.test.ts --exclude selfhost/tests/lighting.browser.test.ts
 
@@ -119,13 +119,13 @@ jobs:
           cache-dependency-path: |
             package-lock.json
             selfhost/package-lock.json
-      - run: npm ci && npm ci --prefix selfhost
+      - run: npm ci --ignore-scripts && npm ci --ignore-scripts --prefix selfhost
       - name: Chromium
         run: |
-          npx playwright install --with-deps chromium
+          ./node_modules/.bin/playwright install --with-deps chromium
           sudo ln -sf "$(node -p "require('playwright').chromium.executablePath()")" /usr/bin/chromium
       - run: npm run player:build --prefix selfhost
-      - run: npx vitest run --config selfhost/vitest.config.mts selfhost/tests/player.browser.test.ts selfhost/tests/toolbar.browser.test.ts selfhost/tests/lighting.browser.test.ts
+      - run: ./node_modules/.bin/vitest run --config selfhost/vitest.config.mts selfhost/tests/player.browser.test.ts selfhost/tests/toolbar.browser.test.ts selfhost/tests/lighting.browser.test.ts
 
   launcher:
     name: Launcher
@@ -160,10 +160,10 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: selfhost/service/package-lock.json
-      - run: npm ci
+      - run: npm ci --ignore-scripts
       - run: npm run typecheck
       - name: Bundle without deploying
-        run: npx wrangler deploy --dry-run --outdir "$RUNNER_TEMP/worker"
+        run: ./node_modules/.bin/wrangler deploy --dry-run --outdir "$RUNNER_TEMP/worker"
         env:
           WRANGLER_SEND_METRICS: 'false'
 
@@ -235,11 +235,8 @@ jobs:
         id: version
         run: |
           base=$(node -p "require('./package.json').version")
-          last=$(curl -fsS "https://hub.docker.com/v2/repositories/$IMAGE/tags?page_size=100&name=$base-selfhost." | node -e '
-            const base = process.argv[1];
-            const names = JSON.parse(require("fs").readFileSync(0, "utf8")).results.map((tag) => tag.name);
-            const numbers = names.map((name) => name.match(new RegExp(`^${base.replace(/\./g, "\\.")}-selfhost\\.(\\d+)$`))).filter(Boolean).map((match) => Number(match[1]));
-            process.stdout.write(String(Math.max(0, ...numbers)));' "$base")
+          curl -fsS -o "$RUNNER_TEMP/tags.json" "https://hub.docker.com/v2/repositories/$IMAGE/tags?page_size=100&name=$base-selfhost."
+          last=$(jq -r --arg base "$base" '[.results[].name | select(startswith($base + "-selfhost.")) | ltrimstr($base + "-selfhost.") | select(test("^[0-9]+$")) | tonumber] | max // 0' "$RUNNER_TEMP/tags.json")
           echo "tag=$base-selfhost.$((last + 1))" >> "$GITHUB_OUTPUT"
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
@@ -352,12 +349,12 @@ jobs:
           cache-dependency-path: selfhost/service/package-lock.json
       - name: Secrets
         run: test -n "$CLOUDFLARE_API_TOKEN" -a -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "::error::The secrets CLOUDFLARE_DEPLOY_TOKEN and CLOUDFLARE_ACCOUNT_ID must be set (see .github/WORKFLOW.md)"; exit 1; }
-      - run: npm ci
+      - run: npm ci --ignore-scripts
       # The Worker's own secrets (Discord, the tunnels token) stay as selfhost/service/setup.sh set them.
       - name: Apply the database migrations
-        run: npx wrangler d1 migrations apply atlas-campaigns --remote
+        run: ./node_modules/.bin/wrangler d1 migrations apply atlas-campaigns --remote
       - name: Deploy the Worker
-        run: npx wrangler deploy
+        run: ./node_modules/.bin/wrangler deploy
       - run: echo "Deployed https://campaigns.kunlab.cc from $GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
 
   compendium-release:
@@ -384,7 +381,7 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
+      - run: npm ci --ignore-scripts
       - name: Build the sources
         run: |
           git clone --depth 1 https://github.com/5e-bits/5e-database.git "$RUNNER_TEMP/5e-database"

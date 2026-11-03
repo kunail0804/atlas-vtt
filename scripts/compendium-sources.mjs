@@ -28,7 +28,7 @@ for (const entry of catalog) {
   const wanted = { size: String(entry.size), sha256: `'${entry.sha256}'`, version: String(entry.version) };
   let updated = block;
   for (const [key, value] of Object.entries(wanted)) {
-    const pattern = new RegExp(`(\\n\\s+${key}: )([^,]+),`);
+    const pattern = new RegExp(String.raw`(\n\s+${key}: )([^,]+),`);
     const found = block.match(pattern);
     if (found === null) {
       console.error(`${entry.id}: no ${key} in its block`);
