@@ -1,5 +1,6 @@
 // @vitest-environment node
-import { CLOSE, KEEPALIVE_MS, KEEPALIVE_PING, KEEPALIVE_PONG } from '../../../../src/app/online/protocol/index.ts';
+import type { GmMessage } from '../../../../src/app/online/protocol/index.ts';
+import { ASSET_CHUNK_BYTES, CLOSE, KEEPALIVE_MS, KEEPALIVE_PING, KEEPALIVE_PONG } from '../../../../src/app/online/protocol/index.ts';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Timers } from '../../../../src/app/online/gm/companionTimers.ts';
 import { BURST } from '../../../../src/app/online/gm/sendQueue.ts';
@@ -393,6 +394,25 @@ describe('the pulse of the GM\'s socket', () => {
     const before = socket.sent.length;
     for (let index = 0; index < BURST; index += 1) connection.send({ t: 'scene', scene: null });
     expect(socket.sent.length - before).toBe(BURST);
+  });
+
+  it('sends a whole asset chunk as one bulk frame, a large message in paced parts, a live message live, and others in no lane', () => {
+    const { connection } = table();
+    const socket = last();
+    socket.welcome([{ id: 'abcdefghijklmnopqrst', name: 'Ana' }]);
+    const before = socket.sent.length;
+    const chunk = { t: 'asset-chunk', hash: 'a'.repeat(64), index: 0, count: 1, data: 'A'.repeat((ASSET_CHUNK_BYTES / 3) * 4) } as const;
+    connection.send(chunk, 'abcdefghijklmnopqrst');
+    connection.send({ t: 'scene', scene: null });
+    connection.sendLive({ t: 'scene', scene: null }, 'drag');
+    const frames = socket.sent.slice(before).map((text) => JSON.parse(text) as { body: { t: string }; lane?: string });
+    expect(frames.map((frame) => [frame.body.t, frame.lane])).toEqual([['asset-chunk', 'bulk'], ['scene', undefined], ['scene', 'live']]);
+    const large = { t: 'scene', scene: { id: 'x'.repeat(10), name: 'y'.repeat(ASSET_CHUNK_BYTES * 2) } } as unknown as GmMessage;
+    const partsBefore = socket.sent.length;
+    connection.send(large);
+    const parts = socket.sent.slice(partsBefore).map((text) => JSON.parse(text) as { body: { t: string }; lane?: string });
+    expect(parts.length).toBeGreaterThan(1);
+    expect(parts.every((frame) => frame.body.t === 'part' && frame.lane === 'paced')).toBe(true);
   });
 
   it('times nothing once the table is stopped', () => {

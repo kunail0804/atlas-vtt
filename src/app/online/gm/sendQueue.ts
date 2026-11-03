@@ -6,10 +6,14 @@ export interface QueueSocket {
   send(text: string): void;
 }
 
-/** Frames a second the queue sends at most over time, below the relay's GM rate limit (100). */
-export const FRAMES_PER_SECOND = 80;
-/** Frames the queue may send at once after a quiet spell, well below the relay's burst (200). */
-export const BURST = 40;
+/**
+ * Frames a second the queue sends at most over time. The self-hosted relay sets no rate on the GM's
+ * loopback socket; asset chunks are a quarter of the size they were at 80 frames a second, so this
+ * keeps the bytes a second the same.
+ */
+export const FRAMES_PER_SECOND = 320;
+/** Frames the queue may send at once after a quiet spell. */
+export const BURST = 160;
 /** Bytes the socket may hold unsent before even a live frame waits. */
 export const MAX_BUFFERED = 1024 * 1024;
 /**

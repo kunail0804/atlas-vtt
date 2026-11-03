@@ -3,8 +3,12 @@ import { isRecord } from './shape.ts';
 /** A SHA-256 in lowercase hex: how every asset is named. */
 export const HASH_PATTERN = /^[0-9a-f]{64}$/;
 
-/** Bytes of an asset per chunk: their base64 is exactly 256 KiB. */
-export const ASSET_CHUNK_BYTES = 192 * 1024;
+/**
+ * Bytes of an asset per chunk: their base64 is exactly 64 KiB. A player's page counts a socket that
+ * hears no whole frame for 50 s as dead, and a frame is only heard once it has all arrived: a chunk
+ * must cross the slowest uplink a GM shares between all their players well within that time.
+ */
+export const ASSET_CHUNK_BYTES = 48 * 1024;
 /** The largest asset the GM serves and a client accepts. */
 export const MAX_ASSET_BYTES = 64 * 1024 * 1024;
 

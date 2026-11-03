@@ -1,17 +1,24 @@
 import type { WebSocket } from 'ws';
 import {
-  ALL_PLAYERS, CLOSE, PROTOCOL_VERSION, isOtherVersion, parseClientFrame, type PlayerHello, type PlayerInfo,
+  ALL_PLAYERS, CLOSE, PROTOCOL_VERSION, isOtherVersion, parseClientFrame, type PlayerHello, type PlayerInfo, type SendLane,
 } from '../../src/app/online/protocol/relay.ts';
 import { closeSocket, sendFrame, sendText } from './frames.ts';
 import { JoinGate } from './gate.ts';
 import { hashOf, matchesHash, newPlayerId, newSecret } from './ids.ts';
 import type { Link } from './link.ts';
+import { PlayerOutbox } from './outbox.ts';
 import { RateLimit } from './rateLimit.ts';
 import type { SavedTable } from './tableStore.ts';
 
 /** A player's page may send this many frames a second, after a burst of `PLAYER_BURST`. */
 const PLAYER_FRAMES_PER_SECOND = 60;
 const PLAYER_BURST = 120;
+/**
+ * A page acks every paced and bulk frame it receives, apart from the limit above. The GM sends at most 320
+ * frames a second (`FRAMES_PER_SECOND` in the plugin's send queue), so a page never needs more.
+ */
+const ACKS_PER_SECOND = 400;
+const ACK_BURST = 800;
 
 interface Seat {
   readonly id: string;
@@ -39,8 +46,10 @@ export class Table {
   private readonly maxPlayers: number;
   private readonly seats = new Map<string, Seat>();
   private gm: Link | null = null;
-  /** Waiting newcomers keep their link, so an admitted one is seated on it. */
-  private readonly linksByKnockSocket = new WeakMap<WebSocket, Link>();
+  /** Waiting newcomers keep their link and whether their page acks, so an admitted one is seated on it. */
+  private readonly linksByKnockSocket = new WeakMap<WebSocket, { readonly link: Link; readonly acks: boolean }>();
+  /** What goes to each seated player's link; a newer link of the same seat gets a new one. */
+  private readonly outboxes = new WeakMap<Link, PlayerOutbox>();
   private readonly gate: JoinGate;
   private readonly ports: TablePorts;
 
@@ -86,8 +95,10 @@ export class Table {
     if (frame === null || frame.t === 'hello') return closeSocket(link.socket, CLOSE.protocol, 'malformed frame');
     switch (frame.t) {
       case 'send':
-        this.route(frame.to ?? ALL_PLAYERS, frame.body);
+        this.route(frame.to ?? ALL_PLAYERS, frame.body, frame.lane ?? null);
         return;
+      case 'ack':
+        return closeSocket(link.socket, CLOSE.protocol, 'malformed frame');
       case 'kick':
         this.kick(frame.id);
         return;
@@ -110,15 +121,19 @@ export class Table {
     }
   }
 
-  private route(to: string, body: unknown): void {
-    // Serialised once, then sent as text to every reader: a scene goes to all players at once.
-    const text = JSON.stringify({ v: PROTOCOL_VERSION, t: 'game', body });
-    if (to === ALL_PLAYERS) {
-      for (const seat of this.seats.values()) if (seat.link !== null) sendText(seat.link.socket, text);
-      return;
+  private route(to: string, body: unknown, lane: SendLane | null): void {
+    // Serialised once, then sent as text to every reader: a scene goes to all players at once. A page
+    // from before acks reads past `ack`.
+    const acked = lane === 'paced' || lane === 'bulk';
+    const text = JSON.stringify({ v: PROTOCOL_VERSION, t: 'game', body, ...(acked ? { ack: true } : {}) });
+    const seats = to === ALL_PLAYERS ? [...this.seats.values()] : [this.seats.get(to)];
+    for (const seat of seats) {
+      const outbox = seat?.link ? this.outboxes.get(seat.link) : undefined;
+      if (outbox === undefined) continue;
+      if (lane === 'live') outbox.sendLive(text);
+      else if (lane === 'bulk') outbox.sendBulk(text);
+      else outbox.sendOrdered(text, lane === 'paced');
     }
-    const seat = this.seats.get(to);
-    if (seat?.link) sendText(seat.link.socket, text);
   }
 
   private kick(id: string): void {
@@ -151,10 +166,12 @@ export class Table {
   attachPlayer(link: Link, hello: PlayerHello): void {
     if (hello.key !== undefined) {
       const seat = this.seatWithKey(hello.key);
-      if (seat !== null) return this.seat(link, seat, hello.key, hello.name);
+      if (seat !== null) return this.seat(link, seat, hello.key, hello.name, hello.acks === true);
     }
     if (hello.wait !== undefined && this.gate.resume(link.socket, hello.wait)) {
       link.onText(() => closeSocket(link.socket, CLOSE.protocol, 'waiting'));
+      // The knock now holds this socket: an admission seats the newcomer on its link.
+      this.linksByKnockSocket.set(link.socket, { link, acks: hello.acks === true });
       return;
     }
     const check = this.gate.check(hello.code);
@@ -164,34 +181,34 @@ export class Table {
       // A waiting newcomer only sends keep-alives until the GM answers.
       link.onText(() => closeSocket(link.socket, CLOSE.protocol, 'waiting'));
       this.gate.knock(link.socket, hello.name, hello.waits === true, link.source);
-      this.linksByKnockSocket.set(link.socket, link);
+      this.linksByKnockSocket.set(link.socket, { link, acks: hello.acks === true });
       return;
     }
-    this.seatNewcomer(link, newPlayerId(), hello.name);
+    this.seatNewcomer(link, newPlayerId(), hello.name, hello.acks === true);
   }
 
   private seatAdmitted(socket: WebSocket, id: string, name: string): void {
-    const link = this.linksByKnockSocket.get(socket);
-    if (link === undefined) return;
+    const knock = this.linksByKnockSocket.get(socket);
+    if (knock === undefined) return;
     if (this.connectedCount() >= this.maxPlayers) {
       this.toGm({ t: 'knock-gone', id, full: true });
       closeSocket(socket, CLOSE.full, 'table full');
       return;
     }
     this.toGm({ t: 'knock-gone', id });
-    this.seatNewcomer(link, id, name);
+    this.seatNewcomer(knock.link, id, name, knock.acks);
   }
 
-  private seatNewcomer(link: Link, id: string, name: string): void {
+  private seatNewcomer(link: Link, id: string, name: string, acks: boolean): void {
     if (this.connectedCount() >= this.maxPlayers) return closeSocket(link.socket, CLOSE.full, 'table full');
     const key = newSecret();
     const seat: Seat = { id, name, keyHash: hashOf(key), link: null };
     this.seats.set(id, seat);
     this.ports.changed();
-    this.seat(link, seat, key, name);
+    this.seat(link, seat, key, name, acks);
   }
 
-  private seat(link: Link, seat: Seat, key: string, name: string): void {
+  private seat(link: Link, seat: Seat, key: string, name: string, acks: boolean): void {
     if (seat.link === null && this.connectedCount() >= this.maxPlayers) return closeSocket(link.socket, CLOSE.full, 'table full');
     const previous = seat.link;
     seat.link = link;
@@ -200,9 +217,12 @@ export class Table {
       this.ports.changed();
     }
     if (previous !== null) closeSocket(previous.socket, CLOSE.replaced, 'replaced');
-    const limit = new RateLimit(PLAYER_FRAMES_PER_SECOND, PLAYER_BURST);
-    link.onText((text) => this.fromPlayer(seat, link, limit, text));
+    const outbox = new PlayerOutbox({ send: (text) => sendText(link.socket, text) }, acks);
+    this.outboxes.set(link, outbox);
+    const limits = { frames: new RateLimit(PLAYER_FRAMES_PER_SECOND, PLAYER_BURST), acks: new RateLimit(ACKS_PER_SECOND, ACK_BURST) };
+    link.onText((text) => this.fromPlayer(seat, link, limits, text));
     link.socket.on('close', () => {
+      outbox.close();
       if (seat.link !== link) return;
       seat.link = null;
       this.toGm({ t: 'player-left', id: seat.id });
@@ -211,11 +231,14 @@ export class Table {
     this.toGm({ t: 'player-joined', id: seat.id, name: seat.name });
   }
 
-  private fromPlayer(seat: Seat, link: Link, limit: RateLimit, text: string): void {
+  private fromPlayer(seat: Seat, link: Link, limits: { readonly frames: RateLimit; readonly acks: RateLimit }, text: string): void {
+    // A player's frame is at most 4 KiB (`MAX_PLAYER_FRAME`), so reading it before the limit costs little.
+    const frame = parseClientFrame(text);
+    const limit = frame?.t === 'ack' ? limits.acks : limits.frames;
     if (!limit.take()) return closeSocket(link.socket, CLOSE.rateLimited, 'too many frames');
     if (isOtherVersion(text)) return closeSocket(link.socket, CLOSE.version, 'protocol version');
-    const frame = parseClientFrame(text);
-    // A player only ever sends game messages, and they always go to the GM.
+    if (frame?.t === 'ack') return this.outboxes.get(link)?.ack(frame.n);
+    // Otherwise a player only ever sends game messages, and they always go to the GM.
     if (frame === null || frame.t !== 'send' || frame.to !== undefined) return closeSocket(link.socket, CLOSE.protocol, 'malformed frame');
     this.toGm({ t: 'game', from: seat.id, body: frame.body });
   }

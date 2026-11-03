@@ -159,7 +159,8 @@ export class SceneView {
   private showExplored(mask: AssetRef | null): void {
     if (mask === null) return this.lighting?.setExplored(null);
     const scene = this.sceneId;
-    this.assets.image(mask, null).then(async (loaded) => {
+    // The explored memory changes as players explore: kept in the browser, every save would add an entry.
+    this.assets.image(mask, null, { persist: false }).then(async (loaded) => {
       if (this.sceneId !== scene) return;
       const reader = new FileReader();
       const url = await new Promise<string>((resolve, reject) => {

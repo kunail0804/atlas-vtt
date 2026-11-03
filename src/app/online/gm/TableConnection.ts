@@ -1,5 +1,5 @@
 import {
-  ALL_PLAYERS, FINAL_CLOSE_CODES, KEEPALIVE_PONG, PROTOCOL_VERSION, parseRelayFrame, type ConnectionStats, type GmMessage, type PlayerInfo,
+  ALL_PLAYERS, FINAL_CLOSE_CODES, KEEPALIVE_PONG, PROTOCOL_VERSION, parseRelayFrame, type ConnectionStats, type GmMessage, type PlayerInfo, type SendLane,
 } from '../protocol/index.ts';
 import { randomHex } from '../../utils/randomHex';
 import { messageParts } from './assetServe.ts';
@@ -134,10 +134,17 @@ export class TableConnection {
     return this.lastClose;
   }
 
-  /** Sends a game message to one player, or to all. */
+  /**
+   * Sends a game message to one player, or to all. The relay holds back asset chunks (`bulk`) and
+   * the parts of a large message (`paced`) while a player's link is busy, so a live message is never
+   * stuck behind a whole image or a scene's walls.
+   */
   send(body: GmMessage, to: string = ALL_PLAYERS): void {
     if (this.isGone(to)) return;
-    for (const part of messageParts(body, partId)) this.queue.push(JSON.stringify({ v: PROTOCOL_VERSION, t: 'send', to, body: part }), to);
+    for (const part of messageParts(body, partId)) {
+      const lane: SendLane | null = part.t === 'asset-chunk' ? 'bulk' : part.t === 'part' ? 'paced' : null;
+      this.queue.push(JSON.stringify({ v: PROTOCOL_VERSION, t: 'send', to, body: part, ...(lane === null ? {} : { lane }) }), to);
+    }
   }
 
   /**
@@ -146,7 +153,7 @@ export class TableConnection {
    */
   sendLive(body: GmMessage, key: string, to: string = ALL_PLAYERS): void {
     if (this.isGone(to)) return;
-    this.queue.pushLive(`${to}\n${key}`, JSON.stringify({ v: PROTOCOL_VERSION, t: 'send', to, body }), to);
+    this.queue.pushLive(`${to}\n${key}`, JSON.stringify({ v: PROTOCOL_VERSION, t: 'send', to, body, lane: 'live' }), to);
   }
 
   /** Whether a message to `to` would reach nobody: no player is connected, or not that one. */

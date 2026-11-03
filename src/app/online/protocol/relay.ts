@@ -75,6 +75,8 @@ export interface PlayerInfo {
  * A player's hello: `key` for a player the table knows, `code` (the join code) for one it does not.
  * `waits`: the page keeps the token of a wait for the GM, so the relay hands it one; `wait`: the
  * token it holds, which takes that wait up again. A page from before tokens sends neither.
+ * `acks`: the page answers frames marked `ack` with `ack`, so the relay sends paced and bulk frames
+ * only as fast as they arrive; a page from before acks gets them at once.
  */
 export interface PlayerHello {
   readonly v: 1;
@@ -85,6 +87,7 @@ export interface PlayerHello {
   readonly code?: string;
   readonly waits?: true;
   readonly wait?: string;
+  readonly acks?: true;
 }
 
 export type Hello = { readonly v: 1; readonly t: 'hello'; readonly role: 'gm'; readonly secret: string } | PlayerHello;
@@ -92,11 +95,25 @@ export type Hello = { readonly v: 1; readonly t: 'hello'; readonly role: 'gm'; r
 /**
  * What a client sends the relay. A player's `send` has no `to`: it always reaches the GM. `kick`,
  * `gate` (the join code, or null for none, and whether newcomers wait for the GM), `admit` and
- * `decline` (a waiting player, by the id of their knock) are the GM's.
+ * `decline` (a waiting player, by the id of their knock) are the GM's. A GM's `send` names its `lane`
+ * (`SendLane`). A player's `ack` counts the frames marked `ack` its socket received so far.
  */
+/**
+ * How the relay sends a GM's message to a player whose page acks. None: at once, in order with the
+ * other messages. `paced`: in that same order, but only as fast as the player's link takes it (a
+ * part of a large message). `bulk`: as fast as the link takes it, after everything else (an asset
+ * chunk, which nothing depends on the order of). `live`: at once, before anything waiting (where
+ * a dragged token is now, which only its latest value matters for).
+ */
+export type SendLane = 'paced' | 'bulk' | 'live';
+
+const SEND_LANES: readonly string[] = ['paced', 'bulk', 'live'] satisfies readonly SendLane[];
+const isSendLane = (value: unknown): value is SendLane => typeof value === 'string' && SEND_LANES.includes(value);
+
 export type ClientFrame =
   | Hello
-  | { readonly v: 1; readonly t: 'send'; readonly to?: string; readonly body: unknown }
+  | { readonly v: 1; readonly t: 'send'; readonly to?: string; readonly body: unknown; readonly lane?: SendLane }
+  | { readonly v: 1; readonly t: 'ack'; readonly n: number }
   | { readonly v: 1; readonly t: 'kick'; readonly id: string }
   | { readonly v: 1; readonly t: 'gate'; readonly code: string | null; readonly ask: boolean }
   | { readonly v: 1; readonly t: 'admit'; readonly id: string }
@@ -126,8 +143,11 @@ export type RelayFrame =
    * clock, in milliseconds) unless the account may host again by then; null once it may.
    */
   | { readonly v: 1; readonly t: 'access'; readonly closesAt: number | null }
-  /** A game message; `from` names the player on the GM's side, stamped by the relay. */
-  | { readonly v: 1; readonly t: 'game'; readonly from?: string; readonly body: unknown };
+  /**
+   * A game message; `from` names the player on the GM's side, stamped by the relay. `ack`: the page
+   * answers it with `ack` (a paced or bulk message), when its hello said it acks.
+   */
+  | { readonly v: 1; readonly t: 'game'; readonly from?: string; readonly body: unknown; readonly ack?: true };
 
 /**
  * The path the client scopes its seat cookies to (`apps/play/src/install/seatCookie.ts`). No request
@@ -177,10 +197,12 @@ export function parseClientFrame(text: string): ClientFrame | null {
     return code !== undefined && typeof value.ask === 'boolean' ? { v: 1, t: 'gate', code, ask: value.ask } : null;
   }
   if (value.t === 'send') {
-    if (!('body' in value)) return null;
-    if (value.to === undefined) return { v: 1, t: 'send', body: value.body };
-    return typeof value.to === 'string' ? { v: 1, t: 'send', to: value.to, body: value.body } : null;
+    if (!('body' in value) || (value.lane !== undefined && !isSendLane(value.lane))) return null;
+    const lane = isSendLane(value.lane) ? { lane: value.lane } : {};
+    if (value.to === undefined) return { v: 1, t: 'send', body: value.body, ...lane };
+    return typeof value.to === 'string' ? { v: 1, t: 'send', to: value.to, body: value.body, ...lane } : null;
   }
+  if (value.t === 'ack') return typeof value.n === 'number' && Number.isSafeInteger(value.n) && value.n >= 0 ? { v: 1, t: 'ack', n: value.n } : null;
   if (value.t !== 'hello') return null;
   if (value.role === 'gm') return typeof value.secret === 'string' && SECRET_PATTERN.test(value.secret) ? { v: 1, t: 'hello', role: 'gm', secret: value.secret } : null;
   if (value.role !== 'player') return null;
@@ -191,10 +213,12 @@ export function parseClientFrame(text: string): ClientFrame | null {
   if (code === undefined) return null;
   if (value.wait !== undefined && !(typeof value.wait === 'string' && SECRET_PATTERN.test(value.wait))) return null;
   if (value.waits !== undefined && value.waits !== true) return null;
+  if (value.acks !== undefined && value.acks !== true) return null;
   return {
     v: 1, t: 'hello', role: 'player', name,
     ...(value.key === undefined ? {} : { key: value.key }), ...(code === null ? {} : { code }),
     ...(value.waits === true ? { waits: true as const } : {}), ...(value.wait === undefined ? {} : { wait: value.wait }),
+    ...(value.acks === true ? { acks: true as const } : {}),
   };
 }
 
@@ -255,10 +279,12 @@ export function parseRelayFrame(text: string): RelayFrame | null {
     case 'access':
       if (value.closesAt === null) return { v: 1, t: 'access', closesAt: null };
       return typeof value.closesAt === 'number' && Number.isFinite(value.closesAt) ? { v: 1, t: 'access', closesAt: value.closesAt } : null;
-    case 'game':
+    case 'game': {
       if (!('body' in value)) return null;
-      if (value.from === undefined) return { v: 1, t: 'game', body: value.body };
-      return typeof value.from === 'string' ? { v: 1, t: 'game', from: value.from, body: value.body } : null;
+      const ack = value.ack === true ? { ack: true as const } : {};
+      if (value.from === undefined) return { v: 1, t: 'game', body: value.body, ...ack };
+      return typeof value.from === 'string' ? { v: 1, t: 'game', from: value.from, body: value.body, ...ack } : null;
+    }
     default:
       return null;
   }

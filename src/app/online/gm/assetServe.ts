@@ -24,9 +24,12 @@ export function assetChunks(hash: string, bytes: Uint8Array, from = 0): GmMessag
 /**
  * A message as it goes out: itself while its JSON fits one frame, else in `part` messages of at
  * most `ASSET_CHUNK_BYTES` of its UTF-8 text each (a scene's walls may run to megabytes). None
- * for a message of more than `MAX_PARTS` parts, which no client puts together.
+ * for a message of more than `MAX_PARTS` parts, which no client puts together. An asset chunk always
+ * goes as itself: it is already a frame's worth, and in parts it would be base64 inside base64,
+ * 78 % more bytes than the asset instead of 33 %.
  */
 export function messageParts(body: GmMessage, id: () => string): GmMessage[] {
+  if (body.t === 'asset-chunk') return [body];
   const bytes = new TextEncoder().encode(JSON.stringify(body));
   if (bytes.length <= ASSET_CHUNK_BYTES) return [body];
   const count = Math.ceil(bytes.length / ASSET_CHUNK_BYTES);

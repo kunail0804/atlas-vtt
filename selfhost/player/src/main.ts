@@ -8,6 +8,7 @@ import type { GmMessage } from '../../../src/app/online/protocol/game.ts';
 import type { RollAdvantage } from '../../../src/app/online/protocol/dice.ts';
 import { TABLE_CODE_PATTERN } from '../../../src/app/online/protocol/relay.ts';
 import { AssetLoader } from './assets.ts';
+import { AssetCache } from './assetCache.ts';
 import { PlayerConnection, type ConnectionEvent, type JoinRequest } from './connection.ts';
 import { installBrowserDomHost } from './domHost.ts';
 import { GameInbox } from './inbox.ts';
@@ -61,7 +62,7 @@ async function main(): Promise<void> {
 
   let connection: PlayerConnection | null = null;
   const send = (body: Parameters<PlayerConnection['send']>[0]): void => connection?.send(body);
-  const assets = new AssetLoader(send);
+  const assets = new AssetLoader(send, new AssetCache());
   const tokens = new TokenLayer(stage.tokens, stage.viewport, assets, send);
   let notice: SceneNotice = 'no-scene';
   let gmOnline = false;

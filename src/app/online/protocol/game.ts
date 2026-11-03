@@ -34,8 +34,8 @@ export interface SharedScene {
   readonly lit: boolean;
 }
 
-/** Parts of one message a client puts together: at most this many, each as large as an asset chunk. */
-export const MAX_PARTS = 64;
+/** Parts of one message a client puts together: at most this many, each as large as an asset chunk (12 MiB in all). */
+export const MAX_PARTS = 256;
 
 export type GmMessage =
   | { readonly t: 'scene'; readonly scene: SharedScene | null }

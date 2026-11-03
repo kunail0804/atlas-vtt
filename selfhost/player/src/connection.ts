@@ -33,6 +33,8 @@ export class PlayerConnection {
   private readonly request: JoinRequest;
   private readonly listener: (event: ConnectionEvent) => void;
   private socket: WebSocket | null = null;
+  /** Frames marked `ack` this socket received: the relay sends more as the page acks them. */
+  private ackedReceived = 0;
   private wait: string | null = null;
   private attempts = 0;
   private stopped = false;
@@ -52,6 +54,7 @@ export class PlayerConnection {
     const url = `${window.location.origin.replace(/^http/, 'ws')}/api/tables/${this.table}/socket`;
     const socket = new WebSocket(url);
     this.socket = socket;
+    this.ackedReceived = 0;
     socket.addEventListener('open', () => {
       socket.send(JSON.stringify({ v: PROTOCOL_VERSION, t: 'hello', role: 'player', ...this.hello() }));
       this.keepAlive = window.setInterval(() => socket.send(KEEPALIVE_PING), KEEPALIVE_MS);
@@ -84,6 +87,7 @@ export class PlayerConnection {
       ...(this.request.code === null ? {} : { code: this.request.code }),
       waits: true,
       ...(this.wait === null ? {} : { wait: this.wait }),
+      acks: true,
     };
   }
 
@@ -107,11 +111,18 @@ export class PlayerConnection {
         this.listener({ kind: 'gm', online: frame.online });
         return;
       case 'game':
+        // Acked at once, before the message is handled: the relay holds the next part or asset chunk until then.
+        if (frame.ack === true) this.ackFrame();
         this.listener({ kind: 'game', body: frame.body });
         return;
       default:
         return;
     }
+  }
+
+  private ackFrame(): void {
+    this.ackedReceived += 1;
+    if (this.socket?.readyState === WebSocket.OPEN) this.socket.send(JSON.stringify({ v: PROTOCOL_VERSION, t: 'ack', n: this.ackedReceived }));
   }
 
   private heard(): void {

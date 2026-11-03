@@ -24,6 +24,23 @@ describe('client frames', () => {
   });
 });
 
+describe('send lanes and acks', () => {
+  it('read a GM send in each lane, a player hello that acks, a player ack and a delivery to ack', () => {
+    for (const lane of ['paced', 'bulk', 'live']) expect(parseClientFrame(`{"v":1,"t":"send","to":"*","body":{"t":"x"},"lane":"${lane}"}`)).toEqual({ v: 1, t: 'send', to: '*', body: { t: 'x' }, lane });
+    expect(parseClientFrame('{"v":1,"t":"hello","role":"player","name":"Ana","acks":true}')).toEqual({ v: 1, t: 'hello', role: 'player', name: 'Ana', acks: true });
+    expect(parseClientFrame('{"v":1,"t":"ack","n":12}')).toEqual({ v: 1, t: 'ack', n: 12 });
+    expect(parseRelayFrame('{"v":1,"t":"game","body":1,"ack":true}')).toEqual({ v: 1, t: 'game', body: 1, ack: true });
+  });
+
+  it('refuse an unknown lane or an acks word that is not true, and an ack that is not a count', () => {
+    for (const text of ['{"v":1,"t":"send","body":1,"lane":"fast"}', '{"v":1,"t":"send","body":1,"lane":1}', '{"v":1,"t":"hello","role":"player","name":"Ana","acks":"yes"}', '{"v":1,"t":"ack","n":-1}', '{"v":1,"t":"ack","n":1.5}', '{"v":1,"t":"ack","n":"3"}', '{"v":1,"t":"ack"}']) {
+      expect(parseClientFrame(text), text).toBeNull();
+    }
+    // A relay frame's ack mark other than true is read as no mark.
+    expect(parseRelayFrame('{"v":1,"t":"game","body":1,"ack":"no"}')).toEqual({ v: 1, t: 'game', body: 1 });
+  });
+});
+
 describe('the join gates\' frames', () => {
   const id = 'c'.repeat(20);
 

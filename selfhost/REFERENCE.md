@@ -68,7 +68,9 @@ message's `body`.
 | Waiting room | at most `MAX_WAITING` (8), else `tooManyKnocks`; no answer in 5 minutes gives `noAnswer` | `relay/gate.ts` |
 | Seats | at most `maxPlayers` connected at once, else `full` | `Table.seat` |
 | Player frames | `send` only, at most 4 KB (`tooLarge`), 60 per second after a burst of 120 (`rateLimited`) | `Table.fromPlayer` |
+| Player acks | `ack` with the count of frames marked `ack` the socket received, 400 per second after a burst of 800 (`rateLimited`); an ack past what was sent is ignored | `Table.fromPlayer`, `relay/outbox.ts` |
 | GM frames | at most 320 KB (`tooLarge`) | `relay/link.ts` |
+| Send lanes | A GM's `send` names a `lane` (`SendLane`). To a page whose hello says `acks`: `paced` (a part of a large message) and `bulk` (an asset chunk) go only while what is on its way would take under a second to arrive, at the speed its acks show, and are marked `ack`; `paced` and lane-less frames keep the GM's order; `bulk` goes when no ordered frame waits; `live` goes at once. A page without `acks` gets everything at once | `relay/outbox.ts` |
 | Keep-alive | `ping` answered `pong` at every stage | `relay/link.ts` |
 | New table | ends the previous one: GM gets `superseded`, players `ended` | `Tables.create` |
 | Saved | tables, gate settings and players' key hashes, on every change, in `tables.json` | `relay/tableStore.ts` |
@@ -91,6 +93,7 @@ message's `body`.
 | Connection | `connection.ts` | Hello, keep-alive, reconnect with backoff, key kept in `localStorage` per table, wait token |
 | Inbox | `inbox.ts` | Puts `part` messages together, follows deltas with the plugin's `DeltaReader`, asks for a `resync` on a gap |
 | Assets | `assets.ts` | Asks by hash, takes chunks, checks SHA-256, continues a stalled download, takes scaled copies; quest texts are read with the plugin's `readQuestText` |
+| Asset cache | `assetCache.ts` | Keeps images and quest texts in Cache Storage between visits, checked against their SHA-256 on every read: at most 200 MB (or a tenth of the origin's quota) and 2,000 entries, least recently used out first, nothing over a quarter of the budget. The explored memory and everything else of the table's state is never kept |
 | Stage | `stage.ts` | The layers in order: map, grid, tokens, annotations, fog, pins |
 | Scene | `sceneView.ts` | Routes every scene message to its layer |
 | Map | `mapLayer.ts` | Draws the map at its own size; serves as the grid's `MapImageView` |
@@ -227,3 +230,10 @@ A probe that imported eleven of these modules built and ran in Chromium on 2026-
 - The GM's socket uses loopback and never goes through Cloudflare.
 - `perMessageDeflate` is off (`relay/server.ts`): no frame waits for compression.
 - `ws` sets `TCP_NODELAY` on every socket, so small frames leave at once.
+- The relay reaches players through `cloudflared` on loopback, so a socket's `bufferedAmount` says nothing of a
+  player's link. Asset chunks and the parts of large messages go as frames the page acks (`relay/outbox.ts`), so a
+  dragged token waits behind about a second of them at most instead of a whole map or a scene's walls.
+- An asset chunk is 48 KiB (64 KiB of base64), small enough to cross a slow uplink shared between players well
+  within the page's 50 s silence limit, and always one frame, never split into `part` messages.
+- The GM sends a PNG or JPEG over 256 KiB that fits the asked side as a WebP copy when that is smaller
+  (`AssetVariants`): a 2.8 MB PNG map went out as 412 KB.

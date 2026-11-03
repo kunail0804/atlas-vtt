@@ -1,6 +1,7 @@
 import { MAX_ASSET_BYTES, isMaxSide, type AssetRef } from '../../../src/app/online/protocol/asset.ts';
 import type { GmMessage, PlayerMessage } from '../../../src/app/online/protocol/game.ts';
 import { readQuestText } from '../../../src/app/online/protocol/questText.ts';
+import type { AssetCache } from './assetCache.ts';
 
 /** An image ready to draw: `width` × `height` is the size to draw it at (a scaled copy is drawn at its original's size). */
 export interface LoadedImage {
@@ -13,11 +14,19 @@ export interface LoadedImage {
   readonly height: number;
 }
 
-/** An asset's checked bytes, and the size to draw a scaled copy at (null for the asset itself). */
+/** An asset's checked bytes, their SHA-256 (a scaled copy's own), and the size to draw a scaled copy at (null for the asset itself). */
 interface Fetched {
   readonly blob: Blob;
+  readonly hash: string;
   readonly drawSize: { width: number; height: number } | null;
 }
+
+/** `persist`: whether the asset is kept in the browser between visits. Off for what stands for the table's state (the explored memory). */
+export interface ImageOptions {
+  readonly persist?: boolean;
+}
+
+const cacheKeyOf = (hash: string, maxSide: number | null): string => `${hash}@${maxSide ?? 'full'}`;
 
 /** A download that hears nothing for this long asks again, from the first chunk it lacks. */
 const STALL_MS = 15_000;
@@ -50,25 +59,28 @@ async function sha256Hex(bytes: Uint8Array): Promise<string> {
 /**
  * Images by hash, as the GM serves them: the page asks once, the chunks come back, and the bytes are
  * kept only when their SHA-256 is the hash asked for. An image larger than the asked longest side
- * comes as a scaled copy under its own hash (`asset-variant`), drawn at the original's size.
+ * comes as a scaled copy under its own hash (`asset-variant`), drawn at the original's size. What
+ * the browser kept from an earlier visit (`AssetCache`) is taken from there, without asking the GM.
  */
 export class AssetLoader {
   private readonly send: (message: PlayerMessage) => void;
+  private readonly cache: AssetCache;
   /** Downloads by the hash their chunks carry: the asset's own, or its scaled copy's. */
   private readonly downloads = new Map<string, Download>();
   private readonly loaded = new Map<string, Promise<LoadedImage>>();
   private readonly texts = new Map<string, Promise<string>>();
 
-  constructor(send: (message: PlayerMessage) => void) {
+  constructor(send: (message: PlayerMessage) => void, cache: AssetCache) {
     this.send = send;
+    this.cache = cache;
   }
 
-  image(ref: AssetRef, maxSide: number | null): Promise<LoadedImage> {
+  image(ref: AssetRef, maxSide: number | null, options: ImageOptions = {}): Promise<LoadedImage> {
     const side = maxSide !== null && isMaxSide(maxSide) ? maxSide : null;
-    const cacheKey = `${ref.hash}@${side ?? 'full'}`;
+    const cacheKey = cacheKeyOf(ref.hash, side);
     const known = this.loaded.get(cacheKey);
     if (known !== undefined) return known;
-    const promise = this.fetch(ref, side).then(async ({ blob, drawSize }) => {
+    const promise = this.fetch(ref, side, options.persist ?? true).then(async ({ blob, drawSize }) => {
       let bitmap: ImageBitmap;
       try {
         bitmap = await createImageBitmap(blob);
@@ -88,7 +100,7 @@ export class AssetLoader {
   text(ref: AssetRef): Promise<string> {
     const known = this.texts.get(ref.hash);
     if (known !== undefined) return known;
-    const promise = this.fetch(ref, null).then(async ({ blob }) => {
+    const promise = this.fetch(ref, null, true).then(async ({ blob }) => {
       const text = readQuestText(new Uint8Array(await blob.arrayBuffer()));
       if (text === null) throw new Error('unreadable text');
       return text;
@@ -98,15 +110,36 @@ export class AssetLoader {
     return promise;
   }
 
-  private fetch(ref: AssetRef, maxSide: number | null): Promise<Fetched> {
-    return new Promise<Fetched>((resolve, reject) => {
-      const download: Download = {
-        mime: ref.mime, size: ref.size, chunks: [], received: 0, count: null,
-        request: { hash: ref.hash, maxSide }, drawSize: null, waiters: [{ resolve, reject }], stall: undefined,
-      };
-      this.downloads.set(ref.hash, download);
-      this.ask(download, 0);
-    });
+  private async fetch(ref: AssetRef, maxSide: number | null, persist: boolean): Promise<Fetched> {
+    // Taken before the cache is read, so chunks that come meanwhile are kept.
+    const { download, done } = this.begin(ref, maxSide);
+    // A refusal while the cache is read must not surface as an unhandled rejection; it is awaited below.
+    done.catch(() => undefined);
+    const key = cacheKeyOf(ref.hash, maxSide);
+    if (persist) {
+      const cached = await this.cache.get(key);
+      // Without a longest side the GM sends the asset itself, never a copy: a kept entry under another hash is not it.
+      if (cached !== null && (maxSide !== null || cached.hash === ref.hash) && download.received === 0) {
+        if (this.downloads.get(ref.hash) === download) this.downloads.delete(ref.hash);
+        return cached;
+      }
+    }
+    if (download.received === 0) this.ask(download, 0);
+    const fetched = await done;
+    if (persist) void this.cache.put(key, fetched);
+    return fetched;
+  }
+
+  /** A download of `ref`, ready for its chunks; nothing is asked of the GM yet. */
+  private begin(ref: AssetRef, maxSide: number | null): { readonly download: Download; readonly done: Promise<Fetched> } {
+    const waiters: Download['waiters'][number][] = [];
+    const done = new Promise<Fetched>((resolve, reject) => waiters.push({ resolve, reject }));
+    const download: Download = {
+      mime: ref.mime, size: ref.size, chunks: [], received: 0, count: null,
+      request: { hash: ref.hash, maxSide }, drawSize: null, waiters, stall: undefined,
+    };
+    this.downloads.set(ref.hash, download);
+    return { download, done };
   }
 
   /** Takes the asset messages; false for any other message. */
@@ -164,7 +197,7 @@ export class AssetLoader {
     }
     if ((await sha256Hex(bytes)) !== hash) return this.fail(hash, download, new Error('The asset arrived damaged.'));
     const blob = new Blob([bytes], { type: download.mime });
-    for (const waiter of download.waiters) waiter.resolve({ blob, drawSize: download.drawSize });
+    for (const waiter of download.waiters) waiter.resolve({ blob, hash, drawSize: download.drawSize });
   }
 
   private fail(hash: string, download: Download, reason: Error): void {

@@ -76,6 +76,23 @@ describe('the relay with the plugin as GM', () => {
     expect(gm.gone).toEqual([{ id: gm.knocks[0]?.id, full: false }]);
   });
 
+  it('admits a newcomer who came back with the token of their wait', async () => {
+    const { code, gm } = await table({ code: null, ask: true });
+    const first = player(code, { name: 'Mira', waits: true });
+    await until(() => typeof first.frame('waiting')?.wait === 'string', 'wait token');
+    const wait = String(first.frame('waiting')?.wait);
+    await until(() => gm.knocks.length === 1, 'GM sees the knock');
+
+    // The network drops; the page comes back with its token and takes the same wait up again.
+    const back = player(code, { name: 'Mira', waits: true, wait });
+    await until(() => back.frame('waiting') !== undefined, 'wait taken up');
+    await until(() => first.closeCode !== null, 'old socket replaced');
+
+    gm.connection.answer(gm.knocks[0]?.id ?? '', true);
+    await until(() => back.frame('welcome') !== undefined, 'admitted after coming back');
+    expect(back.frame('welcome')?.id).toBe(gm.knocks[0]?.id);
+  });
+
   it('turns a declined newcomer away', async () => {
     const { code, gm } = await table({ code: null, ask: true });
     const mira = player(code, { name: 'Mira' });

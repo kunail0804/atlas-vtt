@@ -10,7 +10,7 @@ export interface ScaledImage {
   readonly height: number;
 }
 
-/** Scales an image to fit `maxSide`; null when it cannot be read or already fits. */
+/** Encodes an image as WebP scaled down to fit `maxSide`, or at its own size when it fits; null when it cannot be read. */
 export type ScaleImage = (bytes: Uint8Array, mime: string, maxSide: number) => Promise<ScaledImage | null>;
 
 /** A scaled copy as the players get it: its own reference and bytes, and the original's size. */
@@ -25,10 +25,22 @@ export interface AssetVariantOf {
 export const VARIANT_CAPACITY = 3;
 /** WebP quality of a scaled copy: maps and art stay sharp, a tenth or less of the original's bytes. */
 export const VARIANT_QUALITY = 0.9;
+/**
+ * An image that already fits the side a player asks for still comes as a WebP copy above this many
+ * bytes, when the copy is smaller: every byte crosses the GM's uplink once per player, and a 2.8 MB
+ * PNG map measured 412 KB as WebP at `VARIANT_QUALITY`.
+ */
+export const REENCODE_MIN_BYTES = 256 * 1024;
+/**
+ * Types re-encoded at their own size. GIF, WebP and AVIF may be animated or already compact, and a
+ * copy keeps only the first frame, so they come as they are while they fit.
+ */
+const REENCODED_MIME_TYPES: readonly string[] = ['image/png', 'image/jpeg'];
 
 /**
  * Scaled copies of the images players ask for at a longest side (a phone holds a 4,096 px map, not
- * an 8,192 px one), made once and kept for the last `VARIANT_CAPACITY` asked for. Whether a player
+ * an 8,192 px one), and WebP copies of large PNG and JPEG images that already fit it, made once and
+ * kept for the last `VARIANT_CAPACITY` asked for. Whether a player
  * may have the image at all is the caller's question, asked before every request (the image must
  * be in their current picture).
  */
@@ -37,7 +49,7 @@ export class AssetVariants {
 
   constructor(private readonly scale: ScaleImage, private readonly capacity = VARIANT_CAPACITY) {}
 
-  /** The copy of `bytes` (the image `hash`) for `maxSide`, or null when the image fits as it is or cannot be scaled. */
+  /** The copy of `bytes` (the image `hash`) for `maxSide`, or null when the image is best sent as it is or cannot be scaled. */
   get(hash: string, bytes: Uint8Array, mime: string, maxSide: number): Promise<AssetVariantOf | null> {
     const key = `${hash}@${maxSide}`;
     let variant = this.made.get(key);
@@ -57,10 +69,15 @@ export class AssetVariants {
 
   private async make(bytes: Uint8Array, mime: string, maxSide: number): Promise<AssetVariantOf | null> {
     const size = await imageDimensions(new Blob([bytes as Uint8Array<ArrayBuffer>], { type: mime })).catch(() => null);
-    if (size !== null && Math.max(size.width, size.height) <= maxSide) return null;
+    const fits = size !== null && Math.max(size.width, size.height) <= maxSide;
+    const worthReencoding = bytes.length > REENCODE_MIN_BYTES && REENCODED_MIME_TYPES.includes(mime);
+    if (fits && !worthReencoding) return null;
     const scaled = await this.scale(bytes, mime, maxSide).catch(() => null);
-    // What a phone holds is the decoded image, so a larger image comes scaled even where its copy has more bytes.
     if (scaled === null) return null;
+    // What a phone holds is the decoded image, so a larger image comes scaled even where its copy has more bytes.
+    // A copy at the image's own size is only worth it when it is smaller.
+    const scaledDown = Math.max(scaled.width, scaled.height) > maxSide;
+    if (!scaledDown && (!worthReencoding || scaled.bytes.length >= bytes.length)) return null;
     const copy = new Uint8Array(scaled.bytes);
     return { ref: { hash: await sha256Hex(copy), size: copy.length, mime: scaled.mime }, bytes: copy, width: scaled.width, height: scaled.height };
   }
@@ -69,14 +86,14 @@ export class AssetVariants {
 /**
  * Scales an image in Obsidian's own window with the browser's decoder (off the main thread) and
  * encodes the copy as WebP: `createImageBitmap` resizes with high quality, an `OffscreenCanvas` encodes.
+ * An image that fits `maxSide` is encoded at its own size.
  */
 export async function scaleInWindow(bytes: Uint8Array, mime: string, maxSide: number): Promise<ScaledImage | null> {
   const blob = new Blob([bytes], { type: mime });
   const original = await createImageBitmap(blob);
   const { width, height } = original;
   original.close();
-  const fit = maxSide / Math.max(width, height);
-  if (fit >= 1) return null;
+  const fit = Math.min(1, maxSide / Math.max(width, height));
   const outWidth = Math.max(1, Math.round(width * fit));
   const outHeight = Math.max(1, Math.round(height * fit));
   const resized = await createImageBitmap(blob, { resizeWidth: outWidth, resizeHeight: outHeight, resizeQuality: 'high' });
