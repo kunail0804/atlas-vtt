@@ -9,7 +9,6 @@ branch, a pull request and CI, so each one leaves a trace from the request to wh
 1. **An issue says what to do.** Use the *Tâche* template: what changes, when it is done, what not to touch.
    Bugs use *Bug*.
 2. **A branch from main**, named `<kind>/<issue>-<few-words>`: `feat/42-dice-sounds`, `fix/57-fog-reload`.
-   The agent of the `agent` workflow uses `agent/...`.
 3. **A pull request into main** whose description starts with `Closes #<issue>` and says how the change was
    verified (`.github/pull_request_template.md`). Nobody pushes to main directly: the ruleset on main refuses
    it, and refuses a merge whose `Verify` check has not passed.
@@ -28,15 +27,29 @@ branch, a pull request and CI, so each one leaves a trace from the request to wh
 
 Docs, tests and `.github/` alone publish nothing.
 
-## Asking an agent
+## Agents and reviews
 
-Label an issue `agent`, or write `@claude` in an issue, a comment or a review. The `agent` workflow runs
-Claude Code on GitHub's runner: it reads this file and `CLAUDE.md`, works on `agent/...`, and opens a pull
-request into main that CI verifies. It reports its progress in a comment on the issue. A review comment with
-`@claude` on its pull request asks it for changes.
+Agents code on your machine, never on GitHub: you start one on an issue, it follows this file with `gh`
+(`gh issue view`, a branch, `gh pr create`, `gh pr merge --auto --squash`).
 
-An agent on your own machine follows the same path with `gh`: `gh issue view`, a branch, `gh pr create`,
-`gh pr merge --auto --squash`.
+Reviews run on GitHub (`.github/workflows/review.yml`). The issue chooses the reviewers: the *Reviewers* boxes
+of the *Tâche* template, or the labels `review:claude`, `review:glm`, `review:deepseek`.
+
+| Reviewer | Model | Paid by |
+|---|---|---|
+| `claude` | Claude Sonnet, through Claude Code | your Claude subscription (`CLAUDE_CODE_OAUTH_TOKEN`) |
+| `glm` | `z-ai/glm-5.3-flash`, through OpenCode | OpenRouter (`OPENROUTER_API_KEY`) |
+| `deepseek` | `deepseek/deepseek-v4-flash-0731`, through OpenCode | OpenRouter (`OPENROUTER_API_KEY`) |
+
+- They start when the pull request is opened (or leaves draft), each on its own runner, in parallel. A
+  reviewer reads the issue, the pull request and `git diff origin/main...HEAD`, may run the tests and break the
+  code to test them, and never pushes. Its instructions are `.github/review/prompt.md`.
+- Each report is a comment on the pull request, headed `Review <name>` with the model, the commit, the time
+  taken and the cost. The coding agent reads them with `gh pr view <n> --comments`, applies what it agrees
+  with, and says in the pull request why it declines the rest.
+- A comment `/review glm` (or `claude`, `deepseek`, `all`, several at once) on the pull request runs them again
+  on its current head; `/review` alone runs those of the issue. Pushes do not.
+- Reports inform and never block a merge: only `Verify` does.
 
 ## Upstream
 
@@ -60,5 +73,6 @@ missing fails and names it.
 | `DOCKERHUB_TOKEN` | Image | A Docker Hub access token of `kunail0804` with *Read & Write* on repositories (hub.docker.com → Account settings → Personal access tokens). |
 | `CLOUDFLARE_DEPLOY_TOKEN` | Service | A Cloudflare API token with *Workers Scripts: Edit*, *D1: Edit*, *Workers Routes: Edit* on the zone `kunlab.cc`. Not the Worker's own token, which is scoped to tunnels and DNS. |
 | `CLOUDFLARE_ACCOUNT_ID` | Service | The Cloudflare account id. |
-| `CLAUDE_CODE_OAUTH_TOKEN` | Agent | `claude setup-token` on your machine: the agent then runs on your Claude subscription. |
-| `AUTOMATION_TOKEN` | Upstream, agent, compendium | A fine-grained personal access token on this repository with *Contents*, *Pull requests*, *Issues* and *Workflows*: read and write. Upstream's history changes workflow files, which the workflow's own token may not push, and a pull request opened with that token starts no CI. Without it the upstream issue still comes, without the branches; the agent needs it or the Claude GitHub App. |
+| `CLAUDE_CODE_OAUTH_TOKEN` | Review | `claude setup-token` on your machine: the Claude reviewer runs on your Claude subscription. |
+| `OPENROUTER_API_KEY` | Review | An OpenRouter API key (openrouter.ai/settings/keys), with a spending limit. Pays the GLM and DeepSeek reviewers. |
+| `AUTOMATION_TOKEN` | Upstream, compendium | A fine-grained personal access token on this repository with *Contents*, *Pull requests*, *Issues* and *Workflows*: read and write. Upstream's history changes workflow files, which the workflow's own token may not push, and a pull request opened with that token starts no CI. Without it the upstream issue still comes, without the branches. |

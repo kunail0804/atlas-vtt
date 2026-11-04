@@ -1,0 +1,36 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "share": "disabled",
+  "autoupdate": false,
+  "agent": {
+    "reviewer": {
+      "mode": "primary",
+      "description": "Reviews a pull request on a CI runner and writes a report; never pushes",
+      "prompt": "{file:./prompt.md}",
+      "steps": 80,
+      "permission": {
+        "edit": "allow",
+        "webfetch": "deny",
+        "websearch": "deny",
+        "external_directory": "deny",
+        "bash": {
+          "*": "deny",
+          "git diff*": "allow",
+          "git log*": "allow",
+          "git show*": "allow",
+          "git status*": "allow",
+          "git stash*": "allow",
+          "git checkout -- *": "allow",
+          "git restore *": "allow",
+          "npx vitest *": "allow",
+          "npx tsc *": "allow",
+          "npx eslint *": "allow",
+          "npm test*": "allow",
+          "npm run test*": "allow",
+          "npm --prefix selfhost test*": "allow",
+          "npm --prefix selfhost run test*": "allow"
+        }
+      }
+    }
+  }
+}
