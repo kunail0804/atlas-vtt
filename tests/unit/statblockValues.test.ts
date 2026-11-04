@@ -25,17 +25,20 @@ function sizeOf(value: unknown): { values: number; characters: number; depth: nu
 }
 
 describe('a bounded copy of a statblock value', () => {
-  it.each(Object.keys(HOSTILE_VALUES))('reads %s within one budget', (shape) => {
-    const copy = boundedValue(HOSTILE_VALUES[shape]!());
+  it('reads every hostile shape within one budget', () => {
+    for (const shape of Object.keys(HOSTILE_VALUES)) {
+      resetCounts();
+      const copy = boundedValue(HOSTILE_VALUES[shape]!());
 
-    // What is read: every value costs the budget, and a map of any size is listed once.
-    expect(counts.reads).toBeLessThanOrEqual(2 * STATBLOCK_LIMITS.values);
-    expect(counts.listings).toBeLessThanOrEqual(STATBLOCK_LIMITS.values);
-    // What is handed on: a tree any walk can afford.
-    const size = sizeOf(copy);
-    expect(size.values).toBeLessThanOrEqual(STATBLOCK_LIMITS.values);
-    expect(size.characters).toBeLessThanOrEqual(STATBLOCK_LIMITS.characters);
-    expect(size.depth).toBeLessThanOrEqual(STATBLOCK_LIMITS.depth);
+      // What is read: every value costs the budget, and a map of any size is listed once.
+      expect(counts.reads).toBeLessThanOrEqual(2 * STATBLOCK_LIMITS.values);
+      expect(counts.listings).toBeLessThanOrEqual(STATBLOCK_LIMITS.values);
+      // What is handed on: a tree any walk can afford.
+      const size = sizeOf(copy);
+      expect(size.values).toBeLessThanOrEqual(STATBLOCK_LIMITS.values);
+      expect(size.characters).toBeLessThanOrEqual(STATBLOCK_LIMITS.characters);
+      expect(size.depth).toBeLessThanOrEqual(STATBLOCK_LIMITS.depth);
+    }
   });
 
   it('lists a map that many values share once', () => {
@@ -98,10 +101,13 @@ describe('a bounded copy of a statblock value', () => {
 });
 
 describe('the text of a statblock value', () => {
-  it.each(Object.keys(HOSTILE_VALUES))('reads %s within one budget, and gives a text no longer than it', (shape) => {
-    const text = valueText(HOSTILE_VALUES[shape]!());
-    expect(counts.reads).toBeLessThanOrEqual(2 * STATBLOCK_LIMITS.values);
-    expect(text.length).toBeLessThanOrEqual(STATBLOCK_LIMITS.text);
+  it('reads every hostile shape within one budget, and gives a text no longer than it', () => {
+    for (const shape of Object.keys(HOSTILE_VALUES)) {
+      resetCounts();
+      const text = valueText(HOSTILE_VALUES[shape]!());
+      expect(counts.reads).toBeLessThanOrEqual(2 * STATBLOCK_LIMITS.values);
+      expect(text.length).toBeLessThanOrEqual(STATBLOCK_LIMITS.text);
+    }
   });
 
   it('writes a value as Fantasy Statblocks shows it', () => {

@@ -13,24 +13,32 @@ const MAX_TOTAL_BYTES = 400 * 1024;
 
 const files = readdirSync(FOLDER).filter((name) => name.endsWith('.webp'));
 
-describe('the toolbar editor\'s screenshots', () => {
-  it('has a screenshot for every control but ambient sound and for the undo/redo bar, and no file the card never shows', () => {
+it('the toolbar editor\'s screenshots', async () => {
+  // has a screenshot for every control but ambient sound and for the undo/redo bar, and no file the card never shows
+  {
     const units: ToolbarUnitId[] = [...TOOLBAR_CONTROLS.map((control) => control.id), UNDO_BAR_ID];
     const withScreenshot = units.filter((id) => TOOLBAR_SCREENSHOTS[id] !== null);
     expect(withScreenshot).toEqual(units.filter((id) => id !== 'audio'));
     expect(files.map((name) => name.replace(/\.webp$/, '')).sort()).toEqual([...withScreenshot].sort());
-  });
+  }
 
-  it.each(files)('keeps %s within 40 KB', (name) => {
-    expect(statSync(join(FOLDER, name)).size).toBeLessThanOrEqual(MAX_FILE_BYTES);
-  });
+  // keeps every screenshot within 40 KB
+  {
+    for (const name of files) {
+      expect(statSync(join(FOLDER, name)).size).toBeLessThanOrEqual(MAX_FILE_BYTES);
+    }
+  }
 
-  it('keeps all of them together within 400 KB', () => {
+  // keeps all of them together within 400 KB
+  {
     const total = files.reduce((sum, name) => sum + statSync(join(FOLDER, name)).size, 0);
     expect(total).toBeLessThanOrEqual(MAX_TOTAL_BYTES);
-  });
+  }
 
-  it.each(files)('stores %s at 560 × 350 px, twice the card\'s size', async (name) => {
-    expect(await imageDimensions(new Blob([readFileSync(join(FOLDER, name))]))).toEqual({ width: 560, height: 350 });
-  });
+  // stores every screenshot at 560 × 350 px, twice the card's size
+  {
+    for (const name of files) {
+      expect(await imageDimensions(new Blob([readFileSync(join(FOLDER, name))]))).toEqual({ width: 560, height: 350 });
+    }
+  }
 });

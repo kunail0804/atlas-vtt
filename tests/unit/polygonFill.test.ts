@@ -54,45 +54,51 @@ function expectFillsLike(outline: Point[], size = 100, step = 2.3): void {
   }
 }
 
-describe('filledPieces', () => {
-  it('fills a rectangle and a triangle as they are', () => {
+it('filledPieces', () => {
+  // fills a rectangle and a triangle as they are
+  {
     const square = [p(10, 10), p(60, 10), p(60, 40), p(10, 40)];
     expect(total(filledPieces(square))).toBeCloseTo(1500, 6);
     expectFillsLike(square);
     const triangle = [p(10, 10), p(90, 30), p(40, 80)];
     expect(total(filledPieces(triangle))).toBeCloseTo(area(triangle), 6);
     expectFillsLike(triangle);
-  });
+  }
 
-  it('fills an outline whichever way round it was drawn', () => {
+  // fills an outline whichever way round it was drawn
+  {
     const square = [p(10, 10), p(60, 10), p(60, 40), p(10, 40)];
     expect(total(filledPieces([...square].reverse()))).toBeCloseTo(1500, 6);
     expectFillsLike([...square].reverse());
-  });
+  }
 
-  it('fills a hollow shape around its notch, not across it', () => {
+  // fills a hollow shape around its notch, not across it
+  {
     // A U: the notch between its arms stays empty.
     const u = [p(10, 10), p(30, 10), p(30, 60), p(60, 60), p(60, 10), p(80, 10), p(80, 80), p(10, 80)];
     expect(total(filledPieces(u))).toBeCloseTo(70 * 70 - 30 * 50, 6);
     expectFillsLike(u);
-  });
+  }
 
-  it('fills both loops of an outline that crosses itself', () => {
+  // fills both loops of an outline that crosses itself
+  {
     // A figure of eight: the path crosses at (50, 50).
     const eight = [p(10, 10), p(90, 90), p(90, 10), p(10, 90)];
     expect(total(filledPieces(eight))).toBeCloseTo(2 * (80 * 40) / 2, 6);
     expectFillsLike(eight);
-  });
+  }
 
-  it('fills ground the outline goes around twice once, as a canvas does', () => {
+  // fills ground the outline goes around twice once, as a canvas does
+  {
     // Twice around the same square, the second round a little larger.
     const twice = [p(20, 20), p(70, 20), p(70, 70), p(20, 70), p(20, 15), p(80, 15), p(80, 80), p(15, 80), p(15, 20)];
     expectFillsLike(twice);
     const pieces = filledPieces(twice);
     expect(pieces.filter((piece) => holds(piece, p(45.3, 45.7)))).toHaveLength(1);
-  });
+  }
 
-  it('fills a lasso whose end overshoots its start, without anything far from the outline', () => {
+  // fills a lasso whose end overshoots its start, without anything far from the outline
+  {
     // A loop that crosses its own beginning before the hand lets go.
     const lasso = [p(30, 20), p(70, 20), p(80, 50), p(60, 80), p(30, 75), p(20, 45), p(34, 12), p(45, 8)];
     expectFillsLike(lasso);
@@ -104,9 +110,10 @@ describe('filledPieces', () => {
         expect(corner.y).toBeLessThanOrEqual(80);
       }
     }
-  });
+  }
 
-  it('fills random scribbles exactly where they wind', () => {
+  // fills random scribbles exactly where they wind
+  {
     let seed = 12345;
     const rand = (): number => ((seed = (seed * 16807) % 2147483647) / 2147483647);
     for (let trial = 0; trial < 40; trial++) {
@@ -114,9 +121,10 @@ describe('filledPieces', () => {
       const scribble = Array.from({ length: corners }, () => p(5 + rand() * 90, 5 + rand() * 90));
       expectFillsLike(scribble, 100, 3.1);
     }
-  });
+  }
 
-  it('fills a room outline whose joints overlap by a hair, as hand-drawn walls do', () => {
+  // fills a room outline whose joints overlap by a hair, as hand-drawn walls do
+  {
     // Each wall's end lies a pixel past the next wall's start.
     const room = [p(10, 10), p(91, 10.8), p(90, 9.5), p(90.6, 91), p(91.2, 90), p(9, 90.5), p(10, 91.3), p(10.7, 9)];
     expectFillsLike(room, 100, 1.7);
@@ -126,12 +134,13 @@ describe('filledPieces', () => {
         expect(corner.x).toBeLessThan(91.3);
       }
     }
-  });
+  }
 
-  it('fills nothing for an outline without area', () => {
+  // fills nothing for an outline without area
+  {
     expect(filledPieces([])).toEqual([]);
     expect(filledPieces([p(1, 1), p(9, 9)])).toEqual([]);
     expect(filledPieces([p(1, 5), p(9, 5), p(4, 5)])).toEqual([]);
     expect(total(filledPieces([p(1, 1), p(9, 9), p(5, 5)]))).toBe(0);
-  });
+  }
 });

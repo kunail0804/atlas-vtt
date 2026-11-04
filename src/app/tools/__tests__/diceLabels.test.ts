@@ -14,26 +14,30 @@ function showing(sides: number, ...faces: number[]): () => number {
 const d = (sides: number, value: number, more: Partial<RolledDie> = {}): RolledDie => ({ die: `d${sides}`, value, max: sides, ...more });
 const dF = (value: number): RolledDie => ({ die: 'dF', value, max: 1, min: -1 });
 
-describe('diceSum', () => {
-  it('writes old rolls as before', () => {
+it('diceSum', () => {
+  // writes old rolls as before
+  {
     expect(diceSum([d(6, 6), d(6, 6, { exploded: true }), d(6, 2, { exploded: true }), d(6, 3)])).toBe('6! + 6! + 2 + 3');
     expect(diceSum([d(10, 1), d(10, 7, { exploded: true, negative: true })])).toBe('1! − 7');
-  });
+  }
 
-  it('puts dropped dice in parentheses and joins a rerolled die to the die after it', () => {
+  // puts dropped dice in parentheses and joins a rerolled die to the die after it
+  {
     expect(diceSum(rollFormula('4d6kh3', showing(6, 3, 1, 6, 4)).rolls)).toBe('3 + (1) + 6 + 4');
     expect(diceSum(rollFormula('2d6r1', showing(6, 1, 5, 4)).rolls)).toBe('1→5 + 4');
     expect(diceSum(rollFormula('1d6-1d6rr1', showing(6, 3, 1, 1, 2)).rolls)).toBe('3 − 1→1→2');
-  });
+  }
 
-  it('adds Fate dice by their numbers', () => {
+  // adds Fate dice by their numbers
+  {
     expect(diceSum([dF(1), dF(0), dF(-1), dF(1)])).toBe('1 + 0 − 1 + 1');
     expect(diceSum([dF(-1), dF(1)])).toBe('−1 + 1');
-  });
+  }
 
-  it('names a labelled run of dice once, after its last die', () => {
+  // names a labelled run of dice once, after its last die
+  {
     expect(diceSum(rollFormula('2d4[fire]+1d4[cold]+1d4', showing(4, 4, 3, 2, 1)).rolls)).toBe('4 + 3 [fire] + 2 [cold] + 1');
-  });
+  }
 });
 
 describe('diceList', () => {
@@ -67,19 +71,21 @@ describe('dieStates', () => {
   });
 });
 
-describe('DiceTool with the full notation', () => {
+it('DiceTool with the full notation', () => {
   const inputs = (random: () => number) => ({ random, rollId: (): string => 'roll', roller: (): string => 'Mira', onFormulaError: (): void => {} });
 
-  it('rolls formulas that are no plain sum and says so', () => {
+  // rolls formulas that are no plain sum and says so
+  {
     const tool = new DiceTool(new EventEmitter(), () => DEFAULT_DICE_RULES, inputs(showing(6, 4)));
     expect(tool.rollDice('1d6*2+1')).toMatchObject({ total: 9, modifiers: 0, linear: false });
     expect(tool.rollDice('1d6+1')).not.toHaveProperty('linear');
-  });
+  }
 
-  it('completes a bonus without dice, labels kept whole, and never a formula with dice', () => {
+  // completes a bonus without dice, labels kept whole, and never a formula with dice
+  {
     const tool = new DiceTool(new EventEmitter(), () => DEFAULT_DICE_RULES, inputs(showing(20, 10)));
     expect(tool.rollDice('+ 3[magic bonus]')?.formula).toBe('1d20+3[magic bonus]');
     expect(tool.rollDice('2*3')).toMatchObject({ formula: '1d20+2*3', total: 16 });
     expect(tool.rollDice('2d20kh1')?.formula).toBe('2d20kh1');
-  });
+  }
 });

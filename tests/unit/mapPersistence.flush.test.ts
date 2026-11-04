@@ -16,28 +16,30 @@ function deferred() {
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
 
 describe('map save flushing', () => {
-  it.each([false, true])('waits for the file write before closing, already started: %s', async (alreadyStarted) => {
-    vi.useFakeTimers();
-    const { app, files } = createInMemoryApp({ files: { [path]: '{}' } });
-    const started = deferred();
-    const release = deferred();
-    const process = vi.mocked(app.vault.process).getMockImplementation()!;
-    vi.spyOn(app.vault, 'process').mockImplementation(async (file, change) => {
-      started.resolve();
-      await release.promise;
-      return process(file, change);
-    });
-    const storage = createAtlasStorage(app, { getState: () => ({ mapPath: path }) });
-    await storage.setItem('atlas', { state: { revision: 1 }, version: 4 });
-    if (alreadyStarted) await vi.advanceTimersByTimeAsync(500);
-    let finished = false;
-    const flushing = storage.flush().then(() => { finished = true; });
-    try {
-      await started.promise;
-      await Promise.resolve();
-      expect(finished).toBe(false);
-    } finally { release.resolve(); await flushing; }
-    expect(JSON.parse(files.get(path)!)).toEqual({ state: { revision: 1 }, version: 4 });
+  it('waits for the file write before closing, whether or not it already started', async () => {
+    for (const alreadyStarted of [false, true]) {
+      vi.useFakeTimers();
+      const { app, files } = createInMemoryApp({ files: { [path]: '{}' } });
+      const started = deferred();
+      const release = deferred();
+      const process = vi.mocked(app.vault.process).getMockImplementation()!;
+      vi.spyOn(app.vault, 'process').mockImplementation(async (file, change) => {
+        started.resolve();
+        await release.promise;
+        return process(file, change);
+      });
+      const storage = createAtlasStorage(app, { getState: () => ({ mapPath: path }) });
+      await storage.setItem('atlas', { state: { revision: 1 }, version: 4 });
+      if (alreadyStarted) await vi.advanceTimersByTimeAsync(500);
+      let finished = false;
+      const flushing = storage.flush().then(() => { finished = true; });
+      try {
+        await started.promise;
+        await Promise.resolve();
+        expect(finished).toBe(false);
+      } finally { release.resolve(); await flushing; }
+      expect(JSON.parse(files.get(path)!)).toEqual({ state: { revision: 1 }, version: 4 });
+    }
   });
 
   it('serializes saves so a slow older write cannot replace a newer snapshot', async () => {
@@ -118,39 +120,41 @@ describe('map save flushing', () => {
     expect(JSON.parse(files.get(path)!).state.revision).toBe(2);
   });
 
-  it.each([
-    ['a newer save of the scene', 'save'],
-    ['the scene was loaded again', 'load'],
-  ])('lets a write the flush gave up on change nothing once %s', async (_label, then) => {
-    vi.useFakeTimers();
-    const content = JSON.stringify({ version: 4, state: { revision: 0 } });
-    const { app, files } = createInMemoryApp({ files: { [path]: content } });
-    app.vault.getFileByPath = app.vault.getAbstractFileByPath;
-    const process = vi.mocked(app.vault.process).getMockImplementation()!;
-    const stuck = deferred();
-    // Obsidian gets to the stuck write's file only later
-    vi.spyOn(app.vault, 'process').mockImplementationOnce(async (file, change) => {
-      await stuck.promise;
-      return process(file, change);
-    });
-    const storage = createAtlasStorage(app, { getState: () => ({ mapPath: path }) });
+  it('lets a write the flush gave up on change nothing once a newer save or a reload came', async () => {
+    for (const [_label, then] of [
+      ['a newer save of the scene', 'save'],
+      ['the scene was loaded again', 'load'],
+    ] as const) {
+      vi.useFakeTimers();
+      const content = JSON.stringify({ version: 4, state: { revision: 0 } });
+      const { app, files } = createInMemoryApp({ files: { [path]: content } });
+      app.vault.getFileByPath = app.vault.getAbstractFileByPath;
+      const process = vi.mocked(app.vault.process).getMockImplementation()!;
+      const stuck = deferred();
+      // Obsidian gets to the stuck write's file only later
+      vi.spyOn(app.vault, 'process').mockImplementationOnce(async (file, change) => {
+        await stuck.promise;
+        return process(file, change);
+      });
+      const storage = createAtlasStorage(app, { getState: () => ({ mapPath: path }) });
 
-    await storage.setItem('atlas', { state: { revision: 1 }, version: 4 });
-    void storage.flush();
-    await vi.advanceTimersByTimeAsync(STALLED_SAVE_MS);
-    if (then === 'save') {
-      await storage.setItem('atlas', { state: { revision: 2 }, version: 4 });
-      await storage.flush();
-    } else {
-      await storage.getItem('atlas');
+      await storage.setItem('atlas', { state: { revision: 1 }, version: 4 });
+      void storage.flush();
+      await vi.advanceTimersByTimeAsync(STALLED_SAVE_MS);
+      if (then === 'save') {
+        await storage.setItem('atlas', { state: { revision: 2 }, version: 4 });
+        await storage.flush();
+      } else {
+        await storage.getItem('atlas');
+      }
+      const afterwards = files.get(path);
+
+      stuck.resolve();
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(files.get(path)).toBe(afterwards);
+      expect(JSON.parse(files.get(path)!).state.revision).toBe(then === 'save' ? 2 : 0);
     }
-    const afterwards = files.get(path);
-
-    stuck.resolve();
-    await vi.advanceTimersByTimeAsync(0);
-
-    expect(files.get(path)).toBe(afterwards);
-    expect(JSON.parse(files.get(path)!).state.revision).toBe(then === 'save' ? 2 : 0);
   });
 
   it('still creates the file of a new map on its first save', async () => {

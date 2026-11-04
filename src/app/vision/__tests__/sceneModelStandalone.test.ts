@@ -32,8 +32,9 @@ const state: SceneState = {
   heldTokens: {},
 };
 
-describe('the lighting scene model on its own', () => {
-  it('builds a scene without a renderer, a store or a document', () => {
+it('the lighting scene model on its own', async () => {
+  // builds a scene without a renderer, a store or a document
+  {
     const builder = new SceneModelBuilder();
     const first = builder.update(state, BOUNDS, measurement);
     expect(first.rebuilt).toBe(true);
@@ -64,10 +65,11 @@ describe('the lighting scene model on its own', () => {
 
     expect(loaded).toEqual([]);
     expect(typeof document).toBe('undefined');
-  });
+  }
 
-  it('cannot load the scene model that read colours through the renderer', async () => {
+  // cannot load the scene model that read colours through the renderer
+  {
     await expect(import('../../../../tests/oracles/sceneModelBaseline/sceneModel')).rejects.toThrow();
     expect(loaded).toEqual(['pixi.js']);
-  });
+  }
 });

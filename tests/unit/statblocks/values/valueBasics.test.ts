@@ -6,59 +6,76 @@ import {
 } from '../../../../src/app/statblocks/values/numberText';
 import { valueText } from '../../../../src/app/statblocks/values/valueText';
 
-describe('isEmptyValue', () => {
-  it.each([
-    [undefined], [null], [''], ['   '], [[]], [{}], [['', null, []]], [{ name: '', desc: null }], [Number.NaN], [[[''], { a: [] }]],
-  ])('%j is empty', (value) => {
-    expect(isEmptyValue(value)).toBe(true);
-  });
+it('isEmptyValue', () => {
+  // counts empty values as empty
+  {
+    for (const [value] of [
+      [undefined], [null], [''], ['   '], [[]], [{}], [['', null, []]], [{ name: '', desc: null }], [Number.NaN], [[[''], { a: [] }]],
+    ]) {
+      expect(isEmptyValue(value)).toBe(true);
+    }
+  }
 
-  it.each([[0], [false], ['0'], [' x '], [[0]], [{ a: false }], [new Date(0)]])('%j is a value', (value) => {
-    expect(isEmptyValue(value)).toBe(false);
-  });
+  // counts every other value as a value
+  {
+    for (const [value] of [[0], [false], ['0'], [' x '], [[0]], [{ a: false }], [new Date(0)]]) {
+      expect(isEmptyValue(value)).toBe(false);
+    }
+  }
 
-  it('survives a cycle', () => {
+  // survives a cycle
+  {
     const cycle: unknown[] = [];
     cycle.push(cycle);
     expect(isEmptyValue(cycle)).toBe(false);
-  });
+  }
 });
 
-describe('number text', () => {
-  it.each([
-    ['14', 14], ['+3', 3], ['-3', -3], ['−1', -1], ['–2', -2], ['2.5', 2.5], [' .5 ', 0.5], ['3.', 3], ['007', 7],
-  ])('%j is %d', (text, expected) => {
-    expect(parseNumberText(text)).toBe(expected);
-  });
+it('number text', () => {
+  // reads numbers out of values
+  {
+    for (const [text, expected] of [
+      ['14', 14], ['+3', 3], ['-3', -3], ['−1', -1], ['–2', -2], ['2.5', 2.5], [' .5 ', 0.5], ['3.', 3], ['007', 7],
+    ] as const) {
+      expect(parseNumberText(text)).toBe(expected);
+    }
+  }
 
-  it.each([['30 ft.'], ['1/4'], ['½'], [''], ['+'], ['1e3'], ['2,5'], ['1 000'], ['Infinity'], ['0x10'], ['--1']])('%j is not a number', (text) => {
-    expect(parseNumberText(text)).toBeNull();
-  });
+  // reads no number out of the others
+  {
+    for (const [text] of [['30 ft.'], ['1/4'], ['½'], [''], ['+'], ['1e3'], ['2,5'], ['1 000'], ['Infinity'], ['0x10'], ['--1']] as const) {
+      expect(parseNumberText(text)).toBeNull();
+    }
+  }
 
-  it('tells whole numbers', () => {
+  // tells whole numbers
+  {
     expect(['3', '+2', '−1', ' 0 '].map(isWholeNumberText)).toEqual([true, true, true, true]);
     expect(['2.5', '1/4', 'x', ''].map(isWholeNumberText)).toEqual([false, false, false, false]);
-  });
+  }
 
-  it('reads numbers out of field values', () => {
+  // reads numbers out of field values
+  {
     expect(numericValue(4)).toBe(4);
     expect(numericValue('+4')).toBe(4);
     expect(numericValue(Number.POSITIVE_INFINITY)).toBeNull();
     expect(numericValue(true)).toBeNull();
     expect(numericValue([4])).toBeNull();
     expect(numericValue(undefined)).toBeNull();
-  });
+  }
 
-  it('reads ratings only where the text is nothing else', () => {
+  // reads ratings only where the text is nothing else
+  {
     expect(parseRatingText('1/4')).toBe(0.25);
     expect(parseRatingText('½')).toBe(0.5);
     expect(parseRatingText('−1')).toBe(-1);
     expect(parseRatingText('1 / 2')).toBe(0.5);
     expect(parseRatingText('Creature 3')).toBeNull();
     expect(parseRatingText('3+1*')).toBeNull();
-  });
+  }
 
-  it('writes numbers as statblocks do', () => {
+  // writes numbers as statblocks do
+  {
     expect(formatNumber(3)).toBe('3');
     expect(formatNumber(-0)).toBe('0');
     expect(formatNumber(0.125)).toBe('0.125');
@@ -68,15 +85,16 @@ describe('number text', () => {
     expect(formatSigned(-1)).toBe('-1');
     expect(formatSigned(-0.25)).toBe('-0.25');
     expect(formatSigned(1.5)).toBe('+1.5');
-  });
+  }
 
-  it('rounds computed numbers to two decimals', () => {
+  // rounds computed numbers to two decimals
+  {
     expect(roundForDisplay(10 / 3)).toBe(3.33);
     expect(roundForDisplay(0.1 + 0.2)).toBe(0.3);
     expect(Object.is(roundForDisplay(-0.001), 0)).toBe(true);
     expect(Object.is(roundForDisplay(-0), 0)).toBe(true);
     expect(roundForDisplay(-7)).toBe(-7);
-  });
+  }
 });
 
 describe('valueText', () => {
@@ -103,21 +121,24 @@ describe('splitListText', () => {
   });
 });
 
-describe('toFieldValue', () => {
-  it('returns values that are already field values unchanged', () => {
+it('toFieldValue', () => {
+  // returns values that are already field values unchanged
+  {
     const value = { stats: [10, 12], saves: [{ dex: 5 }], flag: true, none: null };
     expect(toFieldValue(value)).toBe(value);
     expect(toFieldValue('x')).toBe('x');
     expect(toFieldValue(undefined)).toBeUndefined();
-  });
+  }
 
-  it('converts what YAML or code may leave in frontmatter', () => {
+  // converts what YAML or code may leave in frontmatter
+  {
     expect(toFieldValue(new Date('2024-01-02T00:00:00Z'))).toBe('2024-01-02T00:00:00.000Z');
     expect(toFieldValue({ a: undefined, b: (): number => 1, c: [undefined, 2] })).toEqual({ c: [null, 2] });
     expect(toFieldValue(new Map())).toBeUndefined();
-  });
+  }
 
-  it('accepts records without a prototype and refuses lists and dates as records', () => {
+  // accepts records without a prototype and refuses lists and dates as records
+  {
     const bare = Object.create(null) as Record<string, unknown>;
     bare.a = 1;
     expect(isPlainRecord(bare)).toBe(true);
@@ -125,12 +146,13 @@ describe('toFieldValue', () => {
     expect(isPlainRecord([])).toBe(false);
     expect(isPlainRecord(new Date())).toBe(false);
     expect(isPlainRecord(null)).toBe(false);
-  });
+  }
 
-  it('stops at a cycle', () => {
+  // stops at a cycle
+  {
     const cycle: Record<string, unknown> = { name: 'loop' };
     cycle.self = cycle;
     const converted = toFieldValue(cycle);
     expect(converted).toMatchObject({ name: 'loop' });
-  });
+  }
 });

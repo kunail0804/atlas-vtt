@@ -195,7 +195,9 @@ async function runTrial(seed: number): Promise<void> {
 }
 
 describe('two devices sharing a library through a file sync', () => {
-  it.each(Array.from({ length: TRIALS }, (_, index) => index + 1))('converge without losing records (seed %i)', async (seed) => {
-    await runTrial(seed);
+  it('converge without losing records, for every seed', async () => {
+    for (const seed of Array.from({ length: TRIALS }, (_, index) => index + 1)) {
+      await runTrial(seed);
+    }
   });
 });

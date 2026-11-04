@@ -14,13 +14,15 @@ import { createInMemoryApp } from '../mocks/inMemoryVault';
 const frightened: ConditionDefinition = { id: 'frightened', name: 'Frightened', color: '#6d28d9', valued: true };
 const prone: ConditionDefinition = { id: 'prone', name: 'Prone', color: '#d97706' };
 
-describe('condition values', () => {
-  it('labels valued conditions with their number', () => {
+it('condition values', () => {
+  // labels valued conditions with their number
+  {
     expect(conditionLabel(frightened, 2)).toBe('Frightened 2');
     expect(conditionLabel(prone, 2)).toBe('Prone');
-  });
+  }
 
-  it('sets, raises and removes a valued condition, dropping empty fields', () => {
+  // sets, raises and removes a valued condition, dropping empty fields
+  {
     const token: TokenConditionState = { conditions: ['prone'] };
     setConditionValue(token, 'frightened', 2, true);
     expect(token).toEqual({ conditions: ['prone', 'frightened'], conditionValues: { frightened: 2 } });
@@ -28,7 +30,7 @@ describe('condition values', () => {
     expect(token).toEqual({ conditions: ['prone'] });
     removeCondition(token, 'prone');
     expect(token).toEqual({});
-  });
+  }
 });
 
 function character(id: string, extra: Partial<Character> = {}): Character {
@@ -53,8 +55,9 @@ const frightenedItem = (entry: ContextMenuEntry): MenuItem => {
   return children.find((child): child is MenuItem => child.type === 'item' && child.label.startsWith('Frightened'))!;
 };
 
-describe('changeTokensConditionValue', () => {
-  it('steps every token in one undo step: holders change, others gain it at 1', () => {
+it('changeTokensConditionValue', () => {
+  // steps every token in one undo step: holders change, others gain it at 1
+  {
     const store = createStore();
     const pastBefore = getHistoryStore(store)?.getState().pastStates.length ?? 0;
     store.getState().changeTokensConditionValue(['a', 'b'], 'frightened', 1);
@@ -62,24 +65,27 @@ describe('changeTokensConditionValue', () => {
     expect(a).toMatchObject({ conditions: ['frightened'], conditionValues: { frightened: 3 } });
     expect(b).toMatchObject({ conditions: ['frightened'], conditionValues: { frightened: 1 } });
     expect(getHistoryStore(store)?.getState().pastStates.length ?? 0).toBe(pastBefore + 1);
-  });
+  }
 
-  it('removes the condition from tokens that fall to 0', () => {
+  // removes the condition from tokens that fall to 0
+  {
     const store = createStore();
     store.getState().changeTokensConditionValue(['a'], 'frightened', -2);
     expect(store.getState().objects.tokens.a).not.toHaveProperty('conditions');
     expect(store.getState().objects.tokens.a).not.toHaveProperty('conditionValues');
-  });
+  }
 
-  it('turning a valued condition off clears its number too', () => {
+  // turning a valued condition off clears its number too
+  {
     const store = createStore();
     store.getState().setTokensCondition(['a'], 'frightened', false);
     expect(store.getState().objects.tokens.a).not.toHaveProperty('conditionValues');
-  });
+  }
 });
 
-describe('conditions menu stepper', () => {
-  it('shows the shared value or the range and steps all tokens', () => {
+it('conditions menu stepper', () => {
+  // shows the shared value or the range and steps all tokens
+  {
     const store = createStore();
     const menu = conditionsSubmenu(store, [frightened, prone], ['a', 'b']);
     expect(frightenedItem(menu).stepper).toMatchObject({ value: '2', canDecrement: true });
@@ -87,30 +93,33 @@ describe('conditions menu stepper', () => {
     frightenedItem(menu).stepper!.onIncrement();
     expect(frightenedItem(menu).stepper?.value).toBe('1–3');
     expect(frightenedItem(menu).checked).toBe(true);
-  });
+  }
 
-  it('offers no stepper on plain conditions and starts at 0 when no token has it', () => {
+  // offers no stepper on plain conditions and starts at 0 when no token has it
+  {
     const store = createStore();
     const menu = conditionsSubmenu(store, [frightened, prone], ['b']);
     expect(frightenedItem(menu).stepper).toMatchObject({ value: '0', canDecrement: false });
     if (menu.type !== 'submenu' || typeof menu.children !== 'function') throw new Error('expected a live submenu');
     expect(menu.children().find((c) => c.type === 'item' && c.label === 'Prone')).not.toHaveProperty('stepper');
-  });
+  }
 });
 
-describe('valued conditions in presets and cleanup', () => {
-  it('drops the number of a condition the collection no longer defines', () => {
+it('valued conditions in presets and cleanup', () => {
+  // drops the number of a condition the collection no longer defines
+  {
     const tokens: Record<string, TokenConditionState> = { a: { conditions: ['frightened', 'prone'], conditionValues: { frightened: 2 } } };
     expect(dropUnknownConditions(tokens, new Set(['prone']))).toBe(true);
     expect(tokens.a).toEqual({ conditions: ['prone'] });
-  });
+  }
 
-  it('keeps the flag in stored presets and treats it as part of the rules', () => {
+  // keeps the flag in stored presets and treats it as part of the rules
+  {
     const preset = parseUserPreset({
       id: 'p', name: 'P', rules: { gridDefaults: { unitType: 'feet', unitDistance: 5, measurementMode: 'metric' }, conditions: [frightened] },
     });
     expect(preset?.rules.conditions[0]).toMatchObject({ valued: true });
     const plain = { ...preset!.rules, conditions: [{ ...frightened, valued: undefined }] };
     expect(sameSystemRules(preset!.rules, plain)).toBe(false);
-  });
+  }
 });

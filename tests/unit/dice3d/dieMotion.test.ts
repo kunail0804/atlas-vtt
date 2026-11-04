@@ -28,8 +28,9 @@ function runUntilRest(die: DieAnim, rng: () => number, maxSeconds = 8): number {
   return t;
 }
 
-describe('the throw', () => {
-  it('lies ready and only shoots off at launch', () => {
+it('the throw', () => {
+  // lies ready and only shoots off at launch
+  {
     const rng = fixedRng(0.3, 0.6, 0.2, 0.8);
     const die = makeDie(rng);
     // Before the throw the die lies visibly on its spot, no flight in from
@@ -43,9 +44,10 @@ describe('the throw', () => {
     expect(die.phase).toBe('throw');
     expect(die.v[1]).toBeGreaterThan(1);
     expect(vLength(die.w)).toBeGreaterThan(20);
-  });
+  }
 
-  it('travels across the table but stays in frame', () => {
+  // travels across the table but stays in frame
+  {
     const rng = fixedRng(0.37, 0.81, 0.12, 0.66, 0.49, 0.93);
     const home: [number, number] = [0.8, 0.3];
     const die = makeDie(rng, home, 0.62);
@@ -63,11 +65,10 @@ describe('the throw', () => {
     expect(farthest).toBeGreaterThan(1);
     // And it still whirled: more than one bounce.
     expect(die.bounces).toBeGreaterThan(1);
-  });
+  }
 
-  // **The core of the pinball path.** This is a claim about arithmetic; if it
-  // fails the die is visibly *pulled* to its spot.
-  it('ends exactly on its spot without anything pulling it there', () => {
+  // ends exactly on its spot without anything pulling it there
+  {
     for (let n = 0; n < 60; n++) {
       const rng = throwRandom('motion-arrival', n);
       const home: [number, number] = [(rng() - 0.5) * 2.4, (rng() - 0.5) * 1.4];
@@ -89,9 +90,10 @@ describe('the throw', () => {
       // top speed, whatever the pace of the throw.
       expect(arrival).toBeLessThan(fastest * 0.06);
     }
-  });
+  }
 
-  it('bangs into the walls on its way, and at the wall', () => {
+  // bangs into the walls on its way, and at the wall
+  {
     for (let n = 0; n < 40; n++) {
       const rng = throwRandom('motion-wall', n);
       const die = makeDie(rng, [0, 0], 0.92);
@@ -119,9 +121,10 @@ describe('the throw', () => {
       expect(hits).toBeGreaterThanOrEqual(3);
       expect(die.wallHits).toBe(hits);
     }
-  });
+  }
 
-  it('reports every impact for exactly one frame', () => {
+  // reports every impact for exactly one frame
+  {
     const rng = throwRandom('motion-impact', 0);
     const die = makeDie(rng);
     beginRoll(die, die.q, 0, rng);
@@ -137,52 +140,53 @@ describe('the throw', () => {
       if (die.impact !== null) expect(die.impact).not.toBe(impact);
     }
     expect(reported).toBeGreaterThan(3);
-  });
+  }
 
-  // **The end is the real test.** An older version let the die tumble out and
-  // then swung it into the target: numerically the same, visibly a body
-  // *being turned*. So this checks "stops without jerking", not "arrives".
-  it.each([2954, 3862, 9006, ...Array.from({ length: 40 }, (_, seed) => seed)])('spins until the last frame and stops without starting again (seed %i)', (seed) => {
-    const geometry = dieGeometry(20);
-    const rng = throwRandom('motion-regression', seed);
-    const die = makeDie(rng);
-    const target = restingQuaternion(geometry, faceIndexForValue(geometry, 1 + (seed % 20)));
-    beginRoll(die, target, 0, rng);
+  // spins until the last frame and stops without starting again, for every seed
+  {
+    for (const seed of [2954, 3862, 9006, ...Array.from({ length: 40 }, (_, seed) => seed)]) {
+      const geometry = dieGeometry(20);
+      const rng = throwRandom('motion-regression', seed);
+      const die = makeDie(rng);
+      const target = restingQuaternion(geometry, faceIndexForValue(geometry, 1 + (seed % 20)));
+      beginRoll(die, target, 0, rng);
 
-    const steps: number[] = [];
-    // The pose in the last frame still in flight: whatever is missing here
-    // would have to be turned in later.
-    let lastCollision = -1;
-    let before = die.q;
-    let last = die.q;
-    for (let i = 0; i < 400 && die.phase !== 'rest'; i++) {
-      last = die.q;
-      stepDie(die, 1 / 60, rng);
-      if (die.impact?.kind === 'wall' || die.impact?.kind === 'floor') lastCollision = steps.length;
-      steps.push(qAngle(before, die.q));
-      before = die.q;
+      const steps: number[] = [];
+      // The pose in the last frame still in flight: whatever is missing here
+      // would have to be turned in later.
+      let lastCollision = -1;
+      let before = die.q;
+      let last = die.q;
+      for (let i = 0; i < 400 && die.phase !== 'rest'; i++) {
+        last = die.q;
+        stepDie(die, 1 / 60, rng);
+        if (die.impact?.kind === 'wall' || die.impact?.kind === 'floor') lastCollision = steps.length;
+        steps.push(qAngle(before, die.q));
+        before = die.q;
+      }
+
+      // **Nothing is left over.** Before the last step the die already shows
+      // its number; resting only fixes it.
+      expect(qAngle(last, die.target)).toBeLessThan(0.02);
+
+      const peak = Math.max(...steps);
+      // The last step is a run-out, not a new start.
+      expect(steps[steps.length - 1]!).toBeLessThan(peak * 0.03);
+      // And it spins until the end rather than waiting half a second for its cue.
+      expect(steps[steps.length - 6]!).toBeGreaterThan(0);
+      // **No second start.** Once below a tenth of its peak nothing follows.
+      // Collisions can briefly slow or reverse a tumbling die. The final
+      // run-out starts after the last collision, not at an earlier speed dip.
+      const ranOut = steps.findIndex((w, index) => index > lastCollision && w < peak * 0.1);
+      expect(ranOut).toBeGreaterThan(0);
+      for (const step of steps.slice(ranOut)) {
+        expect(step).toBeLessThan(peak * 0.2);
+      }
     }
+  }
 
-    // **Nothing is left over.** Before the last step the die already shows
-    // its number; resting only fixes it.
-    expect(qAngle(last, die.target)).toBeLessThan(0.02);
-
-    const peak = Math.max(...steps);
-    // The last step is a run-out, not a new start.
-    expect(steps[steps.length - 1]!).toBeLessThan(peak * 0.03);
-    // And it spins until the end rather than waiting half a second for its cue.
-    expect(steps[steps.length - 6]!).toBeGreaterThan(0);
-    // **No second start.** Once below a tenth of its peak nothing follows.
-    // Collisions can briefly slow or reverse a tumbling die. The final
-    // run-out starts after the last collision, not at an earlier speed dip.
-    const ranOut = steps.findIndex((w, index) => index > lastCollision && w < peak * 0.1);
-    expect(ranOut).toBeGreaterThan(0);
-    for (const step of steps.slice(ranOut)) {
-      expect(step).toBeLessThan(peak * 0.2);
-    }
-  });
-
-  it('comes to rest exactly on the rolled number', () => {
+  // comes to rest exactly on the rolled number
+  {
     const geometry = dieGeometry(20);
     const rng = fixedRng(0.17, 0.83, 0.41, 0.62, 0.29, 0.95);
 
@@ -199,18 +203,20 @@ describe('the throw', () => {
         .sort((a, b) => b.y - a.y)[0]!;
       expect(geometry.values[facing.i]).toBe(value);
     }
-  });
+  }
 
-  it('loses spin while it whirls and bounces', () => {
+  // loses spin while it whirls and bounces
+  {
     const rng = fixedRng(0.5, 0.2, 0.7, 0.35);
     const die = makeDie(rng);
     beginRoll(die, die.q, 0, rng);
     const start = vLength(die.w);
     for (let i = 0; i < 90; i++) stepDie(die, 1 / 60, rng);
     expect(vLength(die.w)).toBeLessThan(start);
-  });
+  }
 
-  it('hits the table and bounces back', () => {
+  // hits the table and bounces back
+  {
     const rng = fixedRng(0.41, 0.67, 0.23, 0.88, 0.15);
     const die = makeDie(rng);
     beginRoll(die, die.q, 0, rng);
@@ -222,11 +228,10 @@ describe('the throw', () => {
       if (falling && die.v[1] > 0) bounced = true;
     }
     expect(bounced).toBe(true);
-  });
+  }
 
-  // A d4 lying on a face has its centre a third of its radius above the table,
-  // far below where it tumbles. It gets there by lying down, not by falling.
-  it('ends lying on its face, and lying down is no impact', () => {
+  // ends lying on its face, and lying down is no impact
+  {
     const geometry = dieGeometry(4);
     const lie = lyingHeight(geometry);
     expect(lie).toBeCloseTo(1 / 3, 6);
@@ -251,9 +256,10 @@ describe('the throw', () => {
     // The same throw with the table at one height bounces exactly as often.
     expect(floorHits).toBe(tumbling.bounces);
     expect(lying.bounces).toBe(tumbling.bounces);
-  });
+  }
 
-  it('never falls through the table', () => {
+  // never falls through the table
+  {
     const geometry = dieGeometry(20);
     const rng = fixedRng(0.19, 0.71, 0.44, 0.36, 0.83, 0.27);
     const die = makeDie(rng);
@@ -264,9 +270,10 @@ describe('the throw', () => {
       stepDie(die, 1 / 60, rng);
       expect(die.p[1]).toBeGreaterThanOrEqual(floor - 1e-6);
     }
-  });
+  }
 
-  it('rests after a good second, but not at once', () => {
+  // rests after a good second, but not at once
+  {
     const geometry = dieGeometry(20);
     const rng = fixedRng(0.11, 0.73, 0.52, 0.28, 0.91, 0.46);
     const die = makeDie(rng);
@@ -275,9 +282,10 @@ describe('the throw', () => {
     const seconds = runUntilRest(die, rng);
     expect(seconds).toBeGreaterThan(0.8);
     expect(seconds).toBeLessThan(3);
-  });
+  }
 
-  it('waits out its delay before flying off', () => {
+  // waits out its delay before flying off
+  {
     const rng = fixedRng(0.4, 0.6, 0.25);
     const die = makeDie(rng);
     beginRoll(die, die.q, 0.2, rng);
@@ -286,13 +294,14 @@ describe('the throw', () => {
     stepDie(die, 1 / 60, rng);
     expect(die.p[1]).toBe(height);
     expect(die.phase).toBe('throw');
-  });
+  }
 
-  it('counts the time since resting for the highlight', () => {
+  // counts the time since resting for the highlight
+  {
     const rng = fixedRng(0.5);
     const die = makeDie(rng);
     die.phase = 'rest';
     stepDie(die, 0.25, rng);
     expect(die.restFor).toBeCloseTo(0.25, 6);
-  });
+  }
 });

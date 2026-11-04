@@ -9,37 +9,42 @@ function die(sides: number, value: number, negative = false): RolledDie {
 
 const D20: DiceRules = { defaultRoll: '1d20', crit: 'natural' };
 
-describe('getDiceCrit', () => {
-  it('natural: a 20 on the default d20 is high, a 1 low, whatever the modifier', () => {
+it('getDiceCrit', () => {
+  // natural: a 20 on the default d20 is high, a 1 low, whatever the modifier
+  {
     expect(getDiceCrit([die(20, 20)], D20)).toBe('high');
     expect(getDiceCrit([die(20, 1)], D20)).toBe('low');
     expect(getDiceCrit([die(20, 15)], D20)).toBeNull();
-  });
+  }
 
-  it('only looks at the default dice', () => {
+  // only looks at the default dice
+  {
     expect(getDiceCrit([die(6, 6)], D20)).toBeNull();
     // The second d20 of 2d20 is not a default die of a 1d20 rule.
     expect(getDiceCrit([die(20, 10), die(20, 20)], D20)).toBeNull();
     expect(getDiceCrit([die(20, 20, true)], D20)).toBeNull();
     expect(getDiceCrit([die(8, 8), die(20, 20)], D20)).toBe('high');
-  });
+  }
 
-  it('roll-under: 01 is high and the highest face low', () => {
+  // roll-under: 01 is high and the highest face low
+  {
     const rules: DiceRules = { defaultRoll: '1d100', crit: 'roll-under' };
     expect(getDiceCrit([die(100, 1)], rules)).toBe('high');
     expect(getDiceCrit([die(100, 100)], rules)).toBe('low');
     expect(getDiceCrit([die(100, 50)], rules)).toBeNull();
-  });
+  }
 
-  it('doubles: matching default dice are high, never low', () => {
+  // doubles: matching default dice are high, never low
+  {
     const rules: DiceRules = { defaultRoll: '2d12', crit: 'doubles' };
     expect(getDiceCrit([die(12, 7), die(12, 7)], rules)).toBe('high');
     expect(getDiceCrit([die(12, 1), die(12, 1)], rules)).toBe('high');
     expect(getDiceCrit([die(12, 7), die(12, 3)], rules)).toBeNull();
     expect(getDiceCrit([die(12, 7)], rules)).toBeNull();
-  });
+  }
 
-  it('high-total: the highest total of the default dice or one below it is high, never low', () => {
+  // high-total: the highest total of the default dice or one below it is high, never low
+  {
     const rules: DiceRules = { defaultRoll: '2d10', crit: 'high-total' };
     expect(getDiceCrit([die(10, 10), die(10, 10)], rules)).toBe('high');
     expect(getDiceCrit([die(10, 10), die(10, 9)], rules)).toBe('high');
@@ -49,9 +54,10 @@ describe('getDiceCrit', () => {
     expect(getDiceCrit([die(10, 4), die(10, 5), die(10, 10)], rules)).toBeNull();
     expect(getDiceCrit([die(10, 10)], rules)).toBeNull();
     expect(getDiceCrit([die(20, 19)], { defaultRoll: '1d20', crit: 'high-total' })).toBe('high');
-  });
+  }
 
-  it('none: never critical', () => {
+  // none: never critical
+  {
     expect(getDiceCrit([die(20, 20)], { defaultRoll: '1d20', crit: 'none' })).toBeNull();
-  });
+  }
 });

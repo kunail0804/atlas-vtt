@@ -26,38 +26,45 @@ const NIGHT = { ambient: 0 };
 const seen = (sight = computeSight([HERO], WALLS), ambient = DAY, lights = [] as ReturnType<typeof lightReach>[]): string[] =>
   [...doorsInSight(WALLS, sight, ambient, lights)].sort();
 
-describe('doorsInSight', () => {
-  it('shows the ordinary doors the party sees on lit floor, and none past a wall', () => {
+it('doorsInSight', () => {
+  // shows the ordinary doors the party sees on lit floor, and none past a wall
+  {
     expect(seen()).toEqual(['locked', 'near']);
-  });
+  }
 
-  it('shows a door from either side: the party sees one face of a closed door', () => {
+  // shows a door from either side: the party sees one face of a closed door
+  {
     const west: SightSource = { ...HERO, origin: { x: 20, y: 100 } };
     expect(seen(computeSight([west], WALLS))).toContain('near');
-  });
+  }
 
-  it('shows no door in darkness, and one a light reaches', () => {
+  // shows no door in darkness, and one a light reaches
+  {
     expect(seen(undefined, NIGHT)).toEqual([]);
     expect(seen(undefined, NIGHT, [lightReach({ x: 70, y: 100 }, 30, WALLS)])).toEqual(['near']);
-  });
+  }
 
-  it('shows a door in darkness to a sense that shows the map there', () => {
+  // shows a door in darkness to a sense that shows the map there
+  {
     expect(seen(computeSight([{ ...HERO, senses: [darkvision(60)] }], WALLS), NIGHT)).toEqual(['locked', 'near']);
-  });
+  }
 
-  it('shows no door that only a sense of creatures reaches: the picture does not show the map there', () => {
+  // shows no door that only a sense of creatures reaches: the picture does not show the map there
+  {
     expect(seen(computeSight([{ ...HERO, senses: [tremorsense(500)] }], WALLS))).toEqual(['locked', 'near']);
-  });
+  }
 
-  it('never shows a secret door, whoever looks', () => {
+  // never shows a secret door, whoever looks
+  {
     expect(seen()).not.toContain('secret');
     expect(seen(SEES_ALL)).not.toContain('secret');
-  });
+  }
 
-  it('shows every ordinary door on lit floor without a vision token or with token vision off', () => {
+  // shows every ordinary door on lit floor without a vision token or with token vision off
+  {
     expect(seen(computeSight([], WALLS))).toEqual(['behind', 'locked', 'near']);
     expect(seen(sceneSight({ tokenVision: false }, [HERO], WALLS))).toEqual(['behind', 'locked', 'near']);
     expect(seen(SEES_ALL, NIGHT)).toEqual([]);
     expect(seen(SEES_ALL, NIGHT, [lightReach({ x: 320, y: 100 }, 40, WALLS)])).toEqual(['behind']);
-  });
+  }
 });

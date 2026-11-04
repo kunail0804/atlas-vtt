@@ -23,8 +23,9 @@ function writtenBlocks(template: StatblockTemplate): unknown {
   return JSON.parse(serializeTemplate(template)).layout.blocks;
 }
 
-describe('known blocks', () => {
-  it('fills in a missing required choice with its first option, silently', () => {
+it('known blocks', () => {
+  // fills in a missing required choice with its first option, silently
+  {
     const { template, problems } = read([
       { id: 'aaaaaaa1', type: 'title', field: 'name' },
       { id: 'aaaaaaa2', type: 'stat', field: 'hp' },
@@ -46,9 +47,10 @@ describe('known blocks', () => {
       { id: 'aaaaaaa7', type: 'heading', text: 'Actions', level: 'section' },
       { id: 'aaaaaaa8', type: 'script', summary: '', fs: { type: 'javascript' } },
     ]);
-  });
+  }
 
-  it('reads an unknown choice as the first option and writes the file\'s choice back', () => {
+  // reads an unknown choice as the first option and writes the file's choice back
+  {
     const { template, problems } = read([{ id: 'aaaaaaa1', type: 'stat', field: 'hp', look: 'tilted', display: 'roman' }]);
     expect(plain(template.layout.blocks)).toEqual([{ id: 'aaaaaaa1', type: 'stat', field: 'hp', look: 'run-in' }]);
     expect(problems).toEqual([
@@ -56,16 +58,18 @@ describe('known blocks', () => {
       expect.stringContaining('"display" is "roman", not plain or signed; it is ignored'),
     ]);
     expect(writtenBlocks(template)).toEqual([{ id: 'aaaaaaa1', type: 'stat', field: 'hp', look: 'tilted', display: 'roman' }]);
-  });
+  }
 
-  it('keeps unknown keys on blocks and writes them after the known ones', () => {
+  // keeps unknown keys on blocks and writes them after the known ones
+  {
     const { template } = read([{ future: 1, type: 'stat', id: 'aaaaaaa1', look: 'stacked', field: 'hp', zebra: 'z', alpha: 'a' }]);
     expect(serializeTemplate(template)).toContain([
       '"id": "aaaaaaa1",', '"type": "stat",', '"field": "hp",', '"look": "stacked",', '"future": 1,', '"zebra": "z",', '"alpha": "a"',
     ].join('\n        '));
-  });
+  }
 
-  it('reads conditions of each kind and ignores ones whose parts do not fit together', () => {
+  // reads conditions of each kind and ignores ones whose parts do not fit together
+  {
     const conditions = [
       { field: 'hp', is: 'present', value: 'ignored' },
       { field: 'hp', is: 'equal', value: 'x' },
@@ -83,14 +87,15 @@ describe('known blocks', () => {
     ]);
     expect(problems).toHaveLength(3);
     expect(writtenBlocks(template)).toEqual(conditions.map((showWhen, index) => ({ id: `cccccc0${index}`, type: 'divider', showWhen })));
-  });
+  }
 
-  it('leaves out score columns that are no objects and keeps the list for writing back', () => {
+  // leaves out score columns that are no objects and keeps the list for writing back
+  {
     const columns = [{ label: 'Mod', formula: 'value', display: 'signed' }, 7];
     const { template } = read([{ id: 'aaaaaaa1', type: 'scores', field: 'stats', orientation: 'row', columns }]);
     expect(plain(template.layout.blocks[0])).toMatchObject({ columns: [columns[0]] });
     expect(writtenBlocks(template)).toEqual([{ id: 'aaaaaaa1', type: 'scores', field: 'stats', orientation: 'row', columns }]);
-  });
+  }
 });
 
 describe('word list looks', () => {
@@ -105,8 +110,9 @@ describe('word list looks', () => {
   });
 });
 
-describe('tabs', () => {
-  it('reads and writes a Tabs block of Sections and a Spells block with the tabs look as they were', () => {
+it('tabs', () => {
+  // reads and writes a Tabs block of Sections and a Spells block with the tabs look as they were
+  {
     const blocks = [
       {
         id: 'tabs0001', type: 'tabs', className: 'kinds', blocks: [
@@ -119,9 +125,10 @@ describe('tabs', () => {
     expect(problems).toEqual([]);
     expect(template.layout.blocks).toEqual(blocks);
     expect(writtenBlocks(template)).toEqual(blocks);
-  });
+  }
 
-  it('reads and writes the heading of a Tabs block, written before its tabs', () => {
+  // reads and writes the heading of a Tabs block, written before its tabs
+  {
     const blocks = [{
       id: 'tabs0001', type: 'tabs', heading: 'Spellbook', blocks: [
         { id: 'tab00001', type: 'section', heading: 'Cantrips', blocks: [{ id: 'entries1', type: 'entries', field: 'spells' }] },
@@ -134,14 +141,15 @@ describe('tabs', () => {
     expect(written).toEqual(blocks);
     expect(Object.keys(written[0]!)).toEqual(['id', 'type', 'heading', 'blocks']);
     expect(read([{ ...blocks[0], heading: 3 }]).problems).toEqual([expect.stringContaining('heading')]);
-  });
+  }
 
-  it('reads a Spells look it does not know as the lines, keeping it to write back', () => {
+  // reads a Spells look it does not know as the lines, keeping it to write back
+  {
     const { template, problems } = read([{ id: 'spells01', type: 'spells', field: 'spells', look: 'cards' }]);
     expect(plain(template.layout.blocks[0])).toEqual({ id: 'spells01', type: 'spells', field: 'spells' });
     expect(problems).toEqual([expect.stringContaining('look')]);
     expect(writtenBlocks(template)).toEqual([{ id: 'spells01', type: 'spells', field: 'spells', look: 'cards' }]);
-  });
+  }
 });
 
 describe('blocks the editor makes', () => {
@@ -156,36 +164,42 @@ describe('blocks the editor makes', () => {
   });
 });
 
-describe('blocks it cannot use', () => {
-  it.each([
-    ['a type it does not know', { id: 'aaaaaaa1', type: 'carousel', slides: [{ a: 1 }] }, /"carousel"/],
-    ['no type', { id: 'aaaaaaa1', field: 'hp' }, /type nothing/],
-    ['the in-memory type "opaque"', { id: 'aaaaaaa1', type: 'opaque', raw: {} }, /"opaque"/],
-    ['a Title without a field', { id: 'aaaaaaa1', type: 'title', level: 2 }, /has no valid "field"/],
-    ['a Line whose fields are no list', { id: 'aaaaaaa1', type: 'line', fields: 'hp' }, /has no valid "fields"/],
-    ['a Heading without text', { id: 'aaaaaaa1', type: 'heading' }, /has no valid "text"/],
-    ['a Script without its FS block', { id: 'aaaaaaa1', type: 'script', summary: 'x' }, /has no valid "fs"/],
-  ])('keeps %s opaque and writes it back exactly', (_name, block, problem) => {
-    const { template, problems } = read([block]);
-    expect(template.layout.blocks).toEqual([{ id: 'aaaaaaa1', type: 'opaque', raw: block }]);
-    expect(problems).toEqual([expect.stringMatching(problem)]);
-    expect(writtenBlocks(template)).toEqual([block]);
-  });
+it('blocks it cannot use', () => {
+  // keeps unknown blocks opaque and writes them back exactly
+  {
+    for (const [_name, block, problem] of [
+      ['a type it does not know', { id: 'aaaaaaa1', type: 'carousel', slides: [{ a: 1 }] }, /"carousel"/],
+      ['no type', { id: 'aaaaaaa1', field: 'hp' }, /type nothing/],
+      ['the in-memory type "opaque"', { id: 'aaaaaaa1', type: 'opaque', raw: {} }, /"opaque"/],
+      ['a Title without a field', { id: 'aaaaaaa1', type: 'title', level: 2 }, /has no valid "field"/],
+      ['a Line whose fields are no list', { id: 'aaaaaaa1', type: 'line', fields: 'hp' }, /has no valid "fields"/],
+      ['a Heading without text', { id: 'aaaaaaa1', type: 'heading' }, /has no valid "text"/],
+      ['a Script without its FS block', { id: 'aaaaaaa1', type: 'script', summary: 'x' }, /has no valid "fs"/],
+    ] as const) {
+      const { template, problems } = read([block]);
+      expect(template.layout.blocks).toEqual([{ id: 'aaaaaaa1', type: 'opaque', raw: block }]);
+      expect(problems).toEqual([expect.stringMatching(problem)]);
+      expect(writtenBlocks(template)).toEqual([block]);
+    }
+  }
 
-  it('keeps the raw key order of an opaque block', () => {
+  // keeps the raw key order of an opaque block
+  {
     const block = { zeta: 1, type: 'carousel', alpha: { b: 2, a: 1 }, id: 'aaaaaaa1' };
     expect(serializeTemplate(read([block]).template)).toContain(JSON.stringify(block, null, 2).split('\n').join('\n      '));
-  });
+  }
 
-  it('leaves out entries that are no blocks and writes the list back as it was', () => {
+  // leaves out entries that are no blocks and writes the list back as it was
+  {
     const blocks = [5, { id: 'aaaaaaa1', type: 'divider' }, null, 'title'];
     const { template, problems } = read(blocks);
     expect(template.layout.blocks).toEqual([{ id: 'aaaaaaa1', type: 'divider' }]);
     expect(problems).toHaveLength(3);
     expect(writtenBlocks(template)).toEqual(blocks);
-  });
+  }
 
-  it(`keeps blocks nested deeper than ${MAX_BLOCK_DEPTH} opaque`, () => {
+  // `keeps blocks nested deeper than ${MAX_BLOCK_DEPTH} opaque`
+  {
     let block: Record<string, unknown> = { type: 'title', field: 'name' };
     for (let level = 0; level < MAX_BLOCK_DEPTH + 5; level += 1) block = { type: 'section', blocks: [block] };
     const { template } = read([block]);
@@ -196,72 +210,81 @@ describe('blocks it cannot use', () => {
     expect(all.at(-1)?.type).toBe('opaque');
     const again = parseTemplate(serializeTemplate(template));
     expect(serializeTemplate(again.template as StatblockTemplate)).toBe(serializeTemplate(template));
-  });
+  }
 
-  it('leaves out what is nested too deep to write back, and never throws', () => {
+  // leaves out what is nested too deep to write back, and never throws
+  {
     let block: unknown = { type: 'title', field: 'name' };
     for (let level = 0; level < 400; level += 1) block = { type: 'carousel', blocks: [block] };
     const { template, problems } = read([block]);
     expect(template.layout.blocks).toEqual([]);
     expect(problems).toEqual([expect.stringContaining('cannot be kept')]);
     expect(() => serializeTemplate(template)).not.toThrow();
-  });
+  }
 });
 
-describe('block ids', () => {
+it('block ids', () => {
   const idsOf = (template: StatblockTemplate): string[] => blocksOf(template.layout.blocks).map((block) => block.id);
 
-  it('derives an id from the block\'s place when the file has none', () => {
+  // derives an id from the block's place when the file has none
+  {
     const { template, problems } = read([{ type: 'divider' }, { type: 'row', blocks: [{ type: 'divider' }] }]);
     expect(problems).toEqual([]);
     expect(idsOf(template)).toEqual([derivedBlockId([0], 0), derivedBlockId([1], 0), derivedBlockId([1, 0], 0)]);
     expect(idsOf(template).every(isBlockId)).toBe(true);
-  });
+  }
 
-  it('gives a block with a malformed id a new one', () => {
+  // gives a block with a malformed id a new one
+  {
     const { template, problems } = read([{ id: 'Header', type: 'divider' }, { id: 7, type: 'divider' }]);
     expect(idsOf(template)).toEqual([derivedBlockId([0], 0), derivedBlockId([1], 0)]);
     expect(problems).toEqual([expect.stringContaining('"Header" is not 8'), expect.stringContaining('7 is not 8')]);
-  });
+  }
 
-  it('keeps the first of two equal ids and gives the second a new one', () => {
+  // keeps the first of two equal ids and gives the second a new one
+  {
     const { template, problems } = read([
       { id: 'samesame', type: 'divider' }, { type: 'row', blocks: [{ id: 'samesame', type: 'divider' }] },
     ]);
     expect(idsOf(template)).toEqual(['samesame', derivedBlockId([1], 0), derivedBlockId([1, 0], 0)]);
     expect(problems).toEqual([expect.stringContaining('already used')]);
-  });
+  }
 
-  it('never hands out an id a later block holds in the file', () => {
+  // never hands out an id a later block holds in the file
+  {
     const taken = derivedBlockId([0], 0);
     const { template } = read([{ type: 'divider' }, { id: taken, type: 'divider' }]);
     expect(idsOf(template)).toEqual([derivedBlockId([0], 1), taken]);
-  });
+  }
 
-  it('gives opaque blocks ids too, and writes them back without one', () => {
+  // gives opaque blocks ids too, and writes them back without one
+  {
     const { template } = read([{ type: 'carousel' }]);
     expect(isBlockId(template.layout.blocks[0]?.id)).toBe(true);
     expect(writtenBlocks(template)).toEqual([{ type: 'carousel' }]);
-  });
+  }
 
-  it('writes derived ids, so the next read keeps them', () => {
+  // writes derived ids, so the next read keeps them
+  {
     const first = read([{ type: 'divider' }, { type: 'section', blocks: [{ type: 'title', field: 'name' }] }]).template;
     const second = parseTemplate(serializeTemplate(first));
     expect(second.problems).toEqual([]);
     expect(idsOf(second.template as StatblockTemplate)).toEqual(idsOf(first));
-  });
+  }
 });
 
-describe('the layout', () => {
-  it('reads maxColumns 1 to 3 and defaults to 2', () => {
+it('the layout', () => {
+  // reads maxColumns 1 to 3 and defaults to 2
+  {
     const layoutOf = (layout: unknown): unknown => plain(parseTemplate({ ...fileWith([]), layout }).template?.layout);
     expect(layoutOf({ maxColumns: 3, columnWidth: 18.5, blocks: [] })).toEqual({ maxColumns: 3, columnWidth: 18.5, blocks: [] });
     expect(layoutOf({ blocks: [] })).toEqual({ maxColumns: 2, blocks: [] });
     expect(layoutOf({ maxColumns: 4, columnWidth: -1, blocks: [] })).toEqual({ maxColumns: 2, blocks: [] });
-  });
+  }
 
-  it('keeps unknown layout keys', () => {
+  // keeps unknown layout keys
+  {
     const layout = { maxColumns: 1, blocks: [] as TemplateBlock[], gap: 's' };
     expect(parseTemplate({ ...fileWith([]), layout }).template?.layout).toEqual(layout);
-  });
+  }
 });

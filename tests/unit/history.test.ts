@@ -53,21 +53,24 @@ function createTestStore() {
 
 const tokenA = (store: ReturnType<typeof createTestStore>['store']) => store.getState().objects.tokens.a!;
 
-describe('history', () => {
-  it('records one undo step per discrete write', () => {
+it('history', () => {
+  // records one undo step per discrete write
+  {
     const { store, history } = createTestStore();
     store.getState().moveToken('a', 10, 0);
     store.getState().moveToken('a', 20, 0);
     expect(history().pastStates).toHaveLength(2);
-  });
+  }
 
-  it('ignores writes to untracked fields', () => {
+  // ignores writes to untracked fields
+  {
     const { store, history } = createTestStore();
     store.getState().setSelection(['a']);
     expect(history().pastStates).toHaveLength(0);
-  });
+  }
 
-  it('leaves no step for an abandoned transaction whose gesture put its changes back', () => {
+  // leaves no step for an abandoned transaction whose gesture put its changes back
+  {
     const { store, history } = createTestStore();
     beginHistoryTransaction(store);
     store.getState().moveToken('a', 30, 0);
@@ -76,9 +79,10 @@ describe('history', () => {
     expect(history().pastStates).toHaveLength(0);
     store.getState().moveToken('a', 5, 0);
     expect(history().pastStates).toHaveLength(1);
-  });
+  }
 
-  it('keeps the transaction around an abandoned one open', () => {
+  // keeps the transaction around an abandoned one open
+  {
     const { store, history } = createTestStore();
     beginHistoryTransaction(store);
     store.getState().moveToken('a', 10, 0);
@@ -92,9 +96,10 @@ describe('history', () => {
     expect(history().pastStates).toHaveLength(1);
     history().undo();
     expect(tokenA(store)).toEqual({ x: 0, y: 0 });
-  });
+  }
 
-  it('collapses a transaction into a single undo step that restores the start state', () => {
+  // collapses a transaction into a single undo step that restores the start state
+  {
     const { store, history } = createTestStore();
 
     beginHistoryTransaction(store);
@@ -110,17 +115,19 @@ describe('history', () => {
 
     history().redo();
     expect(tokenA(store)).toEqual({ x: 30, y: 0 });
-  });
+  }
 
-  it('records nothing when a transaction makes no net change', () => {
+  // records nothing when a transaction makes no net change
+  {
     const { store, history } = createTestStore();
     runHistoryTransaction(store, () => {
       store.getState().setSelection(['a']);
     });
     expect(history().pastStates).toHaveLength(0);
-  });
+  }
 
-  it('merges nested transactions into the outermost one', () => {
+  // merges nested transactions into the outermost one
+  {
     const { store, history } = createTestStore();
     runHistoryTransaction(store, () => {
       store.getState().moveToken('a', 5, 5);
@@ -132,9 +139,10 @@ describe('history', () => {
     expect(history().pastStates).toHaveLength(1);
     history().undo();
     expect(tokenA(store)).toEqual({ x: 0, y: 0 });
-  });
+  }
 
-  it('clears redo history when a transaction commits', () => {
+  // clears redo history when a transaction commits
+  {
     const { store, history } = createTestStore();
     store.getState().moveToken('a', 1, 1);
     history().undo();
@@ -142,16 +150,18 @@ describe('history', () => {
 
     runHistoryTransaction(store, () => store.getState().moveToken('a', 2, 2));
     expect(history().futureStates).toHaveLength(0);
-  });
+  }
 
-  it('does not record untracked writes', () => {
+  // does not record untracked writes
+  {
     const { store, history } = createTestStore();
     runUntracked(store, () => store.getState().moveToken('a', 7, 7));
     expect(history().pastStates).toHaveLength(0);
     expect(tokenA(store)).toEqual({ x: 7, y: 7 });
-  });
+  }
 
-  it('respects pause while a transaction is open', () => {
+  // respects pause while a transaction is open
+  {
     const { store, history } = createTestStore();
     history().pause();
     runHistoryTransaction(store, () => store.getState().moveToken('a', 3, 3));
@@ -160,28 +170,31 @@ describe('history', () => {
     history().resume();
     runHistoryTransaction(store, () => store.getState().moveToken('a', 4, 4));
     expect(history().pastStates).toHaveLength(1);
-  });
+  }
 
-  it('tolerates unbalanced endTransaction calls', () => {
+  // tolerates unbalanced endTransaction calls
+  {
     const { store, history } = createTestStore();
     endHistoryTransaction(store);
     store.getState().moveToken('a', 1, 0);
     expect(history().pastStates).toHaveLength(1);
-  });
+  }
 
-  it('caps the stack at the history limit', () => {
+  // caps the stack at the history limit
+  {
     const { store, history } = createTestStore();
     for (let i = 1; i <= HISTORY_LIMIT + 5; i += 1) {
       runHistoryTransaction(store, () => store.getState().moveToken('a', i, 0));
     }
     expect(history().pastStates).toHaveLength(HISTORY_LIMIT);
-  });
+  }
 
-  it('is a no-op for stores without history', () => {
+  // is a no-op for stores without history
+  {
     const plain = create<{ n: number }>()(() => ({ n: 0 }));
     expect(getHistoryStore(plain)).toBeNull();
     expect(runHistoryTransaction(plain, () => 42)).toBe(42);
     expect(runUntracked(plain, () => 'ok')).toBe('ok');
     expect(() => beginHistoryTransaction(plain)).not.toThrow();
-  });
+  }
 });

@@ -136,20 +136,24 @@ const TRIALS = Number(import.meta.env.VITE_NOTE_YAML_TRIALS ?? DEFAULT_TRIALS);
 const SWEEP_TIMEOUT = TRIALS > DEFAULT_TRIALS ? 30 * 60_000 : undefined;
 
 describe('anchors and aliases however they are written', () => {
-  it.each(Object.keys(ALIAS_SPELLINGS))('counts an alias written as %s', (spelling) => {
-    const text = ALIAS_SPELLINGS[spelling]!(NOTE_YAML_LIMITS.aliases + 1);
-    // The text is YAML the parser takes, with that many aliases in it.
-    expect(aliasesTheParserFollows(text)).toBe(NOTE_YAML_LIMITS.aliases + 1);
+  it('counts an alias however it is written', () => {
+    for (const spelling of Object.keys(ALIAS_SPELLINGS)) {
+      const text = ALIAS_SPELLINGS[spelling]!(NOTE_YAML_LIMITS.aliases + 1);
+      // The text is YAML the parser takes, with that many aliases in it.
+      expect(aliasesTheParserFollows(text)).toBe(NOTE_YAML_LIMITS.aliases + 1);
 
-    expect(aliasesOfAnchors(text)).toBe(NOTE_YAML_LIMITS.aliases + 1);
-    expect(refused(text)).toBe(true);
-    expect(refused(ALIAS_SPELLINGS[spelling]!(NOTE_YAML_LIMITS.aliases))).toBe(false);
+      expect(aliasesOfAnchors(text)).toBe(NOTE_YAML_LIMITS.aliases + 1);
+      expect(refused(text)).toBe(true);
+      expect(refused(ALIAS_SPELLINGS[spelling]!(NOTE_YAML_LIMITS.aliases))).toBe(false);
+    }
   });
 
-  it.each(Object.keys(ANCHOR_SPELLINGS))('knows an anchor written as %s', (spelling) => {
-    const text = ANCHOR_SPELLINGS[spelling]!;
-    expect(aliasesTheParserFollows(text)).toBe(1);
-    expect(aliasesOfAnchors(text)).toBe(1);
+  it('knows an anchor however it is written', () => {
+    for (const spelling of Object.keys(ANCHOR_SPELLINGS)) {
+      const text = ANCHOR_SPELLINGS[spelling]!;
+      expect(aliasesTheParserFollows(text)).toBe(1);
+      expect(aliasesOfAnchors(text)).toBe(1);
+    }
   });
 
   it('never counts fewer aliases than the parser can follow, in texts put together at random', () => {
@@ -296,13 +300,15 @@ const STATBLOCK_TEXTS: Record<string, string> = {
 };
 
 describe('statblocks that only look as if they held anchors or aliases', () => {
-  it.each(Object.keys(STATBLOCK_TEXTS))('reads %s as the parser does', (kind) => {
-    const text = STATBLOCK_TEXTS[kind]!;
-    const asParsed = parseYaml(text);
-    parser.calls.length = 0;
+  it('reads every statblock text as the parser does', () => {
+    for (const kind of Object.keys(STATBLOCK_TEXTS)) {
+      const text = STATBLOCK_TEXTS[kind]!;
+      const asParsed = parseYaml(text);
+      parser.calls.length = 0;
 
-    expect(parseNoteYaml(text)).toEqual(asParsed);
-    expect(parser.calls).toEqual([text]);
+      expect(parseNoteYaml(text)).toEqual(asParsed);
+      expect(parser.calls).toEqual([text]);
+    }
   });
 
   it('takes emphasis and ampersands for no alias of an anchor', () => {
