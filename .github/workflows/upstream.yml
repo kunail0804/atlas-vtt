@@ -26,6 +26,8 @@ jobs:
     timeout-minutes: 15
     env:
       GH_TOKEN: ${{ github.token }}
+      # The checkout gets a remote named `upstream`, which gh would otherwise take for the repository.
+      GH_REPO: ${{ github.repository }}
       # Upstream's history changes workflow files, which the workflow's own token may not push.
       PUSH_TOKEN: ${{ secrets.AUTOMATION_TOKEN }}
     steps:
@@ -47,7 +49,7 @@ jobs:
           if [ "$new" = "$old" ]; then echo "changed=false" >> "$GITHUB_OUTPUT"; echo "Upstream has not moved since last week." >> "$GITHUB_STEP_SUMMARY"; exit 0; fi
           echo "changed=true" >> "$GITHUB_OUTPUT"
           range=$([ "$old" = none ] && echo "upstream/main" || echo "$old..upstream/main")
-          count=$(git rev-list --count $range)
+          count=$(git rev-list --count "$range")
           behind=$(git rev-list --count origin/main..upstream/main)
           git merge-tree --write-tree --name-only origin/main upstream/main > "$RUNNER_TEMP/merge.txt" || true
           conflicts=$(awk 'NR > 1 && /^$/ { exit } NR > 1' "$RUNNER_TEMP/merge.txt")
@@ -59,7 +61,7 @@ jobs:
           {
             echo "### New commits this week ($count)"
             echo
-            git log --no-merges --format='- %s ([%h](https://github.com/atlas-vtt/atlas-vtt/commit/%H))' $range | head -150
+            git log --no-merges --format='- %s ([%h](https://github.com/atlas-vtt/atlas-vtt/commit/%H))' "$range" | head -150
             echo
             echo "### Files that would conflict if upstream/main were merged into main"
             echo
