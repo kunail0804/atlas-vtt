@@ -2,9 +2,9 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { chromium, type Browser, type Page } from 'playwright';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { assetChunks, sha256Hex } from '../../src/app/online/gm/assetServe.ts';
 import type { GmMessage } from '../../src/app/online/protocol/game.ts';
-import { TestGm, createTable, startTestRelay, stopTestRelay, until, type TestRelay } from './helpers.ts';
+import { TestGm, createTable, startTestRelay, stopTestRelay, storeAsset, until, type TestRelay } from './helpers.ts';
+import type { AssetRef } from '../../src/app/online/protocol/asset.ts';
 import { png } from './png.ts';
 
 // A player who reloads the page sees the map again without asking the GM for it: the page kept it in
@@ -31,36 +31,38 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('a reload of the pl
     await stopTestRelay(test);
   });
 
-  const requests = (): number => gm.messages.filter((message) => (message.body as { t?: string }).t === 'asset-request').length;
+  /** The page's fetches of stored assets from the relay. */
+  let fetched = 0;
+  const requests = (): number => fetched;
 
-  async function joinAndShow(map: { hash: string; bytes: Uint8Array }): Promise<string> {
+  async function joinAndShow(map: AssetRef): Promise<string> {
     const seated = gm.joined.length;
     await page.fill('.join-input >> nth=0', 'Mira');
     await page.click('.join-button');
     await until(() => gm.joined.length > seated, 'player seated', 10_000);
     const player = gm.joined.at(-1)?.id ?? '';
-    gm.connection.send({ t: 'scene', scene: { id: 's1', map: { hash: map.hash, size: map.bytes.length, mime: 'image/png' }, lit: false } } as GmMessage, player);
+    gm.connection.send({ t: 'scene', scene: { id: 's1', map, lit: false } } as GmMessage, player);
     return player;
   }
 
   const mapShown = (): Promise<unknown> => page.waitForFunction(() => (document.querySelector('.status') as HTMLElement | null)?.hidden === true, null, { timeout: 15_000 });
 
-  it('shows the map from the browser\'s cache, and asks the GM again once that copy is gone', async () => {
+  it('shows the map from the browser\'s cache, and fetches it from the relay again once that copy is gone', async () => {
     const created = await createTable(test.gmOrigin);
     gm = new TestGm(test.gmOrigin, created.code, created.secret);
     await until(() => gm.status === 'online', 'GM online');
-    // A map of several chunks, so it crosses the relay's bulk window.
     const bytes = png(900, 700, (x, y) => [(x * 7) % 256, (y * 13) % 256, (x ^ y) % 256]);
-    const map = { hash: await sha256Hex(bytes as Uint8Array<ArrayBuffer>), bytes };
-    expect(assetChunks(map.hash, bytes).length).toBeGreaterThan(2);
+    const map = await storeAsset(test, bytes, 'image/png');
+    page.on('request', (request) => {
+      if (request.url().includes(`/api/assets/${map.id}`)) fetched += 1;
+    });
     const url = `http://127.0.0.1:${test.relay.publicPort}/#${created.code}`;
 
     await page.goto(url);
-    const player = await joinAndShow(map);
-    await until(() => requests() === 1, 'map requested', 10_000);
-    for (const chunk of assetChunks(map.hash, bytes)) gm.connection.send(chunk, player);
+    await joinAndShow(map);
+    await until(() => requests() === 1, 'map fetched', 10_000);
     await mapShown();
-    await page.waitForFunction(() => (localStorage.getItem('atlas-vtt:asset-cache-v1') ?? '').includes('@8192'), null, { timeout: 5_000 });
+    await page.waitForFunction((hash) => (localStorage.getItem('atlas-vtt:asset-cache-v1') ?? '').includes(hash), map.hash, { timeout: 5_000 });
 
     await page.reload();
     await joinAndShow(map);
@@ -68,12 +70,11 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('a reload of the pl
     await page.waitForTimeout(500);
     expect(requests()).toBe(1);
 
-    // Without the kept copy, the page asks the GM as before.
+    // Without the kept copy, the page fetches the map from the relay as before.
     await page.evaluate(() => caches.delete('atlas-vtt-assets-v1'));
     await page.reload();
-    const again = await joinAndShow(map);
-    await until(() => requests() === 2, 'map requested again', 10_000);
-    for (const chunk of assetChunks(map.hash, bytes)) gm.connection.send(chunk, again);
+    await joinAndShow(map);
+    await until(() => requests() === 2, 'map fetched again', 10_000);
     await mapShown();
   });
 });

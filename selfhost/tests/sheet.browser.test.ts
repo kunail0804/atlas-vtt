@@ -2,12 +2,11 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { chromium, type Browser, type Page } from 'playwright';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { assetChunks, sha256Hex } from '../../src/app/online/gm/assetServe.ts';
 import { DND5E_2024 } from '../../src/app/characterSheets/dnd5e2024.ts';
 import { newSheet } from '../../src/app/characterSheets/sheetNote.ts';
 import { DEFAULT_BOOK_SLOTS } from '../../src/app/online/protocol/bookSlots.ts';
 import type { GmMessage } from '../../src/app/online/protocol/game.ts';
-import { TestGm, createTable, startTestRelay, stopTestRelay, until, type TestRelay } from './helpers.ts';
+import { TestGm, createTable, startTestRelay, stopTestRelay, storeAsset, until, type TestRelay } from './helpers.ts';
 
 // The player's character sheet and documents on the built page, with the plugin's own connection code as the GM.
 const CHROMIUM = '/usr/bin/chromium';
@@ -50,11 +49,11 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player\'s char
     const player = gm.joined[0]?.id ?? '';
 
     const lore = new TextEncoder().encode(LORE);
-    const loreHash = await sha256Hex(lore as Uint8Array<ArrayBuffer>);
+    const loreRef = await storeAsset(test, lore, 'text/markdown', 'text');
     const values = { ...newSheet(DND5E_2024, 'Mira'), level: 5, class: 'Roublarde', stats: [8, 16, 14, 12, 13, 10], 'skill-proficiencies': ['perception'] };
     send({ t: 'scene', scene: { id: 's1', map: null, lit: false } } as GmMessage, player);
     send({ t: 'book', book: { character: { name: 'Mira', art: null, ring: null, resources: [{ key: 'hp', name: 'PV', colour: '#22c55e', direction: 'drains', current: 20, max: 33, editable: true }] }, worldMap: null, items: [], notes: [], pins: [], quests: [], purse: [], slots: DEFAULT_BOOK_SLOTS, equipped: [] } } as GmMessage, player);
-    send({ t: 'sheet', sheet: { system: 'dnd5e-2024', values }, notes: [{ title: 'Famille de Mira', body: 'Ta sœur…', text: { hash: loreHash, size: lore.length, mime: 'text/markdown' } }] } as GmMessage, player);
+    send({ t: 'sheet', sheet: { system: 'dnd5e-2024', values }, notes: [{ title: 'Famille de Mira', body: 'Ta sœur…', text: loreRef }] } as GmMessage, player);
 
     await page.waitForSelector('.atlas-bottom-toolbar-row__end button', { timeout: 5_000 });
     await page.click('.atlas-bottom-toolbar-row__end button');
@@ -99,12 +98,10 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player\'s char
     await shot('sheet-attack');
 
     // The GM's documents: the note's whole text, fetched by hash.
-    send({ t: 'sheet', sheet: { system: 'dnd5e-2024', values }, notes: [{ title: 'Famille de Mira', body: 'Ta sœur…', text: { hash: loreHash, size: lore.length, mime: 'text/markdown' } }] } as GmMessage, player);
+    send({ t: 'sheet', sheet: { system: 'dnd5e-2024', values }, notes: [{ title: 'Famille de Mira', body: 'Ta sœur…', text: loreRef }] } as GmMessage, player);
     // In the Compendium tab, which took the Documents tab's place: the character's documents come first.
     await page.click('.book-tab[data-tab="compendium"]');
     await page.click('.cpd-entry >> text=Famille de Mira');
-    await until(() => sentOf('asset-request').some((request) => request.hash === loreHash), 'text asked for', 5_000);
-    for (const chunk of assetChunks(loreHash, lore)) send(chunk, player);
     await page.waitForFunction(() => document.querySelector('.reader .doc-text')?.textContent?.includes('Port-Brume'), null, { timeout: 5_000 });
     expect(await page.textContent('.reader-title')).toBe('Famille de Mira');
     await shot('sheet-document');

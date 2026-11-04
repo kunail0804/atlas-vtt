@@ -2,9 +2,8 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { chromium, type Browser, type Page } from 'playwright';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { assetChunks, sha256Hex } from '../../src/app/online/gm/assetServe.ts';
 import type { GmMessage } from '../../src/app/online/protocol/game.ts';
-import { TestGm, createTable, startTestRelay, stopTestRelay, until, type TestRelay } from './helpers.ts';
+import { TestGm, createTable, startTestRelay, stopTestRelay, storeAsset, until, type TestRelay } from './helpers.ts';
 import { png } from './png.ts';
 
 // The player's own token as the GM's map draws it: the ring's artwork, and the bars of resources
@@ -39,7 +38,7 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player\'s own 
     gm = new TestGm(test.gmOrigin, created.code, created.secret);
     await until(() => gm.status === 'online', 'GM online');
     const mapBytes = png(MAP_W, MAP_H, () => [40, 160, 60]);
-    const mapHash = await sha256Hex(mapBytes as Uint8Array<ArrayBuffer>);
+    const mapRef = await storeAsset(test, mapBytes, 'image/png');
     const send = (body: GmMessage, to: string): void => gm.connection.send(body, to);
 
     await page.goto(`http://127.0.0.1:${test.relay.publicPort}/#${created.code}`);
@@ -48,13 +47,11 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player\'s own 
     await until(() => gm.joined.length === 1, 'player seated', 10_000);
     const player = gm.joined[0]?.id ?? '';
 
-    send({ t: 'scene', scene: { id: 's1', map: { hash: mapHash, size: mapBytes.length, mime: 'image/png' }, lit: false } }, player);
+    send({ t: 'scene', scene: { id: 's1', map: mapRef, lit: false } }, player);
     // Everyone's list carries no bar: the GM keeps hit points from players at large.
     const ui = { nameplate: false, downed: false, bars: [], conditions: [] };
     send({ t: 'tokens', scene: 's1', seq: 1, cell: 70, snap: null, tokens: [{ id: TOKEN, ...TOKEN_AT, size: 140, cells: 2, rotation: 0, art: null, name: 'Mira', ring: { colour: '#ffffff', size: 160 }, claim: 'taken', badge: null, ui }] }, player);
     send({ t: 'mine', scene: 's1', tokens: [TOKEN], bars: { [TOKEN]: [{ colour: '#22c55e', direction: 'drains', defeats: true, current: 30, max: 30 }] } }, player);
-    await until(() => gm.messages.some((m) => (m.body as { t?: string }).t === 'asset-request'), 'map requested', 10_000);
-    for (const chunk of assetChunks(mapHash, mapBytes)) send(chunk, player);
     await page.waitForFunction(() => (document.querySelector('.status') as HTMLElement | null)?.hidden === true, null, { timeout: 10_000 });
     await page.waitForTimeout(500);
 

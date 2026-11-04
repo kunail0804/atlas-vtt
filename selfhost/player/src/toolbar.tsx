@@ -4,7 +4,7 @@ import {
   BookOpen, Circle, CircleX, Dices, DoorClosed, DoorOpen, Eraser, Flame, Flashlight, Footprints, Gem, Hand, KeyRound, Lock, MessageSquare, Package, Pencil, Ruler,
   Skull, Stamp, Swords, Trash2, Triangle, TriangleAlert, Type,
 } from 'lucide-react';
-import type { RollAdvantage } from '../../../src/app/online/protocol/dice.ts';
+import type { AdvantageSide } from '../../../src/app/online/protocol/dice.ts';
 import { t } from '../../../src/app/i18n/index.ts';
 import { DropdownMenuItem } from '../../../src/app/packages/components/primitives/DropdownMenuItem.tsx';
 import { DropdownModeSelector } from '../../../src/app/packages/components/primitives/DropdownModeSelector.tsx';
@@ -27,14 +27,14 @@ export interface ToolbarHost {
   /** Takes back every drawing of the player's in the scene. */
   deleteMyDrawings(): void;
   /** Rolls the tray's formula; false when it cannot (no scene), and the tray keeps it. */
-  roll(formula: string, advantage: RollAdvantage | null): boolean;
+  roll(formula: string, advantage: AdvantageSide | null): boolean;
   toggleChat(): void;
   toggleBook(): void;
 }
 
 /** What the page tells the toolbar. */
 export interface ToolbarState {
-  readonly advantage: readonly RollAdvantage[];
+  readonly advantage: readonly AdvantageSide[];
   readonly book: boolean;
 }
 

@@ -2,9 +2,8 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { chromium, type Browser, type Page } from 'playwright';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { assetChunks, sha256Hex } from '../../src/app/online/gm/assetServe.ts';
 import type { GmMessage } from '../../src/app/online/protocol/game.ts';
-import { TestGm, createTable, startTestRelay, stopTestRelay, until, type TestRelay } from './helpers.ts';
+import { TestGm, createTable, startTestRelay, stopTestRelay, storeAsset, until, type TestRelay } from './helpers.ts';
 import { png } from './png.ts';
 
 // The page as players get it: built (`npm run player:build`), served by a real relay, driven in
@@ -41,7 +40,7 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player page in
 
     // A map: left half green, right half red. The GM's fog covers the right half.
     const mapBytes = png(MAP_W, MAP_H, (x) => (x < MAP_W / 2 ? [40, 160, 60] : [200, 40, 40]));
-    const mapHash = await sha256Hex(mapBytes as Uint8Array<ArrayBuffer>);
+    const mapRef = await storeAsset(test, mapBytes, 'image/png');
     const send = (body: GmMessage, to: string): void => gm.connection.send(body, to);
 
     await page.goto(`http://127.0.0.1:${test.relay.publicPort}/#${created.code}`);
@@ -50,7 +49,7 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player page in
     await until(() => gm.joined.length === 1, 'player seated', 10_000);
     const player = gm.joined[0]?.id ?? '';
 
-    send({ t: 'scene', scene: { id: 's1', map: { hash: mapHash, size: mapBytes.length, mime: 'image/png' }, lit: false } }, player);
+    send({ t: 'scene', scene: { id: 's1', map: mapRef, lit: false } }, player);
     // A goblin with 2 of 10 hit points left: its bar must be red by the plugin's rule, under a 'heart' condition.
     const goblin = { id: 'b1b2c3d4e5f6a1b2c3d4e5f6', x: 300, y: 150, size: 70, cells: 1, rotation: 0, art: null, name: 'Gobelin', ring: { colour: '#aa3333', size: 80 }, claim: null, badge: null,
       ui: { nameplate: true, downed: false, bars: [{ colour: '#22c55e', direction: 'drains', defeats: true, current: 2, max: 10 }], conditions: [{ colour: '#3b82f6', glyph: { kind: 'icon', icon: 'heart' }, value: 2 }] } } as const;
@@ -59,8 +58,6 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player page in
     send({ t: 'fog', scene: 's1', seq: 1, fog: [{ type: 'rectangle', erase: false, x: MAP_W / 2, y: 0, width: MAP_W / 2, height: MAP_H }] }, player);
 
     // The page asks for the map by hash; the GM answers with the plugin's own chunks.
-    await until(() => gm.messages.some((m) => (m.body as { t?: string }).t === 'asset-request'), 'map requested', 10_000);
-    for (const chunk of assetChunks(mapHash, mapBytes)) send(chunk, player);
     await page.waitForFunction(() => (document.querySelector('.status') as HTMLElement | null)?.hidden === true, null, { timeout: 10_000 });
 
     // Where the map lies on screen: the page frames it with a 5 % margin, centred.
@@ -157,12 +154,10 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player page in
 
     // An image the GM shows: fetched by hash, shown over the map, closed by the player for good.
     const pictureBytes = png(200, 100, () => [30, 90, 200]);
-    const pictureHash = await sha256Hex(pictureBytes as Uint8Array<ArrayBuffer>);
+    const pictureRef = await storeAsset(test, pictureBytes, 'image/png');
     const asked = gm.messages.length;
-    const showing = (id: string): GmMessage => ({ t: 'shown-image', shown: { id, image: { hash: pictureHash, size: pictureBytes.length, mime: 'image/png' }, width: 200, height: 100 } });
+    const showing = (id: string): GmMessage => ({ t: 'shown-image', shown: { id, image: pictureRef, width: 200, height: 100 } });
     send(showing('c'.repeat(24)), player);
-    await until(() => gm.messages.slice(asked).some((m) => (m.body as { t?: string; hash?: string }).hash === pictureHash), 'image requested', 5_000);
-    for (const chunk of assetChunks(pictureHash, pictureBytes)) send(chunk, player);
     await page.waitForFunction(() => (document.querySelector('.viewer-image') as HTMLImageElement | null)?.naturalWidth === 200, null, { timeout: 5_000 });
     await page.click('.viewer-close');
     expect(await page.locator('.viewer').count()).toBe(0);

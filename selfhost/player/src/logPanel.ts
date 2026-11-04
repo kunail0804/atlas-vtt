@@ -39,7 +39,11 @@ export class LogPanel {
     this.reader = reader;
     this.noScene = noScene;
     this.state = new LogState(() => this.self);
-    this.surface = mountLogSurface(host);
+    // The panel and its unread tab stand in the same host, as the page lays them out.
+    const panelHost = host.ownerDocument.createElement('div');
+    const tabHost = host.ownerDocument.createElement('div');
+    host.append(panelHost, tabHost);
+    this.surface = mountLogSurface(panelHost, tabHost);
     this.render();
   }
 
