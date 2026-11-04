@@ -10,6 +10,10 @@ name: Review
 #   runs those of the issue. Only the repository's owner and collaborators can.
 #
 # Reports inform; they never block a merge. Only `Verify` does.
+#
+# The reviewer runs the pull request's code (its tests) with its model key in the environment, and the pull
+# request's own .github/review is what reviews it. Both are fine because only the owner and collaborators push
+# branches here; a pull request from a fork gets no secrets, so its reviews fail without a key.
 
 on:
   pull_request:
@@ -99,16 +103,19 @@ jobs:
             claude)   name=Claude;   model=sonnet ;;
             glm)      name=GLM;      model='openrouter/z-ai/glm-5.3-flash#high' ;;
             deepseek) name=DeepSeek; model='openrouter/deepseek/deepseek-v4-flash-0731#high' ;;
+            *)        echo "::error::Unknown reviewer $REVIEWER"; exit 1 ;;
           esac
+          # A delimiter nobody can write in an issue, so the brief cannot end the output early.
+          eof="ATLAS_REVIEW_$(openssl rand -hex 16)"
           {
             echo "name=$name"
             echo "model=$model"
             echo "head=$(git rev-parse --short HEAD)"
-            echo 'prompt<<ATLAS_REVIEW_EOF'
+            echo "prompt<<$eof"
             cat .github/review/prompt.md
             echo
             cat "$RUNNER_TEMP/brief.md"
-            echo 'ATLAS_REVIEW_EOF'
+            echo "$eof"
             echo "start=$(date +%s)"
           } >> "$GITHUB_OUTPUT"
 
@@ -134,7 +141,10 @@ jobs:
         run: |
           test -f "$EXECUTION_FILE" || exit 0
           jq -r '[.[] | select(.type == "result")] | last | .result // empty' "$EXECUTION_FILE" > "$RUNNER_TEMP/report.md"
-          jq -r '[.[] | select(.type == "result")] | last | "\(.num_turns) tours"' "$EXECUTION_FILE" > "$RUNNER_TEMP/usage.txt"
+          # The cost Claude Code reports is what the run would cost on the API; the subscription pays it.
+          jq -r '[.[] | select(.type == "result")] | last
+                 | "\(.num_turns) tours · \(.total_cost_usd // 0 | . * 10000 | round / 10000) $ en équivalent API, payé par ton abonnement"' \
+            "$EXECUTION_FILE" > "$RUNNER_TEMP/usage.txt"
 
       # GLM and DeepSeek: OpenCode on OpenRouter, with the agent of .github/review/opencode.json.
       - name: Install OpenCode
@@ -143,7 +153,7 @@ jobs:
           VERSION: 2.2.5
           SHA256: 09f44302c10fd036912f59c81fd1aef5df45dd06f649197f9dfc9bbe2a79614e
         run: |
-          curl -fsSL -o "$RUNNER_TEMP/opencode.tar.gz" \
+          curl -fsSL --proto '=https' --tlsv1.2 -o "$RUNNER_TEMP/opencode.tar.gz" \
             "https://github.com/anomalyco/opencode/releases/download/v$VERSION/opencode-linux-x64.tar.gz"
           echo "$SHA256  $RUNNER_TEMP/opencode.tar.gz" | sha256sum -c -
           mkdir -p "$RUNNER_TEMP/bin"
@@ -167,7 +177,7 @@ jobs:
             "$RUNNER_TEMP/events.jsonl" > "$RUNNER_TEMP/report.md"
           jq -rs '"\([.[] | select(.type == "tool_use")] | length) outils appelés · \([.[] | select(.type == "step_finish") | .part.cost // 0] | add // 0 | . * 10000 | round / 10000) $"' \
             "$RUNNER_TEMP/events.jsonl" > "$RUNNER_TEMP/usage.txt"
-          test -s "$RUNNER_TEMP/report.md"
+          grep -q '[^[:space:]]' "$RUNNER_TEMP/report.md"
 
       - name: Post the report
         if: always() && steps.brief.outcome == 'success'
@@ -188,7 +198,7 @@ jobs:
             echo
             echo "\`${MODEL%%#*}\` · commit \`$HEAD_SHA\` · $((seconds / 60)) min $((seconds % 60)) s${usage:+ · $usage} · [run]($RUN_URL)"
             echo
-            if [ -s "$RUNNER_TEMP/report.md" ]; then
+            if grep -qs '[^[:space:]]' "$RUNNER_TEMP/report.md"; then
               # A comment holds at most 65 536 characters.
               head -c 60000 "$RUNNER_TEMP/report.md"
             else
@@ -196,4 +206,4 @@ jobs:
             fi
           } > "$RUNNER_TEMP/comment.md"
           gh pr comment "$PR" --body-file "$RUNNER_TEMP/comment.md"
-          test -s "$RUNNER_TEMP/report.md"
+          grep -qs '[^[:space:]]' "$RUNNER_TEMP/report.md"

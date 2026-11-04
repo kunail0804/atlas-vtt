@@ -10,7 +10,10 @@ try to push, comment or merge: the workflow posts your report.
 - **The change** is `git diff origin/main...HEAD`; `git log origin/main..HEAD` lists its commits.
 - **The rules of the repository** are in `CLAUDE.md` and `.github/WORKFLOW.md`.
 - Dependencies are installed. `npx vitest run <file>`, `npx tsc --noEmit` and `npx eslint <file>` work at the
-  root; the relay and the player page have their own `selfhost/package.json`.
+  root; `npm --prefix selfhost test -- <file>` runs the relay's and the player page's tests.
+- The shell accepts one command per call, from a short list: `git diff`, `git log`, `git show`, `git status`,
+  `git stash`, `git restore`, `git checkout -- <file>`, and the test commands above. Pipes, `;`, `&&` and
+  redirections are refused. Read, search and list files with your own tools, not the shell.
 
 The review runs in two stages, in order. Finish the first before starting the second.
 
