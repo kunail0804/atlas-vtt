@@ -1,5 +1,5 @@
 name: Tâche
-description: Un changement à faire, par toi ou par un agent (ajoute le label `agent` pour qu'il s'en charge).
+description: Un changement à faire, par toi ou par un agent, avec les reviewers qui relisent sa pull request.
 labels: [task]
 body:
   - type: textarea
@@ -26,3 +26,12 @@ body:
     attributes:
       label: Notes
       description: Fichiers concernés, liens, captures.
+  - type: checkboxes
+    id: reviewers
+    attributes:
+      label: Reviewers
+      description: Qui relit la pull request quand elle est ouverte. Le rapport arrive en commentaire sur la PR ; `/review <nom>` relance une review.
+      options:
+        - label: Claude
+        - label: GLM
+        - label: DeepSeek

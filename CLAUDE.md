@@ -2,9 +2,12 @@
 
 This repository is a fork whose `main` is its own product; `.github/WORKFLOW.md` is the whole process.
 
-- Work from an issue. Branch from main as `<kind>/<issue>-<few-words>` (`agent/...` for the agent workflow).
+- Work from an issue. Branch from main as `<kind>/<issue>-<few-words>`.
 - Open a pull request into main starting with `Closes #<issue>`, saying how the change was verified. Never push
   to main: its ruleset refuses pushes and merges without the `Verify` check. `gh pr merge --auto --squash`.
+- The reviewers the issue asks for post their reports as comments on the pull request (`Review <name>`). Read
+  them with `gh pr view <n> --comments`, apply what you agree with, and answer the rest in the pull request.
+  `/review <name>` in a comment runs a reviewer again after your fixes.
 - CI publishes on merge: the Docker image, the launcher when `VERSION` in `selfhost/launcher/version.ts` is
   raised, the campaigns service when `selfhost/service/` changes, the compendium sources when
   `compendium/builder/` changes. Never push an image, a release or a deployment by hand.

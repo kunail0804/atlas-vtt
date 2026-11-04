@@ -1,0 +1,199 @@
+name: Review
+
+# Code review of a pull request by the reviewers you choose: Claude (your Claude subscription), GLM and DeepSeek
+# (OpenRouter). Each one reads the issue the pull request closes and the change, runs the tests on a throwaway
+# runner, and its report is posted as a comment on the pull request, where the coding agent reads it.
+#
+# - The issue chooses them: ticked boxes of the Tâche template, or labels `review:claude`, `review:glm`,
+#   `review:deepseek`. They run when the pull request is opened, or leaves draft.
+# - A comment `/review glm` (or `claude`, `deepseek`, `all`, several at once) runs them again; `/review` alone
+#   runs those of the issue. Only the repository's owner and collaborators can.
+#
+# Reports inform; they never block a merge. Only `Verify` does.
+
+on:
+  pull_request:
+    types: [opened, ready_for_review]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    name: Choose the reviewers
+    if: >-
+      (github.event_name == 'pull_request' && !github.event.pull_request.draft) ||
+      (github.event_name == 'issue_comment' && github.event.issue.pull_request &&
+        startsWith(github.event.comment.body, '/review') &&
+        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+    outputs:
+      pr: ${{ steps.plan.outputs.pr }}
+      reviewers: ${{ steps.plan.outputs.reviewers }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/review
+      - id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          EVENT: ${{ github.event_name }}
+          PR: ${{ github.event.pull_request.number || github.event.issue.number }}
+          COMMENT: ${{ github.event.comment.body }}
+        run: |
+          echo "pr=$PR" >> "$GITHUB_OUTPUT"
+          bash .github/review/plan.sh
+
+  review:
+    name: Review by ${{ matrix.reviewer }}
+    needs: plan
+    if: needs.plan.outputs.reviewers != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        reviewer: ${{ fromJSON(needs.plan.outputs.reviewers) }}
+    concurrency:
+      group: review-${{ needs.plan.outputs.pr }}-${{ matrix.reviewer }}
+      cancel-in-progress: true
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: read
+    env:
+      PR: ${{ needs.plan.outputs.pr }}
+      REVIEWER: ${{ matrix.reviewer }}
+      LANG: C.UTF-8
+      LC_ALL: C.UTF-8
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/pull/${{ needs.plan.outputs.pr }}/head
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Dependencies
+        run: npm ci --ignore-scripts && npm ci --ignore-scripts --prefix selfhost
+
+      - name: Brief and model
+        id: brief
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          bash .github/review/brief.sh > "$RUNNER_TEMP/brief.md"
+          case "$REVIEWER" in
+            claude)   name=Claude;   model=sonnet ;;
+            glm)      name=GLM;      model='openrouter/z-ai/glm-5.3-flash#high' ;;
+            deepseek) name=DeepSeek; model='openrouter/deepseek/deepseek-v4-flash-0731#high' ;;
+          esac
+          {
+            echo "name=$name"
+            echo "model=$model"
+            echo "head=$(git rev-parse --short HEAD)"
+            echo 'prompt<<ATLAS_REVIEW_EOF'
+            cat .github/review/prompt.md
+            echo
+            cat "$RUNNER_TEMP/brief.md"
+            echo 'ATLAS_REVIEW_EOF'
+            echo "start=$(date +%s)"
+          } >> "$GITHUB_OUTPUT"
+
+      # Claude: Claude Code on your subscription, with read, edit (to test the tests) and the test commands only.
+      - name: Review (Claude)
+        id: claude
+        if: matrix.reviewer == 'claude'
+        continue-on-error: true
+        uses: anthropics/claude-code-action@4845bacbb38b3c4b15d948f035349786f678e068 # v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ github.token }}
+          prompt: ${{ steps.brief.outputs.prompt }}
+          claude_args: |
+            --model ${{ steps.brief.outputs.model }}
+            --max-turns 80
+            --allowedTools "Read,Grep,Glob,Edit,Bash(git diff:*),Bash(git log:*),Bash(git show:*),Bash(git status:*),Bash(git stash:*),Bash(git restore:*),Bash(npx vitest:*),Bash(npx tsc:*),Bash(npx eslint:*),Bash(npm test:*),Bash(npm --prefix selfhost test:*)"
+            --disallowedTools "WebFetch,WebSearch"
+      - name: Report (Claude)
+        if: matrix.reviewer == 'claude'
+        env:
+          EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
+        run: |
+          test -f "$EXECUTION_FILE" || exit 0
+          jq -r '[.[] | select(.type == "result")] | last | .result // empty' "$EXECUTION_FILE" > "$RUNNER_TEMP/report.md"
+          jq -r '[.[] | select(.type == "result")] | last | "\(.num_turns) tours"' "$EXECUTION_FILE" > "$RUNNER_TEMP/usage.txt"
+
+      # GLM and DeepSeek: OpenCode on OpenRouter, with the agent of .github/review/opencode.json.
+      - name: Install OpenCode
+        if: matrix.reviewer != 'claude'
+        env:
+          VERSION: 2.2.5
+          SHA256: 09f44302c10fd036912f59c81fd1aef5df45dd06f649197f9dfc9bbe2a79614e
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/opencode.tar.gz" \
+            "https://github.com/anomalyco/opencode/releases/download/v$VERSION/opencode-linux-x64.tar.gz"
+          echo "$SHA256  $RUNNER_TEMP/opencode.tar.gz" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/bin"
+          tar -xzf "$RUNNER_TEMP/opencode.tar.gz" -C "$RUNNER_TEMP/bin"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      - name: Review (${{ steps.brief.outputs.name }})
+        if: matrix.reviewer != 'claude'
+        continue-on-error: true
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENCODE_CONFIG: ${{ github.workspace }}/.github/review/opencode.json
+          MODEL: ${{ steps.brief.outputs.model }}
+        run: |
+          test -n "$OPENROUTER_API_KEY" || { echo "::error::The secret OPENROUTER_API_KEY is not set (see .github/WORKFLOW.md)"; exit 1; }
+          # stdin closed, or `opencode run` waits for it forever. Its exit code says nothing: the report decides.
+          opencode run --standalone --format json --agent reviewer -m "$MODEL" "$(cat "$RUNNER_TEMP/brief.md")" \
+            < /dev/null > "$RUNNER_TEMP/events.jsonl" || true
+          # The report is the text after the last tool call.
+          jq -rs '(map(.type == "tool_use") | indices(true) | last // -1) as $last
+                  | .[$last + 1:] | map(select(.type == "text") | .part.text) | join("\n\n")' \
+            "$RUNNER_TEMP/events.jsonl" > "$RUNNER_TEMP/report.md"
+          jq -rs '"\([.[] | select(.type == "tool_use")] | length) outils appelés · \([.[] | select(.type == "step_finish") | .part.cost // 0] | add // 0 | . * 10000 | round / 10000) $"' \
+            "$RUNNER_TEMP/events.jsonl" > "$RUNNER_TEMP/usage.txt"
+          test -s "$RUNNER_TEMP/report.md"
+
+      - name: Post the report
+        if: always() && steps.brief.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          NAME: ${{ steps.brief.outputs.name }}
+          MODEL: ${{ steps.brief.outputs.model }}
+          HEAD_SHA: ${{ steps.brief.outputs.head }}
+          START: ${{ steps.brief.outputs.start }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          seconds=$(( $(date +%s) - START ))
+          usage="$(cat "$RUNNER_TEMP/usage.txt" 2>/dev/null || true)"
+          {
+            echo "<!-- atlas-review:$REVIEWER -->"
+            echo "## Review $NAME"
+            echo
+            echo "\`${MODEL%%#*}\` · commit \`$HEAD_SHA\` · $((seconds / 60)) min $((seconds % 60)) s${usage:+ · $usage} · [run]($RUN_URL)"
+            echo
+            if [ -s "$RUNNER_TEMP/report.md" ]; then
+              # A comment holds at most 65 536 characters.
+              head -c 60000 "$RUNNER_TEMP/report.md"
+            else
+              echo "La review n'a pas produit de rapport. Le détail est dans le run. Relancer : \`/review $REVIEWER\`."
+            fi
+          } > "$RUNNER_TEMP/comment.md"
+          gh pr comment "$PR" --body-file "$RUNNER_TEMP/comment.md"
+          test -s "$RUNNER_TEMP/report.md"
