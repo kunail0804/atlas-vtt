@@ -18,6 +18,14 @@ from_issues() {
 	done
 }
 
+# The reviewers run the pull request's code with the model keys in their environment. A comment `/review`
+# runs with the secrets whatever the pull request's origin, so a fork's pull request never gets one.
+if [[ "$(gh pr view "$PR" --json isCrossRepository --jq .isCrossRepository)" == true ]]; then
+	echo "::warning::Pull request #$PR comes from a fork: no review, its code would run with the keys."
+	echo 'reviewers=[]' >>"$GITHUB_OUTPUT"
+	exit 0
+fi
+
 case "$EVENT" in
 pull_request)
 	asked="$(from_issues)"
