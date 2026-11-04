@@ -31,25 +31,29 @@ function templateOf(text: string, allowBuiltIn = false): StatblockTemplate {
   return result.template;
 }
 
-describe('serializeTemplate', () => {
-  it('writes the every-block template exactly as its file, in the fixed key order', () => {
+it('serializeTemplate', () => {
+  // writes the every-block template exactly as its file, in the fixed key order
+  {
     expect(serializeTemplate(EVERY_BLOCK)).toBe(EVERY_BLOCK_JSON);
-  });
+  }
 
-  it('writes 2-space JSON with a trailing newline', () => {
+  // writes 2-space JSON with a trailing newline
+  {
     const text = serializeTemplate(MARSH_CREATURE);
     expect(text.endsWith('}\n')).toBe(true);
     expect(text.split('\n')[1]).toBe('  "format": "atlas-statblock-template",');
     expect(JSON.parse(text)).toEqual(templateToJson(MARSH_CREATURE));
-  });
+  }
 
-  it('does not depend on the order of known keys in memory', () => {
+  // does not depend on the order of known keys in memory
+  {
     for (const template of [MARSH_CREATURE, FIVE_E_2024]) {
       expect(serializeTemplate(reversed(template))).toBe(serializeTemplate(template));
     }
-  });
+  }
 
-  it('writes the known keys of each object first, then unknown ones in the order they were read', () => {
+  // writes the known keys of each object first, then unknown ones in the order they were read
+  {
     const json = templateToJson(EVERY_BLOCK);
     expect(Object.keys(json)).toEqual([
       'format', 'version', 'id', 'description', 'suits', 'derivedFrom', 'source', 'importedFrom', 'fields', 'layout',
@@ -60,19 +64,22 @@ describe('serializeTemplate', () => {
       'id', 'type', 'field', 'label', 'look', 'pattern', 'display', 'rollFrom', 'showWhen', 'whenEmpty', 'fallback',
       'className', 'tooltip', 'emphasis',
     ]);
-  });
+  }
 
-  it('writes a container\'s children after its own keys', () => {
+  // writes a container's children after its own keys
+  {
     const row = (templateToJson(EVERY_BLOCK).layout as { blocks: Record<string, unknown>[] }).blocks[0];
     expect(Object.keys(row ?? {})).toEqual(['id', 'type', 'align', 'blocks']);
-  });
+  }
 
-  it('leaves out keys holding undefined', () => {
+  // leaves out keys holding undefined
+  {
     const template = { ...MARSH_CREATURE, description: undefined } as unknown as StatblockTemplate;
     expect(templateToJson(template)).not.toHaveProperty('description');
-  });
+  }
 
-  it('writes back what parsing kept after edits elsewhere, as Immer makes them', () => {
+  // writes back what parsing kept after edits elsewhere, as Immer makes them
+  {
     const template = templateOf(JSON.stringify({
       format: TEMPLATE_FORMAT, version: 1, id: 'kept-abc123', fields: [{ key: 'hp', label: 'HP', type: 'vitality' }],
       layout: { maxColumns: 5, blocks: [{ id: 'aaaaaaa1', type: 'title', field: 'hp', level: 9 }] },
@@ -90,11 +97,12 @@ describe('serializeTemplate', () => {
       draft.layout.maxColumns = 1;
     });
     expect(JSON.parse(serializeTemplate(chosen)).layout.maxColumns).toBe(1);
-  });
+  }
 });
 
-describe('serialize ∘ parse', () => {
-  it('is a fixed point after one pass for every template', () => {
+it('serialize ∘ parse', () => {
+  // is a fixed point after one pass for every template
+  {
     for (const [_name, text, allowBuiltIn] of [
       ['Marsh creature', MARSH_CREATURE_JSON, false],
       ['5E 2024', FIVE_E_2024_JSON, true],
@@ -105,13 +113,15 @@ describe('serialize ∘ parse', () => {
       expect(twice).toBe(once);
       expect(JSON.parse(once)).toMatchObject({ format: TEMPLATE_FORMAT });
     }
-  });
+  }
 
-  it('keeps every value of the plan\'s files', () => {
+  // keeps every value of the plan's files
+  {
     expect(JSON.parse(serializeTemplate(templateOf(MARSH_CREATURE_JSON)))).toEqual(JSON.parse(MARSH_CREATURE_JSON));
-  });
+  }
 
-  it('reads back a block that folds while empty and a field meant as the display name', () => {
+  // reads back a block that folds while empty and a field meant as the display name
+  {
     const template = produce(MARSH_CREATURE, (draft) => {
       draft.fields.push({ key: 'title', label: 'Title', type: 'text', meaning: 'display-name' });
       draft.fields.push({ key: 'fage_stats', label: 'Fantasy AGE', type: 'scores', slots: ['Accuracy', 'Fighting'] });
@@ -123,5 +133,5 @@ describe('serialize ∘ parse', () => {
     expect(parsed.problems).toEqual([]);
     expect(parsed.template).toEqual(template);
     expect(serializeTemplate(templateOf(text))).toBe(text);
-  });
+  }
 });

@@ -6,8 +6,9 @@ import { isReservedKey } from '../../../../src/app/statblocks/model/reservedKeys
 import type { TemplateField } from '../../../../src/app/statblocks/model/templateTypes';
 import { int, mulberry32, pick } from './treeFixtures';
 
-describe('labelToKey', () => {
-  it('derives each key from its label', () => {
+it('labelToKey', () => {
+  // derives each key from its label
+  {
     for (const [label, key] of [
       ['Hit Points', 'hp'], ['HP', 'hp'], ['hit points', 'hp'],
       ['Armor Class', 'ac'], ['AC', 'ac'], ['Armor', 'ac'], ['Armour Class', 'ac'],
@@ -24,9 +25,10 @@ describe('labelToKey', () => {
     ] as const) {
       expect(labelToKey(label, [])).toBe(key);
     }
-  });
+  }
 
-  it('snake-cases every label', () => {
+  // snake-cases every label
+  {
     for (const [label, key] of [
       ['Morale Rating', 'morale_rating'],
       ['  Créature   Größe! ', 'creature_grosse'],
@@ -39,30 +41,34 @@ describe('labelToKey', () => {
     ] as const) {
       expect(labelToKey(label, [])).toBe(key);
     }
-  });
+  }
 
-  it('caps long labels', () => {
+  // caps long labels
+  {
     const key = labelToKey('A very long label that goes on and on about the creature', []);
     expect(key.length).toBeLessThanOrEqual(40);
     expect(key).not.toMatch(/_$/);
-  });
+  }
 
-  it('numbers a key that is taken, case-insensitively', () => {
+  // numbers a key that is taken, case-insensitively
+  {
     expect(labelToKey('Speed', ['speed'])).toBe('speed_2');
     expect(labelToKey('Speed', ['Speed', 'speed_2'])).toBe('speed_3');
     expect(labelToKey('Armor Class', ['ac'])).toBe('ac_2');
-  });
+  }
 
-  it('never gives a reserved or code key', () => {
+  // never gives a reserved or code key
+  {
     expect(labelToKey('Tags', [])).toBe('tags_2');
     expect(labelToKey('Layout', [])).toBe('layout_2');
     expect(labelToKey('Statblock', [])).toBe('statblock_2');
     expect(labelToKey('Note', [])).toBe('note_2');
     expect(labelToKey('Callback', [])).toBe('callback_2');
     expect(labelToKey('Dice Callback', [])).toBe('dice_callback');
-  });
+  }
 
-  it('gives keys that keyProblem accepts and no field holds, whatever the label', () => {
+  // gives keys that keyProblem accepts and no field holds, whatever the label
+  {
     const random = mulberry32(7);
     const alphabet = ['a', 'Z', '9', ' ', '-', '_', 'é', 'ß', '!', '.', '体', '\n', 'tags', 'hp', 'Hit Points', 'layout', 'name'];
     for (let i = 0; i < 2000; i++) {
@@ -72,11 +78,12 @@ describe('labelToKey', () => {
       expect(keyProblem(key, existing), `${JSON.stringify(label)} with ${existing.join(',')}`).toBeNull();
       expect(isReservedKey(key)).toBe(false);
     }
-  });
+  }
 });
 
-describe('keyProblem', () => {
-  it('says why each bad key is refused', () => {
+it('keyProblem', () => {
+  // says why each bad key is refused
+  {
     for (const [key, problem] of [
       ['', 'Give the field a key.'],
       ['  ', 'Give the field a key.'],
@@ -94,11 +101,12 @@ describe('keyProblem', () => {
     ] as const) {
       expect(keyProblem(key, ['speed', 'hp'])).toBe(problem);
     }
-  });
+  }
 
-  it('accepts ordinary keys, name and image', () => {
+  // accepts ordinary keys, name and image
+  {
     for (const key of ['speed_2', 'hit-dice', 'Saves', 'name', 'image', 'modifier', 'code']) expect(keyProblem(key, ['speed'])).toBeNull();
-  });
+  }
 });
 
 describe('labelFromKey', () => {
@@ -113,20 +121,22 @@ describe('labelFromKey', () => {
   });
 });
 
-describe('keys and former keys', () => {
+it('keys and former keys', () => {
   const fields: TemplateField[] = [
     { key: 'hp', label: 'HP', type: 'number', formerKeys: ['hit_points', 'health'] },
     { key: 'speed', label: 'Speed', type: 'text' },
   ];
 
-  it('lists every key fields hold or held', () => {
+  // lists every key fields hold or held
+  {
     expect(fieldKeysOf(fields)).toEqual(new Set(['hp', 'hit_points', 'health', 'speed']));
     expect(labelToKey('Health', fieldKeysOf(fields))).toBe('health_2');
-  });
+  }
 
-  it('finds a field by its key, else by a former key', () => {
+  // finds a field by its key, else by a former key
+  {
     expect(fieldByKey(fields, 'speed')?.key).toBe('speed');
     expect(fieldByKey(fields, 'health')?.key).toBe('hp');
     expect(fieldByKey(fields, 'ac')).toBeUndefined();
-  });
+  }
 });

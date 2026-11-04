@@ -20,8 +20,9 @@ const south = (overrides: Partial<WallSegment> = {}): WallSegment => wall({ x: -
 const CHANNELS: WallChannel[] = ['sight', 'light'];
 const passes = (walls: WallSegment[], channel?: WallChannel): boolean => pointInPolygon(behind, computeVisibility(origin, 200, walls, undefined, channel));
 
-describe('walls that block one thing', () => {
-  it('a wall of each kind lets pass what it does not block', () => {
+it('walls that block one thing', () => {
+  // a wall of each kind lets pass what it does not block
+  {
     for (const [_name, overrides, expected] of [
     ['a wall without a kind', {}, { sight: false, light: false }],
     ['a wall for sight only', { blocks: 'sight' }, { sight: false, light: true }],
@@ -32,28 +33,32 @@ describe('walls that block one thing', () => {
   ] as [string, Partial<WallSegment>, Record<WallChannel, boolean>][]) {
       for (const channel of CHANNELS) expect([channel, passes([south(overrides)], channel)]).toEqual([channel, expected[channel]]);
     }
-  });
+  }
 
-  it('blocks everything for a caller that names no channel: a mix-up fails closed', () => {
+  // blocks everything for a caller that names no channel: a mix-up fails closed
+  {
     expect(passes([south({ blocks: 'sight' })])).toBe(false);
     expect(passes([south({ blocks: 'light' })])).toBe(false);
-  });
+  }
 
-  it('keeps a one-way wall one-way for the thing it blocks, and is no wall for the other', () => {
+  // keeps a one-way wall one-way for the thing it blocks, and is no wall for the other
+  {
     const oneWay = south({ direction: 'right', blocks: 'light' });
     const [near, far] = [origin, behind];
     expect(blocksFrom(oneWay, near, 'light')).not.toBe(blocksFrom(oneWay, far, 'light'));
     expect(blocksFrom(oneWay, near, 'sight')).toBe(false);
     expect(blocksFrom(oneWay, far, 'sight')).toBe(false);
-  });
+  }
 
-  it('decides as before for walls without a kind, whichever channel asks', () => {
+  // decides as before for walls without a kind, whichever channel asks
+  {
     const walls = [south(), wall({ x: 80, y: -40 }, { x: 80, y: 60 }, { type: 'door', closed: true }), wall({ x: -90, y: -90 }, { x: -20, y: -120 }, { direction: 'left' })];
     const before = computeVisibility(origin, 300, walls);
     for (const channel of CHANNELS) expect(computeVisibility(origin, 300, walls, undefined, channel)).toEqual(before);
-  });
+  }
 
-  it('gives sight its walls: a token sees through glass and not through a curtain', () => {
+  // gives sight its walls: a token sees through glass and not through a curtain
+  {
     const sees = (kind: Partial<WallSegment>): boolean => {
       const sight = computeSight([{ tokenId: 'v', origin, range: 300, senses: [] }], [south(kind)]);
       return pointInPolygon(behind, sight.regions[0]!.polygon!);
@@ -61,16 +66,18 @@ describe('walls that block one thing', () => {
     expect(sees({ blocks: 'light' })).toBe(true);
     expect(sees({ blocks: 'sight' })).toBe(false);
     expect(sees({})).toBe(false);
-  });
+  }
 
-  it('gives light its walls: a torch shines through a curtain and not through glass, and the light level follows', () => {
+  // gives light its walls: a torch shines through a curtain and not through glass, and the light level follows
+  {
     const level = (kind: Partial<WallSegment>): string => lightLevelAt(behind, { ambient: 0 }, [lightReach(origin, 200, [south(kind)], 150)]);
     expect(level({ blocks: 'sight' })).toBe('bright');
     expect(level({ blocks: 'light' })).toBe('dark');
     expect(level({})).toBe('dark');
-  });
+  }
 
-  it('cuts a footprint by the walls sight reads', () => {
+  // cuts a footprint by the walls sight reads
+  {
     const party = { id: 'p', kind: 'token', imagePath: 'p.png', x: 0, y: 40, size: 1, vision: { enabled: true } } as TokenEntity;
     const reaches = (kind: Partial<WallSegment>): boolean => {
       const [spot] = seenSpots({ all: false, regions: [] }, { ambient: 0 }, [], { p: party }, 70, [south(kind)]);
@@ -79,9 +86,10 @@ describe('walls that block one thing', () => {
     expect(reaches({ blocks: 'light' })).toBe(true);
     expect(reaches({ blocks: 'sight' })).toBe(false);
     expect(reaches({})).toBe(false);
-  });
+  }
 
-  it('splits the walls a channel reads into two-way and one-way ones', () => {
+  // splits the walls a channel reads into two-way and one-way ones
+  {
     const walls = [south(), south({ id: 'curtain', blocks: 'sight' }), south({ id: 'glass', blocks: 'light' }), south({ id: 'slit', blocks: 'light', direction: 'left' }), south({ id: 'open', type: 'door', closed: false })];
     expect(splitBlocking(walls, 'light').twoWay).toHaveLength(2);
     expect(splitBlocking(walls, 'light').oneWay.map((w) => w.id)).toEqual(['slit']);
@@ -91,9 +99,10 @@ describe('walls that block one thing', () => {
     expect(splitBlocking(walls).twoWay).toHaveLength(3);
     expect(concerns(walls[1]!, 'light')).toBe(false);
     expect(concerns(walls[0]!, 'light')).toBe(true);
-  });
+  }
 
-  it('reads a kind it does not know as a wall for both, and leaves the file\'s record as it is', () => {
+  // reads a kind it does not know as a wall for both, and leaves the file's record as it is
+  {
     const strange = { ...south(), blocks: 'sound' } as unknown as WallSegment;
     const read = readWall(strange)!;
     expect(read.blocks).toBeUndefined();
@@ -103,5 +112,5 @@ describe('walls that block one thing', () => {
     const curtain = south({ blocks: 'sight' });
     expect(readWall(curtain)).toBe(curtain);
     expect(readWall({ ...south(), blocks: 7 })!.blocks).toBeUndefined();
-  });
+  }
 });

@@ -14,14 +14,16 @@ function alphasOf(data: Uint8ClampedArray): number[] {
  * The rule that makes the line-of-sight mask conservative, without a canvas: the browser tests
  * hold the picture, this holds the rule where they do not run.
  */
-describe('hardening the sight mask\'s texels', () => {
-  it('leaves a mask without any black clear', () => {
+it('hardening the sight mask\'s texels', () => {
+  // leaves a mask without any black clear
+  {
     const data = texels(new Array<number>(20).fill(0));
     hardenTexels(data, 5, 4);
     expect(Array.from(data)).toEqual(new Array<number>(80).fill(0));
-  });
+  }
 
-  it('makes a texel with any black at all opaque black, with the eight around it', () => {
+  // makes a texel with any black at all opaque black, with the eight around it
+  {
     const data = texels([
       0, 0, 0, 0, 0, 0,
       0, 0, 0, 0, 0, 0,
@@ -39,9 +41,10 @@ describe('hardening the sight mask\'s texels', () => {
     ]);
     // Black, not the canvas' colour at half strength.
     expect(Array.from(data).filter((_, index) => index % 4 !== 3).every((channel) => channel === 0)).toBe(true);
-  });
+  }
 
-  it('never wraps from the end of a row to the start of the next, and stops at the mask\'s edge', () => {
+  // never wraps from the end of a row to the start of the next, and stops at the mask's edge
+  {
     const data = texels([
       0, 0, 0, 128,
       0, 0, 0, 0,
@@ -55,9 +58,10 @@ describe('hardening the sight mask\'s texels', () => {
       255, 255, 0, 0,
       255, 255, 0, 0,
     ]);
-  });
+  }
 
-  it('holds only clear and opaque texels, whatever the canvas blended', () => {
+  // holds only clear and opaque texels, whatever the canvas blended
+  {
     const alphas = Array.from({ length: 30 * 20 }, (_, index) => (index * 37) % 11 === 0 ? (index * 53) % 256 : 0);
     const data = texels(alphas);
     hardenTexels(data, 30, 20);
@@ -70,5 +74,5 @@ describe('hardening the sight mask\'s texels', () => {
       expect(hardened[index]).toBe(near ? 255 : 0);
       if (alpha > 0) expect(hardened[index]).toBe(255);
     });
-  });
+  }
 });

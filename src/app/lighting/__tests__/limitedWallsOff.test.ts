@@ -31,12 +31,14 @@ function sceneWith(extra: Partial<WallSegment>): Parameters<SceneModelBuilder['u
 
 const modelOf = (extra: Partial<WallSegment>): ReturnType<SceneModelBuilder['update']>['model'] => new SceneModelBuilder().update(sceneWith(extra), bounds, () => FEET).model;
 
-describe('limited walls switched off (the release)', () => {
-  it('is how the release is built', () => {
+it('limited walls switched off (the release)', () => {
+  // is how the release is built
+  {
     expect(LIMITED_WALLS).toBe(false);
-  });
+  }
 
-  it('reads a wall whose file says it is limited as a wall like any other, and leaves the file\'s record as it is', () => {
+  // reads a wall whose file says it is limited as a wall like any other, and leaves the file's record as it is
+  {
     const record = { id: 'h', kind: 'wall', type: 'solid', p1: { x: 0, y: 0 }, p2: { x: 100, y: 0 }, limited: true, blocks: 'sight' };
     const read = readWall(record)!;
     expect(read.limited).toBeUndefined();
@@ -48,9 +50,10 @@ describe('limited walls switched off (the release)', () => {
     expect(splitBlocking(list, 'light').limited).toEqual([]);
     expect(splitBlocking(list, 'sight').limited).toEqual([]);
     expect(hasKindLook(readWall({ ...record, blocks: undefined })!)).toBe(false);
-  });
+  }
 
-  it('builds for a scene with limited walls exactly what it builds for the same scene with solid ones: bridges, sight and light', () => {
+  // builds for a scene with limited walls exactly what it builds for the same scene with solid ones: bridges, sight and light
+  {
     const limited = modelOf({ limited: true }), solid = modelOf({});
     expect(limited.walls.length).toBeGreaterThan(6);
     expect(limited.walls.map(({ id, p1, p2, limited: isLimited, blocks }) => ({ id, p1, p2, isLimited, blocks }))).toEqual(solid.walls.map(({ id, p1, p2, limited: isLimited, blocks }) => ({ id, p1, p2, isLimited, blocks })));
@@ -61,5 +64,5 @@ describe('limited walls switched off (the release)', () => {
     // The token and the torch stand west of the first wall: nothing of theirs lies east of it.
     expect(Math.max(...limited.sight.regions[0]!.polygon!.map((corner) => corner.x))).toBeLessThanOrEqual(400.001);
     expect(Math.max(...limited.reaches[0]!.polygon.map((corner) => corner.x))).toBeLessThanOrEqual(400.001);
-  });
+  }
 });

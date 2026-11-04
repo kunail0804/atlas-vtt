@@ -26,8 +26,9 @@ const sceneOf = (file: unknown, cellSize = 100, unit: UvttTarget['unit'] = FEET)
 const ends = (wall: WallSegment): number[] => [wall.p1.x, wall.p1.y, wall.p2.x, wall.p2.y];
 const wallsOf = (scene: UvttScene): WallSegment[] => Object.values(scene.walls);
 
-describe('the walls of a Universal VTT file', () => {
-  it('lie where the file says, to the pixel', () => {
+it('the walls of a Universal VTT file', () => {
+  // lie where the file says, to the pixel
+  {
     const walls = wallsOf(sceneOf(cryptFile()));
 
     expect(walls.filter((wall) => wall.type === 'solid').map(ends)).toEqual([
@@ -36,18 +37,20 @@ describe('the walls of a Universal VTT file', () => {
       [450, 425, 450, 700],
       [600, 500, 700, 500], [700, 500, 700, 600], [700, 600, 600, 600], [600, 600, 600, 500],
     ]);
-  });
+  }
 
-  it('are one segment per pair of points, joined at the very same coordinates', () => {
+  // are one segment per pair of points, joined at the very same coordinates
+  {
     const cellSize = 8192 / 10240 * 256;
     const walls = wallsOf(sceneOf(cryptSetting('line_of_sight', [[{ x: 0.1, y: 0.7 }, { x: 3.3, y: 1.9 }, { x: 5.7, y: 0.3 }]]), cellSize));
 
     expect(walls[0]!.p2).toEqual(walls[1]!.p1);
     expect(walls[0]!.p2.x).toBe(3.3 * cellSize);
     expect(walls[0]!.p2.y).toBe(1.9 * cellSize);
-  });
+  }
 
-  it('share a chain per line and have ids of their own', () => {
+  // share a chain per line and have ids of their own
+  {
     const walls = wallsOf(sceneOf(cryptFile()));
 
     expect(walls.slice(0, 4).map((wall) => wall.chainId)).toEqual(Array(4).fill('chain_uvtt_1'));
@@ -55,18 +58,20 @@ describe('the walls of a Universal VTT file', () => {
     expect(walls[6]!.chainId).toBe('chain_uvtt_4');
     expect(new Set(walls.map((wall) => wall.id)).size).toBe(walls.length);
     expect(walls.every((wall) => wall.kind === 'wall' && sceneOf(cryptFile()).walls[wall.id]!.id === wall.id)).toBe(true);
-  });
+  }
 
-  it('are counted from the origin the file states', () => {
+  // are counted from the origin the file states
+  {
     const file = cryptWith((crypt) => { (crypt.resolution as Record<string, unknown>).map_origin = { x: 2, y: -3 }; });
     const scene = sceneOf(file, 64);
 
     expect(ends(wallsOf(scene)[0]!)).toEqual([(1 - 2) * 64, (1 + 3) * 64, (9 - 2) * 64, (1 + 3) * 64]);
     expect(scene.grid).toEqual({ size: 64, offsetX: 0, offsetY: 0 });
     expect(scene.lights.light_uvtt_1).toMatchObject({ x: 0.5 * 64, y: 5.5 * 64 });
-  });
+  }
 
-  it('skip a segment without length, and a line of one point', () => {
+  // skip a segment without length, and a line of one point
+  {
     const scene = sceneOf(cryptWith((crypt) => {
       crypt.line_of_sight = [[{ x: 1, y: 1 }, { x: 1, y: 1 }, { x: 2, y: 1 }], [{ x: 5, y: 5 }], []];
       crypt.objects_line_of_sight = [];
@@ -75,11 +80,12 @@ describe('the walls of a Universal VTT file', () => {
 
     expect(wallsOf(scene).map(ends)).toEqual([[100, 100, 200, 100]]);
     expect(scene.counts).toMatchObject({ walls: 1, doors: 0 });
-  });
+  }
 });
 
-describe('the doors of a Universal VTT file', () => {
-  it('span the two ends of each closed portal', () => {
+it('the doors of a Universal VTT file', () => {
+  // span the two ends of each closed portal
+  {
     const scene = sceneOf(cryptWith((crypt) => {
       crypt.portals = [
         { bounds: [{ x: 4.5, y: 3.25 }, { x: 4.5, y: 4.25 }], closed: true },
@@ -91,9 +97,10 @@ describe('the doors of a Universal VTT file', () => {
     expect(doors.map(ends)).toEqual([[450, 325, 450, 425], [200, 700, 300, 700]]);
     expect(doors.map((door) => door.closed)).toEqual([true, true]);
     expect(scene.counts).toEqual({ walls: 10, doors: 2, lights: 1 });
-  });
+  }
 
-  it('leave out the open portals, which are windows: light and sight pass them', () => {
+  // leave out the open portals, which are windows: light and sight pass them
+  {
     const scene = sceneOf(cryptWith((crypt) => {
       crypt.portals = [
         { bounds: [{ x: 4.5, y: 3.25 }, { x: 4.5, y: 4.25 }], closed: true },
@@ -106,21 +113,24 @@ describe('the doors of a Universal VTT file', () => {
     expect(wallsOf(scene).filter((wall) => wall.type === 'door').map(ends)).toEqual([[450, 325, 450, 425]]);
     expect(scene.counts.doors).toBe(1);
     expect(scene.skipped).toMatchObject({ windows: 2, outside: 1 });
-  });
+  }
 });
 
-describe('the grid of a Universal VTT file', () => {
-  it('is the scene\'s grid: cells as wide as the file\'s on its image, from the image\'s corner', () => {
+it('the grid of a Universal VTT file', () => {
+  // is the scene's grid: cells as wide as the file's on its image, from the image's corner
+  {
     expect(sceneOf(cryptFile()).grid).toEqual({ size: 100, offsetX: 0, offsetY: 0 });
-  });
+  }
 
-  it('starts inside the first cell where the image does', () => {
+  // starts inside the first cell where the image does
+  {
     const file = cryptWith((crypt) => { (crypt.resolution as Record<string, unknown>).map_origin = { x: 0.25, y: -0.5 }; });
 
     expect(sceneOf(file).grid).toEqual({ size: 100, offsetX: 75, offsetY: 50 });
-  });
+  }
 
-  it('has square cells on an image of any size', () => {
+  // has square cells on an image of any size
+  {
     for (const [_label, image, cellSize] of [
       ['as large as the file says', { width: 1000, height: 800 }, 100],
       ['exported at twice the size', { width: 2000, height: 1600 }, 200],
@@ -129,19 +139,22 @@ describe('the grid of a Universal VTT file', () => {
     ] as const) {
       expect(uvttCellSize(mapOf(cryptFile()), image)).toBe(cellSize);
     }
-  });
+  }
 
-  it('has none on an image of another shape', () => {
+  // has none on an image of another shape
+  {
     expect(uvttCellSize(mapOf(cryptFile()), { width: 1000, height: 1000 })).toBeNull();
     expect(uvttCellSize(mapOf(cryptFile()), { width: 1000, height: 790 })).toBeNull();
-  });
+  }
 });
 
-describe('the lights of a Universal VTT file', () => {
+it('the lights of a Universal VTT file', () => {
   const metres: CollectionGridDefaults = { unitType: 'meters', unitDistance: 1.5, measurementMode: 'metric' };
+
   const squares: CollectionGridDefaults = { unitType: 'units', unitDistance: 1, measurementMode: 'metric' };
 
-  it('are bright to half their range and end at it, in a collection measuring in any unit', () => {
+  // are bright to half their range and end at it, in a collection measuring in any unit
+  {
     for (const [_label, gridDefaults, bright, dim] of [
       ['feet (D&D 5e)', DND_5E.rules.gridDefaults, 15, 30],
       ['metres', metres, 4.5, 9],
@@ -157,29 +170,33 @@ describe('the lights of a Universal VTT file', () => {
       expect(gameUnitsToWorld(light.emission.dim, unitScaleOf(unit, { size: 100 }))).toBeCloseTo(600, 9);
       expect(gameUnitsToWorld(light.emission.bright, unitScaleOf(unit, { size: 100 }))).toBeCloseTo(300, 9);
     }
-  });
+  }
 
-  it('stand where the file says, in its colour, as custom lights', () => {
+  // stand where the file says, in its colour, as custom lights
+  {
     expect(sceneOf(cryptFile()).lights).toEqual({
       light_uvtt_1: {
         id: 'light_uvtt_1', kind: 'light', x: 250, y: 250,
         emission: { bright: 15, dim: 30, color: '#eccd8b', intensity: 1, animation: 'none', kind: 'custom' },
       },
     });
-  });
+  }
 
-  it('keep a range in fractions of a cell', () => {
+  // keep a range in fractions of a cell
+  {
     expect(sceneOf(cryptSetting('lights.0.range', 5.5)).lights.light_uvtt_1!.emission).toMatchObject({ bright: 13.75, dim: 27.5 });
-  });
+  }
 
-  it('stop at the farthest a light reaches on the map and at the brightest a light gets', () => {
+  // stop at the farthest a light reaches on the map and at the brightest a light gets
+  {
     const file = cryptWith((crypt) => { crypt.lights = [{ position: { x: 1, y: 1 }, range: 500, intensity: 40 }]; });
 
     // 8,192 world pixels are 81.92 cells of 100 pixels, 409 whole feet; bright to half of where the light ends
     expect(sceneOf(file).lights.light_uvtt_1!.emission).toMatchObject({ bright: 204.5, dim: 409, intensity: 2 });
-  });
+  }
 
-  it('are left out, and not counted, where they have no range', () => {
+  // are left out, and not counted, where they have no range
+  {
     const scene = sceneOf(cryptWith((crypt) => {
       crypt.lights = [{ position: { x: 1, y: 1 }, range: 0 }, { position: { x: 2, y: 2 }, range: 3 }, { position: { x: 3, y: 3 }, range: 0 }];
     }));
@@ -187,18 +204,20 @@ describe('the lights of a Universal VTT file', () => {
     expect(Object.values(scene.lights).map((light) => [light.id, light.x, light.emission.dim])).toEqual([['light_uvtt_1', 200, 15]]);
     expect(scene.counts.lights).toBe(1);
     expect(scene.skipped).toMatchObject({ outside: 0, unlit: 2 });
-  });
+  }
 
-  it('are switched off where the image shows their glow already', () => {
+  // are switched off where the image shows their glow already
+  {
     const scene = sceneOf(cryptSetting('environment.baked_lighting', true));
 
     expect(scene.lights.light_uvtt_1!.hidden).toBe(true);
     expect(sceneOf(cryptFile()).lights.light_uvtt_1).not.toHaveProperty('hidden');
-  });
+  }
 });
 
-describe('the lighting of a scene from a Universal VTT file', () => {
-  it('is on, with the ambient light read as a level', () => {
+it('the lighting of a scene from a Universal VTT file', () => {
+  // is on, with the ambient light read as a level
+  {
     for (const [color, ambient] of [
       ['ff808080', 0.5],
       ['ffffffff', 1],
@@ -208,16 +227,16 @@ describe('the lighting of a scene from a Universal VTT file', () => {
     ]) {
       expect(sceneOf(cryptSetting('environment.ambient_light', color)).lighting).toEqual({ enabled: true, ambient });
     }
-  });
+  }
 
-  it('is daylight where the image carries its own light or the file names none', () => {
+  // is daylight where the image carries its own light or the file names none
+  {
     expect(sceneOf(cryptSetting('environment.baked_lighting', true)).lighting).toEqual({ enabled: true, ambient: 1 });
     expect(sceneOf(cryptSetting('environment', undefined)).lighting).toEqual({ enabled: true, ambient: 1 });
-  });
+  }
 });
 
-describe('what a Universal VTT file holds outside its map', () => {
-  /** The crypt (10 × 8 cells at 100 px) with only `lines` as its walls, no door and no light. */
+it('what a Universal VTT file holds outside its map', () => {
   const walled = (lines: Array<Array<{ x: number; y: number }>>): UvttScene => sceneOf(cryptWith((crypt) => {
     crypt.line_of_sight = lines;
     crypt.objects_line_of_sight = [];
@@ -225,26 +244,30 @@ describe('what a Universal VTT file holds outside its map', () => {
     crypt.lights = [];
   }));
 
-  it('keeps a wall up to one cell beyond the image', () => {
+  // keeps a wall up to one cell beyond the image
+  {
     const scene = walled([[{ x: -1, y: -1 }, { x: 11, y: 9 }], [{ x: -0.5, y: 4 }, { x: 10.5, y: 4 }]]);
 
     expect(wallsOf(scene).map(ends)).toEqual([[-100, -100, 1100, 900], [-50, 400, 1050, 400]]);
     expect(scene.skipped.outside).toBe(0);
-  });
+  }
 
-  it('cuts a wall that leaves the map where it leaves, and keeps the end that stays as it is', () => {
+  // cuts a wall that leaves the map where it leaves, and keeps the end that stays as it is
+  {
     const scene = walled([[{ x: 3.3, y: 2.7 }, { x: 5000, y: 2.7 }], [{ x: 5, y: -16_000 }, { x: 5, y: 3.1 }]]);
 
     expect(wallsOf(scene).map(ends)).toEqual([[3.3 * 100, 2.7 * 100, 1100, 2.7 * 100], [500, -100, 500, 3.1 * 100]]);
-  });
+  }
 
-  it('cuts a wall that crosses the whole map at both ends', () => {
+  // cuts a wall that crosses the whole map at both ends
+  {
     const [wall] = wallsOf(walled([[{ x: -16_384, y: -16_384 }, { x: 16_384, y: 16_384 }]]));
 
     expect(ends(wall!)).toEqual([-100, -100, 900, 900]);
-  });
+  }
 
-  it('drops a wall that lies wholly outside, also one that only passes a corner', () => {
+  // drops a wall that lies wholly outside, also one that only passes a corner
+  {
     const scene = walled([
       [{ x: 20, y: 1 }, { x: 30, y: 7 }],
       [{ x: -5, y: 3 }, { x: 3, y: -5 }],
@@ -255,16 +278,18 @@ describe('what a Universal VTT file holds outside its map', () => {
     expect(wallsOf(scene).map(ends)).toEqual([[200, 200, 400, 200]]);
     expect(scene.counts.walls).toBe(1);
     expect(scene.skipped.outside).toBe(3);
-  });
+  }
 
-  it('follows a line out of the map and back in, segment by segment', () => {
+  // follows a line out of the map and back in, segment by segment
+  {
     const scene = walled([[{ x: 9, y: 4 }, { x: 14, y: 4 }, { x: 14, y: 6 }, { x: 9, y: 6 }]]);
 
     expect(wallsOf(scene).map(ends)).toEqual([[900, 400, 1100, 400], [1100, 600, 900, 600]]);
     expect(scene.skipped.outside).toBe(1);
-  });
+  }
 
-  it('counts the map from the origin the file states', () => {
+  // counts the map from the origin the file states
+  {
     const scene = sceneOf(cryptWith((crypt) => {
       (crypt.resolution as Record<string, unknown>).map_origin = { x: 100, y: -50 };
       crypt.line_of_sight = [[{ x: 101, y: -49 }, { x: 5000, y: -49 }]];
@@ -276,9 +301,10 @@ describe('what a Universal VTT file holds outside its map', () => {
     expect(wallsOf(scene).map(ends)).toEqual([[100, 100, 1100, 100]]);
     expect(Object.values(scene.lights).map((light) => [light.x, light.y])).toEqual([[500, 400]]);
     expect(scene.skipped.outside).toBe(1);
-  });
+  }
 
-  it('drops a door with an end outside and a light outside, and keeps those within a cell of the image', () => {
+  // drops a door with an end outside and a light outside, and keeps those within a cell of the image
+  {
     const scene = sceneOf(cryptWith((crypt) => {
       crypt.line_of_sight = [];
       crypt.objects_line_of_sight = [];
@@ -295,17 +321,19 @@ describe('what a Universal VTT file holds outside its map', () => {
     expect(scene.counts).toEqual({ walls: 0, doors: 1, lights: 1 });
     expect(scene.skipped.outside).toBe(4);
     expect(scene.onImage).toBe(2);
-  });
+  }
 
-  it('tells when nothing of the file lies on its image', () => {
+  // tells when nothing of the file lies on its image
+  {
     const off = sceneOf(cryptWith((crypt) => { (crypt.resolution as Record<string, unknown>).map_origin = { x: 4000, y: 4000 }; }));
 
     expect(off).toMatchObject({ walls: {}, lights: {}, onImage: 0, counts: { walls: 0, doors: 0, lights: 0 } });
     expect(off.skipped.outside).toBe(12);
     expect(sceneOf(cryptFile()).onImage).toBe(12);
-  });
+  }
 
-  it('never places anything farther than one cell from the image, whatever the file says', () => {
+  // never places anything farther than one cell from the image, whatever the file says
+  {
     const far = [-1_000_000, -16_384, -3, 0.5, 4, 9.5, 14, 16_384, 1_000_000];
     const lines = far.flatMap((x1) => far.map((y2) => [{ x: x1, y: 4 }, { x: 5, y: y2 }]));
     const scene = sceneOf(cryptWith((crypt) => {
@@ -325,49 +353,56 @@ describe('what a Universal VTT file holds outside its map', () => {
       expect(y).toBeGreaterThanOrEqual(-100);
       expect(y).toBeLessThanOrEqual(900);
     }
-  });
+  }
 });
 
-describe('walls that crowd', () => {
+it('walls that crowd', () => {
   const IMAGE = { width: 1000, height: 800 };
+
   const wallsFrom = (lines: Array<Array<{ x: number; y: number }>>): WallSegment[] => wallsOf(sceneOf(cryptWith((crypt) => {
     crypt.line_of_sight = lines;
     crypt.objects_line_of_sight = [];
     crypt.portals = [];
   })));
+
   const across = (count: number): Array<Array<{ x: number; y: number }>> => Array.from({ length: count }, (_, i) => [{ x: -16_384, y: -16_384 + i }, { x: 16_384, y: 16_384 - i }]);
 
-  it('are not found in a map as a map maker draws it', () => {
+  // are not found in a map as a map maker draws it
+  {
     expect(wallsCrowd(wallsOf(sceneOf(cryptFile())), IMAGE)).toBe(false);
     // A cave wall drawn point by point, a point every 25 pixels
     const cave = [Array.from({ length: 400 }, (_, i) => ({ x: 5 + (3 + 0.4 * Math.sin(i / 3)) * Math.cos(i / 63.6), y: 4 + (3 + 0.4 * Math.sin(i / 3)) * Math.sin(i / 63.6) }))];
     expect(wallsCrowd(wallsFrom(cave), IMAGE)).toBe(false);
     // Twelve rooms meeting in one corner
     expect(wallsCrowd(wallsFrom(Array.from({ length: 12 }, (_, i) => [{ x: 5, y: 4 }, { x: 5 + 3 * Math.cos(i), y: 4 + 3 * Math.sin(i) }])), IMAGE)).toBe(false);
-  });
+  }
 
-  it('are found where a thousand walls end within a few pixels of each other', () => {
+  // are found where a thousand walls end within a few pixels of each other
+  {
     expect(wallsCrowd(wallsFrom(across(1000)), IMAGE)).toBe(true);
-  });
+  }
 
-  it('are found where thousands of walls meet in one point', () => {
+  // are found where thousands of walls meet in one point
+  {
     expect(wallsCrowd(wallsFrom(Array.from({ length: 5000 }, (_, i) => [{ x: 5, y: 4 }, { x: 5 + 3 * Math.cos(i), y: 4 + 3 * Math.sin(i) }])), IMAGE)).toBe(true);
-  });
+  }
 
-  it('are told from the others before any joint is built, however many there are', () => {
+  // are told from the others before any joint is built, however many there are
+  {
     const walls = wallsFrom(across(20_000));
 
     const started = performance.now();
     expect(wallsCrowd(walls, IMAGE)).toBe(true);
     expect(performance.now() - started).toBeLessThan(500);
-  });
+  }
 
-  it('leave sealing quick wherever they are not found', () => {
+  // leave sealing quick wherever they are not found
+  {
     const walls = wallsFrom(across(300));
     expect(wallsCrowd(walls, IMAGE)).toBe(false);
 
     const started = performance.now();
     sealWalls(walls, sealTolerance(2));
     expect(performance.now() - started).toBeLessThan(1000);
-  });
+  }
 });

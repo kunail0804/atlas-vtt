@@ -29,8 +29,9 @@ function storeWith(objects: ReturnType<typeof load>): ViewAtlasStore {
   return store;
 }
 
-describe('light zones of a map file', () => {
-  it('stay in the store as the file has them, so the next save writes them back: fields of a newer Atlas, surplus zones, zones this Atlas cannot draw', () => {
+it('light zones of a map file', () => {
+  // stay in the store as the file has them, so the next save writes them back: fields of a newer Atlas, surplus zones, zones this Atlas cannot draw
+  {
     const lightZones = {
       newer: zone('newer', { falloff: 'soft', schedule: { from: 'dusk' } }),
       wide: zone('wide', { polygon: round(MAX_ZONE_CORNERS + 1) }),
@@ -41,9 +42,10 @@ describe('light zones of a map file', () => {
     };
     const copy = JSON.parse(JSON.stringify(lightZones)) as unknown;
     expect(load({ lightZones }).lightZones).toEqual(copy);
-  });
+  }
 
-  it('are read as the first that are zones, a level and an area each: the rest is passed over, not removed', () => {
+  // are read as the first that are zones, a level and an area each: the rest is passed over, not removed
+  {
     const lightZones = {
       line: zone('line', { polygon: SQUARE.slice(0, 2) }),
       broken: zone('broken', { polygon: [{ x: 0, y: 0 }, { x: Number.NaN, y: 0 }, { x: 1, y: 1 }] }),
@@ -58,9 +60,10 @@ describe('light zones of a map file', () => {
     expect(list).toHaveLength(MAX_LIGHT_ZONES);
     expect(list.map((z) => z.id).slice(0, 3)).toEqual(['bright', 'z0', 'z1']);
     expect(list[0]).toEqual({ id: 'bright', kind: 'light-zone', polygon: SQUARE, ambient: 1 });
-  });
+  }
 
-  it('are named by where they are in the record, which is how the store finds them', () => {
+  // are named by where they are in the record, which is how the store finds them
+  {
     const store = storeWith(load({ lightZones: { 'key-of-its-own': zone('another-id') } }));
     const [read] = lightZoneList(store.getState().objects.lightZones);
     expect(read!.id).toBe('key-of-its-own');
@@ -68,9 +71,10 @@ describe('light zones of a map file', () => {
     expect(lightZoneList(store.getState().objects.lightZones)[0]!.ambient).toBe(0.9);
     store.getState().deleteLightZone(read!.id);
     expect(lightZoneList(store.getState().objects.lightZones)).toEqual([]);
-  });
+  }
 
-  it('are none when the file holds something else in their place, and a zone can be drawn afterwards', () => {
+  // are none when the file holds something else in their place, and a zone can be drawn afterwards
+  {
     for (const [_name, value] of [['a text', 'text'], ['a number', 5], ['true', true], ['a list', [zone('z')]]]) {
       const objects = load({ lightZones: value });
       expect(objects.lightZones).toBeUndefined();
@@ -78,18 +82,19 @@ describe('light zones of a map file', () => {
       const id = store.getState().addLightZone({ polygon: SQUARE, ambient: 0 });
       expect(lightZoneList(store.getState().objects.lightZones).map((z) => z.id)).toEqual([id]);
     }
-  });
+  }
 
-  it('can be added to whatever the store holds in their place', () => {
+  // can be added to whatever the store holds in their place
+  {
     for (const strange of ['text', 5, [zone('z')]]) {
       const store = storeWith({ ...load({}), lightZones: strange as never });
       const id = store.getState().addLightZone({ polygon: SQUARE, ambient: 0 });
       expect(lightZoneList(store.getState().objects.lightZones).map((z) => z.id)).toEqual([id]);
     }
-  });
+  }
 });
 
-describe('lights and walls of a map file', () => {
+it('lights and walls of a map file', () => {
   const lights = {
     spun: light('spun', { rotation: 'abc', emission: { ...EMISSION, angle: 60 } }),
     odd: light('odd', { rotation: Number.NaN, emission: { ...EMISSION, priority: 'high', darkness: 'false', glow: 3 } }),
@@ -97,16 +102,18 @@ describe('lights and walls of a map file', () => {
     good: light('good', { rotation: 90, activeBelowAmbient: 0.5, hidden: true, emission: { ...EMISSION, angle: 53, priority: 1, darkness: true, kind: 'darkness' } }),
   };
 
-  it('stay in the store as the file has them', () => {
+  // stay in the store as the file has them
+  {
     const copy = JSON.parse(JSON.stringify(lights)) as Record<string, unknown>;
     // JSON has no NaN or Infinity; what a file can hold is what is compared.
     const loaded = JSON.parse(JSON.stringify(load({ lights: JSON.parse(JSON.stringify(lights)) }).lights)) as unknown;
     expect(loaded).toEqual(copy);
     const walls = { text: door('text', { locked: 'false' }), newer: door('newer', { hinge: 'left' }) };
     expect(load({ walls }).walls).toEqual(walls);
-  });
+  }
 
-  it('are read without a rotation, a priority or a darkness that is not a number, a number and true', () => {
+  // are read without a rotation, a priority or a darkness that is not a number, a number and true
+  {
     const loaded = load({ lights }).lights;
     expect(readLight(loaded.spun)).toEqual(light('spun', { emission: { ...EMISSION, angle: 60 } }));
     expect(readLight(loaded.odd)).toEqual(light('odd', { emission: { ...EMISSION, glow: 3 } }));
@@ -116,9 +123,10 @@ describe('lights and walls of a map file', () => {
     expect(readLight(loaded.odd)).toBe(readLight(loaded.odd));
     expect(lightList(loaded).map((read) => read.id)).toEqual(['spun', 'odd', 'endless', 'good']);
     expect(lightList(loaded)).toBe(lightList(loaded));
-  });
+  }
 
-  it('shine by what was read: a rotation of text faces up, a darkness of "false" is a light', () => {
+  // shine by what was read: a rotation of text faces up, a darkness of "false" is a light
+  {
     const loaded = load({ lights }).lights;
     const shining = activeLights(loaded, {}, 0);
     expect(beamOf(shining[0]!)?.facing).toBeCloseTo(-Math.PI / 2, 9);
@@ -126,17 +134,19 @@ describe('lights and walls of a map file', () => {
     expect(odd.darkness).toBeUndefined();
     expect(odd.priority).toBeUndefined();
     expect(engineLight({ key: 'good', x: 10, y: 10, emission: readLight(loaded.good)!.emission }, SCALE)).toMatchObject({ darkness: true, priority: 1 });
-  });
+  }
 
-  it('read the light a token carries the same way', () => {
+  // read the light a token carries the same way
+  {
     const { tokens } = load({ tokens: { t: { id: 't', kind: 'token', imagePath: 't.png', x: 0, y: 0, light: { ...EMISSION, priority: '1', darkness: 'false' } } } });
     expect(tokens.t!.light).toEqual({ ...EMISSION, priority: '1', darkness: 'false' });
     const [carried] = activeLights({}, tokens, 0);
     expect(engineLight(carried!, SCALE)).not.toHaveProperty('darkness');
     expect(engineLight(carried!, SCALE)).not.toHaveProperty('priority');
-  });
+  }
 
-  it('keep a door locked only where the file says true', () => {
+  // keep a door locked only where the file says true
+  {
     const { walls } = load({ walls: { text: door('text', { locked: 'false' }), one: door('one', { locked: 1 }), locked: door('locked', { locked: true }), plain: door('plain') } });
     expect(readWall(walls.text)).toEqual(door('text'));
     expect(readWall(walls.one)).toEqual(door('one'));
@@ -147,10 +157,11 @@ describe('lights and walls of a map file', () => {
     const store = storeWith(load({ walls: { text: door('text', { locked: 'false' }) } }));
     store.getState().toggleDoor('text');
     expect(store.getState().objects.walls.text!.closed).toBe(false);
-  });
+  }
 
-  it('are none when the file holds something else in their place', () => {
+  // are none when the file holds something else in their place
+  {
     expect(load({ lights: 'lights', walls: 7 })).toMatchObject({ lights: {}, walls: {} });
-  });
+  }
 });
 

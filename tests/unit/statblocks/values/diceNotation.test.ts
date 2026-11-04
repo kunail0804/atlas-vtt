@@ -1,8 +1,9 @@
 import { diceAverage, isDiceNotation, parseDiceNotation } from '../../../../src/app/statblocks/values/diceNotation';
 import { pick, randomInt, randomString, seededRandom } from '../expressions/seededRandom';
 
-describe('parseDiceNotation', () => {
-  it('reads dice and constants with their signs', () => {
+it('parseDiceNotation', () => {
+  // reads dice and constants with their signs
+  {
     expect(parseDiceNotation('7d10 + 14')).toEqual({ dice: [{ sign: 1, count: 7, sides: 10 }], modifier: 14 });
     expect(parseDiceNotation('d20')).toEqual({ dice: [{ sign: 1, count: 1, sides: 20 }], modifier: 0 });
     expect(parseDiceNotation('1d4 − 1')).toEqual({ dice: [{ sign: 1, count: 1, sides: 4 }], modifier: -1 });
@@ -13,37 +14,42 @@ describe('parseDiceNotation', () => {
     expect(parseDiceNotation('14')).toEqual({ dice: [], modifier: 14 });
     // The 5e SRD's data writes a negative modifier after a plus
     expect(parseDiceNotation('9d8 + -1')).toEqual({ dice: [{ sign: 1, count: 9, sides: 8 }], modifier: -1 });
-  });
+  }
 
-  it('reads one pair of brackets around the whole as punctuation', () => {
+  // reads one pair of brackets around the whole as punctuation
+  {
     expect(parseDiceNotation('(2d6 + 3)')).toEqual({ dice: [{ sign: 1, count: 2, sides: 6 }], modifier: 3 });
     expect(parseDiceNotation(' ( d8 ) ')).toEqual({ dice: [{ sign: 1, count: 1, sides: 8 }], modifier: 0 });
     expect(diceAverage('(7d10 + 14)')).toBe(52);
     for (const text of ['(2d6', '2d6)', '(1d6) + (1d4)', '((2d6))', '45 (7d10 + 7)']) expect(parseDiceNotation(text), text).toBeNull();
-  });
+  }
 
-  it('reads the exploding marks the dice tool rolls', () => {
+  // reads the exploding marks the dice tool rolls
+  {
     for (const text of ['2d6!', '1d6!!', '1d6!i', '2d6!3 + 1']) expect(parseDiceNotation(text), text).not.toBeNull();
-  });
+  }
 
-  it('refuses what is not notation', () => {
+  // refuses what is not notation
+  {
     for (const [text] of [
       [''], ['  '], ['2d'], ['d'], ['2d6 3'], ['2d6 +'], ['+'], ['2d6 x 10'], ['2 d 6'], ['0d6'], ['2d1'], ['2d0'], ['d%'],
       ['7d10 + 14 slashing'], ['2d6++1'], ['--1'], ['2d6!x'], ['99999999999999999999d6'],
     ] as const) {
       expect(parseDiceNotation(text)).toBeNull();
     }
-  });
+  }
 
-  it('tells notation that rolls dice', () => {
+  // tells notation that rolls dice
+  {
     expect(isDiceNotation('2d6+2')).toBe(true);
     expect(isDiceNotation('14')).toBe(false);
     expect(isDiceNotation('two dice')).toBe(false);
-  });
+  }
 });
 
-describe('diceAverage', () => {
-  it('averages every notation', () => {
+it('diceAverage', () => {
+  // averages every notation
+  {
     for (const [text, expected] of [
       ['7d10 + 14', 52],
       ['2d6+2', 9],
@@ -56,13 +62,15 @@ describe('diceAverage', () => {
     ] as const) {
       expect(diceAverage(text)).toBe(expected);
     }
-  });
+  }
 
-  it('has no average for text that is not notation', () => {
+  // has no average for text that is not notation
+  {
     expect(diceAverage('lots')).toBeNull();
-  });
+  }
 
-  it('averages generated notation like the sum of its terms', () => {
+  // averages generated notation like the sum of its terms
+  {
     for (let seed = 1; seed <= 500; seed++) {
       const random = seededRandom(seed);
       const terms = Array.from({ length: randomInt(random, 1, 4) }, () => {
@@ -78,13 +86,14 @@ describe('diceAverage', () => {
       const exact = terms.reduce((sum, term) => sum + term.sign * ('constant' in term ? term.constant : term.count * (term.sides + 1) / 2), 0);
       expect(diceAverage(text), `seed ${seed}: ${text}`).toBe(Math.floor(exact) === 0 ? 0 : Math.floor(exact));
     }
-  });
+  }
 
-  it('never throws on random text', () => {
+  // never throws on random text
+  {
     for (let seed = 1; seed <= 1000; seed++) {
       const text = randomString(seededRandom(seed), '0123456789dD+-− !i%x', 16);
       const average = diceAverage(text);
       expect(average === null || Number.isInteger(average), `seed ${seed}: ${text}`).toBe(true);
     }
-  });
+  }
 });

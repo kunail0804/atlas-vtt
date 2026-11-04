@@ -7,51 +7,57 @@ import { redact, reportStack } from '../../../../src/app/online/protocol/redact.
 const CODE = 'abcdefghijklmnopqrstuvwxyz';
 const KEY = 'Zk3_pL9xQ2-vB7nM4tR8wY1cE5hJ6uA0';
 
-describe('redaction', () => {
-  it('takes out table codes, keys, links, addresses, home folders, quoted data and known names', () => {
+it('redaction', () => {
+  // takes out table codes, keys, links, addresses, home folders, quoted data and known names
+  {
     const line = `Join https://tabletop.example/#${CODE} with ${KEY}: "Crypt of the Lich" \`x\` 'two words' for robin@example.org in /Users/fabian/Vault and C:\\Users\\fabian\\x by Robin`;
     const out = redact(line, ['Robin']);
     for (const forbidden of [CODE, KEY, 'Lich', 'two words', 'robin@', 'fabian', 'Robin', 'tabletop.example']) expect(out).not.toContain(forbidden);
     expect(out).toContain('/Users/‹user›/Vault');
-  });
+  }
 
-  it('keeps what an engine says about code: property names, stack paths, line numbers', () => {
+  // keeps what an engine says about code: property names, stack paths, line numbers
+  {
     expect(redact("Cannot read properties of undefined (reading 'position')")).toBe("Cannot read properties of undefined (reading 'position')");
     expect(reportStack(`TypeError: x\n    at draw (https://relay.example/assets/index-B3x9kLmN.js:1:2345)\n    at plugin:atlas-online:120:7`))
       .toEqual(['at draw (/assets/index-B3x9kLmN.js:1:2345)', 'at plugin:atlas-online:120:7']);
     expect(reportStack(`draw@https://relay.example/assets/index-B3x9kLmN.js?x=${CODE}#${CODE}:1:2`)).toEqual(['draw@/assets/index-B3x9kLmN.js']);
-  });
+  }
 });
 
-describe('reports and feedback', () => {
+it('reports and feedback', async () => {
   const report = { v: 1, source: 'companion', kind: 'rejection', name: 'Error', message: `lost ${CODE}`, stack: [`at f (app://obsidian.md/plugin:atlas-online:1:2)`], build: '0.0.1+abc', browser: 'Obsidian 1.14.4', os: 'macOS', table: null };
 
-  it('reads a report and redacts it again', () => {
+  // reads a report and redacts it again
+  {
     expect(parseErrorReport(report)).toEqual({ ...report, message: 'lost ‹code›', stack: ['at f (/plugin:atlas-online:1:2)'] });
     for (const broken of [{ ...report, source: 'gm' }, { ...report, stack: 'x' }, { ...report, name: 'a b' }, { ...report, table: CODE }, { ...report, browser: 'x'.repeat(40) }, { ...report, v: 2 }]) {
       expect(parseErrorReport(broken)).toBeNull();
     }
-  });
+  }
 
-  it('names an error by what it says and where, whatever its numbers', async () => {
+  // names an error by what it says and where, whatever its numbers
+  {
     const parsed = parseErrorReport(report);
     if (parsed === null) throw new Error('unread');
     expect(await errorId({ ...parsed, message: 'lost 12 of 40' })).toBe(await errorId({ ...parsed, message: 'lost 3 of 7' }));
     expect(await errorId(parsed)).toMatch(/^[0-9a-f]{10}$/);
     expect(await tableTag(CODE)).toMatch(/^[0-9a-f]{12}$/);
     expect(await tableTag(CODE)).not.toBe(await tableTag(CODE.replace('a', 'b')));
-  });
+  }
 
-  it('reads feedback: trimmed, a pasted code taken out, diagnostics checked field by field', () => {
+  // reads feedback: trimmed, a pasted code taken out, diagnostics checked field by field
+  {
     expect(parseFeedback({ v: 1, source: 'play', text: `  hi #${CODE} `, diagnostics: null })).toEqual({ v: 1, source: 'play', text: 'hi #‹code›', diagnostics: null });
     const diagnostics = { build: 'b', browser: 'Safari 18', os: 'iOS', table: null, errors: [], connection: null };
     expect(parseFeedback({ v: 1, source: 'play', text: 'x', diagnostics })?.diagnostics).toEqual(diagnostics);
     expect(parseFeedback({ v: 1, source: 'play', text: 'x', diagnostics: { ...diagnostics, name: 'Robin', errors: ['nope'] } })).toBeNull();
     expect(parseFeedback({ v: 1, source: 'play', text: 'x', diagnostics: { ...diagnostics, connection: { status: 'ok', reconnects: -1, lastClose: null, latencyMs: null, players: null } } })).toBeNull();
     expect(parseFeedback({ v: 1, source: 'play', text: '', diagnostics: null })).toBeNull();
-  });
+  }
 
-  it('reads how a page\'s tries to reach its table went, and nothing it does not know', () => {
+  // reads how a page's tries to reach its table went, and nothing it does not know
+  {
     const connection = { status: 'connecting', reconnects: 3, lastClose: 1006, latencyMs: null, players: null };
     const attempt = { socket: 'open', tries: 3, sinceFirstMs: 24_000, lastEnd: 'no-open', offline: true, hidden: false };
     const post = (given: unknown): ReturnType<typeof parseFeedback> => parseFeedback({ v: 1, source: 'play', text: 'x', diagnostics: { build: 'b', browser: 'Safari 18', os: 'iOS', table: null, errors: [], connection: given } });
@@ -64,7 +70,7 @@ describe('reports and feedback', () => {
     for (const broken of [{ ...attempt, socket: CODE }, { ...attempt, lastEnd: 'Robin' }, { ...attempt, site: 'Robin' }, { ...attempt, site: null }, { ...attempt, tries: -1 }, { ...attempt, sinceFirstMs: 1.5 }, { ...attempt, offline: 'yes' }, { ...attempt, hidden: undefined }, 'open', null]) {
       expect(post({ ...connection, attempt: broken })).toBeNull();
     }
-  });
+  }
 });
 
 describe('the environment', () => {
@@ -78,7 +84,7 @@ describe('the environment', () => {
   });
 });
 
-describe('the error reporter', () => {
+it('the error reporter', async () => {
   const reporter = (posted: ErrorReport[], clock: { now: number; enabled?: boolean }): ErrorReporter => new ErrorReporter({
     source: 'play',
     environment: () => ({ build: 'b', browser: 'Chrome 141', os: 'Linux' }),
@@ -89,7 +95,8 @@ describe('the error reporter', () => {
     enabled: () => clock.enabled !== false,
   });
 
-  it('sends each error once, redacted, without the names and codes it knows', async () => {
+  // sends each error once, redacted, without the names and codes it knows
+  {
     const posted: ErrorReport[] = [];
     const errors = reporter(posted, { now: 0 });
     const thrown = new Error(`Robin lost table ${CODE}`);
@@ -100,9 +107,10 @@ describe('the error reporter', () => {
     expect(errors.recentIds()).toEqual([id]);
     expect(await errors.capture('rejection', { secret: KEY })).toMatch(/^[0-9a-f]{10}$/);
     expect(posted[1]).toMatchObject({ kind: 'rejection', name: 'NonError', message: '[object Object]' });
-  });
+  }
 
-  it('sends nothing while switched off, but remembers the ids', async () => {
+  // sends nothing while switched off, but remembers the ids
+  {
     const posted: ErrorReport[] = [];
     const clock = { now: 0, enabled: false };
     const errors = reporter(posted, clock);
@@ -112,9 +120,10 @@ describe('the error reporter', () => {
     clock.enabled = true;
     await errors.capture('error', new Error('on'));
     expect(posted).toHaveLength(1);
-  });
+  }
 
-  it('sends at most five a minute and thirty in all, but remembers every id', async () => {
+  // sends at most five a minute and thirty in all, but remembers every id
+  {
     const posted: ErrorReport[] = [];
     const clock = { now: 0 };
     const errors = reporter(posted, clock);
@@ -127,5 +136,5 @@ describe('the error reporter', () => {
     }
     expect(posted).toHaveLength(30);
     expect(errors.recentIds()).toHaveLength(10);
-  });
+  }
 });

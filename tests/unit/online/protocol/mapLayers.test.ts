@@ -18,12 +18,14 @@ const valid: GmMessage[] = [
   { t: 'initiative', scene: 's', list: null },
 ] as GmMessage[];
 
-describe("messages of the map's layers", () => {
-  it('read as they were written', () => {
+it("messages of the map's layers", () => {
+  // read as they were written
+  {
     for (const message of valid) expect(parseGmMessage(JSON.parse(JSON.stringify(message))), message.t).toEqual(message);
-  });
+  }
 
-  it('refuse what does not fit', () => {
+  // refuse what does not fit
+  {
     const bad: unknown[] = [
       { t: 'grid', scene: 's', grid: { ...GRID, colour: 'red' } },
       { t: 'grid', scene: 's', grid: { ...GRID, numbers: { format: 'roman', opacity: 1 } } },
@@ -41,5 +43,5 @@ describe("messages of the map's layers", () => {
       { t: 'initiative', scene: 's', list: { ...INITIATIVE, round: Number.POSITIVE_INFINITY } },
     ];
     for (const message of bad) expect(parseGmMessage(JSON.parse(JSON.stringify(message))), JSON.stringify(message).slice(0, 120)).toBeNull();
-  });
+  }
 });

@@ -16,54 +16,62 @@ const homebrew: SenseDefinition = {
   seesInvisible: false, worksWhileBlinded: false, range: 'required',
 };
 
-describe('collectionSenses', () => {
-  it('are the collection\'s own when it has any, even an empty list', () => {
+it('collectionSenses', () => {
+  // are the collection's own when it has any, even an empty list
+  {
     expect(collectionSenses({ senses: [homebrew], systemPresetId: dnd5e.id }, BUILT_IN_SYSTEM_PRESETS)).toEqual([homebrew]);
     expect(collectionSenses({ senses: [], systemPresetId: dnd5e.id }, BUILT_IN_SYSTEM_PRESETS)).toEqual([]);
-  });
+  }
 
-  it('are those of its recorded preset otherwise', () => {
+  // are those of its recorded preset otherwise
+  {
     expect(collectionSenses({ systemPresetId: dnd5e.id }, BUILT_IN_SYSTEM_PRESETS)).toBe(dnd5e.rules.senses);
     expect(collectionSenses({ systemPresetId: shadowdark.id }, BUILT_IN_SYSTEM_PRESETS).map((sense) => sense.id)).toEqual(['shadowdark-darkness-adapted']);
-  });
+  }
 
-  it('are the generic set without a system, with a system that has none, and with a preset that is gone', () => {
+  // are the generic set without a system, with a system that has none, and with a preset that is gone
+  {
     expect(collectionSenses({}, BUILT_IN_SYSTEM_PRESETS)).toBe(GENERIC_SENSES);
     expect(collectionSenses({ systemPresetId: cairn.id }, BUILT_IN_SYSTEM_PRESETS)).toBe(GENERIC_SENSES);
     expect(collectionSenses({ systemPresetId: 'deleted' }, BUILT_IN_SYSTEM_PRESETS)).toBe(GENERIC_SENSES);
-  });
+  }
 });
 
-describe('findSense', () => {
-  it('finds the collection\'s sense, else the generic one of that id', () => {
+it('findSense', () => {
+  // finds the collection's sense, else the generic one of that id
+  {
     expect(findSense(DND_SENSES, 'dnd5e-truesight')?.name).toBe('Truesight');
     expect(findSense(DND_SENSES, 'blindsight')).toBe(GENERIC_SENSES.find((sense) => sense.id === 'blindsight'));
     expect(findSense([{ ...homebrew, id: 'darkvision' }], 'darkvision')?.name).toBe('Witch sight');
-  });
+  }
 
-  it('knows no other system\'s senses and no made-up ids', () => {
+  // knows no other system's senses and no made-up ids
+  {
     expect(findSense(DND_SENSES, 'pathfinder2e-scent')).toBeUndefined();
     expect(findSense(DND_SENSES, 'sight')).toBeUndefined();
     expect(findSense([], '')).toBeUndefined();
-  });
+  }
 });
 
-describe('senseWithRole', () => {
-  it('is the collection\'s darkvision or tremorsense where it has one', () => {
+it('senseWithRole', () => {
+  // is the collection's darkvision or tremorsense where it has one
+  {
     expect(senseWithRole(DND_SENSES, 'darkvision').id).toBe('dnd5e-darkvision');
     expect(senseWithRole(DND_SENSES, 'tremorsense').id).toBe('dnd5e-tremorsense');
     expect(senseWithRole(BUILT_IN_SENSES['builtin:ose']!, 'darkvision').id).toBe('ose-infravision');
-  });
+  }
 
-  it('is the generic one where the collection has none', () => {
+  // is the generic one where the collection has none
+  {
     expect(senseWithRole(BUILT_IN_SENSES[shadowdark.id]!, 'darkvision').id).toBe('darkvision');
     expect(senseWithRole(BUILT_IN_SENSES['builtin:ose']!, 'tremorsense').id).toBe('tremorsense');
     expect(senseWithRole([], 'darkvision').id).toBe('darkvision');
-  });
+  }
 });
 
-describe('sameSenses', () => {
-  it('compares every field of every sense, in order', () => {
+it('sameSenses', () => {
+  // compares every field of every sense, in order
+  {
     expect(sameSenses(DND_SENSES, structuredClone(DND_SENSES))).toBe(true);
     expect(sameSenses(DND_SENSES, [...DND_SENSES].reverse())).toBe(false);
     expect(sameSenses(DND_SENSES, DND_SENSES.slice(1))).toBe(false);
@@ -74,14 +82,15 @@ describe('sameSenses', () => {
     ];
     for (const change of changes) expect(sameSenses([homebrew], [{ ...homebrew, ...change }])).toBe(false);
     expect(sameSenses([homebrew], [{ ...homebrew, sees: { ...homebrew.sees } }])).toBe(true);
-  });
+  }
 
-  it('reads no senses as the generic set, as a collection does', () => {
+  // reads no senses as the generic set, as a collection does
+  {
     expect(sameSenses(undefined, undefined)).toBe(true);
     expect(sameSenses(undefined, GENERIC_SENSES)).toBe(true);
     expect(sameSenses(undefined, [])).toBe(false);
     expect(sameSenses(undefined, DND_SENSES)).toBe(false);
-  });
+  }
 });
 
 describe('perceivedLevel', () => {

@@ -22,32 +22,37 @@ const BOOK: PlayerBook = {
   equipped: [{ slot: ID, item: ID }],
 };
 
-describe('book messages to a player', () => {
-  it('read a whole book, a sheet alone and an item', () => {
+it('book messages to a player', () => {
+  // read a whole book, a sheet alone and an item
+  {
     expect(parseGmMessage({ t: 'book', book: BOOK })).toEqual({ t: 'book', book: BOOK });
     expect(parseGmMessage({ t: 'book-sheet', character: null })).toEqual({ t: 'book-sheet', character: null });
     expect(parseGmMessage({ t: 'book-item', item: ITEM })).toEqual({ t: 'book-item', item: ITEM });
-  });
+  }
 
-  it('read a book without character, map or entries', () => {
+  // read a book without character, map or entries
+  {
     const empty = { character: null, worldMap: null, items: [], notes: [], pins: [], quests: [], purse: [], slots: { hidden: [], own: [] }, equipped: [] };
     expect(parseGmMessage({ t: 'book', book: empty })).toEqual({ t: 'book', book: empty });
-  });
+  }
 
-  it('read a book of a GM that knows no slots as the default slots with nothing equipped', () => {
+  // read a book of a GM that knows no slots as the default slots with nothing equipped
+  {
     const older: Record<string, unknown> = { ...BOOK };
     delete older.slots;
     delete older.equipped;
     expect(parseGmMessage({ t: 'book', book: older })).toEqual({ t: 'book', book: { ...BOOK, slots: { hidden: [], own: [] }, equipped: [] } });
-  });
+  }
 
-  it('read a book of a GM that gives no quests as one without, and pins of the older kinds as the kinds that took their place', () => {
+  // read a book of a GM that gives no quests as one without, and pins of the older kinds as the kinds that took their place
+  {
     const older: Record<string, unknown> = { ...BOOK, pins: [{ ...BOOK.pins[0], kind: 'place' }] };
     delete older.quests;
     expect(parseGmMessage({ t: 'book', book: older })).toEqual({ t: 'book', book: { ...BOOK, pins: [{ ...BOOK.pins[0], kind: 'dungeon' }], quests: [] } });
-  });
+  }
 
-  it('read the resources of an older GM\'s sheet, which names no key and no edits, as ones the player cannot change, and never a fixed or unnamed one as changeable', () => {
+  // read the resources of an older GM's sheet, which names no key and no edits, as ones the player cannot change, and never a fixed or unnamed one as changeable
+  {
     const resource = { name: 'HP', colour: '#aa0000', direction: 'drains', current: 3, max: 8 };
     const read = (resources: unknown[]): unknown => parseGmMessage({ t: 'book-sheet', character: { ...BOOK.character, resources } });
     expect(read([resource])).toMatchObject({ character: { resources: [{ ...resource, key: null, editable: false }] } });
@@ -57,16 +62,18 @@ describe('book messages to a player', () => {
     for (const broken of [{ key: '' }, { key: 'k'.repeat(MAX_RESOURCE_KEY + 1) }, { key: 'h\u0000p' }, { key: 7 }, { key: 'hp', editable: 'yes' }]) {
       expect(read([{ ...resource, ...broken }]), JSON.stringify(broken)).toBeNull();
     }
-  });
+  }
 
-  it('read a quest that names no place, experience or rewards as one without them', () => {
+  // read a quest that names no place, experience or rewards as one without them
+  {
     const bare = { id: QUEST_ID, kind: 'side', state: 'open', title: 'The goat of Lankshorn' };
     expect(parseGmMessage({ t: 'book', book: { ...BOOK, quests: [bare] } })).toEqual({ t: 'book', book: { ...BOOK, quests: [{ ...bare, body: '', place: null, xp: 0, rewards: [] }] } });
     expect(isQuestDone(QUEST)).toBe(false);
     expect(isQuestDone({ state: 'failed' })).toBe(true);
-  });
+  }
 
-  it('leave out a malformed quest and show the rest of the book', () => {
+  // leave out a malformed quest and show the rest of the book
+  {
     const broken: unknown[] = [
       { ...QUEST, kind: 'urgent' },
       { ...QUEST, state: 'heard' },
@@ -82,9 +89,10 @@ describe('book messages to a player', () => {
     expect(parseGmMessage({ t: 'book', book: { ...BOOK, quests: [QUEST, { ...QUEST, title: 'Again' }] } })).toEqual({ t: 'book', book: BOOK });
     expect(parseGmMessage({ t: 'book', book: { ...BOOK, quests: QUEST } })).toBeNull();
     expect(parseGmMessage({ t: 'book', book: { ...BOOK, quests: Array.from({ length: MAX_BOOK_QUESTS + 1 }, (_, n) => ({ ...QUEST, id: n.toString(16).padStart(24, '0') })) } })).toBeNull();
-  });
+  }
 
-  it('refuse malformed books', () => {
+  // refuse malformed books
+  {
     const broken: unknown[] = [
       { ...BOOK, items: [{ ...ITEM, id: 'x' }] },
       { ...BOOK, items: [ITEM, ITEM] },
@@ -102,11 +110,12 @@ describe('book messages to a player', () => {
       { ...BOOK, equipped: [{ slot: 'head', item: 'rope' }] },
     ];
     for (const book of broken) expect(parseGmMessage({ t: 'book', book }), JSON.stringify(book).slice(0, 120)).toBeNull();
-  });
+  }
 });
 
-describe('what a player writes into their book', () => {
-  it('reads an item its player writes, without the GM\'s colour or clock, and its deletion', () => {
+it('what a player writes into their book', () => {
+  // reads an item its player writes, without the GM's colour or clock, and its deletion
+  {
     const { tone: _tone, at: _at, ...draft } = ITEM;
     expect(parsePlayerMessage({ t: 'book-item-put', item: { ...ITEM, extra: 1 } })).toEqual({ t: 'book-item-put', item: draft });
     expect(parsePlayerMessage({ t: 'book-item-put', item: { ...draft, type: null, rarity: null, price: null, description: null, properties: [] } }))
@@ -116,9 +125,10 @@ describe('what a player writes into their book', () => {
     expect(parsePlayerMessage({ t: 'book-item-put', item: { ...draft, properties: [{ label: 'Weight' }] } })).toBeNull();
     expect(parsePlayerMessage({ t: 'book-item-delete', id: ID })).toEqual({ t: 'book-item-delete', id: ID });
     expect(parsePlayerMessage({ t: 'book-item-delete', id: 'x' })).toBeNull();
-  });
+  }
 
-  it('reads notes, pins, the purse and deletions, cleaned', () => {
+  // reads notes, pins, the purse and deletions, cleaned
+  {
     expect(parsePlayerMessage({ t: 'book-note', note: { id: ID, title: '  A‮ title ', body: 'one\r\n\r\n\r\n\r\ntwo  \n' } })).toEqual({ t: 'book-note', note: { id: ID, title: 'A title', body: 'one\n\ntwo' } });
     expect(parsePlayerMessage({ t: 'book-note', note: { id: ID, title: '', body: '' } })).toEqual({ t: 'book-note', note: { id: ID, title: '', body: '' } });
     expect(parsePlayerMessage({ t: 'book-pin', pin: BOOK.pins[0] })).toEqual({ t: 'book-pin', pin: BOOK.pins[0] });
@@ -130,17 +140,19 @@ describe('what a player writes into their book', () => {
     expect(parsePlayerMessage({ t: 'book-purse', purse: BOOK.purse })).toEqual({ t: 'book-purse', purse: BOOK.purse });
     expect(parsePlayerMessage({ t: 'book-resource', key: 'hp', current: 5, extra: true })).toEqual({ t: 'book-resource', key: 'hp', current: 5 });
     expect(parsePlayerMessage({ t: 'book-resource', key: 'hp', current: -MAX_TOKEN_VALUE })).toEqual({ t: 'book-resource', key: 'hp', current: -MAX_TOKEN_VALUE });
-  });
+  }
 
-  it('refuses an edit of a resource that names no key, or no finite value within the limits', () => {
+  // refuses an edit of a resource that names no key, or no finite value within the limits
+  {
     for (const broken of [{ key: '', current: 1 }, { key: 'k'.repeat(MAX_RESOURCE_KEY + 1), current: 1 }, { key: 'hp', current: Number.NaN }, { key: 'hp', current: Number.POSITIVE_INFINITY }, { key: 'hp', current: MAX_TOKEN_VALUE + 1 }, { key: 'hp', current: '5' }, { current: 5 }]) {
       expect(parsePlayerMessage({ t: 'book-resource', ...broken }), JSON.stringify(broken)).toBeNull();
     }
     expect(parseGmMessage({ t: 'book-resource', key: 'hp', current: 1 })).toBeNull();
     expect(fitsPlayerFrame({ t: 'book-resource', key: 'k'.repeat(MAX_RESOURCE_KEY), current: -MAX_TOKEN_VALUE })).toBe(true);
-  });
+  }
 
-  it('refuses what is malformed or too long, and never takes a GM kind from a player', () => {
+  // refuses what is malformed or too long, and never takes a GM kind from a player
+  {
     expect(parsePlayerMessage({ t: 'book-note', note: { id: ID, title: 't', body: 'x'.repeat(MAX_NOTE_BODY + 1) } })).toBeNull();
     expect(parsePlayerMessage({ t: 'book-note', note: { id: ID, title: 'x'.repeat(81), body: '' } })).toBeNull();
     expect(parsePlayerMessage({ t: 'book-note-delete', id: '../x' })).toBeNull();
@@ -152,18 +164,20 @@ describe('what a player writes into their book', () => {
     expect(parsePlayerMessage({ t: 'book-item', item: ITEM })).toBeNull();
     expect(parsePlayerMessage({ t: 'book', book: BOOK })).toBeNull();
     expect(parseGmMessage({ t: 'book-note', note: { id: ID, title: '', body: '' } })).toBeNull();
-  });
+  }
 });
 
-describe('book texts', () => {
-  it('keep indents and single blank lines, and drop marks that do not show', () => {
+it('book texts', () => {
+  // keep indents and single blank lines, and drop marks that do not show
+  {
     expect(bookText('- a\n  - b​\n\n\n\nc', 100)).toBe('- a\n  - b\n\nc');
     expect(bookLine('​', 10)).toBeNull();
     expect(bookLine('', 10, true)).toBe('');
-  });
+  }
 
-  it('say whether a note fits one player frame', () => {
+  // say whether a note fits one player frame
+  {
     expect(fitsPlayerFrame({ t: 'book-note', note: { id: ID, title: 't', body: 'x'.repeat(MAX_NOTE_BODY) } })).toBe(true);
     expect(fitsPlayerFrame({ t: 'book-note', note: { id: ID, title: 't', body: '語'.repeat(MAX_NOTE_BODY) } })).toBe(false);
-  });
+  }
 });

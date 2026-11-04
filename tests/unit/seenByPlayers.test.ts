@@ -21,29 +21,33 @@ function sightOf(tokens: Record<string, TokenEntity>, fog: () => FogCoverage | n
   return sight;
 }
 
-describe('seenByPlayers', () => {
+it('seenByPlayers', () => {
   const tokens = { seen: token('seen', 10), hidden: token('hidden', 40, { isHidden: true }), covered: token('covered', 200) };
+
   const noFog = (): FogCoverage => fogCoverage({});
 
-  it('sees every token that is not hidden on an unlit scene without fog, and no hidden or missing one', () => {
+  // sees every token that is not hidden on an unlit scene without fog, and no hidden or missing one
+  {
     const seen = seenByPlayers(tokens, sightOf(tokens, noFog).framePerception());
     expect(['seen', 'hidden', 'covered', 'missing'].map(seen)).toEqual([true, false, true, false]);
-  });
+  }
 
-  it('counts a token under committed fog, sensed or unseen as not seen', () => {
+  // counts a token under committed fog, sensed or unseen as not seen
+  {
     const fog = fogCoverage({ paint: fogRectangle({ x: 150, y: 0, width: 100, height: 100 }) });
     const all = { ...tokens, sensed: token('sensed', 60), unseen: token('unseen', 90) };
     const sight = sightOf(all, () => fog);
     const answers = { seen: 'seen', hidden: 'seen', covered: 'seen', sensed: 'sensed', unseen: 'unseen' } as const;
     const seen = seenByPlayers(all, sight.framePerception((id) => answers[id as keyof typeof answers] ?? 'seen'));
     expect(['seen', 'hidden', 'covered', 'sensed', 'unseen'].map(seen)).toEqual([true, false, false, false, false]);
-  });
+  }
 
-  it('sees nothing while committed fog cannot be read (no coverage)', () => {
+  // sees nothing while committed fog cannot be read (no coverage)
+  {
     const seen = seenByPlayers(tokens, sightOf(tokens, () => null).framePerception());
     expect(['seen', 'covered'].map(seen)).toEqual([false, false]);
     expect(NOTHING_SEEN('seen')).toBe(false);
-  });
+  }
 });
 
 describe('PlayerSightTokens.showsPlayers', () => {
@@ -88,15 +92,17 @@ describe('PlayerSightTokens.sightIsCurrent', () => {
   });
 });
 
-describe('PlayerSightTokens.whenSettled', () => {
-  it('runs at once where sight is read when asked', () => {
+it('PlayerSightTokens.whenSettled', async () => {
+  // runs at once where sight is read when asked
+  {
     const sight = sightOf({}, () => null);
     const runs: string[] = [];
     sight.whenSettled(() => runs.push('now'));
     expect(runs).toEqual(['now']);
-  });
+  }
 
-  it('waits for the store\'s other listeners where the provider keeps sight of its own, and runs the last work once', async () => {
+  // waits for the store's other listeners where the provider keeps sight of its own, and runs the last work once
+  {
     const sight = sightOf({}, () => null);
     sight.setProvider(() => undefined, () => true, () => true);
     const runs: string[] = [];
@@ -108,9 +114,10 @@ describe('PlayerSightTokens.whenSettled', () => {
     sight.whenSettled(() => runs.push('third'));
     await Promise.resolve();
     expect(runs).toEqual(['second', 'third']);
-  });
+  }
 
-  it('runs nothing once destroyed', async () => {
+  // runs nothing once destroyed
+  {
     const sight = sightOf({}, () => null);
     sight.setProvider(() => undefined, () => true, () => true);
     const work = vi.fn();
@@ -118,5 +125,5 @@ describe('PlayerSightTokens.whenSettled', () => {
     sight.destroy();
     await Promise.resolve();
     expect(work).not.toHaveBeenCalled();
-  });
+  }
 });

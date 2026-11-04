@@ -39,14 +39,16 @@ function withoutComments(source: string): string {
   return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
 }
 
-describe('engine shader sources', () => {
-  it('lists every engine program once', () => {
+it('engine shader sources', () => {
+  // lists every engine program once
+  {
     const names = shaders.map(([name]) => name);
     expect(new Set(names).size).toBe(names.length);
     expect(names.length).toBeGreaterThanOrEqual(9);
-  });
+  }
 
-  it("every engine shader declares the uniforms PIXI sets with PIXI's types", () => {
+  // every engine shader declares the uniforms PIXI sets with PIXI's types
+  {
     for (const [_name, shader] of shaders) {
       const clashes: string[] = [];
       for (const [stage, source] of [['vertex', shader.vertex], ['fragment', shader.fragment]] as const) {
@@ -57,27 +59,28 @@ describe('engine shader sources', () => {
       }
       expect(clashes).toEqual([]);
     }
-  });
+  }
 
-  // ANGLE translates GLSL to HLSL for Direct3D, whose compiler rejects or unrolls loops and
-  // branches that sample with implicit gradients; every engine read names its level instead.
-  it('every engine shader samples every texture at an explicit level', () => {
+  // every engine shader samples every texture at an explicit level
+  {
     for (const [_name, shader] of shaders) {
       const implicit = [shader.vertex, shader.fragment].flatMap((source) => withoutComments(source).match(IMPLICIT_GRADIENT) ?? []);
       expect(implicit).toEqual([]);
     }
-  });
+  }
 
-  it('finds implicit-gradient reads, and only those (the check can fail)', () => {
+  // finds implicit-gradient reads, and only those (the check can fail)
+  {
     const source = 'a = texture(uMap, uv); // texture(in a comment)\nb = textureLod(uMap, uv, 0.0) + texelFetch(uMap, p, 0) + vec4(textureSize(uMap, 0), dFdx(uv));';
     expect(withoutComments(source).match(IMPLICIT_GRADIENT)).toEqual(['texture(', 'dFdx(']);
-  });
+  }
 
-  it('finds the uniforms of a source (the check can fail)', () => {
+  // finds the uniforms of a source (the check can fail)
+  {
     expect(Object.fromEntries(uniformsOf('uniform vec3 uColor;\n  uniform highp sampler2D uTile;\nuniform mat3 uProjectionMatrix;'))).toEqual({
       uColor: 'vec3',
       uTile: 'sampler2D',
       uProjectionMatrix: 'mat3',
     });
-  });
+  }
 });

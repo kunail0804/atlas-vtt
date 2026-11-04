@@ -12,17 +12,19 @@ const slice = (objects: Record<string, Entities>, rest: Partial<HistorySnapshot>
   objects, grid: null, background: null, widgetValues: {}, exploredEdits: 0, ...rest,
 });
 
-describe('putting back what a step changed', () => {
-  it('puts a deleted entity back at its old place, among the ones added since', () => {
+it('putting back what a step changed', () => {
+  // puts a deleted entity back at its old place, among the ones added since
+  {
     const a = { v: 1 }; const b = { v: 2 }; const c = { v: 3 }; const d = { v: 4 };
     const before = { a, b, c };
     const after = { a, c };
     const result = towards({ a, c, d }, after, before, 1) as Entities;
     expect(keys(result)).toEqual(['a', 'b', 'c', 'd']);
     expect(result.b).toBe(b);
-  });
+  }
 
-  it('leaves the first light zone absent again once it is undone', () => {
+  // leaves the first light zone absent again once it is undone
+  {
     const tokens = { t: { v: 1 } };
     const before = slice({ tokens });
     const after = slice({ tokens, lightZones: { z: { v: 1 } } });
@@ -30,45 +32,51 @@ describe('putting back what a step changed', () => {
     const result = restore(current, after, before);
     expect(keys(result.objects as object)).toEqual(['tokens']);
     expect(objectsOf(result).tokens).toBe(current.objects && objectsOf(current).tokens);
-  });
+  }
 
-  it('keeps a light zone added since beside the first one', () => {
+  // keeps a light zone added since beside the first one
+  {
     const z = { v: 1 }; const y = { v: 2 };
     const before = slice({ tokens: {} });
     const after = slice({ tokens: {}, lightZones: { z } });
     const result = restore(slice({ tokens: {}, lightZones: { z, y } }), after, before);
     expect(objectsOf(result).lightZones).toEqual({ y });
-  });
+  }
 
-  it('puts back an order the step changed', () => {
+  // puts back an order the step changed
+  {
     const a = { v: 1 }; const b = { v: 2 }; const c = { v: 3 };
     const before = { a, b };
     const after = { b, a };
     expect(towards(after, after, before, 1)).toBe(before);
     expect(keys(towards({ b, a, c }, after, before, 1) as object)).toEqual(['a', 'b', 'c']);
-  });
+  }
 
-  it('keeps entities added since, and their values', () => {
+  // keeps entities added since, and their values
+  {
     const a = { v: 1 }; const a2 = { v: 2 }; const x = { v: 9 };
     const result = towards({ a: a2, x }, { a: a2 }, { a }, 1) as Entities;
     expect(result).toEqual({ a, x });
     expect(result.x).toBe(x);
-  });
+  }
 
-  it('keeps integer-like ids in their order', () => {
+  // keeps integer-like ids in their order
+  {
     const one = { v: 1 }; const two = { v: 2 }; const ten = { v: 10 }; const b = { v: 0 };
     const result = towards({ 1: one, 10: ten, b }, { 1: one, 10: ten }, { 1: one, 2: two, 10: ten }, 1) as Entities;
     expect(keys(result)).toEqual(['1', '2', '10', 'b']);
-  });
+  }
 
-  it('writes a changed value in its place when an earlier entity was removed since', () => {
+  // writes a changed value in its place when an earlier entity was removed since
+  {
     const a = { v: 1 }; const b = { v: 2 }; const b2 = { v: 3 }; const c = { v: 4 };
     const result = towards({ b: b2, c }, { a, b: b2, c }, { a, b, c }, 1) as Entities;
     expect(keys(result)).toEqual(['b', 'c']);
     expect(result.b).toBe(b);
-  });
+  }
 
-  it('keeps an entity whose id is __proto__, as a map file may name one', () => {
+  // keeps an entity whose id is __proto__, as a map file may name one
+  {
     const odd = { v: 1 }; const b = { v: 2 }; const b2 = { v: 3 }; const c = { v: 4 };
     const before = Object.fromEntries([['__proto__', odd], ['b', b]]) as Entities;
     const after = { ...before, b: b2 };
@@ -77,24 +85,26 @@ describe('putting back what a step changed', () => {
     expect(keys(result)).toEqual(['__proto__', 'b', 'c']);
     expect(Object.getOwnPropertyDescriptor(result, '__proto__')?.value).toBe(odd);
     expect(result.b).toBe(b);
-  });
+  }
 
-  it('gives back the old objects themselves where nothing else changed since', () => {
+  // gives back the old objects themselves where nothing else changed since
+  {
     const before = slice({ tokens: { a: { v: 1 } } }, { grid: { size: 70 } });
     const after = slice({ tokens: { a: { v: 2 } } }, { grid: { size: 50 } });
     const result = restore(after, after, before);
     expect(result.objects).toBe(before.objects);
     expect(result.grid).toBe(before.grid);
-  });
+  }
 
-  it('leaves branches the step did not change as they are now', () => {
+  // leaves branches the step did not change as they are now
+  {
     const before = slice({ tokens: {} });
     const after = { ...before, background: 'map.webp' };
     const current = { ...after, grid: { size: 50 } };
     const result = restore(current, after, before);
     expect(result.grid).toBe(current.grid);
     expect(result.background).toBeNull();
-  });
+  }
 });
 
 const entity = fc.integer({ min: 0, max: 3 }).map((v) => ({ v }));
@@ -119,20 +129,22 @@ function clone<T>(value: T): T {
 
 const order = (value: unknown): unknown => (value && typeof value === 'object' ? Object.keys(value).map((key) => [key, order((value as Record<string, unknown>)[key])]) : value);
 
-describe('putting back towards a side, for any two sides', () => {
-  it('gives that side, key order included, from a copy of the other side', () => {
+it('putting back towards a side, for any two sides', () => {
+  // gives that side, key order included, from a copy of the other side
+  {
     fc.assert(fc.property(tracked, tracked, (from, to) => {
       const result = restore(clone(from), from, to);
       expect(order(result)).toEqual(order(to));
     }), { numRuns: RUNS });
-  });
+  }
 
-  it('gives that side itself from the other side itself', () => {
+  // gives that side itself from the other side itself
+  {
     fc.assert(fc.property(tracked, tracked, (from, to) => {
       const result = restore(from, from, to);
       for (const branch of ['objects', 'grid', 'background', 'widgetValues', 'exploredEdits'] as const) {
         expect(result[branch]).toBe(to[branch]);
       }
     }), { numRuns: RUNS });
-  });
+  }
 });

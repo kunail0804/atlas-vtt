@@ -47,8 +47,9 @@ function syntaxOf(source: string): ExpressionError {
   return result;
 }
 
-describe('the 5E 2024 template patterns', () => {
-  it('writes the size, type, subtype and alignment line', () => {
+it('the 5E 2024 template patterns', () => {
+  // writes the size, type, subtype and alignment line
+  {
     const line = '{size} {type}[ ({subtype})][, {alignment}]';
     expect(text(line, { size: 'Large', type: 'plant', alignment: 'unaligned' })).toBe('Large plant, unaligned');
     expect(text(line, { size: 'Medium', type: 'humanoid', subtype: 'goblinoid', alignment: 'neutral evil' }))
@@ -56,9 +57,10 @@ describe('the 5E 2024 template patterns', () => {
     expect(text(line, { size: 'Tiny', type: 'beast' })).toBe('Tiny beast');
     expect(text(line, { type: 'beast' })).toBe('beast');
     expect(render(line, {})).toEqual({ text: '', empty: true, problems: [] });
-  });
+  }
 
-  it('writes the initiative with its score', () => {
+  // writes the initiative with its score
+  {
     const initiative = '{initiative|signed} ({=initiative + 10})';
     expect(text(initiative, { initiative: 2 })).toBe('+2 (12)');
     expect(text(initiative, { initiative: '+3' })).toBe('+3 (13)');
@@ -67,9 +69,10 @@ describe('the 5E 2024 template patterns', () => {
     const missing = render(initiative, {}, { labelOf: fieldLabels(FIELDS) });
     expect(missing).toMatchObject({ text: '', empty: true });
     expect(missing.problems).toEqual([{ kind: 'unbound', ref: 'initiative', message: 'Initiative is empty.' }]);
-  });
+  }
 
-  it('derives the initiative from Dexterity as a fallback', () => {
+  // derives the initiative from Dexterity as a fallback
+  {
     const fallback = '{=floor((stats.1 - 10) / 2)|signed} ({=floor((stats.1 - 10) / 2) + 10})';
     expect(text(fallback, { stats: [21, 14, 20, 16, 13, 18] })).toBe('+2 (12)');
     expect(text(fallback, { stats: [10, 8, 10, 10, 10, 10] })).toBe('-1 (9)');
@@ -77,109 +80,125 @@ describe('the 5E 2024 template patterns', () => {
     expect(render(fallback, {}).empty).toBe(true);
     expect(render(fallback, { stats: [10, 'n/a'] }, { labelOf: fieldLabels(FIELDS) }).problems[0])
       .toEqual({ kind: 'not-a-number', ref: 'stats.1', message: "Dex isn't a number." });
-  });
+  }
 
-  it('writes hit points with their dice', () => {
+  // writes hit points with their dice
+  {
     expect(text('{hp}[ ({hit_dice})]', { hp: 52, hit_dice: '7d10 + 14' })).toBe('52 (7d10 + 14)');
     expect(text('{hp}[ ({hit_dice})]', { hp: 52 })).toBe('52');
     expect(text('{hp}[ ({hit_dice})]', { hit_points: 7 })).toBe('7');
-  });
+  }
 
-  it('writes both immunities on one line', () => {
+  // writes both immunities on one line
+  {
     const immunities = '{damage_immunities, condition_immunities|join:; }';
     expect(text(immunities, { damage_immunities: 'Poison', condition_immunities: 'Poisoned' })).toBe('Poison; Poisoned');
     expect(text(immunities, { condition_immunities: 'Charmed, Frightened' })).toBe('Charmed, Frightened');
     expect(text(immunities, { damage_immunities: ['Fire', 'Cold'], condition_immunities: 'Poisoned' })).toBe('Fire, Cold; Poisoned');
     expect(render(immunities, { damage_immunities: '', condition_immunities: [] }).empty).toBe(true);
-  });
+  }
 
-  it('writes the challenge rating with XP and proficiency bonus', () => {
+  // writes the challenge rating with XP and proficiency bonus
+  {
     const challenge = '{cr}[ (XP {cr|lookup:xp}; PB {cr|lookup:pb})]';
     expect(text(challenge, { cr: '1/4' })).toBe('1/4 (XP 50; PB +2)');
     expect(text(challenge, { cr: 3 })).toBe('3 (XP 700; PB +2)');
     expect(text(challenge, { cr: '\u00bd' })).toBe('\u00bd (XP 100; PB +2)');
     expect(text(challenge, { cr: 31 })).toBe('31');
     expect(render(challenge, {}).empty).toBe(true);
-  });
+  }
 });
 
-describe('pattern values', () => {
-  it('joins several refs with a comma when no join filter is given', () => {
+it('pattern values', () => {
+  // joins several refs with a comma when no join filter is given
+  {
     expect(text('{size, type, subtype}', { size: 'Large', type: 'plant' })).toBe('Large, plant');
-  });
+  }
 
-  it('writes a list field item by item', () => {
+  // writes a list field item by item
+  {
     expect(text('{languages}', { languages: ['Common', '', 'Elvish'] })).toBe('Common, Elvish');
     expect(text('{languages|join: · }', { languages: ['Common', 'Elvish'] })).toBe('Common · Elvish');
     expect(text('{languages|count}', { languages: ['Common', 'Elvish', null] })).toBe('2');
     expect(text('{saves|count}', { saves: { dex: 5, con: 3 } })).toBe('2');
     expect(text('{saves}', { saves: [{ dex: 5 }, { con: 3 }] })).toBe('dex 5, con 3');
-  });
+  }
 
-  it('runs filters in order', () => {
+  // runs filters in order
+  {
     expect(text('{type|upper}', { type: 'plant' })).toBe('PLANT');
     expect(text('{type|upper|lower}', { type: 'Plant' })).toBe('plant');
     expect(text('{hit_dice|avg}', { hit_dice: '7d10 + 14' })).toBe('52');
     expect(text('{hit_dice|avg|signed}', { hit_dice: '1d4 - 5' })).toBe('-3');
     expect(text('{bonus|signed}', { bonus: ['2', 'x', -1] })).toBe('+2, x, -1');
     expect(text('{=hp / 3}', { hp: 10 })).toBe('3.33');
-  });
+  }
 
-  it('skips the filters of an empty value', () => {
+  // skips the filters of an empty value
+  {
     expect(render('{languages|count}', { languages: [] }).empty).toBe(true);
     expect(render('{missing|lookup:nowhere}', {}).problems).toEqual([]);
-  });
+  }
 
-  it('says when a lookup table does not exist', () => {
+  // says when a lookup table does not exist
+  {
     const result = render('{cr}[ ({cr|lookup:gold})]', { cr: 2 });
     expect(result.text).toBe('2');
     expect(result.problems).toEqual([{ kind: 'unbound', ref: 'gold', message: 'There is no lookup table called \u201cgold\u201d.' }]);
-  });
+  }
 
-  it('reads the Scores slot and other refs in formulas', () => {
+  // reads the Scores slot and other refs in formulas
+  {
     expect(text('{=floor((value - 10) / 2)|signed}', {}, { value: 15 })).toBe('+2');
     expect(text('{=hp * 2}', { hit_points: 4 })).toBe('8');
-  });
+  }
 });
 
-describe('optional parts and emptiness', () => {
-  it('drops an optional part when a value directly in it is empty', () => {
+it('optional parts and emptiness', () => {
+  // drops an optional part when a value directly in it is empty
+  {
     expect(text('{a}[ ({b} and {c})]', { a: 'A', b: 'B' })).toBe('A');
     expect(text('{a}[ ({b} and {c})]', { a: 'A', b: 'B', c: 'C' })).toBe('A (B and C)');
-  });
+  }
 
-  it('keeps an outer part whose nested part dropped', () => {
+  // keeps an outer part whose nested part dropped
+  {
     expect(text('{a}[ ({b}[, {c}])]', { a: 'A', b: 'B' })).toBe('A (B)');
     expect(text('{a}[ ({b}[, {c}])]', { a: 'A', b: 'B', c: 'C' })).toBe('A (B, C)');
     expect(text('{a}[ ([{b}][{c}])]', { a: 'A' })).toBe('A');
-  });
+  }
 
-  it('keeps an optional part of text alone', () => {
+  // keeps an optional part of text alone
+  {
     expect(text('{a}[ ft.]', { a: 30 })).toBe('30 ft.');
-  });
+  }
 
-  it('is empty only when it holds values and none showed', () => {
+  // is empty only when it holds values and none showed
+  {
     expect(render('None', {})).toEqual({ text: 'None', empty: false, problems: [] });
     expect(render('AC {ac}', {})).toEqual({ text: '', empty: true, problems: [] });
     expect(render('{a} {b}', { b: 'B' })).toMatchObject({ text: 'B', empty: false });
     expect(render('', {})).toEqual({ text: '', empty: false, problems: [] });
-  });
+  }
 
-  it('counts 0 and false as values', () => {
+  // counts 0 and false as values
+  {
     expect(text('{a}/{b}', { a: 0, b: false })).toBe('0/No');
-  });
+  }
 });
 
-describe('pattern syntax', () => {
-  it('reads escapes as the characters themselves', () => {
+it('pattern syntax', () => {
+  // reads escapes as the characters themselves
+  {
     expect(text('AC {ac} \\[{aac}\\]', { ac: 12, aac: 7 })).toBe('AC 12 [7]');
     expect(text('\\{\\}\\\\\\,\\|', {})).toBe('{}\\,|');
     expect(text('C:\\path', {})).toBe('C:\\path');
     expect(text('{odd\\,key}', { 'odd,key': 'yes' })).toBe('yes');
     expect(text('{a, b|join:\\|}', { a: 1, b: 2 })).toBe('1|2');
-  });
+  }
 
-  it('builds a tree of text, values, formulas and optional parts', () => {
+  // builds a tree of text, values, formulas and optional parts
+  {
     expect(ast('HP {hp|signed}[ ({=hp + 1})]')).toEqual({
       kind: 'pattern',
       nodes: [
@@ -196,9 +215,10 @@ describe('pattern syntax', () => {
     expect(ast('{ a , b |join:, |lookup: xp }').nodes).toEqual([
       { kind: 'refs', refs: ['a', 'b'], filters: [{ name: 'join', text: ', ' }, { name: 'lookup', table: 'xp' }] },
     ]);
-  });
+  }
 
-  it('says why each bad pattern is refused', () => {
+  // says why each bad pattern is refused
+  {
     for (const [source, message, at] of [
       ['{hp', 'A \u201c{\u201d is never closed.', 0],
       ['x {=hp + 1', 'A \u201c{\u201d is never closed.', 2],
@@ -221,37 +241,42 @@ describe('pattern syntax', () => {
     ] as const) {
       expect(syntaxOf(source)).toEqual({ kind: 'syntax', message, at });
     }
-  });
+  }
 
-  it('refuses optional parts nested deeper than any template needs', () => {
+  // refuses optional parts nested deeper than any template needs
+  {
     expect(syntaxOf(`${'['.repeat(40)}x${']'.repeat(40)}`).message).toBe('Optional parts are nested too deeply.');
     expect(syntaxOf('x'.repeat(10_001)).message).toBe('The pattern is too long.');
-  });
+  }
 
-  it('accepts filter names in any case', () => {
+  // accepts filter names in any case
+  {
     expect(text('{a|UPPER}', { a: 'x' })).toBe('X');
-  });
+  }
 });
 
-describe('pattern helpers', () => {
-  it('makes the pattern of a block without one', () => {
+it('pattern helpers', () => {
+  // makes the pattern of a block without one
+  {
     const values = { name: 'Marsh Warden', 'odd}key': ['a', 'b'] };
     expect(renderPattern(singleFieldPattern('name'), readerFor(values, FIELDS)).text).toBe('Marsh Warden');
     expect(renderPattern(singleFieldPattern('odd}key'), readerFor(values, FIELDS)).text).toBe('a, b');
-  });
+  }
 
-  it('remembers parsed patterns', () => {
+  // remembers parsed patterns
+  {
     expect(parsePatternCached('{hp}[ ({hit_dice})]')).toBe(parsePatternCached('{hp}[ ({hit_dice})]'));
     expect(parsePatternCached('{hp')).toEqual(parsePattern('{hp'));
-  });
+  }
 
-  it('escapes text so that it shows exactly as written', () => {
+  // escapes text so that it shows exactly as written
+  {
     const alphabet = 'ab {}[]|,\\=:.';
     for (let seed = 1; seed <= 500; seed++) {
       const written = randomString(seededRandom(seed), alphabet, 30).trim();
       expect(text(escapePatternText(written), {}), `seed ${seed}: ${written}`).toBe(written);
     }
-  });
+  }
 });
 
 describe('pattern fuzz', () => {

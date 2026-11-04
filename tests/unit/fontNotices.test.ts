@@ -106,17 +106,20 @@ function wrapped(lines: readonly string[], width: number): string[] {
   return current ? [...result, current] : result;
 }
 
-describe('bundled font notices', () => {
-  it('accepts a stylesheet whose preserved notice credits every bundled font with its source and links the licence text, before the fonts', () => {
+it('bundled font notices', () => {
+  // accepts a stylesheet whose preserved notice credits every bundled font with its source and links the licence text, before the fonts
+  {
     expect(fontNoticeProblems(stylesheet())).toEqual([]);
-  });
+  }
 
-  it('reports a stylesheet without a preserved notice, which the build would strip', () => {
+  // reports a stylesheet without a preserved notice, which the build would strip
+  {
     expect(fontNoticeProblems('')).toEqual([MISSING_NOTICE]);
     expect(fontNoticeProblems(`${comment(noticeLines(), '/*')}\n${fontFaces(BUNDLED_FONTS.length)}`)).toEqual([MISSING_NOTICE]);
-  });
+  }
 
-  it('names the credit, source or licence link a notice leaves out', () => {
+  // names the credit, source or licence link a notice leaves out
+  {
     const parts = [...BUNDLED_FONTS.flatMap(font => [font.credit, font.source]), LICENCE_REFERENCE];
     for (const part of parts) {
       const lines = noticeLines().map(line => line.replace(part, '')).filter(line => line !== '');
@@ -124,37 +127,42 @@ describe('bundled font notices', () => {
       expect(problems, part).toHaveLength(1);
       expect(problems[0]).toContain(part);
     }
-  });
+  }
 
-  it('reports a notice that comes after the first @font-face rule', () => {
+  // reports a notice that comes after the first @font-face rule
+  {
     const problems = fontNoticeProblems(`${fontFaces(BUNDLED_FONTS.length)}\n${comment(noticeLines())}`);
     expect(problems).toHaveLength(1);
     expect(problems[0]).toContain('@font-face');
-  });
+  }
 
-  it('accepts a notice wrapped over several lines with comment prefixes', () => {
+  // accepts a notice wrapped over several lines with comment prefixes
+  {
     const lines = wrapped(noticeLines(), 24);
     expect(lines.length).toBeGreaterThan(noticeLines().length);
     expect(fontNoticeProblems(stylesheet(lines))).toEqual([]);
-  });
+  }
 
-  it('lists every font file the repository holds, and no other', () => {
+  // lists every font file the repository holds, and no other
+  {
     const files = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard', '-z'], {
       cwd: root,
       encoding: 'utf8',
       maxBuffer: 64 * 1024 * 1024,
     }).split('\0').filter(file => FONT_FILE.test(file));
     expect(files.sort()).toEqual(BUNDLED_FONTS.map(font => font.font).sort());
-  });
+  }
 
-  it('keeps the bundled fonts unmodified', () => {
+  // keeps the bundled fonts unmodified
+  {
     expect(Object.keys(FONT_HASHES).sort()).toEqual(BUNDLED_FONTS.map(font => font.font).sort());
     for (const font of BUNDLED_FONTS) {
       expect(sha256(fs.readFileSync(path.join(root, font.font))), font.font).toBe(FONT_HASHES[font.font]);
     }
-  });
+  }
 
-  it('keeps each licence text verbatim', () => {
+  // keeps each licence text verbatim
+  {
     for (const font of BUNDLED_FONTS) {
       expect(fs.existsSync(path.join(root, font.licence)), font.licence).toBe(true);
       const text = readText(font.licence);
@@ -169,34 +177,39 @@ describe('bundled font notices', () => {
     }
     expect(Object.keys(UPSTREAM_LICENCE_HASHES).every(file => BUNDLED_FONTS.some(font => font.licence === file))).toBe(true);
     expect(UPSTREAM_LICENCE_HASHES[authorWithoutCopyright().font.licence]).toBeUndefined();
-  });
+  }
 
-  it('credits every font in the stylesheet source', () => {
+  // credits every font in the stylesheet source
+  {
     expect(fontNoticeProblems(readText('styles/main.scss'))).toEqual([]);
-  });
+  }
 
-  it('credits every font in the third-party notices', () => {
+  // credits every font in the third-party notices
+  {
     const notices = readText('THIRD_PARTY_NOTICES.md');
     for (const font of BUNDLED_FONTS) {
       for (const part of [font.credit, font.source, font.licence]) expect(notices, part).toContain(part);
     }
     expect(copyrightClaimProblems(notices)).toEqual([]);
-  });
+  }
 
-  it('counts a built stylesheet\'s @font-face rules against the list', () => {
+  // counts a built stylesheet's @font-face rules against the list
+  {
     expect(fontFaceCountProblems(fontFaces(BUNDLED_FONTS.length))).toEqual([]);
     expect(fontFaceCountProblems(fontFaces(BUNDLED_FONTS.length + 1))).toHaveLength(1);
     expect(fontFaceCountProblems(fontFaces(BUNDLED_FONTS.length - 1))).toHaveLength(1);
-  });
+  }
 
-  it('reports a script that inlines a font', () => {
+  // reports a script that inlines a font
+  {
     expect(scriptFontProblems('const image = "data:image/png;base64,AAAA";')).toEqual([]);
     for (const url of ['data:font/ttf;base64,AAAA', 'data:application/font-woff;base64,AAAA']) {
       expect(scriptFontProblems(`const font = "${url}";`), url).toHaveLength(1);
     }
-  });
+  }
 
-  it('attributes no copyright line to an author who published none', () => {
+  // attributes no copyright line to an author who published none
+  {
     const { font, author } = authorWithoutCopyright();
     expect(copyrightClaimProblems(comment(noticeLines()))).toEqual([]);
     const claims = [
@@ -210,5 +223,5 @@ describe('bundled font notices', () => {
       expect(problems[0]).toContain(author);
       expect(copyrightClaimProblems(comment(lines))).toEqual(problems);
     }
-  });
+  }
 });

@@ -13,24 +13,27 @@ function record(version: number, installedAt: number): InstallRecord {
   };
 }
 
-describe('migrateInstallRecords', () => {
-  it('moves this device\'s record into the collection folder', async () => {
+it('migrateInstallRecords', async () => {
+  // moves this device's record into the collection folder
+  {
     const vault = createInMemoryApp({ files: { [LEGACY]: JSON.stringify(record(1, 10)) } });
     await migrateInstallRecords(vault.app, [collection]);
     expect(JSON.parse(vault.files.get(MOVED)!)).toMatchObject({ version: 1 });
     expect(vault.files.has(LEGACY)).toBe(false);
-  });
+  }
 
-  it('keeps the later install where another device moved its record first', async () => {
+  // keeps the later install where another device moved its record first
+  {
     const vault = createInMemoryApp({ files: { [LEGACY]: JSON.stringify(record(2, 20)), [MOVED]: JSON.stringify(record(1, 10)) } });
     await migrateInstallRecords(vault.app, [collection]);
     expect(JSON.parse(vault.files.get(MOVED)!)).toMatchObject({ version: 2 });
-  });
+  }
 
-  it('keeps the moved record when it stands for the later install', async () => {
+  // keeps the moved record when it stands for the later install
+  {
     const vault = createInMemoryApp({ files: { [LEGACY]: JSON.stringify(record(1, 10)), [MOVED]: JSON.stringify(record(2, 20)) } });
     await migrateInstallRecords(vault.app, [collection]);
     expect(JSON.parse(vault.files.get(MOVED)!)).toMatchObject({ version: 2 });
     expect(vault.files.has(LEGACY)).toBe(false);
-  });
+  }
 });

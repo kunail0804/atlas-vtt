@@ -29,8 +29,9 @@ const CLOUDS: Record<string, Cloud> = {
 
 const directionOf = (px: number, py: number, x: number, y: number): number => (px < x ? 4 : 0) + (py < y ? 2 : 0) + (steeper(px, py, x, y, px < x, py < y) ? 1 : 0);
 
-describe('PointTree against looking at every point', () => {
-  it('finds the nearest point in each of eight directions, in every cloud', () => {
+it('PointTree against looking at every point', () => {
+  // finds the nearest point in each of eight directions, in every cloud
+  {
     for (const name of Object.keys(CLOUDS)) {
       let asked = 0, found = 0;
       for (let seed = 1; seed <= 12; seed++) {
@@ -63,9 +64,10 @@ describe('PointTree against looking at every point', () => {
       expect(asked).toBe(1440);
       expect(found).toBeGreaterThan(1440);
     }
-  });
+  }
 
-  it('tells the two directions of a quarter apart as |dx| against |dy| does, away from the diagonals', () => {
+  // tells the two directions of a quarter apart as |dx| against |dy| does, away from the diagonals
+  {
     const rand = random(5);
     for (let i = 0; i < 20_000; i++) {
       const [x, y, px, py] = [rand() * 500, rand() * 500, rand() * 500, rand() * 500];
@@ -73,9 +75,10 @@ describe('PointTree against looking at every point', () => {
       if (Math.abs(Math.abs(dx) - Math.abs(dy)) < 1e-6) continue;
       expect(steeper(px, py, x, y, dx < 0, dy < 0)).toBe(Math.abs(dx) < Math.abs(dy));
     }
-  });
+  }
 
-  it('counts a point at the very radius as `Math.hypot` does, whichever way its square falls in the last bit', () => {
+  // counts a point at the very radius as `Math.hypot` does, whichever way its square falls in the last bit
+  {
     // Distances that are the radius to the last bit or one off it: a point at 3-4-5 times a factor, measured from the origin.
     let onTheEdge = 0;
     const rand = random(99);
@@ -97,9 +100,10 @@ describe('PointTree against looking at every point', () => {
     }
     // The square and the root disagree on some of them: the check can tell the two apart.
     expect(onTheEdge).toBeGreaterThan(0);
-  });
+  }
 
-  it('finds every point within a radius, and those beside a segment', () => {
+  // finds every point within a radius, and those beside a segment
+  {
     for (const name of Object.keys(CLOUDS)) {
       const rand = random(name.length * 131);
       const points = CLOUDS[name]!(rand, 900);
@@ -129,5 +133,5 @@ describe('PointTree against looking at every point', () => {
         expect(beside.length).toBeLessThanOrEqual(expected.length + 3);
       }
     }
-  });
+  }
 });

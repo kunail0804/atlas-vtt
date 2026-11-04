@@ -12,32 +12,36 @@ import { qRotate, vDot, vLength, vSub } from '../../../src/app/dice3d/vectorMath
 
 const ALL: DieSides[] = [4, 6, 8, 10, 12, 20];
 
-describe('die bodies', () => {
-  it('every die has exactly as many faces as sides', () => {
+it('die bodies', () => {
+  // every die has exactly as many faces as sides
+  {
     for (const sides of ALL) {
       expect(dieGeometry(sides).faces).toHaveLength(sides);
     }
-  });
+  }
 
-  it('every die carries every number exactly once', () => {
+  // every die carries every number exactly once
+  {
     for (const sides of ALL) {
       const { values } = dieGeometry(sides);
       expect([...values].sort((a, b) => a - b)).toEqual(
         Array.from({ length: sides }, (_, i) => i + 1),
       );
     }
-  });
+  }
 
-  it('all normals of every die point outwards', () => {
+  // all normals of every die point outwards
+  {
     for (const sides of ALL) {
       const { normals, centers } = dieGeometry(sides);
       for (let i = 0; i < normals.length; i++) {
         expect(vDot(normals[i]!, centers[i]!)).toBeGreaterThan(0);
       }
     }
-  });
+  }
 
-  it('all vertices of a face lie in one plane, on every die', () => {
+  // all vertices of a face lie in one plane, on every die
+  {
     for (const sides of ALL) {
       const { faces, vertices, normals, centers } = dieGeometry(sides);
       for (let i = 0; i < faces.length; i++) {
@@ -46,9 +50,10 @@ describe('die bodies', () => {
         }
       }
     }
-  });
+  }
 
-  it('the numeral up of every die is perpendicular to the normal', () => {
+  // the numeral up of every die is perpendicular to the normal
+  {
     for (const sides of ALL) {
       const { ups, normals } = dieGeometry(sides);
       for (let i = 0; i < ups.length; i++) {
@@ -56,11 +61,10 @@ describe('die bodies', () => {
         expect(vLength(ups[i]!)).toBeCloseTo(1, 9);
       }
     }
-  });
+  }
 
-  // The printed rule of every real die; only the d4 lacks it, having no
-  // opposite faces.
-  it('opposite faces add up to n+1 on the dice that have them', () => {
+  // opposite faces add up to n+1 on the dice that have them
+  {
     for (const sides of [6, 8, 10, 12, 20] as DieSides[]) {
         const { normals, values } = dieGeometry(sides);
         for (let i = 0; i < normals.length; i++) {
@@ -69,11 +73,12 @@ describe('die bodies', () => {
           expect(values[i]! + values[opposite]!).toBe(sides + 1);
         }
       }
-  });
+  }
 });
 
-describe('target orientation', () => {
-  it('puts the target face of every die on top, numeral readable', () => {
+it('target orientation', () => {
+  // puts the target face of every die on top, numeral readable
+  {
     for (const sides of ALL) {
       const geometry = dieGeometry(sides);
       for (let value = 1; value <= sides; value++) {
@@ -88,11 +93,10 @@ describe('target orientation', () => {
         expect(up[2]).toBeCloseTo(-1, 9);
       }
     }
-  });
+  }
 
-  // A die at rest lies on the table: one whole face touches it and nothing
-  // reaches lower. Standing on an edge or a tip is no way to come to rest.
-  it('every die comes to rest lying on a face', () => {
+  // every die comes to rest lying on a face
+  {
     for (const sides of ALL) {
       const geometry = dieGeometry(sides);
       for (let face = 0; face < sides; face++) {
@@ -105,20 +109,20 @@ describe('target orientation', () => {
         }
       }
     }
-  });
+  }
 
-  it('the rolled face of every resting die is the one on top', () => {
+  // the rolled face of every resting die is the one on top
+  {
     for (const sides of [6, 8, 10, 12, 20] as DieSides[]) {
       const geometry = dieGeometry(sides);
       for (let face = 0; face < sides; face++) {
         expect(qRotate(restingQuaternion(geometry, face, 0.2), geometry.normals[face]!)[1]).toBeCloseTo(1, 9);
       }
     }
-  });
+  }
 
-  // No face of a d4 lies on top. It rests on the rolled face, tip up, and the
-  // face turned to the viewer (+Z) reads upright.
-  it('a resting d4 lies on its rolled face, one face turned to the viewer', () => {
+  // a resting d4 lies on its rolled face, one face turned to the viewer
+  {
     const geometry = dieGeometry(4);
     for (let face = 0; face < 4; face++) {
       const q = restingQuaternion(geometry, face);
@@ -127,12 +131,13 @@ describe('target orientation', () => {
       expect(front[0]).toBeCloseTo(0, 9);
       expect(front[2]).toBeGreaterThan(0.9);
     }
-  });
+  }
 
-  it('finds the face of every number', () => {
+  // finds the face of every number
+  {
     const geometry = dieGeometry(20);
     for (let value = 1; value <= 20; value++) {
       expect(geometry.values[faceIndexForValue(geometry, value)]).toBe(value);
     }
-  });
+  }
 });

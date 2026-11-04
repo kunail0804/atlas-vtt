@@ -20,8 +20,9 @@ function problemOf(file: unknown): string {
 /** `count` segments as one wall line. */
 const lineOf = (count: number): Array<{ x: number; y: number }> => Array.from({ length: count + 1 }, (_, index) => ({ x: index % 10, y: Math.floor(index / 10) % 8 }));
 
-describe('reading a Universal VTT file', () => {
-  it('reads every field of a file', () => {
+it('reading a Universal VTT file', () => {
+  // reads every field of a file
+  {
     const map = read(cryptFile());
 
     expect(map.origin).toEqual({ x: 0, y: 0 });
@@ -35,25 +36,29 @@ describe('reading a Universal VTT file', () => {
     expect(map.bakedLighting).toBe(false);
     expect(map.image.type).toBe('image/png');
     expect([...map.image.bytes]).toEqual([...pngHeader(1000, 800)]);
-  });
+  }
 
-  it('reads a file that holds only a map size and an image', () => {
+  // reads a file that holds only a map size and an image
+  {
     const map = read({ resolution: { map_size: { x: 4, y: 3 }, pixels_per_grid: 70 }, image: base64Of(pngHeader(280, 210)) });
 
     expect(map).toMatchObject({ origin: { x: 0, y: 0 }, polylines: [], portals: [], lights: [], ambientLight: null, bakedLighting: false });
-  });
+  }
 
-  it('takes fields set to null as left out', () => {
+  // takes fields set to null as left out
+  {
     const map = read({ ...cryptFile(), format: null, line_of_sight: null, objects_line_of_sight: null, portals: null, lights: null, environment: null });
 
     expect(map).toMatchObject({ polylines: [], portals: [], lights: [], ambientLight: null, bakedLighting: false });
-  });
+  }
 
-  it('ignores fields it does not know', () => {
+  // ignores fields it does not know
+  {
     expect(read({ ...cryptFile(), software: 'Dungeondraft', creator: { name: 'x' } }).size).toEqual({ x: 10, y: 8 });
-  });
+  }
 
-  it('refuses files that are no map', () => {
+  // refuses files that are no map
+  {
     for (const [_label, text, problem] of [
       ['text that is not JSON', '{"resolution": ', 'not valid JSON'],
       ['a list', '[]', 'content is missing or not an object'],
@@ -63,13 +68,15 @@ describe('reading a Universal VTT file', () => {
     ]) {
       expect(problemOf(text)).toContain(problem);
     }
-  });
+  }
 
-  it('refuses a text longer than 150 MB before parsing it', () => {
+  // refuses a text longer than 150 MB before parsing it
+  {
     expect(problemOf('x'.repeat(UVTT_LIMITS.fileBytes + 1))).toBe('The file is larger than 150 MB.');
-  });
+  }
 
-  it('refuses a file whose fields that place things are wrong', () => {
+  // refuses a file whose fields that place things are wrong
+  {
     for (const [path, value, problem] of [
       ['resolution', undefined, 'The map\'s resolution is missing or not an object.'],
       ['resolution', [], 'The map\'s resolution is missing or not an object.'],
@@ -124,9 +131,10 @@ describe('reading a Universal VTT file', () => {
     ] as const) {
       expect(problemOf(cryptSetting(path, value))).toBe(problem);
     }
-  });
+  }
 
-  it('refuses a number that is no number, wherever a number stands', () => {
+  // refuses a number that is no number, wherever a number stands
+  {
     for (const [_label, number] of [
       ['a number too large for JSON', '1e999'],
       ['a number below every range', '-1e999'],
@@ -135,9 +143,10 @@ describe('reading a Universal VTT file', () => {
       expect(problemOf(text.replace('"range":6', `"range":${number}`))).toBe('The range of light 1 is missing or not a number.');
       expect(problemOf(text.replace('"x":4.5,"y":1}', `"x":${number},"y":1}`))).toBe('Point 1 of wall line 2 (x) is missing or not a number.');
     }
-  });
+  }
 
-  it('is not put off by fields it has no use for being anything', () => {
+  // is not put off by fields it has no use for being anything
+  {
     for (const [path, value] of [
       ['format', '0.3'],
       ['format', { major: 0, minor: 3 }],
@@ -151,47 +160,53 @@ describe('reading a Universal VTT file', () => {
     ] as const) {
       expect(read(cryptSetting(path, value))).toEqual(read(cryptFile()));
     }
-  });
+  }
 
-  it('reads a door as closed or open by "closed", however it is written', () => {
+  // reads a door as closed or open by "closed", however it is written
+  {
     for (const [written, closed] of [
       [true, true], [1, true], ['true', true], ['yes', true], [undefined, true], [null, true], [{}, true],
       [false, false], [0, false], ['false', false], ['FALSE', false], ['0', false], ['', false],
     ]) {
       expect(read(cryptSetting('portals.0.closed', written)).portals[0]!.closed).toBe(closed);
     }
-  });
+  }
 
-  it('reads "baked_lighting" however it is written', () => {
+  // reads "baked_lighting" however it is written
+  {
     for (const [written, baked] of [
       [true, true], ['true', true], [1, true],
       [false, false], [0, false], ['false', false], [undefined, false], [null, false], [[], false],
     ]) {
       expect(read(cryptSetting('environment.baked_lighting', written)).bakedLighting).toBe(baked);
     }
-  });
+  }
 
-  it('gives a light whose colour is no colour white light', () => {
+  // gives a light whose colour is no colour white light
+  {
     for (const written of ['', 'fff', 'orange', 'ffeccd8', 0xffffff, null, {}]) {
       expect(read(cryptSetting('lights.0.color', written)).lights[0]!.color).toBe('#ffffff');
     }
-  });
+  }
 
-  it('gives a light whose intensity is no number the usual one', () => {
+  // gives a light whose intensity is no number the usual one
+  {
     for (const written of ['bright', -0.5, null, [], '2']) {
       expect(read(cryptSetting('lights.0.intensity', written)).lights[0]!.intensity).toBe(1);
     }
-  });
+  }
 
-  it('reads no ambient light where the environment gives none', () => {
+  // reads no ambient light where the environment gives none
+  {
     for (const [path, value] of [
       ['environment', []], ['environment', 'night'], ['environment.ambient_light', 0.5], ['environment.ambient_light', 'dark'], ['environment.ambient_light', ''],
     ] as const) {
       expect(read(cryptSetting(path, value)).ambientLight).toBeNull();
     }
-  });
+  }
 
-  it('reads the defaults of what a door and a light may leave out', () => {
+  // reads the defaults of what a door and a light may leave out
+  {
     const map = read(cryptWith((file) => {
       file.portals = [{ bounds: [{ x: 1, y: 2 }, { x: 2, y: 2 }] }];
       file.lights = [{ position: { x: 1, y: 1 }, range: 0 }];
@@ -199,9 +214,10 @@ describe('reading a Universal VTT file', () => {
 
     expect(map.portals).toEqual([{ bounds: [{ x: 1, y: 2 }, { x: 2, y: 2 }], closed: true }]);
     expect(map.lights).toEqual([{ position: { x: 1, y: 1 }, range: 0, intensity: 1, color: '#ffffff' }]);
-  });
+  }
 
-  it('reads each colour as its hex', () => {
+  // reads each colour as its hex
+  {
     for (const [written, color] of [
       ['ffeccd8b', '#eccd8b'],
       ['ECCD8B', '#eccd8b'],
@@ -211,16 +227,18 @@ describe('reading a Universal VTT file', () => {
       expect(read(cryptSetting('lights.0.color', written)).lights[0]!.color).toBe(color);
       expect(read(cryptSetting('environment.ambient_light', written)).ambientLight).toBe(color);
     }
-  });
+  }
 
-  it('reads an open door and baked lighting', () => {
+  // reads an open door and baked lighting
+  {
     expect(read(cryptSetting('portals.0.closed', false)).portals[0]!.closed).toBe(false);
     expect(read(cryptSetting('environment.baked_lighting', true)).bakedLighting).toBe(true);
-  });
+  }
 });
 
-describe('the image of a Universal VTT file', () => {
-  it('knows each image type by its first bytes', () => {
+it('the image of a Universal VTT file', () => {
+  // knows each image type by its first bytes
+  {
     for (const [_label, bytes, type] of [
       ['PNG', pngHeader(10, 10), 'image/png'],
       ['WebP', WEBP_START, 'image/webp'],
@@ -228,16 +246,18 @@ describe('the image of a Universal VTT file', () => {
     ] as const) {
       expect(read(cryptSetting('image', base64Of(bytes))).image.type).toBe(type);
     }
-  });
+  }
 
-  it('is read past white space, line breaks and the head of a data URL', () => {
+  // is read past white space, line breaks and the head of a data URL
+  {
     const image = base64Of(pngHeader(1000, 800));
     const wrapped = ` \n data:image/png;base64,${image.slice(0, 20)}\r\n${image.slice(20)}\n`;
 
     expect([...read(cryptSetting('image', wrapped)).image.bytes]).toEqual([...pngHeader(1000, 800)]);
-  });
+  }
 
-  it('is read from base64 written for URLs, without padding', () => {
+  // is read from base64 written for URLs, without padding
+  {
     const bytes = new Uint8Array([...pngHeader(1000, 800), 0xfb, 0xff, 0xfe, 0xff]);
     const standard = base64Of(bytes);
     const forUrls = standard.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -245,23 +265,26 @@ describe('the image of a Universal VTT file', () => {
     expect(forUrls).not.toBe(standard);
 
     expect([...read(cryptSetting('image', forUrls)).image.bytes]).toEqual([...bytes]);
-  });
+  }
 
-  it('goes by the bytes, not by the type a data URL claims', () => {
+  // goes by the bytes, not by the type a data URL claims
+  {
     expect(read(cryptSetting('image', `data:image/png;base64,${base64Of(JPEG_START)}`)).image.type).toBe('image/jpeg');
-  });
+  }
 });
 
-describe('the limits of a Universal VTT file', () => {
-  it('accepts 20,000 wall segments and refuses one more', () => {
+it('the limits of a Universal VTT file', () => {
+  // accepts 20,000 wall segments and refuses one more
+  {
     const full = cryptWith((file) => { file.line_of_sight = [lineOf(12_000), lineOf(7_999)]; file.objects_line_of_sight = []; });
     expect(read(full).polylines.map((line) => line.length - 1)).toEqual([12_000, 7_999]);
 
     const over = cryptWith((file) => { file.line_of_sight = [lineOf(12_000), lineOf(8_000)]; file.objects_line_of_sight = []; });
     expect(problemOf(over)).toBe('The file has more than 20,000 wall segments.');
-  });
+  }
 
-  it('counts object outlines and doors as wall segments', () => {
+  // counts object outlines and doors as wall segments
+  {
     const door = { bounds: [{ x: 1, y: 1 }, { x: 2, y: 1 }] };
     const file = cryptWith((crypt) => {
       crypt.line_of_sight = [lineOf(10_000)];
@@ -270,9 +293,10 @@ describe('the limits of a Universal VTT file', () => {
     });
 
     expect(problemOf(file)).toBe('The file has more than 20,000 wall segments.');
-  });
+  }
 
-  it('refuses too many walls, doors or lights before reading them', () => {
+  // refuses too many walls, doors or lights before reading them
+  {
     for (const [_label, change] of [
       ['one wall line with too many points', (file: Record<string, unknown>): void => { file.line_of_sight = [lineOf(20_001)]; }],
       ['too many wall lines', (file: Record<string, unknown>): void => { file.line_of_sight = Array.from({ length: 20_001 }, () => []); }],
@@ -280,17 +304,19 @@ describe('the limits of a Universal VTT file', () => {
     ] as const) {
       expect(problemOf(cryptWith(change))).toBe('The file has more than 20,000 wall segments.');
     }
-  });
+  }
 
-  it('accepts 2,000 lights and refuses one more', () => {
+  // accepts 2,000 lights and refuses one more
+  {
     const light = { position: { x: 1, y: 1 }, range: 2 };
     expect(read(cryptSetting('lights', Array.from({ length: 2_000 }, () => light))).lights).toHaveLength(2_000);
     expect(problemOf(cryptSetting('lights', Array.from({ length: 2_001 }, () => light)))).toBe('The file has more than 2,000 lights.');
-  });
+  }
 });
 
-describe('what a Universal VTT file cannot do', () => {
-  it('never throws, whatever the text', () => {
+it('what a Universal VTT file cannot do', () => {
+  // never throws, whatever the text
+  {
     const texts = [
       '', ' ', '{', '{}', '{"resolution":{}}', '{"__proto__":{"resolution":{"map_size":{"x":1,"y":1}}}}',
       '{"resolution":{"map_size":{"x":1,"y":1},"pixels_per_grid":70},"image":"AAAA","lights":[null]}',
@@ -300,9 +326,10 @@ describe('what a Universal VTT file cannot do', () => {
     for (const text of texts) {
       expect(parseUvtt(text).ok).toBe(false);
     }
-  });
+  }
 
-  it('reads only what the file itself holds, whatever other code has put on every object', () => {
+  // reads only what the file itself holds, whatever other code has put on every object
+  {
     const polluted: Record<string, unknown> = {
       x: 3, y: 3, range: 6, position: { x: 1, y: 1 }, bounds: [{ x: 1, y: 1 }, { x: 2, y: 1 }],
       map_size: { x: 10, y: 8 }, resolution: { map_size: { x: 10, y: 8 } }, image: cryptFile().image,
@@ -323,23 +350,26 @@ describe('what a Universal VTT file cannot do', () => {
     } finally {
       for (const key of Object.keys(polluted)) delete prototype[key];
     }
-  });
+  }
 });
 
-describe('Universal VTT file names', () => {
-  it('knows every Universal VTT extension as a map', () => {
+it('Universal VTT file names', () => {
+  // knows every Universal VTT extension as a map
+  {
     for (const name of ['crypt.dd2vtt', 'Crypt.UVTT', 'the.old.mill.df2vtt']) {
       expect(isUvttFileName(name)).toBe(true);
     }
-  });
+  }
 
-  it('does not take other names for one', () => {
+  // does not take other names for one
+  {
     for (const name of ['crypt.png', 'crypt.json', 'dd2vtt', 'crypt.dd2vtt.zip', '']) {
       expect(isUvttFileName(name)).toBe(false);
     }
-  });
+  }
 
-  it('names the scene after the file', () => {
+  // names the scene after the file
+  {
     for (const [fileName, name] of [
       ['Crypt of the Lich.dd2vtt', 'Crypt of the Lich'],
       ['the.old.mill.uvtt', 'the.old.mill'],
@@ -350,5 +380,5 @@ describe('Universal VTT file names', () => {
     ] as const) {
       expect(uvttSceneName(fileName)).toBe(name);
     }
-  });
+  }
 });

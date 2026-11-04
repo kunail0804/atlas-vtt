@@ -30,15 +30,17 @@ function host(): { plugin: Plugin; settings: SettingsService; children: Set<unkn
   return { plugin, settings, children, commands, flip: (next) => ((on = next), changed()) };
 }
 
-describe('online play behind its experimental switch', () => {
-  it('loads nothing and offers no settings while the switch is off', () => {
+it('online play behind its experimental switch', () => {
+  // loads nothing and offers no settings while the switch is off
+  {
     const { plugin, settings, children } = host();
     const online = registerOnlinePlay(plugin, settings);
     expect(children.size).toBe(0);
     expect(online.settingsSections()).toEqual([]);
-  });
+  }
 
-  it('loads with the switch, once, and unloads when it goes off', () => {
+  // loads with the switch, once, and unloads when it goes off
+  {
     const { plugin, settings, children, flip } = host();
     const online = registerOnlinePlay(plugin, settings);
     flip(true);
@@ -48,9 +50,10 @@ describe('online play behind its experimental switch', () => {
     flip(false);
     expect(children.size).toBe(0);
     expect(online.settingsSections()).toEqual([]);
-  });
+  }
 
-  it('registers its commands once and offers them only while it is loaded', () => {
+  // registers its commands once and offers them only while it is loaded
+  {
     const { plugin, settings, commands, flip } = host();
     registerOnlinePlay(plugin, settings);
     const start = commands.get('start-online-table');
@@ -62,7 +65,7 @@ describe('online play behind its experimental switch', () => {
     flip(true);
     expect(commands.size).toBe(6);
     expect(commands.get('start-online-table')).toBe(start);
-  });
+  }
 });
 
 describe("online play's timers across a switch off and on", () => {

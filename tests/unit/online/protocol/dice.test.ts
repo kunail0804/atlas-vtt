@@ -10,20 +10,23 @@ const ROLL: SharedRoll = {
   source: { type: 'toolbar' },
 };
 
-describe('player rolls', () => {
-  it('read a formula for a token or for nobody', () => {
+it('player rolls', () => {
+  // read a formula for a token or for nobody
+  {
     expect(parsePlayerMessage({ t: 'roll', scene: 's1', formula: '2d6 + 1', token: ALIAS })).toEqual({ t: 'roll', scene: 's1', formula: '2d6 + 1', token: ALIAS });
     expect(parsePlayerMessage({ t: 'roll', scene: 's1', formula: '1d20', token: null })).toEqual({ t: 'roll', scene: 's1', formula: '1d20', token: null });
-  });
+  }
 
-  it('carry a roll mode, a flavor and the roll button they answer; public is the absence of a mode', () => {
+  // carry a roll mode, a flavor and the roll button they answer; public is the absence of a mode
+  {
     const request = { id: '0'.repeat(24), index: 2 };
     expect(parsePlayerMessage({ t: 'roll', scene: 's1', formula: '1d20', token: null, mode: 'blind', flavor: '  Stealth ', request }))
       .toEqual({ t: 'roll', scene: 's1', formula: '1d20', token: null, mode: 'blind', flavor: 'Stealth', request });
     expect(parsePlayerMessage({ t: 'roll', scene: 's1', formula: '1d20', token: null, mode: 'public' })).toEqual({ t: 'roll', scene: 's1', formula: '1d20', token: null });
-  });
+  }
 
-  it('refuse long formulas, odd tokens and a missing scene', () => {
+  // refuse long formulas, odd tokens and a missing scene
+  {
     for (const body of [
       { t: 'roll', scene: 's1', formula: `1d6${'+1'.repeat(50)}`, token: null },
       { t: 'roll', scene: 's1', formula: '1d6', token: null, mode: 'loud' },
@@ -34,22 +37,25 @@ describe('player rolls', () => {
       { t: 'roll', scene: 's1', formula: '1d6' },
       { t: 'roll', scene: '', formula: '1d6', token: null },
     ]) expect(parsePlayerMessage(body), JSON.stringify(body)).toBeNull();
-  });
+  }
 });
 
-describe('shared rolls', () => {
-  it('read a roll by a player or the GM, with or without a token', () => {
+it('shared rolls', () => {
+  // read a roll by a player or the GM, with or without a token
+  {
     expect(parseGmMessage({ t: 'roll', who: PLAYER, result: ROLL, token: ALIAS })).toEqual({ t: 'roll', who: PLAYER, result: ROLL, token: ALIAS });
     expect(parseGmMessage({ t: 'roll', who: 'gm', result: { ...ROLL, source: { type: 'statblock', abilityName: 'Bite' } }, token: null })).not.toBeNull();
     expect(parseGmMessage({ t: 'roll-refused', reason: 'rate' })).toEqual({ t: 'roll-refused', reason: 'rate' });
-  });
+  }
 
-  it('drop fields players are not meant to read', () => {
+  // drop fields players are not meant to read
+  {
     const parsed = parseGmMessage({ t: 'roll', who: 'gm', result: { ...ROLL, player: 'Player', source: { type: 'toolbar', tokenId: 'gm-hero-id', tokenImagePath: 'art/hero.webp' } }, token: null });
     expect(parsed?.t === 'roll' ? parsed.result : null).toEqual({ ...ROLL, source: { type: 'toolbar' } });
-  });
+  }
 
-  it('refuse a die that cannot be, too many dice and odd totals before the dice see them', () => {
+  // refuse a die that cannot be, too many dice and odd totals before the dice see them
+  {
     const bad: unknown[] = [
       { ...ROLL, rolls: [{ die: 'd6', value: 7, max: 6 }] },
       { ...ROLL, rolls: [{ die: 'd20', value: 3, max: 6 }] },
@@ -68,13 +74,14 @@ describe('shared rolls', () => {
     for (const result of bad) expect(parseGmMessage({ t: 'roll', who: 'gm', result, token: null }), JSON.stringify(result).slice(0, 120)).toBeNull();
     expect(parseGmMessage({ t: 'roll', who: 'someone', result: ROLL, token: null })).toBeNull();
     expect(parseGmMessage({ t: 'roll-refused', reason: 'because' })).toBeNull();
-  });
+  }
 });
 
-describe('shared dice of the full notation', () => {
+it('shared dice of the full notation', () => {
   const roll = (rolls: unknown[], extra: Record<string, unknown> = {}): unknown => ({ id: 'r', timestamp: 1, formula: '4d6kh3', modifiers: 0, total: 3, rolls, ...extra });
 
-  it('carry Fate dice, dropped, rerolled and counted dice, labels and a formula that is no plain sum', () => {
+  // carry Fate dice, dropped, rerolled and counted dice, labels and a formula that is no plain sum
+  {
     const rolls = [
       { die: 'dF', value: -1, max: 1, min: -1 },
       { die: 'd6', value: 1, max: 6, rerolled: true },
@@ -82,9 +89,10 @@ describe('shared dice of the full notation', () => {
       { die: 'd6', value: 2, max: 6, dropped: true, failure: true },
     ];
     expect(parseSharedRoll(roll(rolls, { linear: false }))).toEqual(roll(rolls, { linear: false }));
-  });
+  }
 
-  it('refuse a Fate die off its faces, a die below 1, an odd label or flag', () => {
+  // refuse a Fate die off its faces, a die below 1, an odd label or flag
+  {
     for (const die of [
       { die: 'dF', value: 2, max: 1, min: -1 },
       { die: 'dF', value: 0, max: 6, min: -1 },
@@ -94,5 +102,5 @@ describe('shared dice of the full notation', () => {
       { die: 'd6', value: 3, max: 6, dropped: 'yes' },
     ]) expect(parseSharedRoll(roll([die])), JSON.stringify(die)).toBeNull();
     expect(parseSharedRoll(roll([], { linear: true }))).toBeNull();
-  });
+  }
 });

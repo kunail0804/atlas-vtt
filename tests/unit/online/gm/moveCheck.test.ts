@@ -21,43 +21,47 @@ const context = (changes: Partial<MoveContext> = {}): MoveContext => ({
 });
 const move = (changes: Partial<PlayerMove> = {}): PlayerMove => ({ t: 'move', scene: 's', id: ALIAS, x: 500, y: 400, ...changes });
 
-describe('checking a player\'s move', () => {
-  it('takes the owner\'s move of a listed token to a place on the map, edges included', () => {
+it('checking a player\'s move', () => {
+  // takes the owner's move of a listed token to a place on the map, edges included
+  {
     expect(checkMove(ANA, move(), context())).toEqual({ ok: true, tokenId: 'ogre', x: 500, y: 400 });
     expect(checkMove(ANA, move({ x: 0, y: 800 }), context()).ok).toBe(true);
-  });
+  }
 
-  it('refuses someone else\'s token, a token players do not see or that is hidden now, and another scene', () => {
+  // refuses someone else's token, a token players do not see or that is hidden now, and another scene
+  {
     expect(checkMove(BEN, move(), context())).toEqual({ ok: false, reason: 'owner' });
     expect(checkMove(ANA, move({ id: '2'.repeat(24) }), context())).toEqual({ ok: false, reason: 'token' });
     expect(checkMove(ANA, move(), context({ tokens: { ogre: token('ogre', { isHidden: true }) } }))).toEqual({ ok: false, reason: 'token' });
     expect(checkMove(ANA, move(), context({ tokens: {} }))).toEqual({ ok: false, reason: 'token' });
     expect(checkMove(ANA, move({ scene: 'old' }), context())).toEqual({ ok: false, reason: 'scene' });
     expect(checkMove(ANA, move(), context({ scene: null }))).toEqual({ ok: false, reason: 'scene' });
-  });
+  }
 
-  it('refuses a place that is no finite number or lies outside the map', () => {
+  // refuses a place that is no finite number or lies outside the map
+  {
     for (const place of [{ x: Number.NaN }, { y: Number.POSITIVE_INFINITY }, { x: Number.NEGATIVE_INFINITY }, { x: -1 }, { x: 1000.5 }, { y: 801 }]) {
       expect(checkMove(ANA, move(place), context()), JSON.stringify(place)).toEqual({ ok: false, reason: 'place' });
     }
     expect(checkMove(ANA, move({ x: -50 }), context({ map: null })).ok).toBe(true);
     expect(checkMove(ANA, move({ x: Number.NaN }), context({ map: null })).ok).toBe(false);
-  });
+  }
 
-  it('allows a burst of moves, then a few a second, per player', () => {
+  // allows a burst of moves, then a few a second, per player
+  {
     const rate = new MoveRate();
     for (let count = 0; count < MOVE_BURST; count += 1) expect(rate.take(ANA, 0)).toBe(true);
     expect(rate.take(ANA, 0)).toBe(false);
     expect(rate.take(BEN, 0)).toBe(true);
     expect(rate.take(ANA, 1000 / MOVES_PER_SECOND)).toBe(true);
     expect(rate.take(ANA, 1000 / MOVES_PER_SECOND)).toBe(false);
-  });
+  }
 });
 
 /** A PNG's signature and header for a 1000 × 800 image: all `imageDimensions` reads. */
 const PNG_1000x800 = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52, 0, 0, 0x03, 0xe8, 0, 0, 0x03, 0x20, 8, 6]);
 
-describe('moves through the shared scene', () => {
+it('moves through the shared scene', async () => {
   async function table(): Promise<{ readonly share: ReturnType<typeof shareHarness>; readonly alias: (x: number) => string }> {
     const initial = sceneState({
       background: 'maps/cave.png',
@@ -73,10 +77,13 @@ describe('moves through the shared scene', () => {
     const alias = (x: number): string => tokenLists(share.sent).at(-1)?.tokens.find((entry) => entry.x === x)?.id ?? '';
     return { share, alias };
   }
+
   const sceneOf = (share: ReturnType<typeof shareHarness>): string => tokenLists(share.sent).at(-1)?.scene ?? '';
+
   const refusals = (sent: readonly { readonly body: GmMessage; readonly to: string | undefined }[]): unknown[] => sent.filter(({ body }) => body.t === 'move-refused');
 
-  it('puts the owner\'s token down and sends everyone the new list', async () => {
+  // puts the owner's token down and sends everyone the new list
+  {
     const { share, alias } = await table();
     const ogre = alias(105);
     share.share.receive(ANA, { t: 'move', scene: sceneOf(share), id: ogre, x: 735, y: 315 });
@@ -85,9 +92,10 @@ describe('moves through the shared scene', () => {
     expect(listed?.tokens.find((entry) => entry.id === ogre)).toMatchObject({ x: 735, y: 315 });
     expect(listed?.tokens.at(-1)?.id).toBe(ogre);
     expect(refusals(share.sent)).toEqual([]);
-  });
+  }
 
-  it('sends a refused move back to its sender alone, with the place players see or none for a hidden token', async () => {
+  // sends a refused move back to its sender alone, with the place players see or none for a hidden token
+  {
     const { share, alias } = await table();
     const scene = sceneOf(share);
     const bear = alias(315);
@@ -100,5 +108,5 @@ describe('moves through the shared scene', () => {
       { body: { t: 'move-refused', scene, id: alias(105), x: 105, y: 100 }, to: ANA },
       { body: { t: 'move-refused', scene, id: 'f'.repeat(24), x: null, y: null }, to: ANA },
     ]);
-  });
+  }
 });

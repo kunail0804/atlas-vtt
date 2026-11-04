@@ -15,8 +15,9 @@ function dice(formula: string): DiceTerm {
   return term;
 }
 
-describe('parseFormula', () => {
-  it('accepts bounded formulas', () => {
+it('parseFormula', () => {
+  // accepts bounded formulas
+  {
     for (const formula of [
       'd20', '+3', '-2D6 + 9999', '0d2', '100d1000', '50d6+50d8', 'd6!!i', 'd6!99', 'd6!0', ' \td20\t ', Array(20).fill('1').join('+'),
       `d20${' '.repeat(97)}`, 'd20*2', '(d20)', 'd%', '4dF', 'dF', '2d6*(1d4+2)/3', '((((((((1d6))))))))', '-(1d6+2)',
@@ -25,9 +26,10 @@ describe('parseFormula', () => {
     ]) {
       expect(parseFormula(formula).ok).toBe(true);
     }
-  });
+  }
 
-  it('rejects malformed formulas', () => {
+  // rejects malformed formulas
+  {
     for (const formula of [
       '', ' ', 'hello d20', 'd20 hello', 'd20+garbage+d6', 'd20 d6', 'd20++2', 'd20-', 'd20\n', 'd20\r', 'd20 ', '1.5d6', 'd6!!!', 'd6!100',
       'd6!I', '10000', '00001', '0001d6', 'd00006', 'Infinity', '()', '(d20', 'd20)', '2*-3', 'd20*', '4d6 kh3', '2d6 [fire]', '4d6>3', '4d6<3',
@@ -36,9 +38,10 @@ describe('parseFormula', () => {
     ]) {
       expect(parseFormula(formula)).toEqual({ ok: false, code: 'syntax' });
     }
-  });
+  }
 
-  it('rejects formulas over a budget with the budget they break', () => {
+  // rejects formulas over a budget with the budget they break
+  {
     for (const [formula, code] of [
       [`d20${' '.repeat(98)}`, 'length'],
       [Array(21).fill('1').join('+'), 'terms'],
@@ -63,64 +66,73 @@ describe('parseFormula', () => {
     ] as const) {
       expect(parseFormula(formula)).toEqual({ ok: false, code });
     }
-  });
+  }
 
-  it('reads d% as a d100 and dF as Fate dice', () => {
+  // reads d% as a d100 and dF as Fate dice
+  {
     expect(dice('d%')).toMatchObject({ count: 1, faces: 100 });
     expect(dice('4dF')).toMatchObject({ count: 4, faces: 1, fate: true });
-  });
+  }
 
-  it('reads keep and drop with their defaults', () => {
+  // reads keep and drop with their defaults
+  {
     expect(dice('4d6k').keep).toEqual({ mode: 'keep', end: 'highest', count: 1 });
     expect(dice('4d6kh3').keep).toEqual({ mode: 'keep', end: 'highest', count: 3 });
     expect(dice('4d6kl2').keep).toEqual({ mode: 'keep', end: 'lowest', count: 2 });
     expect(dice('4d6d').keep).toEqual({ mode: 'drop', end: 'lowest', count: 1 });
     expect(dice('4d6dh2').keep).toEqual({ mode: 'drop', end: 'highest', count: 2 });
-  });
+  }
 
-  it('reads rerolls: once, or again and again', () => {
+  // reads rerolls: once, or again and again
+  {
     expect(dice('2d6r').reroll).toEqual({ when: { operator: '=', value: 1 }, limit: 1 });
     expect(dice('2d6r2').reroll).toEqual({ when: { operator: '=', value: 2 }, limit: 1 });
     expect(dice('2d6ro<=2').reroll).toEqual({ when: { operator: '<=', value: 2 }, limit: 1 });
     expect(dice('2d6rr<3').reroll).toEqual({ when: { operator: '<', value: 3 }, limit: MAX_EXPLOSIONS });
-  });
+  }
 
-  it("reads Foundry's explosions next to Dice Roller's", () => {
+  // reads Foundry's explosions next to Dice Roller's
+  {
     expect(dice('3d6!').explode).toEqual({ highFaces: 1, lowFaces: 0, limit: 1 });
     expect(dice('3d6x').explode).toEqual({ highFaces: 1, lowFaces: 0, limit: MAX_EXPLOSIONS });
     expect(dice('3d6xo').explode).toEqual({ highFaces: 1, lowFaces: 0, limit: 1 });
     expect(dice('3d10x>=9').explode).toEqual({ highFaces: 2, lowFaces: 0, limit: MAX_EXPLOSIONS });
     expect(dice('3d10xo>8').explode).toEqual({ highFaces: 2, lowFaces: 0, limit: 1 });
-  });
+  }
 
-  it('reads counting: bare >= counts successes, bare <= failures', () => {
+  // reads counting: bare >= counts successes, bare <= failures
+  {
     expect(dice('5d10cs>=8').tally).toEqual({ counts: 'successes', when: { operator: '>=', value: 8 } });
     expect(dice('5d10>=8').tally).toEqual({ counts: 'successes', when: { operator: '>=', value: 8 } });
     expect(dice('5d10cf<2').tally).toEqual({ counts: 'failures', when: { operator: '<', value: 2 } });
     expect(dice('5d10<=2').tally).toEqual({ counts: 'failures', when: { operator: '<=', value: 2 } });
-  });
+  }
 
-  it('reads labels on dice and constants', () => {
+  // reads labels on dice and constants
+  {
     expect(dice('2d6x[fire]')).toMatchObject({ label: 'fire' });
     expect(parsed('1d20+3[bonus]').terms[1]).toEqual({ kind: 'constant', value: 3, negative: false, label: 'bonus' });
-  });
+  }
 
-  it('marks every term an odd number of minus signs leads to', () => {
+  // marks every term an odd number of minus signs leads to
+  {
     const negatives = (formula: string): boolean[] => parsed(formula).terms.map((term) => term.negative);
     expect(negatives('-2D6 + 9999')).toEqual([true, false]);
     expect(negatives('2d6-1d4-(1d8-3)')).toEqual([false, true, true, false]);
     expect(negatives('2*(1d6-1d4)')).toEqual([false, false, true]);
-  });
+  }
 
-  it('tells a plain sum from a formula that multiplies, divides or counts', () => {
+  // tells a plain sum from a formula that multiplies, divides or counts
+  {
     expect(parsed('2d20kh1+5-1d4').linear).toBe(true);
     expect(parsed('-(1d6+2)').linear).toBe(true);
     expect(parsed('2d6*2').linear).toBe(false);
     expect(parsed('2d6/2').linear).toBe(false);
     expect(parsed('5d10>=8+1').linear).toBe(false);
-  });
+  }
 
-  it('keeps the limits it promises', () => {
+  // keeps the limits it promises
+  {
     expect(FORMULA_LIMITS).toMatchObject({ characters: 100, terms: 20, dice: 100, faces: 1000, depth: 8 });
-  });
+  }
 });
