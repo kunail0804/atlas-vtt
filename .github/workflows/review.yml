@@ -13,7 +13,8 @@ name: Review
 #
 # The reviewer runs the pull request's code (its tests) with its model key in the environment, and the pull
 # request's own .github/review is what reviews it. Both are fine because only the owner and collaborators push
-# branches here; a pull request from a fork gets no secrets, so its reviews fail without a key.
+# branches here. A pull request from a fork is never reviewed (plan.sh), even by `/review`, which runs with the
+# secrets.
 
 on:
   pull_request:
