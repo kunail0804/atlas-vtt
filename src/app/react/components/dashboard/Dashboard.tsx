@@ -64,7 +64,6 @@ export function Dashboard({ app, campaignStorage, onOpenScene, onCreateMap, onOp
           worldMaps={worldMaps}
           presets={presets}
           isPlaying={openCampaign.id === playingId}
-          onPlay={() => play.play(openCampaign.id)}
           onStop={() => play.stop()}
           party={parties.get(openCampaign.id) ?? []}
           onBack={() => {

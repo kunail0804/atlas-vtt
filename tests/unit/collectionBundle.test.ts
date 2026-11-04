@@ -1,8 +1,7 @@
-// @vitest-environment node
 // JSZip needs Node's ArrayBuffer realm; jsdom's differs and its Blob support is absent.
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TFile } from 'obsidian';
-import { AtlasView } from '../../src/app/atlas-view';
+import { ATLAS_VIEW_TYPE } from '../../src/app/atlasViewType';
 import { AssetService } from '../../src/app/services/AssetService';
 import { transferAssets } from '../../src/app/services/assetTransfer/assetTransfer';
 import { groupContents } from '../../src/app/services/collectionBundle/bundleContents';
@@ -15,11 +14,6 @@ import { noteTree } from '../../src/app/services/collectionBundle/noteTree';
 import { createSnapshot } from '../../src/app/snapshots/sceneSnapshotFormat';
 import { sceneSnapshotFolder } from '../../src/app/snapshots/snapshotPaths';
 import { createInMemoryApp, parseFrontmatter, type InMemoryApp } from '../mocks/inMemoryVault';
-
-vi.mock('../../src/app/atlas-view', () => ({
-  ATLAS_VIEW_TYPE: 'atlas-vtt',
-  AtlasView: class { async saveMap(): Promise<void> {} },
-}));
 
 // Covers are drawn on a canvas, which Node lacks.
 vi.mock('../../src/app/imageProcessing/imageProcessing', () => ({
@@ -296,6 +290,29 @@ describe('installing', () => {
     expect(fan.vault.files.has('atlas-vtt/collections/source/install.json')).toBe(true);
   });
 
+  it('carries the map of every floor of a scene, videos too, and points the installed scene at them', async () => {
+    const creator = await creatorVault();
+    const upper = 'Maps/Upper floor.webm';
+    await creator.vault.app.vault.create(upper, 'WEBM');
+    const map = JSON.parse(creator.vault.files.get(MAP_PATH)!) as { version: number; state: Record<string, unknown> };
+    map.version = 5;
+    map.state.levels = [
+      { id: 'ground', name: 'Ground', elevation: { bottom: 0, top: 10 }, background: BACKGROUND },
+      { id: 'upper', name: 'Upper', elevation: { bottom: 10, top: 20 }, background: upper },
+    ];
+    creator.vault.files.set(MAP_PATH, JSON.stringify(map));
+
+    const blob = await exportFrom(creator);
+    expect((await manifestOf(blob)).files).toContainEqual(expect.objectContaining({ vaultPath: upper, role: 'background' }));
+
+    const fan = await emptyVault();
+    await importInto(fan, blob);
+    const levels = (JSON.parse(fan.vault.files.get(MAP_PATH)!) as { state: { levels: Array<{ background: string }> } }).state.levels;
+    const installed = levels[1]!.background;
+    expect(installed).toBe('atlas-vtt/collections/source/files/Upper floor.webm');
+    expect(fan.vault.files.get(installed)).toBe('WEBM');
+  });
+
   it('carries scene snapshots with their thumbnails and artwork into the installed collection', async () => {
     const creator = await creatorVault();
     const ogreImage = 'atlas-vtt/assets/ogre.webp';
@@ -552,10 +569,12 @@ describe('updating', () => {
     const { creator, fan } = await installedV1();
     creator.vault.files.set(MAP_PATH, mapFile(12));
     const steps: string[] = [];
-    const view = Object.assign(Object.create(AtlasView.prototype) as AtlasView, {
+    const view = {
+      getViewType: () => ATLAS_VIEW_TYPE,
+      atlasStore: {},
       getState: () => ({ file: MAP_PATH }),
       saveMap: vi.fn(async () => { steps.push('save'); }),
-    });
+    };
     const leaf = { view, detach: vi.fn(() => { steps.push('detach'); }) };
     fan.vault.app.workspace.getLeavesOfType = vi.fn(() => [leaf]);
     const modifyBinary = fan.vault.app.vault.modifyBinary.bind(fan.vault.app.vault);
@@ -1402,5 +1421,22 @@ describe('record files of an installed collection', () => {
     await importInto(fan, v1, { name: 'source (2)' });
 
     expect((await reviewImport(fan, v1)).review).toMatchObject({ relation: 'same', upToDate: true, canRestore: false, conflicts: [] });
+  });
+});
+
+describe('the level a scene was last shown on', () => {
+  it('goes with the scene to whoever imports the collection', async () => {
+    const creator = await creatorVault();
+    const levels = [
+      { id: 'ground', name: 'Ground', elevation: { bottom: 0, top: 10 }, background: BACKGROUND },
+      { id: 'upper', name: 'Upper', elevation: { bottom: 10, top: 20 }, background: BACKGROUND },
+    ];
+    const file = JSON.parse(mapFile());
+    creator.vault.files.set(MAP_PATH, JSON.stringify({ version: 5, state: { ...file.state, version: 5, levels, viewedLevel: 'upper' } }));
+
+    const target = await emptyVault();
+    await importInto(target, await exportFrom(creator));
+
+    expect(JSON.parse(target.vault.files.get(MAP_PATH)!).state.viewedLevel).toBe('upper');
   });
 });

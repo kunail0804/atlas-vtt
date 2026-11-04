@@ -3,6 +3,7 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { setIcon } from 'obsidian';
 import { runInBackground } from '../../../utils/backgroundTask';
 import { LabelTooltip } from '../../../packages/components/primitives/tooltip';
+import { useMenuFit } from './useMenuFit';
 import './atlas-context-menu.scss';
 import { t } from '../../../i18n';
 
@@ -57,6 +58,12 @@ export const MENU_SEPARATOR: ContextMenuEntry = {
 type ContextMenuItemEntry = Extract<ContextMenuEntry, { type: 'item' }>;
 type ContextMenuSubmenuEntry = Extract<ContextMenuEntry, { type: 'submenu' }>;
 
+/** Submenus share the document and visible view of the menu that opened them. */
+export interface ContextMenuPlacement {
+  collisionBoundary?: Element | null | undefined;
+  container?: HTMLElement | undefined;
+}
+
 /** Runs an entry's action; a rejected async action is logged rather than left unhandled. */
 function runEntryAction(entry: ContextMenuItemEntry): void {
   const result = entry.onClick();
@@ -88,11 +95,11 @@ function ObsidianIcon({ name }: { name: string }): React.ReactElement {
 }
 
 /** A submenu's entries, rebuilt whenever the submenu reports that they changed. */
-function SubmenuEntries({ entry, onClose }: { entry: ContextMenuSubmenuEntry; onClose: () => void }): React.ReactElement {
+function SubmenuEntries({ entry, onClose, placement }: { entry: ContextMenuSubmenuEntry; onClose: () => void; placement: ContextMenuPlacement }): React.ReactElement {
   const [, refresh] = useReducer((version: number) => version + 1, 0);
   useEffect(() => entry.subscribe?.(refresh), [entry]);
   const children = typeof entry.children === 'function' ? entry.children() : entry.children;
-  return <>{renderEntries(children, onClose)}</>;
+  return <>{renderEntries(children, onClose, placement)}</>;
 }
 
 /** Runs a stepper action from a click inside a menu item without choosing the item. */
@@ -147,6 +154,26 @@ function itemLabel(entry: ContextMenuItemEntry): React.ReactNode {
   return entry.detail !== undefined ? label : entry.label;
 }
 
+/** A submenu, beside its row and sliding along it to stay in its room (`useMenuFit`). */
+function FittedSubmenu({ placement, children }: { placement: ContextMenuPlacement; children: React.ReactNode }): React.ReactElement {
+  const menu = useRef<HTMLDivElement>(null);
+  const boundary = useMenuFit(menu, placement.collisionBoundary);
+  return (
+    <DropdownMenu.SubContent
+      ref={menu}
+      className="atlas-ctx-menu"
+      sideOffset={4}
+      alignOffset={-4}
+      avoidCollisions
+      sticky="always"
+      collisionBoundary={boundary}
+      collisionPadding={8}
+    >
+      {children}
+    </DropdownMenu.SubContent>
+  );
+}
+
 function ItemContent({ entry }: { entry: ContextMenuItemEntry }): React.ReactElement {
   return (
     <>
@@ -171,6 +198,7 @@ function ItemContent({ entry }: { entry: ContextMenuItemEntry }): React.ReactEle
 export function renderEntries(
   entries: ContextMenuEntry[],
   onClose: () => void,
+  placement: ContextMenuPlacement = {},
 ): React.ReactNode[] {
   return entries.map((entry, idx) => {
     switch (entry.type) {
@@ -195,16 +223,10 @@ export function renderEntries(
                 <ObsidianIcon name="chevron-right" />
               </span>
             </DropdownMenu.SubTrigger>
-            <DropdownMenu.Portal>
-              <DropdownMenu.SubContent
-                className="atlas-ctx-menu"
-                sideOffset={4}
-                alignOffset={-4}
-                avoidCollisions
-                collisionPadding={8}
-              >
-                <SubmenuEntries entry={entry} onClose={onClose} />
-              </DropdownMenu.SubContent>
+            <DropdownMenu.Portal container={placement.container}>
+              <FittedSubmenu placement={placement}>
+                <SubmenuEntries entry={entry} onClose={onClose} placement={placement} />
+              </FittedSubmenu>
             </DropdownMenu.Portal>
           </DropdownMenu.Sub>
         );
