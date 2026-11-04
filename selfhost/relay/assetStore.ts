@@ -362,8 +362,8 @@ export function createAssetStore(dataDir: string, now: () => number = Date.now):
         response.writeHead(200, {
           'content-type': meta.mime,
           'content-length': meta.size,
-          // The id names these bytes for good.
-          'cache-control': 'private, max-age=31536000, immutable',
+          // The id names these bytes for good, and holding it is what reading them takes: any cache may keep them.
+          'cache-control': 'public, max-age=31536000, immutable',
           'x-content-type-options': 'nosniff',
           // Fetched by the player page, never shown as a page of its own: nothing in it may run.
           'content-security-policy': "default-src 'none'; sandbox",

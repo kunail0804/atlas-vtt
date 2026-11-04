@@ -238,7 +238,8 @@ A probe that imported eleven of these modules built and ran in Chromium on 2026-
   player's link. The parts of large messages go as frames the page acks (`relay/outbox.ts`), so a dragged token
   waits behind about a second of them at most instead of a scene's walls.
 - Images, texts and videos never cross the table: the GM's Atlas uploads them to the relay's asset store and
-  players fetch them over HTTP, which Cloudflare caches like any file (`cache-control: immutable`).
+  players fetch them over HTTP, served `public, max-age=31536000, immutable`: each browser fetches an object once,
+  and a cache in front of the relay may keep it too.
 
 ## The asset store
 
