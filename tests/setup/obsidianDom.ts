@@ -149,6 +149,13 @@ if (typeof Element !== 'undefined' && typeof Element.prototype.animate !== 'func
     onfinish: null, finished: Promise.resolve() as Promise<Animation>,
   });
 }
+// jsdom has no canvas: getContext answers null, as a browser does for a context it cannot make. jsdom
+// answers null too, but logs "Not implemented" each time, which PIXI's probe at import made hundreds of.
+if (typeof HTMLCanvasElement !== 'undefined') {
+  HTMLCanvasElement.prototype.getContext = function getContext(): null {
+    return null;
+  } as HTMLCanvasElement['getContext'];
+}
 // jsdom never decodes images
 if (typeof HTMLImageElement !== 'undefined' && typeof HTMLImageElement.prototype.decode !== 'function') {
   HTMLImageElement.prototype.decode = (): Promise<void> => Promise.resolve();
