@@ -7,6 +7,8 @@ const repoRoot = path.resolve(__dirname, '..');
 // the plugin's own connection code (src/app/online/gm/TableConnection.ts), not an imitation of it.
 export default defineConfig({
   root: repoRoot,
+  // The plugin's GM code asks Obsidian for `requestUrl` only; the tests hand it `fetch` (`tests/obsidian.ts`).
+  resolve: { alias: { obsidian: path.join(__dirname, 'tests', 'obsidian.ts') } },
   test: {
     name: 'selfhost',
     environment: 'node',
