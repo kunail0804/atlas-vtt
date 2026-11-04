@@ -4,6 +4,7 @@ import type { Duplex } from 'node:stream';
 import { WebSocketServer } from 'ws';
 import { MAX_GM_FRAME, MAX_PLAYER_FRAME, TABLE_CODE_PATTERN } from '../../src/app/online/protocol/relay.ts';
 import { createAccount } from './account.ts';
+import { createAssetStore } from './assetStore.ts';
 import { createDiagnostics } from './diagnostics.ts';
 import { IdleStop } from './idle.ts';
 import { Link } from './link.ts';
@@ -92,11 +93,14 @@ export async function startRelay(options: RelayOptions): Promise<RunningRelay> {
   const gmOriginPort = await listen(gmServer, options.gmPort, options.host);
   const account = createAccount(options.dataDir, `http://127.0.0.1:${gmOriginPort}`, options.playerOrigin);
   const diagnostics = createDiagnostics(options.dataDir);
+  const assets = createAssetStore(options.dataDir);
 
   function handleGm(request: IncomingMessage, response: ServerResponse): void {
     if (!addressedToLoopback(request)) return sendJson(response, 421, { error: 'wrong-host' });
     const pathname = pathnameOf(request);
     if (account.handle(request, response, pathname)) return;
+    // Only Obsidian, which is no web page, uploads what players are shown.
+    if (assets.handleGm(request, response, pathname, account.isHost(request) && !fromWebPage(request))) return;
     if (diagnostics.owns(pathname)) {
       // A web page may reach loopback by its address; only Obsidian, which is no web page, writes here.
       if (fromWebPage(request)) return sendJson(response, 403, { error: 'web-page' });
@@ -113,6 +117,7 @@ export async function startRelay(options: RelayOptions): Promise<RunningRelay> {
     const pathname = pathnameOf(request);
     if (pathname === '/health') return sendText(response, 200, 'ok');
     if (request.method !== 'GET' && request.method !== 'HEAD') return sendJson(response, 405, { error: 'method-not-allowed' });
+    if (assets.serve(request, response, pathname)) return;
     void servePlayerPage(response, pathname, request.headers.host);
   }
 
