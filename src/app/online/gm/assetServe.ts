@@ -14,7 +14,6 @@ export function toBase64(bytes: Uint8Array): string {
  * message of more than `MAX_PARTS` parts, which no client puts together.
  */
 export function messageParts(body: GmMessage, id: () => string): GmMessage[] {
-  if (body.t === 'asset-chunk') return [body];
   const bytes = new TextEncoder().encode(JSON.stringify(body));
   if (bytes.length <= PART_BYTES) return [body];
   const count = Math.ceil(bytes.length / PART_BYTES);

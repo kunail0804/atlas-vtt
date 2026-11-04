@@ -102,7 +102,7 @@ export function tableBook(ports: TableBookPorts): TableBook {
     cards: ports.cards,
     cardsChanged: () => ports.cardsChanged(),
   }, ports.shelf);
-  const source = sheetSource(app);
+  const source = sheetSource(app, ports.stored);
   const sheets = new SheetShare({
     send: (body, to) => ports.send(body, to),
     now: () => timers.now(),
@@ -112,8 +112,6 @@ export function tableBook(ports: TableBookPorts): TableBook {
     noteOf: (player) => share.statblockOf(player),
     read: (path) => source.read(path),
     write: (path, edit) => source.write(path, edit),
-    readImage: (path) => ports.readImage(path),
-    scaleImage: scaleInWindow,
   });
   let stops: (() => void)[] = [];
   return {

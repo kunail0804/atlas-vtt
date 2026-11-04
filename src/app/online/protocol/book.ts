@@ -123,7 +123,6 @@ export type PlayerBookMessage =
   | { readonly t: 'book-pin-delete'; readonly id: string }
   | { readonly t: 'book-purse'; readonly purse: readonly PurseRow[] }
   | { readonly t: 'book-item-put'; readonly item: BookItemDraft }
-  | { readonly t: 'book-item-delete'; readonly id: string }
   | BookResourceMessage
   | BookFieldMessage
   | BookAbilityMessage
@@ -285,7 +284,6 @@ export function parsePlayerBookMessage(value: Record<string, unknown>): PlayerBo
       const item = parseBookItemDraft(value.item);
       return item === null ? null : { t: 'book-item-put', item };
     }
-    case 'book-item-delete':
     case 'book-note-delete':
     case 'book-pin-delete':
     case 'book-item-delete':

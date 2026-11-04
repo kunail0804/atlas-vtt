@@ -58,6 +58,14 @@ function unhandled(_message: never): null {
 /** What a player writes into the book itself; their resources and their statblock are written elsewhere. */
 export type ShelfMessage = Exclude<PlayerBookMessage, BookResourceMessage | BookFieldMessage | BookAbilityMessage | BookListMessage | BookRefillMessage>;
 
+/** The messages a book itself answers: a resource, a statblock field, an ability, a list or a refill is the character's statblock's or token's. */
+const NOT_SHELF: readonly string[] = ['book-resource', 'book-field', 'book-ability', 'book-list', 'book-refill'] satisfies readonly Exclude<PlayerBookMessage, ShelfMessage>['t'][];
+
+/** `message` where the book itself answers it (`ShelfMessage`), else null. */
+export function shelfMessageOf(message: PlayerBookMessage | null): ShelfMessage | null {
+  return message === null || NOT_SHELF.includes(message.t) ? null : (message as ShelfMessage);
+}
+
 /**
  * A book after what its player wrote, as the protocol's parser cleaned it: a note or pin is put in
  * place of the one of its id or added (a note on a quest only on a quest in `quests`, the ids of

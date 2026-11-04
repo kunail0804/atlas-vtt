@@ -283,7 +283,7 @@ describe('the pulse of the GM\'s socket', () => {
     connection.send({ t: 'scene', scene: null });
     connection.sendLive({ t: 'scene', scene: null }, 'drag');
     const frames = socket.sent.slice(before).map((text) => JSON.parse(text) as { body: { t: string }; lane?: string });
-    expect(frames.map((frame) => [frame.body.t, frame.lane])).toEqual([['scene', 'live'], ['scene', undefined]]);
+    expect(frames.map((frame) => [frame.body.t, frame.lane])).toEqual([['scene', undefined], ['scene', 'live']]);
     const large = { t: 'scene', scene: { id: 'x'.repeat(10), name: 'y'.repeat(PART_BYTES * 2) } } as unknown as GmMessage;
     const partsBefore = socket.sent.length;
     connection.send(large);

@@ -7,8 +7,8 @@ import { useAtlasStore } from "../../../react/ViewStoreContext"
 import { StairsIcon } from "../../../react/components/StairsIcon"
 import { DropdownMenuItem } from "../primitives/DropdownMenuItem"
 import { LabelTooltip } from "../primitives/tooltip"
-import { ToolGroup, type ToolGroupControls } from "./ToolGroup"
-import { pinToolFace } from "./toolFaces"
+import { ToolGroup } from "./ToolGroup"
+import { pinToolFace, type ToolGroupControls } from "./toolFaces"
 
 /**
  * Note pins and stairs: both lead somewhere else from a spot on the map, a pin to a note or a

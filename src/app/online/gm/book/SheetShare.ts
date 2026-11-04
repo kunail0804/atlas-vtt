@@ -1,21 +1,17 @@
 import { isRecord, parsePlayerMessage, type FoundNote, type GmMessage, type SharedSheet } from '../../protocol/index.ts';
 import type { SheetEdit } from '../../../characterSheets/sheetNote.ts';
-import { AssetAnswers } from '../assetAnswers.ts';
-import type { ScaleImage } from '../assetVariants.ts';
 import { every, type Timers } from '../companionTimers.ts';
 import { MoveRate } from '../moveCheck.ts';
-import type { VaultImage } from '../TokenShare.ts';
 
-/** A character's sheet as players are sent it, the notes linked for its player, and what their assets are served from. */
+/**
+ * A character's sheet as players are sent it, and the notes linked for its player, whose texts and
+ * images are named by the ids the asset store keeps them under.
+ */
 export interface ReadSheet {
   readonly sheet: SharedSheet;
   readonly notes: readonly FoundNote[];
-  /** The notes' vault paths, which a change of any of them sends the sheet again. */
+  /** The notes' vault paths and their images', which a change of any of them sends the sheet again. */
   readonly paths: readonly string[];
-  /** The notes' whole texts by hash. */
-  readonly texts: ReadonlyMap<string, Uint8Array<ArrayBuffer>>;
-  /** The notes' images' vault paths by hash. */
-  readonly images: ReadonlyMap<string, string>;
 }
 
 export interface SheetSharePorts extends Timers {
@@ -28,8 +24,6 @@ export interface SheetSharePorts extends Timers {
   read(path: string): Promise<ReadSheet | null>;
   /** Writes a player's edit into the note's sheet by its system's rules; false where it was refused. */
   write(path: string, edit: SheetEdit): Promise<boolean>;
-  readImage(path: string): Promise<VaultImage | null>;
-  scaleImage?: ScaleImage | undefined;
 }
 
 /** How often each player's character is looked at again: a sheet follows a token given or taken within this time. */
@@ -50,7 +44,7 @@ interface Sent {
  * whenever their character, the note or one of those notes changes. A player's edit of their sheet
  * is written into the note at once, by the sheet's own rules; one that is refused is answered with
  * the sheet as the note holds it, so the page shows what is kept. The linked notes' texts and images
- * are served to that player alone.
+ * reach players through the asset store, as every found note's do.
  */
 export class SheetShare {
   private readonly sent = new Map<string, Sent>();
@@ -58,24 +52,9 @@ export class SheetShare {
   private readonly reading = new Set<string>();
   private readonly again = new Set<string>();
   private readonly rate = new MoveRate(SHEET_BURST, SHEET_EDITS_PER_SECOND);
-  private readonly answers: AssetAnswers;
   private stopPoll: (() => void) | null = null;
 
-  constructor(private readonly ports: SheetSharePorts) {
-    const asset = (hash: string, player: string): { text?: Uint8Array<ArrayBuffer>; path?: string } | undefined => {
-      const read = this.sent.get(player)?.read;
-      const text = read?.texts.get(hash);
-      if (text !== undefined) return { text };
-      const path = read?.images.get(hash);
-      return path === undefined ? undefined : { path };
-    };
-    this.answers = new AssetAnswers({ send: (body, to) => ports.send(body, to), now: () => ports.now(), readImage: (path) => ports.readImage(path), scaleImage: ports.scaleImage }, {
-      map: () => null,
-      explored: () => undefined,
-      artPath: (hash, player) => asset(hash, player)?.path,
-      text: (hash, player) => asset(hash, player)?.text,
-    });
-  }
+  constructor(private readonly ports: SheetSharePorts) {}
 
   start(): void {
     this.stopPoll ??= every(this.ports, SHEET_POLL_MS, () => this.update());
@@ -106,25 +85,18 @@ export class SheetShare {
 
   /** Everything again, to one player or to all. */
   resend(to?: string): void {
-    if (to === undefined) {
-      this.sent.clear();
-      this.answers.forget();
-    } else {
-      this.sent.delete(to);
-      this.answers.forget(to);
-    }
+    if (to === undefined) this.sent.clear();
+    else this.sent.delete(to);
     this.update();
   }
 
   playerLeft(player: string): void {
     this.sent.delete(player);
-    this.answers.forget(player);
   }
 
-  /** A player's message: true when it was the sheets' (an edit, or a request for an asset of their linked notes). */
+  /** A player's message: true when it was the sheets' (an edit of their sheet). */
   receive(from: string, body: unknown): boolean {
     if (!isRecord(body)) return false;
-    if (body.t === 'asset-request') return this.answer(from, body);
     if (body.t !== 'sheet-edit' && body.t !== 'sheet-row') return false;
     const message = parsePlayerMessage(body);
     const path = this.sent.get(from)?.path ?? null;
@@ -137,15 +109,6 @@ export class SheetShare {
       // A refused edit: the player's page shows what the note keeps. A written one comes back with the note's change.
       if (!written) void this.refresh(from);
     }, () => void this.refresh(from));
-    return true;
-  }
-
-  private answer(from: string, body: Record<string, unknown>): boolean {
-    const request = parsePlayerMessage(body);
-    if (request?.t !== 'asset-request') return false;
-    const read = this.sent.get(from)?.read;
-    if (read == null || (!read.texts.has(request.hash) && !read.images.has(request.hash))) return false;
-    this.answers.answer(from, request);
     return true;
   }
 

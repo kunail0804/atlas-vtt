@@ -103,7 +103,7 @@ beforeEach(() => {
   FakeSocket.all = [];
   seen.notices.length = 0;
   seen.requests.length = 0;
-  seen.created = { status: 201, json: { secret: 's'.repeat(43), maxPlayers: 12 } };
+  seen.created = { status: 201, json: { secret: 's'.repeat(43), maxPlayers: 12, playerOrigin: 'https://name2-vtt.kunlab.cc' } };
   workspace.presented = null;
   account.signedIn = true;
 });
@@ -160,7 +160,7 @@ describe('a table of the played campaign', () => {
   it('is not run where the relay opened another link than the campaign\'s, and the table it opened is ended', async () => {
     const { online, leaf, bound } = await gm();
     const stray = 'z'.repeat(26);
-    seen.created = { status: 201, json: { code: stray, secret: 'x'.repeat(43), maxPlayers: 12 } };
+    seen.created = { status: 201, json: { code: stray, secret: 'x'.repeat(43), maxPlayers: 12, playerOrigin: 'https://name2-vtt.kunlab.cc' } };
     expect(await online.start(leaf, 'c1')).toBeNull();
     expect(online.table).toBeNull();
     expect(bound).toEqual([]);
@@ -438,7 +438,7 @@ describe('the played campaign', () => {
 
   it('ends with the table where the new link\'s restart fails or throws', async () => {
     for (const fails of ['refused', 'throws'] as const) {
-      seen.created = { status: 201, json: { secret: 's'.repeat(43), maxPlayers: 12 } };
+      seen.created = { status: 201, json: { secret: 's'.repeat(43), maxPlayers: 12, playerOrigin: 'https://name2-vtt.kunlab.cc' } };
       const { online, app, frames } = await hosting();
       if (fails === 'refused') seen.created = { status: 500, json: null };
       // The account's token can be read for the check before the restart, and no more after it.

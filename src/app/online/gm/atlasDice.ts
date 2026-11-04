@@ -6,8 +6,7 @@ import type { WorkspaceLeaf } from 'obsidian';
 import type { DiceRollOrigin } from '../../types/diceRollOrigin';
 import type { DiceRollResult } from '../../types/diceTypes';
 import type { DiceRules } from '../../types/diceRulesTypes';
-import type { AdvantageSide, RollingDice } from '../../types/diceSetTypes';
-import { ruledSides } from '../../tools/diceAdvantage';
+import type { RollingDice } from '../../types/diceSetTypes';
 import { call } from './atlasView.ts';
 
 /** What `dice-rolled` carries on an Atlas view's bus: the roll and, when known, the token it was made for. */

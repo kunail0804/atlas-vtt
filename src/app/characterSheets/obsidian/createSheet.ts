@@ -1,7 +1,8 @@
 import type { App, TFile } from 'obsidian';
 import { ensureFolder } from '../../plugin/vaultFolders';
 import { TokenStatblockLinkService } from '../../services/TokenStatblockLinkService';
-import { freeNotePath, noteFileName } from '../../statblocks/notes/createStatblockNote';
+import { noteFileName } from '../../statblocks/notes/createStatblockNote';
+import { freeNotePath } from '../../utils/notePaths';
 import { DND5E_2024 } from '../dnd5e2024.ts';
 import { newSheet } from '../sheetNote.ts';
 import type { SheetSystem } from '../sheetSystem.ts';

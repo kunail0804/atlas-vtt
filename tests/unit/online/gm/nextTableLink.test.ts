@@ -18,7 +18,7 @@ vi.mock('obsidian', async (original) => ({
   requestUrl: (request: { readonly body?: string }) => {
     const code = (JSON.parse(request.body ?? '{}') as { code: string }).code;
     seen.asked.push(code);
-    return Promise.resolve({ status: 201, json: { code, secret: 's'.repeat(43), maxPlayers: 12 } });
+    return Promise.resolve({ status: 201, json: { code, secret: 's'.repeat(43), maxPlayers: 12, playerOrigin: 'https://name2-vtt.kunlab.cc' } });
   },
 }));
 
