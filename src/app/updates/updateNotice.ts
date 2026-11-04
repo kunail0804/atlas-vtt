@@ -4,16 +4,21 @@ import { t } from '../i18n';
 import { showNotice } from '../ui/notice';
 import atlasIconUrl from '../assets/brand/atlas-icon.webp';
 
-/** Obsidian's page of Atlas, which reads the published manifest afresh and offers Update at once. */
-const PLUGIN_PAGE_URL = 'obsidian://show-plugin?id=atlas-vtt';
+/** What updates the fork: `atlas start` pulls the newest image and puts its plugin into the vault. */
+export const UPDATE_COMMAND = 'atlas start';
 
 export function releaseNotesUrl(version: string): string {
   return `${ATLAS_GITHUB_URL}/releases/tag/${encodeURIComponent(version)}`;
 }
 
-/** Hands the update to Obsidian: Atlas never installs anything itself. */
+/**
+ * Says how the update comes: the campaign started again with the launcher, which pulls the newest
+ * Docker image. The command goes to the clipboard. Never Obsidian's plugin page, whose Atlas is
+ * upstream's and would replace the fork's.
+ */
 export function openUpdate(): void {
-  window.open(PLUGIN_PAGE_URL);
+  void navigator.clipboard?.writeText(UPDATE_COMMAND).catch(() => undefined);
+  showNotice(t('settings.updates.howToUpdate', { command: UPDATE_COMMAND }), 15_000);
 }
 
 /** Says that `version` is out, with Update and What's new; it stays until it is clicked, and `acted` hears that it was. */

@@ -1,4 +1,4 @@
-import { requireApiVersion, type Plugin } from 'obsidian';
+import type { Plugin } from 'obsidian';
 import { isReleaseVersion } from '../changelog/version';
 import type { SettingsService } from '../services/SettingsService';
 import { obsidianFetch, readPublishedVersion } from './publishedVersion';
@@ -14,7 +14,7 @@ export function registerUpdateWatch(plugin: Plugin, settings: SettingsService): 
   const { app } = plugin;
   const watch = new UpdateWatch({
     installed: plugin.manifest.version,
-    readPublished: () => readPublishedVersion(obsidianFetch, requireApiVersion),
+    readPublished: () => readPublishedVersion(obsidianFetch),
     enabled: () => settings.getSetting('checkForUpdates'),
     online: () => navigator.onLine,
     announced: {

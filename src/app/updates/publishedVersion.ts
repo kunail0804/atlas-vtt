@@ -1,12 +1,16 @@
 import { requestUrl } from 'obsidian';
-import { isReleaseVersion } from '../changelog/version';
+import { compareVersions, isReleaseVersion } from '../changelog/version';
 import { isRecord } from '../utils/guards';
 
-/** The manifest Obsidian reads to decide what to install: the one on the default branch. */
-export const MANIFEST_URL = 'https://raw.githubusercontent.com/atlas-vtt/atlas-vtt/HEAD/manifest.json';
-const PLUGIN_ID = 'atlas-vtt';
-/** A manifest is a few hundred bytes; anything far larger is not one. */
-const MAX_MANIFEST_LENGTH = 64 * 1024;
+/**
+ * The fork's published builds: the tags of its Docker image, which `atlas start` pulls and whose plugin
+ * it copies into the vault. A build is tagged `<plugin version>-selfhost.<n>` (`.github/WORKFLOW.md`).
+ */
+export const IMAGE_TAGS_URL = 'https://hub.docker.com/v2/repositories/kunail0804/atlas-relay/tags?page_size=100&ordering=last_updated';
+/** A tag of a published build, and the plugin version it carries. */
+const BUILD_TAG = /^(\d+\.\d+\.\d+)-selfhost\.\d+$/;
+/** A page of tags is a few tens of kilobytes; anything far larger is not one. */
+const MAX_TAGS_LENGTH = 1024 * 1024;
 
 export type FetchText = (url: string) => Promise<{ status: number; text: string }>;
 
@@ -17,19 +21,24 @@ export const obsidianFetch: FetchText = async (url) => {
 };
 
 /**
- * The release Obsidian would install now, or null when the manifest cannot be read, is not
- * Atlas', names no release, or needs a newer Obsidian than `appSupports` allows. Never throws.
+ * The newest plugin version the fork's Docker image carries, or null when its tags cannot be read
+ * or name no build. Never throws. A build that changed only the relay or the player page carries the
+ * same plugin version, so it is not told apart here.
  */
-export async function readPublishedVersion(fetch: FetchText, appSupports: (minAppVersion: string) => boolean): Promise<string | null> {
+export async function readPublishedVersion(fetch: FetchText): Promise<string | null> {
   try {
-    const { status, text } = await fetch(MANIFEST_URL);
-    if (status !== 200 || text.length > MAX_MANIFEST_LENGTH) return null;
-    const manifest: unknown = JSON.parse(text);
-    if (!isRecord(manifest)) return null;
-    const { id, version, minAppVersion } = manifest;
-    if (id !== PLUGIN_ID || !isReleaseVersion(version)) return null;
-    if (typeof minAppVersion === 'string' && !appSupports(minAppVersion)) return null;
-    return version;
+    const { status, text } = await fetch(IMAGE_TAGS_URL);
+    if (status !== 200 || text.length > MAX_TAGS_LENGTH) return null;
+    const page: unknown = JSON.parse(text);
+    const results = isRecord(page) && Array.isArray(page.results) ? page.results : [];
+    let newest: string | null = null;
+    for (const result of results) {
+      const name = isRecord(result) && typeof result.name === 'string' ? result.name : '';
+      const version = BUILD_TAG.exec(name)?.[1];
+      if (version === undefined || !isReleaseVersion(version)) continue;
+      if (newest === null || compareVersions(version, newest) > 0) newest = version;
+    }
+    return newest;
   } catch {
     return null;
   }
