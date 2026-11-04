@@ -14,40 +14,48 @@ const table = (header: string, rows: readonly string[], above = ''): RandomTable
   only(`${above}\n\n${header}\n${header.replace(/[^|]+/g, ' - ')}\n${rows.join('\n')}\n`);
 
 describe('reading a roll cell', () => {
-  it.each([
-    ['1', [{ min: 1, max: 1 }]],
-    ['1–2', [{ min: 1, max: 2 }]],
-    ['1-2', [{ min: 1, max: 2 }]],
-    ['1 to 2', [{ min: 1, max: 2 }]],
-    ['01–05', [{ min: 1, max: 5 }]],
-    ['00', [{ min: 100, max: 100 }]],
-    ['96–00', [{ min: 96, max: 100 }]],
-    ['**3**', [{ min: 3, max: 3 }]],
-    ['66', [{ min: 66, max: 66 }]],
-    ['13,14', [{ min: 13, max: 13 }, { min: 14, max: 14 }]],
-    ['2 or less', [{ min: -Infinity, max: 2 }]],
-    ['2-', [{ min: -Infinity, max: 2 }]],
-    ['12+', [{ min: 12, max: Infinity }]],
-    ['12 or more', [{ min: 12, max: Infinity }]],
-  ])('reads %s', (cell, ranges) => {
-    expect(readRollCell(cell)).toEqual(ranges);
+  it('reads each roll cell as its ranges', () => {
+    for (const [cell, ranges] of [
+      ['1', [{ min: 1, max: 1 }]],
+      ['1–2', [{ min: 1, max: 2 }]],
+      ['1-2', [{ min: 1, max: 2 }]],
+      ['1 to 2', [{ min: 1, max: 2 }]],
+      ['01–05', [{ min: 1, max: 5 }]],
+      ['00', [{ min: 100, max: 100 }]],
+      ['96–00', [{ min: 96, max: 100 }]],
+      ['**3**', [{ min: 3, max: 3 }]],
+      ['66', [{ min: 66, max: 66 }]],
+      ['13,14', [{ min: 13, max: 13 }, { min: 14, max: 14 }]],
+      ['2 or less', [{ min: -Infinity, max: 2 }]],
+      ['2-', [{ min: -Infinity, max: 2 }]],
+      ['12+', [{ min: 12, max: Infinity }]],
+      ['12 or more', [{ min: 12, max: Infinity }]],
+    ] as const) {
+      expect(readRollCell(cell)).toEqual(ranges);
+    }
   });
 
-  it.each(['5–3', 'one', '1––', '3 and 4', '', '1234567'])('refuses %s', (cell) => {
-    expect(readRollCell(cell)).toBeNull();
+  it('refuses what is no table', () => {
+    for (const cell of ['5–3', 'one', '1––', '3 and 4', '', '1234567']) {
+      expect(readRollCell(cell)).toBeNull();
+    }
   });
 });
 
 describe('reading a die from a header', () => {
-  it.each([
-    ['d6', 'd6'], ['1d6', 'd6'], ['2d6', '2d6'], ['3d6', '3d6'], ['d66', 'd66'], ['d100', 'd100'], ['d%', 'd100'],
-    ['dice: 1d20', 'd20'], ['**D8**', 'd8'],
-  ])('reads %s as %s', (header, label) => {
-    expect(dieOfHeader(header)?.label).toBe(label);
+  it('reads each die as its size', () => {
+    for (const [header, label] of [
+      ['d6', 'd6'], ['1d6', 'd6'], ['2d6', '2d6'], ['3d6', '3d6'], ['d66', 'd66'], ['d100', 'd100'], ['d%', 'd100'],
+      ['dice: 1d20', 'd20'], ['**D8**', 'd8'],
+    ] as const) {
+      expect(dieOfHeader(header)?.label).toBe(label);
+    }
   });
 
-  it.each(['Roll', 'd1', '11d6', '2d66', 'd2000'])('reads no die in %s', (header) => {
-    expect(dieOfHeader(header)).toBeNull();
+  it('reads no die where there is none', () => {
+    for (const header of ['Roll', 'd1', '11d6', '2d66', 'd2000']) {
+      expect(dieOfHeader(header)).toBeNull();
+    }
   });
 });
 

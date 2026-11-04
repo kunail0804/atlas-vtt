@@ -120,13 +120,15 @@ describe('the grid of a Universal VTT file', () => {
     expect(sceneOf(file).grid).toEqual({ size: 100, offsetX: 75, offsetY: 50 });
   });
 
-  it.each([
-    ['as large as the file says', { width: 1000, height: 800 }, 100],
-    ['exported at twice the size', { width: 2000, height: 1600 }, 200],
-    ['scaled down to what a map keeps', { width: 8192, height: 6554 }, 819.2],
-    ['a pixel off after rounding', { width: 1000, height: 801 }, 100],
-  ])('has square cells on an image %s', (_label, image, cellSize) => {
-    expect(uvttCellSize(mapOf(cryptFile()), image)).toBe(cellSize);
+  it('has square cells on an image of any size', () => {
+    for (const [_label, image, cellSize] of [
+      ['as large as the file says', { width: 1000, height: 800 }, 100],
+      ['exported at twice the size', { width: 2000, height: 1600 }, 200],
+      ['scaled down to what a map keeps', { width: 8192, height: 6554 }, 819.2],
+      ['a pixel off after rounding', { width: 1000, height: 801 }, 100],
+    ] as const) {
+      expect(uvttCellSize(mapOf(cryptFile()), image)).toBe(cellSize);
+    }
   });
 
   it('has none on an image of another shape', () => {
@@ -139,20 +141,22 @@ describe('the lights of a Universal VTT file', () => {
   const metres: CollectionGridDefaults = { unitType: 'meters', unitDistance: 1.5, measurementMode: 'metric' };
   const squares: CollectionGridDefaults = { unitType: 'units', unitDistance: 1, measurementMode: 'metric' };
 
-  it.each([
-    ['feet (D&D 5e)', DND_5E.rules.gridDefaults, 15, 30],
-    ['metres', metres, 4.5, 9],
-    ['range bands (Daggerheart)', DAGGERHEART.rules.gridDefaults, 15, 30],
-    ['squares', squares, 3, 6],
-    ['no measurement of its own', undefined, 15, 30],
-  ])('are bright to half their range and end at it, in a collection measuring in %s', (_label, gridDefaults, bright, dim) => {
-    const unit = resolveMeasurementSettings(gridDefaults, null);
-    const light = sceneOf(cryptFile(), 100, unit).lights.light_uvtt_1!;
+  it('are bright to half their range and end at it, in a collection measuring in any unit', () => {
+    for (const [_label, gridDefaults, bright, dim] of [
+      ['feet (D&D 5e)', DND_5E.rules.gridDefaults, 15, 30],
+      ['metres', metres, 4.5, 9],
+      ['range bands (Daggerheart)', DAGGERHEART.rules.gridDefaults, 15, 30],
+      ['squares', squares, 3, 6],
+      ['no measurement of its own', undefined, 15, 30],
+    ] as const) {
+      const unit = resolveMeasurementSettings(gridDefaults, null);
+      const light = sceneOf(cryptFile(), 100, unit).lights.light_uvtt_1!;
 
-    expect(light.emission).toMatchObject({ bright, dim });
-    // Six cells on the map, whatever the collection counts them in
-    expect(gameUnitsToWorld(light.emission.dim, unitScaleOf(unit, { size: 100 }))).toBeCloseTo(600, 9);
-    expect(gameUnitsToWorld(light.emission.bright, unitScaleOf(unit, { size: 100 }))).toBeCloseTo(300, 9);
+      expect(light.emission).toMatchObject({ bright, dim });
+      // Six cells on the map, whatever the collection counts them in
+      expect(gameUnitsToWorld(light.emission.dim, unitScaleOf(unit, { size: 100 }))).toBeCloseTo(600, 9);
+      expect(gameUnitsToWorld(light.emission.bright, unitScaleOf(unit, { size: 100 }))).toBeCloseTo(300, 9);
+    }
   });
 
   it('stand where the file says, in its colour, as custom lights', () => {
@@ -194,14 +198,16 @@ describe('the lights of a Universal VTT file', () => {
 });
 
 describe('the lighting of a scene from a Universal VTT file', () => {
-  it.each([
-    ['ff808080', 0.5],
-    ['ffffffff', 1],
-    ['ff000000', 0],
-    ['ff0000ff', 0.07],
-    ['ff1a1a40', 0.11],
-  ])('is on, with the ambient light %s as %f', (color, ambient) => {
-    expect(sceneOf(cryptSetting('environment.ambient_light', color)).lighting).toEqual({ enabled: true, ambient });
+  it('is on, with the ambient light read as a level', () => {
+    for (const [color, ambient] of [
+      ['ff808080', 0.5],
+      ['ffffffff', 1],
+      ['ff000000', 0],
+      ['ff0000ff', 0.07],
+      ['ff1a1a40', 0.11],
+    ]) {
+      expect(sceneOf(cryptSetting('environment.ambient_light', color)).lighting).toEqual({ enabled: true, ambient });
+    }
   });
 
   it('is daylight where the image carries its own light or the file names none', () => {

@@ -326,32 +326,34 @@ describe('the pulse of the GM\'s socket', () => {
     expect(socket.closedByGm).toBe(true);
   });
 
-  it.each([1, 3])('does not judge a ping that still stands in the buffer behind an asset, while the buffer drains (%i bytes a character)', (bytes) => {
-    const { timers, connection } = table();
-    const socket = last();
-    socket.welcome([{ id: 'abcdefghijklmnopqrst', name: 'Ana' }]);
-    // A slow uplink: what the table sends stays in the buffer and leaves it bit by bit. The buffer counts bytes, of which a character may take several.
-    const sent = socket.send.bind(socket);
-    socket.send = (text: string): void => {
-      sent(text);
-      socket.bufferedAmount += text.length * bytes;
-    };
-    connection.send({ t: 'log', entries: [], players: [], rolls: 0 } as never);
-    const asset = socket.bufferedAmount;
-    expect(asset).toBeGreaterThan(0);
-    timers.advance(KEEPALIVE_MS);
-    for (let step = 0; step < 5; step += 1) {
-      timers.advance(PULSE_DEADLINE_MS - 1_000);
-      socket.bufferedAmount -= Math.floor(asset / 6);
-      timers.advance(1_000);
-      expect(socket.closedByGm, `window ${step}`).toBe(false);
+  it('does not judge a ping that still stands in the buffer behind an asset, while the buffer drains', () => {
+    for (const bytes of [1, 3]) {
+      const { timers, connection } = table();
+      const socket = last();
+      socket.welcome([{ id: 'abcdefghijklmnopqrst', name: 'Ana' }]);
+      // A slow uplink: what the table sends stays in the buffer and leaves it bit by bit. The buffer counts bytes, of which a character may take several.
+      const sent = socket.send.bind(socket);
+      socket.send = (text: string): void => {
+        sent(text);
+        socket.bufferedAmount += text.length * bytes;
+      };
+      connection.send({ t: 'log', entries: [], players: [], rolls: 0 } as never);
+      const asset = socket.bufferedAmount;
+      expect(asset).toBeGreaterThan(0);
+      timers.advance(KEEPALIVE_MS);
+      for (let step = 0; step < 5; step += 1) {
+        timers.advance(PULSE_DEADLINE_MS - 1_000);
+        socket.bufferedAmount -= Math.floor(asset / 6);
+        timers.advance(1_000);
+        expect(socket.closedByGm, `window ${step}`).toBe(false);
+      }
+      // The ping has left the buffer now, and gets its own time; no answer in it is a dead socket.
+      socket.bufferedAmount = 0;
+      timers.advance(PULSE_DEADLINE_MS);
+      expect(socket.closedByGm).toBe(false);
+      timers.advance(PULSE_DEADLINE_MS);
+      expect(socket.closedByGm).toBe(true);
     }
-    // The ping has left the buffer now, and gets its own time; no answer in it is a dead socket.
-    socket.bufferedAmount = 0;
-    timers.advance(PULSE_DEADLINE_MS);
-    expect(socket.closedByGm).toBe(false);
-    timers.advance(PULSE_DEADLINE_MS);
-    expect(socket.closedByGm).toBe(true);
   });
 
   it('gives up a socket whose buffer stands still for the whole time: nothing leaves it any more', () => {

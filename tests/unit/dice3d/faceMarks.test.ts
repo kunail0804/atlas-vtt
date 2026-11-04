@@ -7,12 +7,14 @@ import { fitNumeral } from '../../../src/app/dice3d/numeralFit';
 const CELL = 256;
 
 describe('faceMarks', () => {
-  it.each([6, 8, 10, 12, 20] as DieSides[])('gives each face of the d%i its own number, centred and upright', (sides) => {
-    const geometry = dieGeometry(sides);
-    for (let face = 0; face < sides; face++) {
-      expect(faceMarks(geometry, face, CELL)).toEqual([
-        { value: geometry.values[face], at: [0, 0], up: [0, 1], room: faceOutline(geometry, face, CELL) },
-      ]);
+  it('gives each face of every die its own number, centred and upright', () => {
+    for (const sides of [6, 8, 10, 12, 20] as DieSides[]) {
+      const geometry = dieGeometry(sides);
+      for (let face = 0; face < sides; face++) {
+        expect(faceMarks(geometry, face, CELL)).toEqual([
+          { value: geometry.values[face], at: [0, 0], up: [0, 1], room: faceOutline(geometry, face, CELL) },
+        ]);
+      }
     }
   });
 

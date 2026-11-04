@@ -36,10 +36,12 @@ describe('hex size convention', () => {
 });
 
 describe('axial <-> pixel', () => {
-  it.each([pointy, flat])('round-trips hex centers ($orientation)', (layout) => {
-    for (let q = -4; q <= 4; q++) {
-      for (let r = -4; r <= 4; r++) {
-        expect(pixelToAxial(layout, axialToPixel(layout, { q, r }))).toEqual({ q, r });
+  it('round-trips hex centers in both orientations', () => {
+    for (const layout of [pointy, flat]) {
+      for (let q = -4; q <= 4; q++) {
+        for (let r = -4; r <= 4; r++) {
+          expect(pixelToAxial(layout, axialToPixel(layout, { q, r }))).toEqual({ q, r });
+        }
       }
     }
   });

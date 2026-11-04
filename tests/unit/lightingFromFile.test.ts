@@ -70,12 +70,14 @@ describe('light zones of a map file', () => {
     expect(lightZoneList(store.getState().objects.lightZones)).toEqual([]);
   });
 
-  it.each([['a text', 'text'], ['a number', 5], ['true', true], ['a list', [zone('z')]]])('are none when the file holds %s in their place, and a zone can be drawn afterwards', (_name, value) => {
-    const objects = load({ lightZones: value });
-    expect(objects.lightZones).toBeUndefined();
-    const store = storeWith(objects);
-    const id = store.getState().addLightZone({ polygon: SQUARE, ambient: 0 });
-    expect(lightZoneList(store.getState().objects.lightZones).map((z) => z.id)).toEqual([id]);
+  it('are none when the file holds something else in their place, and a zone can be drawn afterwards', () => {
+    for (const [_name, value] of [['a text', 'text'], ['a number', 5], ['true', true], ['a list', [zone('z')]]]) {
+      const objects = load({ lightZones: value });
+      expect(objects.lightZones).toBeUndefined();
+      const store = storeWith(objects);
+      const id = store.getState().addLightZone({ polygon: SQUARE, ambient: 0 });
+      expect(lightZoneList(store.getState().objects.lightZones).map((z) => z.id)).toEqual([id]);
+    }
   });
 
   it('can be added to whatever the store holds in their place', () => {

@@ -157,19 +157,21 @@ describe('blocks the editor makes', () => {
 });
 
 describe('blocks it cannot use', () => {
-  it.each([
-    ['a type it does not know', { id: 'aaaaaaa1', type: 'carousel', slides: [{ a: 1 }] }, /"carousel"/],
-    ['no type', { id: 'aaaaaaa1', field: 'hp' }, /type nothing/],
-    ['the in-memory type "opaque"', { id: 'aaaaaaa1', type: 'opaque', raw: {} }, /"opaque"/],
-    ['a Title without a field', { id: 'aaaaaaa1', type: 'title', level: 2 }, /has no valid "field"/],
-    ['a Line whose fields are no list', { id: 'aaaaaaa1', type: 'line', fields: 'hp' }, /has no valid "fields"/],
-    ['a Heading without text', { id: 'aaaaaaa1', type: 'heading' }, /has no valid "text"/],
-    ['a Script without its FS block', { id: 'aaaaaaa1', type: 'script', summary: 'x' }, /has no valid "fs"/],
-  ])('keeps %s opaque and writes it back exactly', (_name, block, problem) => {
-    const { template, problems } = read([block]);
-    expect(template.layout.blocks).toEqual([{ id: 'aaaaaaa1', type: 'opaque', raw: block }]);
-    expect(problems).toEqual([expect.stringMatching(problem)]);
-    expect(writtenBlocks(template)).toEqual([block]);
+  it('keeps unknown blocks opaque and writes them back exactly', () => {
+    for (const [_name, block, problem] of [
+      ['a type it does not know', { id: 'aaaaaaa1', type: 'carousel', slides: [{ a: 1 }] }, /"carousel"/],
+      ['no type', { id: 'aaaaaaa1', field: 'hp' }, /type nothing/],
+      ['the in-memory type "opaque"', { id: 'aaaaaaa1', type: 'opaque', raw: {} }, /"opaque"/],
+      ['a Title without a field', { id: 'aaaaaaa1', type: 'title', level: 2 }, /has no valid "field"/],
+      ['a Line whose fields are no list', { id: 'aaaaaaa1', type: 'line', fields: 'hp' }, /has no valid "fields"/],
+      ['a Heading without text', { id: 'aaaaaaa1', type: 'heading' }, /has no valid "text"/],
+      ['a Script without its FS block', { id: 'aaaaaaa1', type: 'script', summary: 'x' }, /has no valid "fs"/],
+    ] as const) {
+      const { template, problems } = read([block]);
+      expect(template.layout.blocks).toEqual([{ id: 'aaaaaaa1', type: 'opaque', raw: block }]);
+      expect(problems).toEqual([expect.stringMatching(problem)]);
+      expect(writtenBlocks(template)).toEqual([block]);
+    }
   });
 
   it('keeps the raw key order of an opaque block', () => {

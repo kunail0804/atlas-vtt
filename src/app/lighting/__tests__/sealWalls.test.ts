@@ -133,14 +133,16 @@ describe('sealWalls with walls far beyond the map', () => {
     expect(sealed.length).toBeGreaterThanOrEqual(room().length + 100);
   });
 
-  it.each([
-    ['not a number', NaN],
-    ['infinite', Infinity],
-    ['infinite the other way', -Infinity],
-    ['too large to square', 1e200],
-  ])('skips a wall with a coordinate that is %s', (_label, value) => {
-    const broken = [wall('x1', value, 0, 100, 100), wall('x2', 0, 0, 100, value), wall('x3', value, value, value, value)];
+  it('skips a wall with a coordinate that is no usable number', () => {
+    for (const [_label, value] of [
+      ['not a number', NaN],
+      ['infinite', Infinity],
+      ['infinite the other way', -Infinity],
+      ['too large to square', 1e200],
+    ] as const) {
+      const broken = [wall('x1', value, 0, 100, 100), wall('x2', 0, 0, 100, value), wall('x3', value, value, value, value)];
 
-    expect(bridgesOf([...room(), ...broken])).toEqual(bridgesOf(room()));
+      expect(bridgesOf([...room(), ...broken])).toEqual(bridgesOf(room()));
+    }
   });
 });

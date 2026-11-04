@@ -142,43 +142,45 @@ describe('the throw', () => {
   // **The end is the real test.** An older version let the die tumble out and
   // then swung it into the target: numerically the same, visibly a body
   // *being turned*. So this checks "stops without jerking", not "arrives".
-  it.each([2954, 3862, 9006, ...Array.from({ length: 40 }, (_, seed) => seed)])('spins until the last frame and stops without starting again (seed %i)', (seed) => {
-    const geometry = dieGeometry(20);
-    const rng = throwRandom('motion-regression', seed);
-    const die = makeDie(rng);
-    const target = restingQuaternion(geometry, faceIndexForValue(geometry, 1 + (seed % 20)));
-    beginRoll(die, target, 0, rng);
+  it('spins until the last frame and stops without starting again, for every seed', () => {
+    for (const seed of [2954, 3862, 9006, ...Array.from({ length: 40 }, (_, seed) => seed)]) {
+      const geometry = dieGeometry(20);
+      const rng = throwRandom('motion-regression', seed);
+      const die = makeDie(rng);
+      const target = restingQuaternion(geometry, faceIndexForValue(geometry, 1 + (seed % 20)));
+      beginRoll(die, target, 0, rng);
 
-    const steps: number[] = [];
-    // The pose in the last frame still in flight: whatever is missing here
-    // would have to be turned in later.
-    let lastCollision = -1;
-    let before = die.q;
-    let last = die.q;
-    for (let i = 0; i < 400 && die.phase !== 'rest'; i++) {
-      last = die.q;
-      stepDie(die, 1 / 60, rng);
-      if (die.impact?.kind === 'wall' || die.impact?.kind === 'floor') lastCollision = steps.length;
-      steps.push(qAngle(before, die.q));
-      before = die.q;
-    }
+      const steps: number[] = [];
+      // The pose in the last frame still in flight: whatever is missing here
+      // would have to be turned in later.
+      let lastCollision = -1;
+      let before = die.q;
+      let last = die.q;
+      for (let i = 0; i < 400 && die.phase !== 'rest'; i++) {
+        last = die.q;
+        stepDie(die, 1 / 60, rng);
+        if (die.impact?.kind === 'wall' || die.impact?.kind === 'floor') lastCollision = steps.length;
+        steps.push(qAngle(before, die.q));
+        before = die.q;
+      }
 
-    // **Nothing is left over.** Before the last step the die already shows
-    // its number; resting only fixes it.
-    expect(qAngle(last, die.target)).toBeLessThan(0.02);
+      // **Nothing is left over.** Before the last step the die already shows
+      // its number; resting only fixes it.
+      expect(qAngle(last, die.target)).toBeLessThan(0.02);
 
-    const peak = Math.max(...steps);
-    // The last step is a run-out, not a new start.
-    expect(steps[steps.length - 1]!).toBeLessThan(peak * 0.03);
-    // And it spins until the end rather than waiting half a second for its cue.
-    expect(steps[steps.length - 6]!).toBeGreaterThan(0);
-    // **No second start.** Once below a tenth of its peak nothing follows.
-    // Collisions can briefly slow or reverse a tumbling die. The final
-    // run-out starts after the last collision, not at an earlier speed dip.
-    const ranOut = steps.findIndex((w, index) => index > lastCollision && w < peak * 0.1);
-    expect(ranOut).toBeGreaterThan(0);
-    for (const step of steps.slice(ranOut)) {
-      expect(step).toBeLessThan(peak * 0.2);
+      const peak = Math.max(...steps);
+      // The last step is a run-out, not a new start.
+      expect(steps[steps.length - 1]!).toBeLessThan(peak * 0.03);
+      // And it spins until the end rather than waiting half a second for its cue.
+      expect(steps[steps.length - 6]!).toBeGreaterThan(0);
+      // **No second start.** Once below a tenth of its peak nothing follows.
+      // Collisions can briefly slow or reverse a tumbling die. The final
+      // run-out starts after the last collision, not at an earlier speed dip.
+      const ranOut = steps.findIndex((w, index) => index > lastCollision && w < peak * 0.1);
+      expect(ranOut).toBeGreaterThan(0);
+      for (const step of steps.slice(ranOut)) {
+        expect(step).toBeLessThan(peak * 0.2);
+      }
     }
   });
 

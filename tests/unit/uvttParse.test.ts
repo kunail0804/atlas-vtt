@@ -53,124 +53,142 @@ describe('reading a Universal VTT file', () => {
     expect(read({ ...cryptFile(), software: 'Dungeondraft', creator: { name: 'x' } }).size).toEqual({ x: 10, y: 8 });
   });
 
-  it.each([
-    ['text that is not JSON', '{"resolution": ', 'not valid JSON'],
-    ['a list', '[]', 'content is missing or not an object'],
-    ['null', 'null', 'content is missing or not an object'],
-    ['a number', '12', 'content is missing or not an object'],
-    ['a string', '"map"', 'content is missing or not an object'],
-  ])('refuses %s', (_label, text, problem) => {
-    expect(problemOf(text)).toContain(problem);
+  it('refuses files that are no map', () => {
+    for (const [_label, text, problem] of [
+      ['text that is not JSON', '{"resolution": ', 'not valid JSON'],
+      ['a list', '[]', 'content is missing or not an object'],
+      ['null', 'null', 'content is missing or not an object'],
+      ['a number', '12', 'content is missing or not an object'],
+      ['a string', '"map"', 'content is missing or not an object'],
+    ]) {
+      expect(problemOf(text)).toContain(problem);
+    }
   });
 
   it('refuses a text longer than 150 MB before parsing it', () => {
     expect(problemOf('x'.repeat(UVTT_LIMITS.fileBytes + 1))).toBe('The file is larger than 150 MB.');
   });
 
-  it.each([
-    ['resolution', undefined, 'The map\'s resolution is missing or not an object.'],
-    ['resolution', [], 'The map\'s resolution is missing or not an object.'],
-    ['resolution.map_size', undefined, 'The map size is missing or not an object.'],
-    ['resolution.map_size', '10x8', 'The map size is missing or not an object.'],
-    ['resolution.map_size.x', undefined, 'The map\'s width is missing or not a number.'],
-    ['resolution.map_size.x', '10', 'The map\'s width is missing or not a number.'],
-    ['resolution.map_size.x', 0, 'The map\'s width is out of range.'],
-    ['resolution.map_size.x', -10, 'The map\'s width is out of range.'],
-    ['resolution.map_size.x', 0.5, 'The map\'s width is out of range.'],
-    ['resolution.map_size.y', 1e-300, 'The map\'s height is out of range.'],
-    ['resolution.map_size.y', 4097, 'The map\'s height is out of range.'],
-    ['resolution.map_size.y', null, 'The map\'s height is missing or not a number.'],
-    ['resolution.map_origin', 3, 'The map\'s origin is missing or not a position.'],
-    ['resolution.map_origin.y', 'top', 'The map\'s origin (y) is missing or not a number.'],
-    ['resolution.map_origin.x', 1e7, 'The map\'s origin (x) is out of range.'],
-    ['line_of_sight', {}, 'The list of wall lines is not a list.'],
-    ['line_of_sight.1', { x: 1, y: 1 }, 'Wall line 2 is not a list of positions.'],
-    ['line_of_sight.0.2', [9, 7], 'Point 3 of wall line 1 is missing or not a position.'],
-    ['line_of_sight.0.2', null, 'Point 3 of wall line 1 is missing or not a position.'],
-    ['line_of_sight.0.2.x', '9', 'Point 3 of wall line 1 (x) is missing or not a number.'],
-    ['line_of_sight.0.2.y', undefined, 'Point 3 of wall line 1 (y) is missing or not a number.'],
-    ['line_of_sight.0.2.y', -1e9, 'Point 3 of wall line 1 (y) is out of range.'],
-    ['objects_line_of_sight', 'none', 'The list of object outlines is not a list.'],
-    ['objects_line_of_sight.0.0.x', true, 'Point 1 of object outline 1 (x) is missing or not a number.'],
-    ['portals', {}, 'The list of doors is not a list.'],
-    ['portals.0', 'door', 'Door 1 is missing or not an object.'],
-    ['portals.0.bounds', undefined, 'Door 1 does not have two ends.'],
-    ['portals.0.bounds', [{ x: 1, y: 1 }], 'Door 1 does not have two ends.'],
-    ['portals.0.bounds', [{ x: 1, y: 1 }, { x: 2, y: 1 }, { x: 3, y: 1 }], 'Door 1 does not have two ends.'],
-    ['portals.0.bounds.1', [4.5, 4.25], 'The second end of door 1 is missing or not a position.'],
-    ['portals.0.bounds.0.x', 'left', 'The first end of door 1 (x) is missing or not a number.'],
-    ['lights', 'torch', 'The list of lights is not a list.'],
-    ['lights.0', 5, 'Light 1 is missing or not an object.'],
-    ['lights.0.position', undefined, 'The position of light 1 is missing or not a position.'],
-    ['lights.0.position.x', {}, 'The position of light 1 (x) is missing or not a number.'],
-    ['lights.0.range', undefined, 'The range of light 1 is missing or not a number.'],
-    ['lights.0.range', '6', 'The range of light 1 is missing or not a number.'],
-    ['lights.0.range', -1, 'The range of light 1 is out of range.'],
-    ['lights.0.range', 1e12, 'The range of light 1 is out of range.'],
-    ['image', undefined, 'The file holds no map image.'],
-    ['image', '', 'The file holds no map image.'],
-    ['image', { data: 'x' }, 'The file holds no map image.'],
-    ['image', 'not*base64!', 'The map image in the file is damaged (it is not valid base64).'],
-    ['image', 'maps/crypt.png', 'This file refers to its image instead of containing it.'],
-    ['image', 'C:\\maps\\Crypt of the Lich.JPG', 'This file refers to its image instead of containing it.'],
-    ['image', 'https://example.com/maps/crypt.webp?size=full', 'This file refers to its image instead of containing it.'],
-    ['image', 'file:///Users/gm/maps/crypt', 'This file refers to its image instead of containing it.'],
-    ['image', base64Of(GIF_START), 'The map image in the file is not a PNG, WebP or JPEG image.'],
-    ['image', base64Of(new TextEncoder().encode('<svg onload="alert(1)"/>')), 'The map image in the file is not a PNG, WebP or JPEG image.'],
-    ['image', `data:image/png;base64,${base64Of(GIF_START)}`, 'The map image in the file is not a PNG, WebP or JPEG image.'],
-  ])('refuses a file whose %s is %j', (path, value, problem) => {
-    expect(problemOf(cryptSetting(path, value))).toBe(problem);
+  it('refuses a file whose fields that place things are wrong', () => {
+    for (const [path, value, problem] of [
+      ['resolution', undefined, 'The map\'s resolution is missing or not an object.'],
+      ['resolution', [], 'The map\'s resolution is missing or not an object.'],
+      ['resolution.map_size', undefined, 'The map size is missing or not an object.'],
+      ['resolution.map_size', '10x8', 'The map size is missing or not an object.'],
+      ['resolution.map_size.x', undefined, 'The map\'s width is missing or not a number.'],
+      ['resolution.map_size.x', '10', 'The map\'s width is missing or not a number.'],
+      ['resolution.map_size.x', 0, 'The map\'s width is out of range.'],
+      ['resolution.map_size.x', -10, 'The map\'s width is out of range.'],
+      ['resolution.map_size.x', 0.5, 'The map\'s width is out of range.'],
+      ['resolution.map_size.y', 1e-300, 'The map\'s height is out of range.'],
+      ['resolution.map_size.y', 4097, 'The map\'s height is out of range.'],
+      ['resolution.map_size.y', null, 'The map\'s height is missing or not a number.'],
+      ['resolution.map_origin', 3, 'The map\'s origin is missing or not a position.'],
+      ['resolution.map_origin.y', 'top', 'The map\'s origin (y) is missing or not a number.'],
+      ['resolution.map_origin.x', 1e7, 'The map\'s origin (x) is out of range.'],
+      ['line_of_sight', {}, 'The list of wall lines is not a list.'],
+      ['line_of_sight.1', { x: 1, y: 1 }, 'Wall line 2 is not a list of positions.'],
+      ['line_of_sight.0.2', [9, 7], 'Point 3 of wall line 1 is missing or not a position.'],
+      ['line_of_sight.0.2', null, 'Point 3 of wall line 1 is missing or not a position.'],
+      ['line_of_sight.0.2.x', '9', 'Point 3 of wall line 1 (x) is missing or not a number.'],
+      ['line_of_sight.0.2.y', undefined, 'Point 3 of wall line 1 (y) is missing or not a number.'],
+      ['line_of_sight.0.2.y', -1e9, 'Point 3 of wall line 1 (y) is out of range.'],
+      ['objects_line_of_sight', 'none', 'The list of object outlines is not a list.'],
+      ['objects_line_of_sight.0.0.x', true, 'Point 1 of object outline 1 (x) is missing or not a number.'],
+      ['portals', {}, 'The list of doors is not a list.'],
+      ['portals.0', 'door', 'Door 1 is missing or not an object.'],
+      ['portals.0.bounds', undefined, 'Door 1 does not have two ends.'],
+      ['portals.0.bounds', [{ x: 1, y: 1 }], 'Door 1 does not have two ends.'],
+      ['portals.0.bounds', [{ x: 1, y: 1 }, { x: 2, y: 1 }, { x: 3, y: 1 }], 'Door 1 does not have two ends.'],
+      ['portals.0.bounds.1', [4.5, 4.25], 'The second end of door 1 is missing or not a position.'],
+      ['portals.0.bounds.0.x', 'left', 'The first end of door 1 (x) is missing or not a number.'],
+      ['lights', 'torch', 'The list of lights is not a list.'],
+      ['lights.0', 5, 'Light 1 is missing or not an object.'],
+      ['lights.0.position', undefined, 'The position of light 1 is missing or not a position.'],
+      ['lights.0.position.x', {}, 'The position of light 1 (x) is missing or not a number.'],
+      ['lights.0.range', undefined, 'The range of light 1 is missing or not a number.'],
+      ['lights.0.range', '6', 'The range of light 1 is missing or not a number.'],
+      ['lights.0.range', -1, 'The range of light 1 is out of range.'],
+      ['lights.0.range', 1e12, 'The range of light 1 is out of range.'],
+      ['image', undefined, 'The file holds no map image.'],
+      ['image', '', 'The file holds no map image.'],
+      ['image', { data: 'x' }, 'The file holds no map image.'],
+      ['image', 'not*base64!', 'The map image in the file is damaged (it is not valid base64).'],
+      ['image', 'maps/crypt.png', 'This file refers to its image instead of containing it.'],
+      ['image', 'C:\\maps\\Crypt of the Lich.JPG', 'This file refers to its image instead of containing it.'],
+      ['image', 'https://example.com/maps/crypt.webp?size=full', 'This file refers to its image instead of containing it.'],
+      ['image', 'file:///Users/gm/maps/crypt', 'This file refers to its image instead of containing it.'],
+      ['image', base64Of(GIF_START), 'The map image in the file is not a PNG, WebP or JPEG image.'],
+      ['image', base64Of(new TextEncoder().encode('<svg onload="alert(1)"/>')), 'The map image in the file is not a PNG, WebP or JPEG image.'],
+      ['image', `data:image/png;base64,${base64Of(GIF_START)}`, 'The map image in the file is not a PNG, WebP or JPEG image.'],
+    ] as const) {
+      expect(problemOf(cryptSetting(path, value))).toBe(problem);
+    }
   });
 
-  it.each([
-    ['a number too large for JSON', '1e999'],
-    ['a number below every range', '-1e999'],
-  ])('refuses %s wherever a number stands', (_label, number) => {
-    const text = JSON.stringify(cryptFile());
-    expect(problemOf(text.replace('"range":6', `"range":${number}`))).toBe('The range of light 1 is missing or not a number.');
-    expect(problemOf(text.replace('"x":4.5,"y":1}', `"x":${number},"y":1}`))).toBe('Point 1 of wall line 2 (x) is missing or not a number.');
+  it('refuses a number that is no number, wherever a number stands', () => {
+    for (const [_label, number] of [
+      ['a number too large for JSON', '1e999'],
+      ['a number below every range', '-1e999'],
+    ]) {
+      const text = JSON.stringify(cryptFile());
+      expect(problemOf(text.replace('"range":6', `"range":${number}`))).toBe('The range of light 1 is missing or not a number.');
+      expect(problemOf(text.replace('"x":4.5,"y":1}', `"x":${number},"y":1}`))).toBe('Point 1 of wall line 2 (x) is missing or not a number.');
+    }
   });
 
-  it.each([
-    ['format', '0.3'],
-    ['format', { major: 0, minor: 3 }],
-    ['resolution.pixels_per_grid', '100'],
-    ['resolution.pixels_per_grid', undefined],
-    ['resolution.pixels_per_grid', -5],
-    ['portals.0.position', 'middle'],
-    ['portals.0.rotation', '90'],
-    ['portals.0.freestanding', 'no'],
-    ['lights.0.shadows', 'soft'],
-  ])('is not put off by %s being %j, which it has no use for', (path, value) => {
-    expect(read(cryptSetting(path, value))).toEqual(read(cryptFile()));
+  it('is not put off by fields it has no use for being anything', () => {
+    for (const [path, value] of [
+      ['format', '0.3'],
+      ['format', { major: 0, minor: 3 }],
+      ['resolution.pixels_per_grid', '100'],
+      ['resolution.pixels_per_grid', undefined],
+      ['resolution.pixels_per_grid', -5],
+      ['portals.0.position', 'middle'],
+      ['portals.0.rotation', '90'],
+      ['portals.0.freestanding', 'no'],
+      ['lights.0.shadows', 'soft'],
+    ] as const) {
+      expect(read(cryptSetting(path, value))).toEqual(read(cryptFile()));
+    }
   });
 
-  it.each([
-    [true, true], [1, true], ['true', true], ['yes', true], [undefined, true], [null, true], [{}, true],
-    [false, false], [0, false], ['false', false], ['FALSE', false], ['0', false], ['', false],
-  ])('reads a door whose "closed" is %j as closed: %s', (written, closed) => {
-    expect(read(cryptSetting('portals.0.closed', written)).portals[0]!.closed).toBe(closed);
+  it('reads a door as closed or open by "closed", however it is written', () => {
+    for (const [written, closed] of [
+      [true, true], [1, true], ['true', true], ['yes', true], [undefined, true], [null, true], [{}, true],
+      [false, false], [0, false], ['false', false], ['FALSE', false], ['0', false], ['', false],
+    ]) {
+      expect(read(cryptSetting('portals.0.closed', written)).portals[0]!.closed).toBe(closed);
+    }
   });
 
-  it.each([
-    [true, true], ['true', true], [1, true],
-    [false, false], [0, false], ['false', false], [undefined, false], [null, false], [[], false],
-  ])('reads "baked_lighting" of %j as %s', (written, baked) => {
-    expect(read(cryptSetting('environment.baked_lighting', written)).bakedLighting).toBe(baked);
+  it('reads "baked_lighting" however it is written', () => {
+    for (const [written, baked] of [
+      [true, true], ['true', true], [1, true],
+      [false, false], [0, false], ['false', false], [undefined, false], [null, false], [[], false],
+    ]) {
+      expect(read(cryptSetting('environment.baked_lighting', written)).bakedLighting).toBe(baked);
+    }
   });
 
-  it.each(['', 'fff', 'orange', 'ffeccd8', 0xffffff, null, {}])('gives a light whose colour is %j white light', (written) => {
-    expect(read(cryptSetting('lights.0.color', written)).lights[0]!.color).toBe('#ffffff');
+  it('gives a light whose colour is no colour white light', () => {
+    for (const written of ['', 'fff', 'orange', 'ffeccd8', 0xffffff, null, {}]) {
+      expect(read(cryptSetting('lights.0.color', written)).lights[0]!.color).toBe('#ffffff');
+    }
   });
 
-  it.each(['bright', -0.5, null, [], '2'])('gives a light whose intensity is %j the usual one', (written) => {
-    expect(read(cryptSetting('lights.0.intensity', written)).lights[0]!.intensity).toBe(1);
+  it('gives a light whose intensity is no number the usual one', () => {
+    for (const written of ['bright', -0.5, null, [], '2']) {
+      expect(read(cryptSetting('lights.0.intensity', written)).lights[0]!.intensity).toBe(1);
+    }
   });
 
-  it.each([
-    ['environment', []], ['environment', 'night'], ['environment.ambient_light', 0.5], ['environment.ambient_light', 'dark'], ['environment.ambient_light', ''],
-  ])('reads no ambient light where %s is %j', (path, value) => {
-    expect(read(cryptSetting(path, value)).ambientLight).toBeNull();
+  it('reads no ambient light where the environment gives none', () => {
+    for (const [path, value] of [
+      ['environment', []], ['environment', 'night'], ['environment.ambient_light', 0.5], ['environment.ambient_light', 'dark'], ['environment.ambient_light', ''],
+    ] as const) {
+      expect(read(cryptSetting(path, value)).ambientLight).toBeNull();
+    }
   });
 
   it('reads the defaults of what a door and a light may leave out', () => {
@@ -183,14 +201,16 @@ describe('reading a Universal VTT file', () => {
     expect(map.lights).toEqual([{ position: { x: 1, y: 1 }, range: 0, intensity: 1, color: '#ffffff' }]);
   });
 
-  it.each([
-    ['ffeccd8b', '#eccd8b'],
-    ['ECCD8B', '#eccd8b'],
-    ['#00102030', '#102030'],
-    [' 80ffffff ', '#ffffff'],
-  ])('reads the colour %j as %s', (written, color) => {
-    expect(read(cryptSetting('lights.0.color', written)).lights[0]!.color).toBe(color);
-    expect(read(cryptSetting('environment.ambient_light', written)).ambientLight).toBe(color);
+  it('reads each colour as its hex', () => {
+    for (const [written, color] of [
+      ['ffeccd8b', '#eccd8b'],
+      ['ECCD8B', '#eccd8b'],
+      ['#00102030', '#102030'],
+      [' 80ffffff ', '#ffffff'],
+    ]) {
+      expect(read(cryptSetting('lights.0.color', written)).lights[0]!.color).toBe(color);
+      expect(read(cryptSetting('environment.ambient_light', written)).ambientLight).toBe(color);
+    }
   });
 
   it('reads an open door and baked lighting', () => {
@@ -200,12 +220,14 @@ describe('reading a Universal VTT file', () => {
 });
 
 describe('the image of a Universal VTT file', () => {
-  it.each([
-    ['PNG', pngHeader(10, 10), 'image/png'],
-    ['WebP', WEBP_START, 'image/webp'],
-    ['JPEG', JPEG_START, 'image/jpeg'],
-  ])('knows a %s by its first bytes', (_label, bytes, type) => {
-    expect(read(cryptSetting('image', base64Of(bytes))).image.type).toBe(type);
+  it('knows each image type by its first bytes', () => {
+    for (const [_label, bytes, type] of [
+      ['PNG', pngHeader(10, 10), 'image/png'],
+      ['WebP', WEBP_START, 'image/webp'],
+      ['JPEG', JPEG_START, 'image/jpeg'],
+    ] as const) {
+      expect(read(cryptSetting('image', base64Of(bytes))).image.type).toBe(type);
+    }
   });
 
   it('is read past white space, line breaks and the head of a data URL', () => {
@@ -250,12 +272,14 @@ describe('the limits of a Universal VTT file', () => {
     expect(problemOf(file)).toBe('The file has more than 20,000 wall segments.');
   });
 
-  it.each([
-    ['one wall line with too many points', (file: Record<string, unknown>): void => { file.line_of_sight = [lineOf(20_001)]; }],
-    ['too many wall lines', (file: Record<string, unknown>): void => { file.line_of_sight = Array.from({ length: 20_001 }, () => []); }],
-    ['too many doors', (file: Record<string, unknown>): void => { file.portals = Array.from({ length: 20_001 }, () => null); }],
-  ])('refuses %s before reading them', (_label, change) => {
-    expect(problemOf(cryptWith(change))).toBe('The file has more than 20,000 wall segments.');
+  it('refuses too many walls, doors or lights before reading them', () => {
+    for (const [_label, change] of [
+      ['one wall line with too many points', (file: Record<string, unknown>): void => { file.line_of_sight = [lineOf(20_001)]; }],
+      ['too many wall lines', (file: Record<string, unknown>): void => { file.line_of_sight = Array.from({ length: 20_001 }, () => []); }],
+      ['too many doors', (file: Record<string, unknown>): void => { file.portals = Array.from({ length: 20_001 }, () => null); }],
+    ] as const) {
+      expect(problemOf(cryptWith(change))).toBe('The file has more than 20,000 wall segments.');
+    }
   });
 
   it('accepts 2,000 lights and refuses one more', () => {
@@ -303,22 +327,28 @@ describe('what a Universal VTT file cannot do', () => {
 });
 
 describe('Universal VTT file names', () => {
-  it.each(['crypt.dd2vtt', 'Crypt.UVTT', 'the.old.mill.df2vtt'])('knows %s as a map', (name) => {
-    expect(isUvttFileName(name)).toBe(true);
+  it('knows every Universal VTT extension as a map', () => {
+    for (const name of ['crypt.dd2vtt', 'Crypt.UVTT', 'the.old.mill.df2vtt']) {
+      expect(isUvttFileName(name)).toBe(true);
+    }
   });
 
-  it.each(['crypt.png', 'crypt.json', 'dd2vtt', 'crypt.dd2vtt.zip', ''])('does not take %j for one', (name) => {
-    expect(isUvttFileName(name)).toBe(false);
+  it('does not take other names for one', () => {
+    for (const name of ['crypt.png', 'crypt.json', 'dd2vtt', 'crypt.dd2vtt.zip', '']) {
+      expect(isUvttFileName(name)).toBe(false);
+    }
   });
 
-  it.each([
-    ['Crypt of the Lich.dd2vtt', 'Crypt of the Lich'],
-    ['the.old.mill.uvtt', 'the.old.mill'],
-    ['Cave #3: [night]/v2?.df2vtt', 'Cave 3 night v2'],
-    ['..hidden.dd2vtt', 'hidden'],
-    ['.dd2vtt', 'dd2vtt'],
-    ['???.uvtt', 'Imported map'],
-  ])('names the scene of %j %j', (fileName, name) => {
-    expect(uvttSceneName(fileName)).toBe(name);
+  it('names the scene after the file', () => {
+    for (const [fileName, name] of [
+      ['Crypt of the Lich.dd2vtt', 'Crypt of the Lich'],
+      ['the.old.mill.uvtt', 'the.old.mill'],
+      ['Cave #3: [night]/v2?.df2vtt', 'Cave 3 night v2'],
+      ['..hidden.dd2vtt', 'hidden'],
+      ['.dd2vtt', 'dd2vtt'],
+      ['???.uvtt', 'Imported map'],
+    ] as const) {
+      expect(uvttSceneName(fileName)).toBe(name);
+    }
   });
 });

@@ -41,13 +41,20 @@ const note = 'Bestiary/Toad.md';
 const fence = '```statblock\nAS HANDED OVER\n```';
 
 let current: CreatureVault;
-beforeEach(() => {
+let released = true;
+/** Each case reads from a vault, an index and counts of its own. */
+function freshVault(): void {
+  if (!released) CreatureIndex.release(current.app);
+  Reflect.deleteProperty(window, 'FantasyStatblocks');
   current = creatureVault();
+  released = false;
   current.app.vault.cachedRead = current.app.vault.read;
   resetCounts();
-});
+}
+beforeEach(freshVault);
 afterEach(() => {
   CreatureIndex.release(current.app);
+  released = true;
   Reflect.deleteProperty(window, 'FantasyStatblocks');
 });
 
@@ -91,15 +98,18 @@ const ROUTES: Record<string, (statblock: Record<string, unknown>) => void> = {
 };
 
 describe.each(Object.keys(ROUTES))('a linked creature given by %s', (route) => {
-  it.each(Object.keys(HOSTILE_VALUES))('is read within the limits where its fields are %s', async (shape) => {
-    const hostile = HOSTILE_VALUES[shape]!;
-    ROUTES[route]!(counted({ name: 'Toad', senses: hostile(), actions: hostile(), type: hostile() }));
+  it('is read within the limits where its fields are', async () => {
+    for (const shape of Object.keys(HOSTILE_VALUES)) {
+      freshVault();
+      const hostile = HOSTILE_VALUES[shape]!;
+      ROUTES[route]!(counted({ name: 'Toad', senses: hostile(), actions: hostile(), type: hostile() }));
 
-    const creature = await resolveLinkedCreature(current.app, note);
-    expect(creature?.name).toBe('Toad');
-    expect(counts.reads).toBeLessThanOrEqual(4 * STATBLOCK_LIMITS.values);
-    expect(sizeOf(creature).values).toBeLessThanOrEqual(STATBLOCK_LIMITS.values + 10);
-    expect(sizeOf(creature).characters).toBeLessThanOrEqual(2 * STATBLOCK_LIMITS.characters);
+      const creature = await resolveLinkedCreature(current.app, note);
+      expect(creature?.name).toBe('Toad');
+      expect(counts.reads).toBeLessThanOrEqual(4 * STATBLOCK_LIMITS.values);
+      expect(sizeOf(creature).values).toBeLessThanOrEqual(STATBLOCK_LIMITS.values + 10);
+      expect(sizeOf(creature).characters).toBeLessThanOrEqual(2 * STATBLOCK_LIMITS.characters);
+    }
   });
 
   it('is named by a text, whatever the statblock gives for a name', async () => {
@@ -111,17 +121,20 @@ describe.each(Object.keys(ROUTES))('a linked creature given by %s', (route) => {
 });
 
 describe('what the filters read of a creature', () => {
-  it.each(['the bestiary entry of its note', 'a statblock fence'])('is within the limits for %s', async (route) => {
-    ROUTES[route]!(counted({ name: 'Toad', type: selfHoldingList(1000), traits: sharedLists(10, 9) }));
-    const index = CreatureIndex.forApp(current.app);
-    index.request([note]);
-    await vi.waitFor(() => expect(index.isPending()).toBe(false));
+  it('is within the limits for every route', async () => {
+    for (const route of ['the bestiary entry of its note', 'a statblock fence']) {
+      freshVault();
+      ROUTES[route]!(counted({ name: 'Toad', type: selfHoldingList(1000), traits: sharedLists(10, 9) }));
+      const index = CreatureIndex.forApp(current.app);
+      index.request([note]);
+      await vi.waitFor(() => expect(index.isPending()).toBe(false));
 
-    const fields = index.get(note)!.fields;
-    expect(sizeOf(fields).values).toBeLessThanOrEqual(STATBLOCK_LIMITS.values + 10);
-    // The filters' own walks end: a list that holds itself has no options, and no rating.
-    const facts = factsOf({ statblockPath: note }, (path) => index.get(path), CATALOG_CREATURE_FILTERS);
-    expect(facts.options.get('type')?.map((option) => option.label)).toEqual(['in']);
+      const fields = index.get(note)!.fields;
+      expect(sizeOf(fields).values).toBeLessThanOrEqual(STATBLOCK_LIMITS.values + 10);
+      // The filters' own walks end: a list that holds itself has no options, and no rating.
+      const facts = factsOf({ statblockPath: note }, (path) => index.get(path), CATALOG_CREATURE_FILTERS);
+      expect(facts.options.get('type')?.map((option) => option.label)).toEqual(['in']);
+    }
   });
 
   it('takes no option from a text far longer than one', () => {
@@ -160,19 +173,22 @@ describe('a token placed from a statblock note', () => {
     return spawned;
   }
 
-  it.each([
-    ['lists that hold each other', (): unknown => sharedLists(10, 9)],
-    ['a list that holds itself', (): unknown => selfHoldingList(50)],
-    ['a map', (): unknown => ({ first: 'Grik', last: 'the Bold' })],
-    ['a number', (): unknown => 7],
-  ])('is named by a text where the statblock\'s name is %s, and its scene can be written', async (_kind, name) => {
-    ROUTES['a statblock fence']!(counted({ name: name(), hp: 12, cr: 2 }));
-    const [token] = await place();
+  it('is named by a text where the statblock\'s name is, and its scene can be written', async () => {
+    for (const [_kind, name] of [
+      ['lists that hold each other', (): unknown => sharedLists(10, 9)],
+      ['a list that holds itself', (): unknown => selfHoldingList(50)],
+      ['a map', (): unknown => ({ first: 'Grik', last: 'the Bold' })],
+      ['a number', (): unknown => 7],
+    ] as const) {
+      freshVault();
+      ROUTES['a statblock fence']!(counted({ name: name(), hp: 12, cr: 2 }));
+      const [token] = await place();
 
-    expect(typeof token?.name).toBe('string');
-    expect((token!.name as string).length).toBeLessThanOrEqual(STATBLOCK_LIMITS.text);
-    expect(token?.statblockPath).toBe(note);
-    expect(JSON.stringify(token).length).toBeLessThan(2 * STATBLOCK_LIMITS.text);
+      expect(typeof token?.name).toBe('string');
+      expect((token!.name as string).length).toBeLessThanOrEqual(STATBLOCK_LIMITS.text);
+      expect(token?.statblockPath).toBe(note);
+      expect(JSON.stringify(token).length).toBeLessThan(2 * STATBLOCK_LIMITS.text);
+    }
   });
 
   it('takes the rest of a statblock whose name is no text', async () => {
@@ -236,28 +252,31 @@ const WELL_FORMED: Array<Record<string, unknown>> = [
 ];
 
 describe.each(['the bestiary entry of its note', 'a statblock fence', 'its frontmatter'])('a well-formed statblock given by %s', (route) => {
-  it.each(WELL_FORMED.map((statblock) => [statblock.name as string, statblock] as const))('reads as it always did: %s', async (_name, statblock) => {
-    ROUTES[route]!(structuredClone(statblock));
-    const creature = (await resolveLinkedCreature(current.app, note))!;
+  it('reads as it always did, statblock for statblock', async () => {
+    for (const statblock of WELL_FORMED) {
+      freshVault();
+      ROUTES[route]!(structuredClone(statblock));
+      const creature = (await resolveLinkedCreature(current.app, note))!;
 
-    // The creature is its statblock, field for field.
-    const { path, statblock: marker, ...fields } = creature;
-    expect(fields).toEqual(statblock);
-    expect([path, marker]).toEqual(route === 'its frontmatter' ? [note, true] : [note, undefined]);
+      // The creature is its statblock, field for field.
+      const { path, statblock: marker, ...fields } = creature;
+      expect(fields).toEqual(statblock);
+      expect([path, marker]).toEqual(route === 'its frontmatter' ? [note, true] : [note, undefined]);
 
-    // So is all that is made of it: the token's name, difficulty and resources, its senses, and the filters' facts.
-    const overrides = await loadStatblockOverrides(current.app, note, DEFINITIONS);
-    const difficulty = statblock.cr !== undefined && statblock.cr !== '' ? `CR ${String(statblock.cr)}` : statblock.tier !== undefined ? `T${String(statblock.tier)}` : undefined;
-    expect(overrides.name).toBe(statblock.name);
-    expect(overrides.difficulty).toBe(difficulty);
-    expect(overrides.resources ?? {}).toEqual(startingResources(statblock, DEFINITIONS));
-    expect(sensesTextOf(creature)).toBe(sensesTextOf(statblock));
-    expect(parseSenses(sensesTextOf(creature) ?? '', DND, FEET)).toEqual(parseSenses(sensesTextOf(statblock) ?? '', DND, FEET));
-    const factsFrom = (read: Record<string, unknown>): unknown =>
-      factsOf({ statblockPath: note }, () => ({ path: note, layout: null, fields: read }), CATALOG_CREATURE_FILTERS);
-    const { creature: _read, ...facts } = factsFrom(fields) as { creature: unknown };
-    const { creature: _given, ...factsBefore } = factsFrom(statblock) as { creature: unknown };
-    expect(facts).toEqual(factsBefore);
-    expect(discoverCreatureFields([{ path: note, layout: null, fields }])).toEqual(discoverCreatureFields([{ path: note, layout: null, fields: statblock }]));
+      // So is all that is made of it: the token's name, difficulty and resources, its senses, and the filters' facts.
+      const overrides = await loadStatblockOverrides(current.app, note, DEFINITIONS);
+      const difficulty = statblock.cr !== undefined && statblock.cr !== '' ? `CR ${String(statblock.cr)}` : statblock.tier !== undefined ? `T${String(statblock.tier)}` : undefined;
+      expect(overrides.name).toBe(statblock.name);
+      expect(overrides.difficulty).toBe(difficulty);
+      expect(overrides.resources ?? {}).toEqual(startingResources(statblock, DEFINITIONS));
+      expect(sensesTextOf(creature)).toBe(sensesTextOf(statblock));
+      expect(parseSenses(sensesTextOf(creature) ?? '', DND, FEET)).toEqual(parseSenses(sensesTextOf(statblock) ?? '', DND, FEET));
+      const factsFrom = (read: Record<string, unknown>): unknown =>
+        factsOf({ statblockPath: note }, () => ({ path: note, layout: null, fields: read }), CATALOG_CREATURE_FILTERS);
+      const { creature: _read, ...facts } = factsFrom(fields) as { creature: unknown };
+      const { creature: _given, ...factsBefore } = factsFrom(statblock) as { creature: unknown };
+      expect(facts).toEqual(factsBefore);
+      expect(discoverCreatureFields([{ path: note, layout: null, fields }])).toEqual(discoverCreatureFields([{ path: note, layout: null, fields: statblock }]));
+    }
   });
 });

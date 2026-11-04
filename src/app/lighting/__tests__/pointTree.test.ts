@@ -30,37 +30,39 @@ const CLOUDS: Record<string, Cloud> = {
 const directionOf = (px: number, py: number, x: number, y: number): number => (px < x ? 4 : 0) + (py < y ? 2 : 0) + (steeper(px, py, x, y, px < x, py < y) ? 1 : 0);
 
 describe('PointTree against looking at every point', () => {
-  it.each(Object.keys(CLOUDS))('finds the nearest point in each of eight directions: %s', (name) => {
-    let asked = 0, found = 0;
-    for (let seed = 1; seed <= 12; seed++) {
-      const rand = random(seed * 977 + name.length);
-      const points = CLOUDS[name]!(rand, 20 + Math.floor(rand() * 1500));
-      const xs = Float64Array.from(points, (p) => p[0]), ys = Float64Array.from(points, (p) => p[1]);
-      const tree = new PointTree(xs, ys);
-      const nearest = new Int32Array(8), distances = new Float64Array(8);
-      for (let query = 0; query < 120; query++) {
-        const [x, y] = rand() < 0.7 ? points[Math.floor(rand() * points.length)]! : [100 + rand() * 40, 100 + rand() * 40];
-        const radius = 0.5 + rand() * 20;
-        const skipped = rand() < 0.3 ? Math.floor(rand() * points.length) : -1;
-        tree.nearestByDirection(x, y, radius, (index) => index === skipped, nearest, distances);
-        const expected = new Array<number>(8).fill(-1);
-        const best = new Array<number>(8).fill(Infinity);
-        points.forEach(([px, py], index) => {
-          const d2 = (px - x) ** 2 + (py - y) ** 2;
-          if (d2 === 0 || Math.hypot(px - x, py - y) > radius || index === skipped) return;
-          const direction = directionOf(px, py, x, y);
-          if (d2 < best[direction]!) {
-            best[direction] = d2;
-            expected[direction] = index;
-          }
-        });
-        asked++;
-        found += expected.filter((index) => index >= 0).length;
-        expect([name, seed, query, [...nearest]]).toEqual([name, seed, query, expected]);
+  it('finds the nearest point in each of eight directions, in every cloud', () => {
+    for (const name of Object.keys(CLOUDS)) {
+      let asked = 0, found = 0;
+      for (let seed = 1; seed <= 12; seed++) {
+        const rand = random(seed * 977 + name.length);
+        const points = CLOUDS[name]!(rand, 20 + Math.floor(rand() * 1500));
+        const xs = Float64Array.from(points, (p) => p[0]), ys = Float64Array.from(points, (p) => p[1]);
+        const tree = new PointTree(xs, ys);
+        const nearest = new Int32Array(8), distances = new Float64Array(8);
+        for (let query = 0; query < 120; query++) {
+          const [x, y] = rand() < 0.7 ? points[Math.floor(rand() * points.length)]! : [100 + rand() * 40, 100 + rand() * 40];
+          const radius = 0.5 + rand() * 20;
+          const skipped = rand() < 0.3 ? Math.floor(rand() * points.length) : -1;
+          tree.nearestByDirection(x, y, radius, (index) => index === skipped, nearest, distances);
+          const expected = new Array<number>(8).fill(-1);
+          const best = new Array<number>(8).fill(Infinity);
+          points.forEach(([px, py], index) => {
+            const d2 = (px - x) ** 2 + (py - y) ** 2;
+            if (d2 === 0 || Math.hypot(px - x, py - y) > radius || index === skipped) return;
+            const direction = directionOf(px, py, x, y);
+            if (d2 < best[direction]!) {
+              best[direction] = d2;
+              expected[direction] = index;
+            }
+          });
+          asked++;
+          found += expected.filter((index) => index >= 0).length;
+          expect([name, seed, query, [...nearest]]).toEqual([name, seed, query, expected]);
+        }
       }
+      expect(asked).toBe(1440);
+      expect(found).toBeGreaterThan(1440);
     }
-    expect(asked).toBe(1440);
-    expect(found).toBeGreaterThan(1440);
   });
 
   it('tells the two directions of a quarter apart as |dx| against |dy| does, away from the diagonals', () => {

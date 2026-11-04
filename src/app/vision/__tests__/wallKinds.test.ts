@@ -21,15 +21,17 @@ const CHANNELS: WallChannel[] = ['sight', 'light'];
 const passes = (walls: WallSegment[], channel?: WallChannel): boolean => pointInPolygon(behind, computeVisibility(origin, 200, walls, undefined, channel));
 
 describe('walls that block one thing', () => {
-  it.each([
+  it('a wall of each kind lets pass what it does not block', () => {
+    for (const [_name, overrides, expected] of [
     ['a wall without a kind', {}, { sight: false, light: false }],
     ['a wall for sight only', { blocks: 'sight' }, { sight: false, light: true }],
     ['a wall for light only', { blocks: 'light' }, { sight: true, light: false }],
     ['a closed door for sight only', { blocks: 'sight', type: 'door', closed: true }, { sight: false, light: true }],
     ['an open door for sight only', { blocks: 'sight', type: 'door', closed: false }, { sight: true, light: true }],
     ['a locked secret door for light only', { blocks: 'light', type: 'secret-door', closed: true, locked: true }, { sight: true, light: false }],
-  ] as [string, Partial<WallSegment>, Record<WallChannel, boolean>][])('%s lets pass what it does not block', (_name, overrides, expected) => {
-    for (const channel of CHANNELS) expect([channel, passes([south(overrides)], channel)]).toEqual([channel, expected[channel]]);
+  ] as [string, Partial<WallSegment>, Record<WallChannel, boolean>][]) {
+      for (const channel of CHANNELS) expect([channel, passes([south(overrides)], channel)]).toEqual([channel, expected[channel]]);
+    }
   });
 
   it('blocks everything for a caller that names no channel: a mix-up fails closed', () => {

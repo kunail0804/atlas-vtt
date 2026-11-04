@@ -74,41 +74,45 @@ describe('tokenizeFormula', () => {
 });
 
 describe('formula precedence and grouping', () => {
-  it.each([
-    ['2 + 3 * 4', 14],
-    ['(2 + 3) * 4', 20],
-    ['8 - 2 - 1', 5],
-    ['8 / 2 / 2', 2],
-    ['2 * 3 / 4', 1.5],
-    ['-2 * 3', -6],
-    ['2 * -3', -6],
-    ['--3', 3],
-    ['-(2 + 3)', -5],
-    ['+3', 3],
-    ['10 - -2', 12],
-    ['2.5 * 2', 5],
-    ['.5 + 3.', 3.5],
-    ['((((1))))', 1],
-  ])('%s is %d', (source, expected) => {
-    expect(valueOf(source)).toBe(expected);
+  it('evaluates every formula to its number', () => {
+    for (const [source, expected] of [
+      ['2 + 3 * 4', 14],
+      ['(2 + 3) * 4', 20],
+      ['8 - 2 - 1', 5],
+      ['8 / 2 / 2', 2],
+      ['2 * 3 / 4', 1.5],
+      ['-2 * 3', -6],
+      ['2 * -3', -6],
+      ['--3', 3],
+      ['-(2 + 3)', -5],
+      ['+3', 3],
+      ['10 - -2', 12],
+      ['2.5 * 2', 5],
+      ['.5 + 3.', 3.5],
+      ['((((1))))', 1],
+    ] as const) {
+      expect(valueOf(source)).toBe(expected);
+    }
   });
 });
 
 describe('formula functions', () => {
-  it.each([
-    ['floor(-0.5)', -1],
-    ['floor((14 - 10) / 2)', 2],
-    ['floor((7 - 10) / 2)', -2],
-    ['ceil(1.2)', 2],
-    ['round(2.5)', 3],
-    ['round(2.4)', 2],
-    ['abs(-4)', 4],
-    ['min(3, 1, 2)', 1],
-    ['max(1)', 1],
-    ['max(1, min(5, 7), -2)', 5],
-    ['FLOOR(1.5)', 1],
-  ])('%s is %d', (source, expected) => {
-    expect(valueOf(source)).toBe(expected);
+  it('evaluates every formula of a statblock to its number', () => {
+    for (const [source, expected] of [
+      ['floor(-0.5)', -1],
+      ['floor((14 - 10) / 2)', 2],
+      ['floor((7 - 10) / 2)', -2],
+      ['ceil(1.2)', 2],
+      ['round(2.5)', 3],
+      ['round(2.4)', 2],
+      ['abs(-4)', 4],
+      ['min(3, 1, 2)', 1],
+      ['max(1)', 1],
+      ['max(1, min(5, 7), -2)', 5],
+      ['FLOOR(1.5)', 1],
+    ] as const) {
+      expect(valueOf(source)).toBe(expected);
+    }
   });
 
   it('writes zero without a sign', () => {
@@ -156,24 +160,26 @@ describe('formula references', () => {
 });
 
 describe('formula syntax errors', () => {
-  it.each([
-    ['', 'The formula is empty.', 0],
-    ['   ', 'The formula is empty.', 0],
-    ['2 +', 'The formula ends too early.', 3],
-    ['(2 + 3', 'A “(” is never closed.', 0],
-    ['2 + 3)', 'There is a “)” without a “(”.', 5],
-    ['2 3', '“3” doesn\'t belong here.', 2],
-    ['* 2', '“*” needs a number before it.', 0],
-    ['1, 2', '“,” only separates the numbers of min and max.', 1],
-    ['floor(1, 2)', 'floor takes one number.', 0],
-    ['min()', 'min needs at least one number.', 0],
-    ['flor(1)', '“flor” isn\'t a function. There are floor, ceil, round, abs, min and max.', 0],
-    ['value(1)', '“value” isn\'t a function. There are floor, ceil, round, abs, min and max.', 0],
-    ['max(1 2)', '“2” doesn\'t belong here.', 6],
-    ['max(1,', 'The formula ends too early.', 6],
-    ['2d6 + 1', '“d6” doesn\'t belong here.', 1],
-  ])('%j: %s', (source, message, at) => {
-    expect(syntaxOf(source)).toEqual({ kind: 'syntax', message, at });
+  it('says why each bad formula is refused', () => {
+    for (const [source, message, at] of [
+      ['', 'The formula is empty.', 0],
+      ['   ', 'The formula is empty.', 0],
+      ['2 +', 'The formula ends too early.', 3],
+      ['(2 + 3', 'A “(” is never closed.', 0],
+      ['2 + 3)', 'There is a “)” without a “(”.', 5],
+      ['2 3', '“3” doesn\'t belong here.', 2],
+      ['* 2', '“*” needs a number before it.', 0],
+      ['1, 2', '“,” only separates the numbers of min and max.', 1],
+      ['floor(1, 2)', 'floor takes one number.', 0],
+      ['min()', 'min needs at least one number.', 0],
+      ['flor(1)', '“flor” isn\'t a function. There are floor, ceil, round, abs, min and max.', 0],
+      ['value(1)', '“value” isn\'t a function. There are floor, ceil, round, abs, min and max.', 0],
+      ['max(1 2)', '“2” doesn\'t belong here.', 6],
+      ['max(1,', 'The formula ends too early.', 6],
+      ['2d6 + 1', '“d6” doesn\'t belong here.', 1],
+    ] as const) {
+      expect(syntaxOf(source)).toEqual({ kind: 'syntax', message, at });
+    }
   });
 
   it('places errors in the text the formula came from', () => {

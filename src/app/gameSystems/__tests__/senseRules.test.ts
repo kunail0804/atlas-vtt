@@ -91,20 +91,22 @@ describe('perceivedLevel', () => {
     return LEVELS.map((level) => perceivedLevel(sense, level));
   };
 
-  it.each([
-    ['normal sight sees bright and dim light as they are and nothing in darkness', 'sight', ['bright', 'dim', null, null]],
-    ['D&D 5e darkvision sees dim light as bright and darkness as dim, but not magical darkness', 'dnd5e-darkvision', ['bright', 'bright', 'dim', null]],
-    ['D&D 5e blindsight perceives the same in every light', 'dnd5e-blindsight', ['bright', 'bright', 'bright', 'bright']],
-    ['D&D 5e truesight sees in normal and magical darkness', 'dnd5e-truesight', ['bright', 'bright', 'bright', 'bright']],
-    ['D&D 5e devil\'s sight sees normally in dim light and in darkness, magical or not', 'dnd5e-devils-sight', ['bright', 'bright', 'bright', 'bright']],
-    ['Pathfinder low-light vision sees dim light as bright and nothing in darkness', 'pathfinder2e-low-light-vision', ['bright', 'bright', null, null]],
-    ['Pathfinder darkvision sees perfectly well in darkness and barely through magical darkness', 'pathfinder2e-darkvision', ['bright', 'bright', 'bright', 'dim']],
-    ['a sense that only lets the eyes see invisible things perceives nothing by itself', 'dnd5e-see-invisibility', [null, null, null, null]],
-    ['Pathfinder greater darkvision sees through magical darkness too', 'pathfinder2e-greater-darkvision', ['bright', 'bright', 'bright', 'bright']],
-    ['Old-School Essentials infravision works only in darkness', 'ose-infravision', [null, null, 'dim', null]],
-    ['Shadowdark\'s darkness-adapted beings see in light and darkness', 'shadowdark-darkness-adapted', ['bright', 'bright', 'bright', null]],
-    ['the generic darkvision sees darkness as dim and leaves dim light as it is, as darkvision did before senses', 'darkvision', ['bright', 'dim', 'dim', null]],
-  ])('%s', (_rule, id, expected) => {
-    expect(perceived(id)).toEqual(expected);
+  it('gives each built-in sense its own level in bright, dim, dark and magical darkness', () => {
+    for (const [_rule, id, expected] of [
+      ['normal sight sees bright and dim light as they are and nothing in darkness', 'sight', ['bright', 'dim', null, null]],
+      ['D&D 5e darkvision sees dim light as bright and darkness as dim, but not magical darkness', 'dnd5e-darkvision', ['bright', 'bright', 'dim', null]],
+      ['D&D 5e blindsight perceives the same in every light', 'dnd5e-blindsight', ['bright', 'bright', 'bright', 'bright']],
+      ['D&D 5e truesight sees in normal and magical darkness', 'dnd5e-truesight', ['bright', 'bright', 'bright', 'bright']],
+      ['D&D 5e devil\'s sight sees normally in dim light and in darkness, magical or not', 'dnd5e-devils-sight', ['bright', 'bright', 'bright', 'bright']],
+      ['Pathfinder low-light vision sees dim light as bright and nothing in darkness', 'pathfinder2e-low-light-vision', ['bright', 'bright', null, null]],
+      ['Pathfinder darkvision sees perfectly well in darkness and barely through magical darkness', 'pathfinder2e-darkvision', ['bright', 'bright', 'bright', 'dim']],
+      ['a sense that only lets the eyes see invisible things perceives nothing by itself', 'dnd5e-see-invisibility', [null, null, null, null]],
+      ['Pathfinder greater darkvision sees through magical darkness too', 'pathfinder2e-greater-darkvision', ['bright', 'bright', 'bright', 'bright']],
+      ['Old-School Essentials infravision works only in darkness', 'ose-infravision', [null, null, 'dim', null]],
+      ['Shadowdark\'s darkness-adapted beings see in light and darkness', 'shadowdark-darkness-adapted', ['bright', 'bright', 'bright', null]],
+      ['the generic darkvision sees darkness as dim and leaves dim light as it is, as darkvision did before senses', 'darkvision', ['bright', 'dim', 'dim', null]],
+    ] as const) {
+      expect(perceived(id)).toEqual(expected);
+    }
   });
 });

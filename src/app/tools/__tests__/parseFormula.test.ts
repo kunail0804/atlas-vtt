@@ -16,47 +16,53 @@ function dice(formula: string): DiceTerm {
 }
 
 describe('parseFormula', () => {
-  it.each([
-    'd20', '+3', '-2D6 + 9999', '0d2', '100d1000', '50d6+50d8', 'd6!!i', 'd6!99', 'd6!0', ' \td20\t ', Array(20).fill('1').join('+'),
-    `d20${' '.repeat(97)}`, 'd20*2', '(d20)', 'd%', '4dF', 'dF', '2d6*(1d4+2)/3', '((((((((1d6))))))))', '-(1d6+2)',
-    '4d6kh3', '4d6k', '4d6kl1', '4d6d1', '4d6dl', '4d6dh2', '2d20kh1+5', '4d6r1kh3', '4d6ro<2', '4d6rr1', '2d10r>=9',
-    '8d10x>=10cs>=8', '3d6x', '3d6xo', '3d6x>5', '5d10>=8', '5d10<=2', '5d10cf<3', '6d6cs=6', '2d6[fire]', '3[bonus]', "1d8[Sneak Attack]+1d6[it's cold]",
-  ])('accepts bounded formula %j', (formula) => {
-    expect(parseFormula(formula).ok).toBe(true);
+  it('accepts bounded formulas', () => {
+    for (const formula of [
+      'd20', '+3', '-2D6 + 9999', '0d2', '100d1000', '50d6+50d8', 'd6!!i', 'd6!99', 'd6!0', ' \td20\t ', Array(20).fill('1').join('+'),
+      `d20${' '.repeat(97)}`, 'd20*2', '(d20)', 'd%', '4dF', 'dF', '2d6*(1d4+2)/3', '((((((((1d6))))))))', '-(1d6+2)',
+      '4d6kh3', '4d6k', '4d6kl1', '4d6d1', '4d6dl', '4d6dh2', '2d20kh1+5', '4d6r1kh3', '4d6ro<2', '4d6rr1', '2d10r>=9',
+      '8d10x>=10cs>=8', '3d6x', '3d6xo', '3d6x>5', '5d10>=8', '5d10<=2', '5d10cf<3', '6d6cs=6', '2d6[fire]', '3[bonus]', "1d8[Sneak Attack]+1d6[it's cold]",
+    ]) {
+      expect(parseFormula(formula).ok).toBe(true);
+    }
   });
 
-  it.each([
-    '', ' ', 'hello d20', 'd20 hello', 'd20+garbage+d6', 'd20 d6', 'd20++2', 'd20-', 'd20\n', 'd20\r', 'd20 ', '1.5d6', 'd6!!!', 'd6!100',
-    'd6!I', '10000', '00001', '0001d6', 'd00006', 'Infinity', '()', '(d20', 'd20)', '2*-3', 'd20*', '4d6 kh3', '2d6 [fire]', '4d6>3', '4d6<3',
-    '4d6=3', '4d6cs', '4d6kh3r1', '4d6kh1kh1', '4d6!x', '4d6x6', '2d6[]', '2d6[fire!]', `2d6[${'a'.repeat(25)}]`, '1d6/0', '1d6/(0)', '4d6KH3',
-    '(1d6)[fire]', 'd20 / 0',
-  ])('rejects malformed formula %j', (formula) => {
-    expect(parseFormula(formula)).toEqual({ ok: false, code: 'syntax' });
+  it('rejects malformed formulas', () => {
+    for (const formula of [
+      '', ' ', 'hello d20', 'd20 hello', 'd20+garbage+d6', 'd20 d6', 'd20++2', 'd20-', 'd20\n', 'd20\r', 'd20 ', '1.5d6', 'd6!!!', 'd6!100',
+      'd6!I', '10000', '00001', '0001d6', 'd00006', 'Infinity', '()', '(d20', 'd20)', '2*-3', 'd20*', '4d6 kh3', '2d6 [fire]', '4d6>3', '4d6<3',
+      '4d6=3', '4d6cs', '4d6kh3r1', '4d6kh1kh1', '4d6!x', '4d6x6', '2d6[]', '2d6[fire!]', `2d6[${'a'.repeat(25)}]`, '1d6/0', '1d6/(0)', '4d6KH3',
+      '(1d6)[fire]', 'd20 / 0',
+    ]) {
+      expect(parseFormula(formula)).toEqual({ ok: false, code: 'syntax' });
+    }
   });
 
-  it.each([
-    [`d20${' '.repeat(98)}`, 'length'],
-    [Array(21).fill('1').join('+'), 'terms'],
-    ['101d6', 'dice'],
-    ['50d6-51d8', 'dice'],
-    ['d1001', 'faces'],
-    ['d1+2', 'faces'],
-    ['d0', 'faces'],
-    ['(((((((((1d6)))))))))', 'depth'],
-    ['2d6kh3', 'modifier'],
-    ['2d6d3', 'modifier'],
-    ['2d6kh0', 'modifier'],
-    ['0d6kh1', 'modifier'],
-    ['d6x>=1', 'modifier'],
-    ['d6x>0', 'modifier'],
-    ['d6r<7', 'modifier'],
-    ['d6rr>=1', 'modifier'],
-    ['4dF!', 'modifier'],
-    ['4dFr1', 'modifier'],
-    ['100d1000*9999', 'total'],
-    ['1d6/(1/9999)*9999*9999', 'total'],
-  ])('rejects %j with %s', (formula, code) => {
-    expect(parseFormula(formula)).toEqual({ ok: false, code });
+  it('rejects formulas over a budget with the budget they break', () => {
+    for (const [formula, code] of [
+      [`d20${' '.repeat(98)}`, 'length'],
+      [Array(21).fill('1').join('+'), 'terms'],
+      ['101d6', 'dice'],
+      ['50d6-51d8', 'dice'],
+      ['d1001', 'faces'],
+      ['d1+2', 'faces'],
+      ['d0', 'faces'],
+      ['(((((((((1d6)))))))))', 'depth'],
+      ['2d6kh3', 'modifier'],
+      ['2d6d3', 'modifier'],
+      ['2d6kh0', 'modifier'],
+      ['0d6kh1', 'modifier'],
+      ['d6x>=1', 'modifier'],
+      ['d6x>0', 'modifier'],
+      ['d6r<7', 'modifier'],
+      ['d6rr>=1', 'modifier'],
+      ['4dF!', 'modifier'],
+      ['4dFr1', 'modifier'],
+      ['100d1000*9999', 'total'],
+      ['1d6/(1/9999)*9999*9999', 'total'],
+    ] as const) {
+      expect(parseFormula(formula)).toEqual({ ok: false, code });
+    }
   });
 
   it('reads d% as a d100 and dF as Fate dice', () => {

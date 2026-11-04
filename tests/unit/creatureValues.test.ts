@@ -2,44 +2,50 @@ import { describe, expect, it } from 'vitest';
 import { alignmentParts, formatRating, optionKey, parseCategories, parseOptions, parseRating } from '../../src/app/creatures/creatureValues';
 
 describe('parseRating', () => {
-  it.each([
-    [5, 5],
-    [0.25, 0.25],
-    ['5', 5],
-    ['1/4', 0.25],
-    ['1 / 8', 0.125],
-    ['½', 0.5],
-    ['¼', 0.25],
-    ['⅛', 0.125],
-    ['Creature 3', 3],
-    ['Level 12', 12],
-    ['CR 1/2 (100 XP)', 0.5],
-    ['3+1*', 3],
-    ['2*', 2],
-    ['-1', -1],
-    ['−1', -1],
-    ['Creature −1', -1],
-    ['1-1', 1],
-    ['+2', 2],
-    [' 7 ', 7],
-    [[3], 3],
-    [['Level 4'], 4],
-  ])('reads %j as %d', (raw, expected) => {
-    expect(parseRating(raw)).toBeCloseTo(expected);
+  it('reads ratings as numbers', () => {
+    for (const [raw, expected] of [
+      [5, 5],
+      [0.25, 0.25],
+      ['5', 5],
+      ['1/4', 0.25],
+      ['1 / 8', 0.125],
+      ['½', 0.5],
+      ['¼', 0.25],
+      ['⅛', 0.125],
+      ['Creature 3', 3],
+      ['Level 12', 12],
+      ['CR 1/2 (100 XP)', 0.5],
+      ['3+1*', 3],
+      ['2*', 2],
+      ['-1', -1],
+      ['−1', -1],
+      ['Creature −1', -1],
+      ['1-1', 1],
+      ['+2', 2],
+      [' 7 ', 7],
+      [[3], 3],
+      [['Level 4'], 4],
+    ] as const) {
+      expect(parseRating(raw)).toBeCloseTo(expected);
+    }
   });
 
-  it.each([
-    [''], ['—'], ['none'], [null], [undefined], [true], [{ value: 3 }], [Number.NaN], [Number.POSITIVE_INFINITY], ['1/0'], [[]],
-  ])('has no rating for %j', (raw) => {
-    expect(parseRating(raw)).toBeNull();
+  it('has no rating for values that name none', () => {
+    for (const [raw] of [
+      [''], ['—'], ['none'], [null], [undefined], [true], [{ value: 3 }], [Number.NaN], [Number.POSITIVE_INFINITY], ['1/0'], [[]],
+    ]) {
+      expect(parseRating(raw)).toBeNull();
+    }
   });
 });
 
 describe('formatRating', () => {
-  it.each([
-    [0, '0'], [0.125, '1/8'], [0.25, '1/4'], [0.5, '1/2'], [1 / 3, '1/3'], [2, '2'], [-1, '-1'], [1.5, '1 1/2'], [2.7, '2.7'],
-  ])('shows %d as %s', (value, label) => {
-    expect(formatRating(value)).toBe(label);
+  it('shows ratings as their usual text', () => {
+    for (const [value, label] of [
+      [0, '0'], [0.125, '1/8'], [0.25, '1/4'], [0.5, '1/2'], [1 / 3, '1/3'], [2, '2'], [-1, '-1'], [1.5, '1 1/2'], [2.7, '2.7'],
+    ] as const) {
+      expect(formatRating(value)).toBe(label);
+    }
   });
 });
 
@@ -99,22 +105,24 @@ describe('optionKey', () => {
 });
 
 describe('alignmentParts', () => {
-  it.each([
-    ['chaotic evil', ['Chaotic', 'Evil']],
-    ['Lawful Good', ['Lawful', 'Good']],
-    ['neutral', ['Neutral']],
-    ['unaligned', ['Unaligned']],
-    ['any alignment', ['Any']],
-    ['any non-good alignment', ['Any']],
-    ['any evil alignment', ['Evil']],
-    ['neutral good (50%) or neutral evil (50%)', ['Neutral', 'Good', 'Evil']],
-    ['CE', ['Chaotic', 'Evil']],
-    ['N', ['Neutral']],
-    ['L', ['Lawful']],
-    [['LG'], ['Lawful', 'Good']],
-    ['', []],
-  ])('reads %j as %j', (raw, parts) => {
-    expect(alignmentParts(raw)).toEqual(parts);
+  it('reads each alignment as its parts', () => {
+    for (const [raw, parts] of [
+      ['chaotic evil', ['Chaotic', 'Evil']],
+      ['Lawful Good', ['Lawful', 'Good']],
+      ['neutral', ['Neutral']],
+      ['unaligned', ['Unaligned']],
+      ['any alignment', ['Any']],
+      ['any non-good alignment', ['Any']],
+      ['any evil alignment', ['Evil']],
+      ['neutral good (50%) or neutral evil (50%)', ['Neutral', 'Good', 'Evil']],
+      ['CE', ['Chaotic', 'Evil']],
+      ['N', ['Neutral']],
+      ['L', ['Lawful']],
+      [['LG'], ['Lawful', 'Good']],
+      ['', []],
+    ]) {
+      expect(alignmentParts(raw)).toEqual(parts);
+    }
   });
 });
 

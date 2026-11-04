@@ -59,34 +59,44 @@ describe('pathLengthInCells on a grid aligned to a map', () => {
     return [...results];
   }
 
-  it.each(ALIGNED_GRIDS)('prices two diagonals as 1 and 2 wherever they are measured (size $size, offset $offsetX/$offsetY)', (grid) => {
-    expect(everywhere(grid, [[0, 0], [2, 2]], points => pathLengthInCells(grid, points, 'alternating'))).toEqual([3]);
-    expect(everywhere(grid, [[2, 0], [0, 2]], points => pathLengthInCells(grid, points, 'alternating'))).toEqual([3]);
-  });
-
-  it.each(ALIGNED_GRIDS)('prices a longer path with a waypoint the same everywhere (size $size)', (grid) => {
-    // 3 diagonals, 2 straight, 1 more diagonal: 4 diagonals cost 6, the straights 2.
-    expect(everywhere(grid, [[0, 0], [3, 3], [5, 3], [6, 2]], points => pathLengthInCells(grid, points, 'alternating'))).toEqual([8]);
-  });
-
-  it.each(ALIGNED_GRIDS)('counts whole cells under the other rules (size $size)', (grid) => {
-    expect(everywhere(grid, [[0, 0], [3, 0]], points => pathLengthInCells(grid, points, 'equidistant'))).toEqual([3]);
-    expect(everywhere(grid, [[0, 0], [4, 2]], points => pathLengthInCells(grid, points, 'equidistant'))).toEqual([4]);
-    expect(everywhere(grid, [[0, 0], [3, 4]], points => pathLengthInCells(grid, points, 'euclidean'))).toEqual([5]);
-  });
-
-  it.each(ALIGNED_GRIDS)('measures a token of an even footprint, which snaps to where cells meet, like any other (size $size)', (grid) => {
-    for (const tokenSize of [1.5, 2.5]) {
-      expect(everywhere(grid, [[0, 0], [2, 2]], points => pathLengthInCells(grid, points, 'alternating'), tokenSize)).toEqual([3]);
+  it('prices two diagonals as 1 and 2 wherever they are measured, on every aligned grid', () => {
+    for (const grid of ALIGNED_GRIDS) {
+      expect(everywhere(grid, [[0, 0], [2, 2]], points => pathLengthInCells(grid, points, 'alternating'))).toEqual([3]);
+      expect(everywhere(grid, [[2, 0], [0, 2]], points => pathLengthInCells(grid, points, 'alternating'))).toEqual([3]);
     }
   });
 
-  it.each(ALIGNED_GRIDS)('labels the same path alike everywhere (size $size)', (grid) => {
-    const pathfinder: MeasurementSettings = { mode: 'metric', unitType: 'feet', unitDistance: 5, ruleDistance: 5, diagonalRule: 'alternating', rangeBands: [], coneAngle: 90 };
-    const metres: MeasurementSettings = { ...pathfinder, unitType: 'meters', unitDistance: 1.5, ruleDistance: 1.5, diagonalRule: 'equidistant' };
-    expect(everywhere(grid, [[0, 0], [2, 2]], points => formatDistance(pathLengthInCells(grid, points, 'alternating'), pathfinder))).toEqual(['15ft']);
-    // Three cells of 1.5 m are 4.5 m: one label, however a half unit is written.
-    expect(everywhere(grid, [[0, 0], [3, 0]], points => formatDistance(pathLengthInCells(grid, points, 'equidistant'), metres))).toHaveLength(1);
+  it('prices a longer path with a waypoint the same everywhere, on every aligned grid', () => {
+    for (const grid of ALIGNED_GRIDS) {
+      // 3 diagonals, 2 straight, 1 more diagonal: 4 diagonals cost 6, the straights 2.
+      expect(everywhere(grid, [[0, 0], [3, 3], [5, 3], [6, 2]], points => pathLengthInCells(grid, points, 'alternating'))).toEqual([8]);
+    }
+  });
+
+  it('counts whole cells under the other rules, on every aligned grid', () => {
+    for (const grid of ALIGNED_GRIDS) {
+      expect(everywhere(grid, [[0, 0], [3, 0]], points => pathLengthInCells(grid, points, 'equidistant'))).toEqual([3]);
+      expect(everywhere(grid, [[0, 0], [4, 2]], points => pathLengthInCells(grid, points, 'equidistant'))).toEqual([4]);
+      expect(everywhere(grid, [[0, 0], [3, 4]], points => pathLengthInCells(grid, points, 'euclidean'))).toEqual([5]);
+    }
+  });
+
+  it('measures a token of an even footprint, which snaps to where cells meet, like any other, on every aligned grid', () => {
+    for (const grid of ALIGNED_GRIDS) {
+      for (const tokenSize of [1.5, 2.5]) {
+        expect(everywhere(grid, [[0, 0], [2, 2]], points => pathLengthInCells(grid, points, 'alternating'), tokenSize)).toEqual([3]);
+      }
+    }
+  });
+
+  it('labels the same path alike everywhere, on every aligned grid', () => {
+    for (const grid of ALIGNED_GRIDS) {
+      const pathfinder: MeasurementSettings = { mode: 'metric', unitType: 'feet', unitDistance: 5, ruleDistance: 5, diagonalRule: 'alternating', rangeBands: [], coneAngle: 90 };
+      const metres: MeasurementSettings = { ...pathfinder, unitType: 'meters', unitDistance: 1.5, ruleDistance: 1.5, diagonalRule: 'equidistant' };
+      expect(everywhere(grid, [[0, 0], [2, 2]], points => formatDistance(pathLengthInCells(grid, points, 'alternating'), pathfinder))).toEqual(['15ft']);
+      // Three cells of 1.5 m are 4.5 m: one label, however a half unit is written.
+      expect(everywhere(grid, [[0, 0], [3, 0]], points => formatDistance(pathLengthInCells(grid, points, 'equidistant'), metres))).toHaveLength(1);
+    }
   });
 
   it('keeps the part of a cell a path measured without snapping covers', () => {

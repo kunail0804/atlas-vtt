@@ -7,12 +7,14 @@ import { EVERY_BLOCK, FIVE_E_2024, MARSH_CREATURE, MARSH_CREATURE_JSON } from '.
 import { fileOf, mulberry32, mutated } from './templateMutations';
 
 describe('migrateTemplate', () => {
-  it.each([
-    ['Marsh creature', MARSH_CREATURE],
-    ['5E 2024', FIVE_E_2024],
-    ['every block', EVERY_BLOCK],
-  ])('returns a current template (%s) as the same object', (_name, template) => {
-    expect(migrateTemplate(template)).toBe(template);
+  it('returns a current template as the same object, in every format', () => {
+    for (const [_name, template] of [
+      ['Marsh creature', MARSH_CREATURE],
+      ['5E 2024', FIVE_E_2024],
+      ['every block', EVERY_BLOCK],
+    ] as const) {
+      expect(migrateTemplate(template)).toBe(template);
+    }
   });
 
   it('leaves a newer template untouched', () => {

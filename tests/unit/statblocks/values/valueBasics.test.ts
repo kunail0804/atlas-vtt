@@ -7,14 +7,18 @@ import {
 import { valueText } from '../../../../src/app/statblocks/values/valueText';
 
 describe('isEmptyValue', () => {
-  it.each([
-    [undefined], [null], [''], ['   '], [[]], [{}], [['', null, []]], [{ name: '', desc: null }], [Number.NaN], [[[''], { a: [] }]],
-  ])('%j is empty', (value) => {
-    expect(isEmptyValue(value)).toBe(true);
+  it('counts empty values as empty', () => {
+    for (const [value] of [
+      [undefined], [null], [''], ['   '], [[]], [{}], [['', null, []]], [{ name: '', desc: null }], [Number.NaN], [[[''], { a: [] }]],
+    ]) {
+      expect(isEmptyValue(value)).toBe(true);
+    }
   });
 
-  it.each([[0], [false], ['0'], [' x '], [[0]], [{ a: false }], [new Date(0)]])('%j is a value', (value) => {
-    expect(isEmptyValue(value)).toBe(false);
+  it('counts every other value as a value', () => {
+    for (const [value] of [[0], [false], ['0'], [' x '], [[0]], [{ a: false }], [new Date(0)]]) {
+      expect(isEmptyValue(value)).toBe(false);
+    }
   });
 
   it('survives a cycle', () => {
@@ -25,14 +29,18 @@ describe('isEmptyValue', () => {
 });
 
 describe('number text', () => {
-  it.each([
-    ['14', 14], ['+3', 3], ['-3', -3], ['−1', -1], ['–2', -2], ['2.5', 2.5], [' .5 ', 0.5], ['3.', 3], ['007', 7],
-  ])('%j is %d', (text, expected) => {
-    expect(parseNumberText(text)).toBe(expected);
+  it('reads numbers out of values', () => {
+    for (const [text, expected] of [
+      ['14', 14], ['+3', 3], ['-3', -3], ['−1', -1], ['–2', -2], ['2.5', 2.5], [' .5 ', 0.5], ['3.', 3], ['007', 7],
+    ] as const) {
+      expect(parseNumberText(text)).toBe(expected);
+    }
   });
 
-  it.each([['30 ft.'], ['1/4'], ['½'], [''], ['+'], ['1e3'], ['2,5'], ['1 000'], ['Infinity'], ['0x10'], ['--1']])('%j is not a number', (text) => {
-    expect(parseNumberText(text)).toBeNull();
+  it('reads no number out of the others', () => {
+    for (const [text] of [['30 ft.'], ['1/4'], ['½'], [''], ['+'], ['1e3'], ['2,5'], ['1 000'], ['Infinity'], ['0x10'], ['--1']] as const) {
+      expect(parseNumberText(text)).toBeNull();
+    }
   });
 
   it('tells whole numbers', () => {

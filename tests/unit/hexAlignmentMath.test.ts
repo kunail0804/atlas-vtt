@@ -71,39 +71,43 @@ describe('hexAlignmentCandidates', () => {
     expect(distanceToNearestCorner(fitted, edge.b)).toBeLessThan(0.05);
   });
 
-  it.each<HexGridType>(['hex-vertical', 'hex-horizontal'])('fuses four noisy far-apart edges into a sub-percent size (%s)', (type) => {
-    const truth = createHexLayout(type, 73.3, 12.5, -8.2);
-    const pairs = [
-      edgeOf(truth, -12, -9, 0, 1.5),
-      edgeOf(truth, 11, -10, 2, -1.2),
-      edgeOf(truth, -10, 12, 4, 1.0),
-      edgeOf(truth, 13, 10, 1, -1.4),
-    ];
+  it('fuses four noisy far-apart edges into a sub-percent size, in both orientations', () => {
+    for (const type of ['hex-vertical', 'hex-horizontal'] as const) {
+      const truth = createHexLayout(type, 73.3, 12.5, -8.2);
+      const pairs = [
+        edgeOf(truth, -12, -9, 0, 1.5),
+        edgeOf(truth, 11, -10, 2, -1.2),
+        edgeOf(truth, -10, 12, 4, 1.0),
+        edgeOf(truth, 13, 10, 1, -1.4),
+      ];
 
-    const result = hexAlignmentCandidates(pairs, type)[0]!;
+      const result = hexAlignmentCandidates(pairs, type)[0]!;
 
-    expect(result.gridType).toBe(type);
-    expect(Math.abs(result.cellSize - 73.3) / 73.3).toBeLessThan(0.005);
-    expect(result.maxResidual).toBeLessThan(4);
+      expect(result.gridType).toBe(type);
+      expect(Math.abs(result.cellSize - 73.3) / 73.3).toBeLessThan(0.005);
+      expect(result.maxResidual).toBeLessThan(4);
 
-    // Corners far from every measurement must still land on the fitted lattice.
-    const fitted = resultLayout(type, result);
-    for (const [q, r] of [[0, 0], [15, -3], [-14, 14], [6, 12]] as Array<[number, number]>) {
-      const trueCorner = hexVertices(truth, axialToPixel(truth, { q, r }))[2]!;
-      expect(distanceToNearestCorner(fitted, trueCorner)).toBeLessThan(3);
+      // Corners far from every measurement must still land on the fitted lattice.
+      const fitted = resultLayout(type, result);
+      for (const [q, r] of [[0, 0], [15, -3], [-14, 14], [6, 12]] as Array<[number, number]>) {
+        const trueCorner = hexVertices(truth, axialToPixel(truth, { q, r }))[2]!;
+        expect(distanceToNearestCorner(fitted, trueCorner)).toBeLessThan(3);
+      }
     }
   });
 
   // What a GM reported: on a pointy map, the two corners "left and right" of a hex gave huge flat-top hexes.
-  it.each([1, 4])('keeps the chosen grid type and the hex\'s size for corners with one between them (%i measurements)', (count) => {
-    const truth = createHexLayout('hex-vertical', 70, 13, 21);
-    const pairs = FAR_APART.slice(0, count).map(([q, r]) => cornersOf(truth, q, r, 5, 1));
+  it("keeps the chosen grid type and the hex's size for corners with one between them, whatever the number of measurements", () => {
+    for (const count of [1, 4]) {
+      const truth = createHexLayout('hex-vertical', 70, 13, 21);
+      const pairs = FAR_APART.slice(0, count).map(([q, r]) => cornersOf(truth, q, r, 5, 1));
 
-    const result = hexAlignmentCandidates(pairs, 'hex-vertical')[0]!;
+      const result = hexAlignmentCandidates(pairs, 'hex-vertical')[0]!;
 
-    expect(result.gridType).toBe('hex-vertical');
-    expect(result.cellSize).toBeCloseTo(70, 1);
-    expect(result.maxResidual).toBeLessThan(0.05);
+      expect(result.gridType).toBe('hex-vertical');
+      expect(result.cellSize).toBeCloseTo(70, 1);
+      expect(result.maxResidual).toBeLessThan(0.05);
+    }
   });
 
   it('reads four pairs of opposite corners as what they are', () => {

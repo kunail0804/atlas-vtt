@@ -20,8 +20,10 @@ describe('offline dice inputs', () => {
     expect(tool.rollDice('d6')).toMatchObject({ id: `roll_123_${(0.25).toString(36).slice(2, 11)}`, total: 4, timestamp: 123, player: t('dice.player') });
     expect(random).toHaveBeenCalledTimes(2);
   });
-  it.each(['syntax', 'length', 'terms', 'dice', 'faces'] as const)('shows a readable notice for %s', (code) => {
-    offlineDiceInputs().onFormulaError({ ok: false, code });
-    expect(Notice).toHaveBeenCalledWith(t(`dice.formulaError.${code}`));
+  it('shows a readable notice for every rejected formula', () => {
+    for (const code of ['syntax', 'length', 'terms', 'dice', 'faces'] as const) {
+      offlineDiceInputs().onFormulaError({ ok: false, code });
+      expect(Notice).toHaveBeenCalledWith(t(`dice.formulaError.${code}`));
+    }
   });
 });

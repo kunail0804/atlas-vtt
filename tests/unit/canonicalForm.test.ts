@@ -64,9 +64,9 @@ describe('canonical integer contours', () => {
     expect(signedAreaTwice(ring)).toBe(1n);
   });
 
-  it.each([[0], [0, 0, NaN, 1], [0, 0, 1.5, 1], [0, 0, 2 ** 24 + 1, 1]])(
-    'rejects invalid coordinate storage rather than dropping it', (...ring) => {
-      expect(() => canonicalForm([ring])).toThrow(RangeError);
-    },
-  );
+  it('rejects invalid coordinate storage rather than dropping it', () => {
+    for (const ring of [[0], [0, 0, NaN, 1], [0, 0, 1.5, 1], [0, 0, 2 ** 24 + 1, 1]]) {
+      expect(() => canonicalForm([ring]), JSON.stringify(ring)).toThrow(RangeError);
+    }
+  });
 });

@@ -243,10 +243,12 @@ describe('token lists', () => {
 describe('moves', () => {
   const id = '0'.repeat(24);
 
-  it.each(['move', 'drag'] as const)('read a player\'s %s with a finite place of a token players know', (t) => {
-    expect(parsePlayerMessage({ t, scene: 's', id, x: 10.5, y: -3, extra: 1 })).toEqual({ t, scene: 's', id, x: 10.5, y: -3 });
-    for (const bad of [{ id: 'gm-token' }, { x: Number.NaN }, { y: Number.POSITIVE_INFINITY }, { x: 1e7 }, { y: '4' }, { scene: '' }, { scene: 'x'.repeat(65) }]) {
-      expect(parsePlayerMessage({ t, scene: 's', id, x: 1, y: 2, ...bad }), JSON.stringify(bad)).toBeNull();
+  it("read a player's move or drag with a finite place of a token players know", () => {
+    for (const t of ['move', 'drag'] as const) {
+      expect(parsePlayerMessage({ t, scene: 's', id, x: 10.5, y: -3, extra: 1 })).toEqual({ t, scene: 's', id, x: 10.5, y: -3 });
+      for (const bad of [{ id: 'gm-token' }, { x: Number.NaN }, { y: Number.POSITIVE_INFINITY }, { x: 1e7 }, { y: '4' }, { scene: '' }, { scene: 'x'.repeat(65) }]) {
+        expect(parsePlayerMessage({ t, scene: 's', id, x: 1, y: 2, ...bad }), JSON.stringify(bad)).toBeNull();
+      }
     }
   });
 

@@ -102,21 +102,23 @@ describe('the players\' frame for a window', () => {
     expect(playerFrame(screen(1280, 720), paneView(1728, 1000), pane)).toMatchObject({ width: 1280, height: 720 });
   });
 
-  it.each([
-    { ratio: 1, pixels: [1536, 864] },
-    { ratio: 1.25, pixels: [1920, 1080] },
-    { ratio: 1.5, pixels: [2304, 1296] },
-    { ratio: 2, pixels: [3072, 1728] },
-  ])('has the window\'s device pixels at a pixel ratio of $ratio', ({ ratio, pixels }) => {
-    const view = paneView(1200, 800);
-    const frame = playerFrame(screen(1536, 864, ratio), view, screen(1200, 800))!;
-    const capped = pixels[0]! * pixels[1]! > PLAYER_FRAME_PIXEL_BUDGET;
-    if (!capped) expect([frame.width, frame.height]).toEqual(pixels);
-    expect(frame.width * frame.height).toBeLessThanOrEqual(PLAYER_FRAME_PIXEL_BUDGET + frame.width + frame.height);
-    expect(frame.resolution).toBeCloseTo(frame.width / 1536, 10);
-    // The same picture at every ratio: the scale is in the window's points
-    expect(frame.scale).toBeCloseTo(864 / 800, 3);
-    expect(contains(frame, view)).toBe(true);
+  it("has the window's device pixels at every pixel ratio", () => {
+    for (const { ratio, pixels } of [
+      { ratio: 1, pixels: [1536, 864] },
+      { ratio: 1.25, pixels: [1920, 1080] },
+      { ratio: 1.5, pixels: [2304, 1296] },
+      { ratio: 2, pixels: [3072, 1728] },
+    ]) {
+      const view = paneView(1200, 800);
+      const frame = playerFrame(screen(1536, 864, ratio), view, screen(1200, 800))!;
+      const capped = pixels[0]! * pixels[1]! > PLAYER_FRAME_PIXEL_BUDGET;
+      if (!capped) expect([frame.width, frame.height]).toEqual(pixels);
+      expect(frame.width * frame.height).toBeLessThanOrEqual(PLAYER_FRAME_PIXEL_BUDGET + frame.width + frame.height);
+      expect(frame.resolution).toBeCloseTo(frame.width / 1536, 10);
+      // The same picture at every ratio: the scale is in the window's points
+      expect(frame.scale).toBeCloseTo(864 / 800, 3);
+      expect(contains(frame, view)).toBe(true);
+    }
   });
 
   it('smooths edges below two pixels per point, and only within the budget', () => {
@@ -135,27 +137,31 @@ describe('the players\' frame for a window', () => {
     expect(playerFrame(screen(3, 2, 0.5), paneView(1200, 800))).toMatchObject({ width: 2, height: 1 });
   });
 
-  it.each([
-    ['a window without a width', screen(0, 600)],
-    ['a window without a height', screen(800, 0)],
-    ['a window smaller than a pixel', screen(0.2, 0.2)],
-    ['a negative size', screen(-800, 600)],
-    ['a size that is no number', screen(Number.NaN, 600)],
-    ['an infinite size', screen(Number.POSITIVE_INFINITY, 600)],
-    ['a pixel ratio of zero', screen(800, 600, 0)],
-    ['a pixel ratio that is no number', screen(800, 600, Number.NaN)],
-  ])('renders nothing for %s', (_name, window) => {
-    expect(playerFrame(window, paneView(1200, 800))).toBeNull();
+  it('renders nothing for a window that is no size', () => {
+    for (const [_name, window] of [
+      ['a window without a width', screen(0, 600)],
+      ['a window without a height', screen(800, 0)],
+      ['a window smaller than a pixel', screen(0.2, 0.2)],
+      ['a negative size', screen(-800, 600)],
+      ['a size that is no number', screen(Number.NaN, 600)],
+      ['an infinite size', screen(Number.POSITIVE_INFINITY, 600)],
+      ['a pixel ratio of zero', screen(800, 600, 0)],
+      ['a pixel ratio that is no number', screen(800, 600, Number.NaN)],
+    ] as const) {
+      expect(playerFrame(window, paneView(1200, 800))).toBeNull();
+    }
   });
 
-  it.each([
-    ['no width', { centerX: 0, centerY: 0, width: 0, height: 10 }],
-    ['a negative height', { centerX: 0, centerY: 0, width: 10, height: -10 }],
-    ['a size that is no number', { centerX: 0, centerY: 0, width: Number.NaN, height: 10 }],
-    ['an infinite size', { centerX: 0, centerY: 0, width: Number.POSITIVE_INFINITY, height: 10 }],
-    ['a centre that is no number', { centerX: Number.NaN, centerY: 0, width: 10, height: 10 }],
-  ])('renders nothing for a view with %s', (_name, view) => {
-    expect(playerFrame(screen(800, 600), view)).toBeNull();
+  it('renders nothing for a view that is no size', () => {
+    for (const [_name, view] of [
+      ['no width', { centerX: 0, centerY: 0, width: 0, height: 10 }],
+      ['a negative height', { centerX: 0, centerY: 0, width: 10, height: -10 }],
+      ['a size that is no number', { centerX: 0, centerY: 0, width: Number.NaN, height: 10 }],
+      ['an infinite size', { centerX: 0, centerY: 0, width: Number.POSITIVE_INFINITY, height: 10 }],
+      ['a centre that is no number', { centerX: Number.NaN, centerY: 0, width: 10, height: 10 }],
+    ] as const) {
+      expect(playerFrame(screen(800, 600), view)).toBeNull();
+    }
   });
 
   it('ignores a pane without a size', () => {
@@ -180,22 +186,24 @@ describe('the pieces a frame is brought across in', () => {
     expect(playerFrame(screen(2560, 1440), paneView(800, 600), screen(800, 600))).toMatchObject({ width: 2560, height: 1440 });
   });
 
-  it.each([
-    ['a pane dragged almost shut', 1200, 20],
-    ['a sliver', 1200, 4],
-    ['a narrow strip', 30, 800],
-    ['a small pane', 300, 200],
-    ['a pane of a few pixels', 3, 2],
-  ])('renders a smaller frame of the window\'s shape for %s, so that it takes no more pieces', (_name, width, height) => {
-    const pane = screen(width, height);
-    const view = paneView(width, height);
-    const frame = playerFrame(screen(2560, 1440), view, pane)!;
-    expect(pieces(frame, pane)).toBeLessThanOrEqual(MAX_FRAME_PIECES);
-    expect(frame.width).toBeLessThan(2560);
-    expect(Math.abs(frame.width / frame.height - 2560 / 1440)).toBeLessThan(2 / Math.min(frame.width, frame.height));
-    // Still all the view, in the same place: only its pixels are fewer
-    expect(contains(frame, view)).toBe(true);
-    expect(frame.resolution).toBeCloseTo(frame.width / 2560, 10);
+  it("renders a smaller frame of the window's shape for a pane too small, so that it takes no more pieces", () => {
+    for (const [_name, width, height] of [
+      ['a pane dragged almost shut', 1200, 20],
+      ['a sliver', 1200, 4],
+      ['a narrow strip', 30, 800],
+      ['a small pane', 300, 200],
+      ['a pane of a few pixels', 3, 2],
+    ] as const) {
+      const pane = screen(width, height);
+      const view = paneView(width, height);
+      const frame = playerFrame(screen(2560, 1440), view, pane)!;
+      expect(pieces(frame, pane)).toBeLessThanOrEqual(MAX_FRAME_PIECES);
+      expect(frame.width).toBeLessThan(2560);
+      expect(Math.abs(frame.width / frame.height - 2560 / 1440)).toBeLessThan(2 / Math.min(frame.width, frame.height));
+      // Still all the view, in the same place: only its pixels are fewer
+      expect(contains(frame, view)).toBe(true);
+      expect(frame.resolution).toBeCloseTo(frame.width / 2560, 10);
+    }
   });
 
   it('uses the pieces it may: the frame is as large as they allow', () => {
@@ -271,35 +279,41 @@ describe('how much of the world a frame can show', () => {
     }
   });
 
-  it.each([
-    ['a pane without a width', { width: 0, height: 800 }, 1],
-    ['a pane without a height', { width: 1200, height: 0 }, 1],
-    ['a pane of a negative size', { width: -1200, height: 800 }, 1],
-    ['a pane whose size is no number', { width: Number.NaN, height: 800 }, 1],
-    ['a pane of an infinite size', { width: Number.POSITIVE_INFINITY, height: 800 }, 1],
-    ['a zoom of zero', { width: 1200, height: 800 }, 0],
-    ['a negative zoom', { width: 1200, height: 800 }, -1],
-    ['a zoom that is no number', { width: 1200, height: 800 }, Number.NaN],
-    ['an infinite zoom', { width: 1200, height: 800 }, Number.POSITIVE_INFINITY],
-  ])('has no view to show for %s: nothing is rendered, never a wider picture', (_name, pane, scale) => {
-    expect(viewOf({ centerX: 10, centerY: 20, scale }, pane)).toBeNull();
+  it('has no view to show for a pane that cannot be read: nothing is rendered, never a wider picture', () => {
+    for (const [_name, pane, scale] of [
+      ['a pane without a width', { width: 0, height: 800 }, 1],
+      ['a pane without a height', { width: 1200, height: 0 }, 1],
+      ['a pane of a negative size', { width: -1200, height: 800 }, 1],
+      ['a pane whose size is no number', { width: Number.NaN, height: 800 }, 1],
+      ['a pane of an infinite size', { width: Number.POSITIVE_INFINITY, height: 800 }, 1],
+      ['a zoom of zero', { width: 1200, height: 800 }, 0],
+      ['a negative zoom', { width: 1200, height: 800 }, -1],
+      ['a zoom that is no number', { width: 1200, height: 800 }, Number.NaN],
+      ['an infinite zoom', { width: 1200, height: 800 }, Number.POSITIVE_INFINITY],
+    ] as const) {
+      expect(viewOf({ centerX: 10, centerY: 20, scale }, pane)).toBeNull();
+    }
   });
 
-  it.each([
-    ['no number', Number.NaN],
-    ['infinite', Number.POSITIVE_INFINITY],
-  ])('has no view to show around a centre that is %s', (_name, centre) => {
-    expect(viewOf({ centerX: centre, centerY: 20, scale: 1 }, { width: 1200, height: 800 })).toBeNull();
-    expect(viewOf({ centerX: 10, centerY: centre, scale: 1, width: 600, height: 400 }, undefined)).toBeNull();
+  it('has no view to show around a centre that is no finite number', () => {
+    for (const [_name, centre] of [
+      ['no number', Number.NaN],
+      ['infinite', Number.POSITIVE_INFINITY],
+    ] as const) {
+      expect(viewOf({ centerX: centre, centerY: 20, scale: 1 }, { width: 1200, height: 800 })).toBeNull();
+      expect(viewOf({ centerX: 10, centerY: centre, scale: 1, width: 600, height: 400 }, undefined)).toBeNull();
+    }
   });
 
-  it.each([
-    ['sides too small to divide by', { centerX: 0, centerY: 0, width: 1e-320, height: 1e-320 }],
-    ['one side too small to divide by', { centerX: 0, centerY: 0, width: 1e-320, height: 400 }],
-    ['sides so small that the scale is no number', { centerX: 0, centerY: 0, width: 1e-306, height: 1e-306 }],
-  ])('renders nothing for a view with %s: no frame has a scale that is not a positive finite number', (_name, view) => {
-    expect(playerFrame(screen(1920, 1080), view)).toBeNull();
-    expect(playerFrame(screen(8000, 6000, 2), view, screen(1200, 800))).toBeNull();
+  it('renders nothing for a view with sides too small: no frame has a scale that is not a positive finite number', () => {
+    for (const [_name, view] of [
+      ['sides too small to divide by', { centerX: 0, centerY: 0, width: 1e-320, height: 1e-320 }],
+      ['one side too small to divide by', { centerX: 0, centerY: 0, width: 1e-320, height: 400 }],
+      ['sides so small that the scale is no number', { centerX: 0, centerY: 0, width: 1e-306, height: 1e-306 }],
+    ] as const) {
+      expect(playerFrame(screen(1920, 1080), view)).toBeNull();
+      expect(playerFrame(screen(8000, 6000, 2), view, screen(1200, 800))).toBeNull();
+    }
   });
 
   it('has no view to show through a camera whose rectangle or zoom is too small to divide by', () => {

@@ -94,15 +94,17 @@ describe('serializeTemplate', () => {
 });
 
 describe('serialize ∘ parse', () => {
-  it.each([
-    ['Marsh creature', MARSH_CREATURE_JSON, false],
-    ['5E 2024', FIVE_E_2024_JSON, true],
-    ['every block', EVERY_BLOCK_JSON, false],
-  ])('is a fixed point after one pass for %s', (_name, text, allowBuiltIn) => {
-    const once = serializeTemplate(templateOf(text, allowBuiltIn));
-    const twice = serializeTemplate(templateOf(once, allowBuiltIn));
-    expect(twice).toBe(once);
-    expect(JSON.parse(once)).toMatchObject({ format: TEMPLATE_FORMAT });
+  it('is a fixed point after one pass for every template', () => {
+    for (const [_name, text, allowBuiltIn] of [
+      ['Marsh creature', MARSH_CREATURE_JSON, false],
+      ['5E 2024', FIVE_E_2024_JSON, true],
+      ['every block', EVERY_BLOCK_JSON, false],
+    ] as const) {
+      const once = serializeTemplate(templateOf(text, allowBuiltIn));
+      const twice = serializeTemplate(templateOf(once, allowBuiltIn));
+      expect(twice).toBe(once);
+      expect(JSON.parse(once)).toMatchObject({ format: TEMPLATE_FORMAT });
+    }
   });
 
   it('keeps every value of the plan\'s files', () => {

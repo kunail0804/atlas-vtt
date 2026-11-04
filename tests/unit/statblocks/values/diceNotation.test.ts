@@ -26,11 +26,13 @@ describe('parseDiceNotation', () => {
     for (const text of ['2d6!', '1d6!!', '1d6!i', '2d6!3 + 1']) expect(parseDiceNotation(text), text).not.toBeNull();
   });
 
-  it.each([
-    [''], ['  '], ['2d'], ['d'], ['2d6 3'], ['2d6 +'], ['+'], ['2d6 x 10'], ['2 d 6'], ['0d6'], ['2d1'], ['2d0'], ['d%'],
-    ['7d10 + 14 slashing'], ['2d6++1'], ['--1'], ['2d6!x'], ['99999999999999999999d6'],
-  ])('%j is not notation', (text) => {
-    expect(parseDiceNotation(text)).toBeNull();
+  it('refuses what is not notation', () => {
+    for (const [text] of [
+      [''], ['  '], ['2d'], ['d'], ['2d6 3'], ['2d6 +'], ['+'], ['2d6 x 10'], ['2 d 6'], ['0d6'], ['2d1'], ['2d0'], ['d%'],
+      ['7d10 + 14 slashing'], ['2d6++1'], ['--1'], ['2d6!x'], ['99999999999999999999d6'],
+    ] as const) {
+      expect(parseDiceNotation(text)).toBeNull();
+    }
   });
 
   it('tells notation that rolls dice', () => {
@@ -41,17 +43,19 @@ describe('parseDiceNotation', () => {
 });
 
 describe('diceAverage', () => {
-  it.each([
-    ['7d10 + 14', 52],
-    ['2d6+2', 9],
-    ['d20', 10],
-    ['1d4 − 1', 1],
-    ['1d4 - 5', -3],
-    ['2d6 - 1d4', 4],
-    ['14', 14],
-    ['1d2 - 1', 0],
-  ])('%s averages %d', (text, expected) => {
-    expect(diceAverage(text)).toBe(expected);
+  it('averages every notation', () => {
+    for (const [text, expected] of [
+      ['7d10 + 14', 52],
+      ['2d6+2', 9],
+      ['d20', 10],
+      ['1d4 − 1', 1],
+      ['1d4 - 5', -3],
+      ['2d6 - 1d4', 4],
+      ['14', 14],
+      ['1d2 - 1', 0],
+    ] as const) {
+      expect(diceAverage(text)).toBe(expected);
+    }
   });
 
   it('has no average for text that is not notation', () => {

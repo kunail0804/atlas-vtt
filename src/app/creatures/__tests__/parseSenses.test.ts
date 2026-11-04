@@ -17,17 +17,21 @@ describe('parseSenses on published creatures', () => {
 
   for (const system of Object.keys(SYSTEMS) as FixtureSystem[]) {
     describe(`in a ${system} collection`, () => {
-      it.each(SENSES_FIXTURES.map((fixture) => [`${fixture.creature} (${fixture.source})`, fixture] as const))('%s', (_label, fixture) => {
-        expect(read(fixture.text, SYSTEMS[system])).toEqual(fixture[system]);
+      it("reads every fixture's senses line", () => {
+        for (const [_label, fixture] of SENSES_FIXTURES.map((fixture) => [`${fixture.creature} (${fixture.source})`, fixture] as const)) {
+          expect(read(fixture.text, SYSTEMS[system])).toEqual(fixture[system]);
+        }
       });
     });
   }
 });
 
 describe('parseSenses on lines it once read wrong', () => {
-  it.each(SENSES_REGRESSIONS.map((line) => [`${line.creature} (${line.source})`, line] as const))('%s', (_label, line) => {
-    const { senses, unknown, blindBeyond } = line;
-    expect(read(line.text, SYSTEMS[line.system])).toEqual({ senses, unknown, ...(blindBeyond !== undefined && { blindBeyond }) });
+  it('reads every line it once read wrong as it should', () => {
+    for (const [_label, line] of SENSES_REGRESSIONS.map((line) => [`${line.creature} (${line.source})`, line] as const)) {
+      const { senses, unknown, blindBeyond } = line;
+      expect(read(line.text, SYSTEMS[line.system])).toEqual({ senses, unknown, ...(blindBeyond !== undefined && { blindBeyond }) });
+    }
   });
 
   it('gives every creature whose bracket once became a distance the sense without one', () => {

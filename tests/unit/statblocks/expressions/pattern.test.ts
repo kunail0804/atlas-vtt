@@ -198,27 +198,29 @@ describe('pattern syntax', () => {
     ]);
   });
 
-  it.each([
-    ['{hp', 'A \u201c{\u201d is never closed.', 0],
-    ['x {=hp + 1', 'A \u201c{\u201d is never closed.', 2],
-    ['{hp|signed', 'A \u201c{\u201d is never closed.', 0],
-    ['[{hp}', 'A \u201c[\u201d is never closed.', 0],
-    ['{hp}]', 'There is a \u201c]\u201d without a \u201c[\u201d. Write \\] for the character itself.', 4],
-    ['a}', 'There is a \u201c}\u201d without a \u201c{\u201d. Write \\} for the character itself.', 1],
-    ['{}', 'A value needs the name of a field, like {hp}.', 1],
-    ['{a,}', 'A value needs the name of a field, like {hp}.', 3],
-    ['{a[b]}', '\u201c[\u201d can\'t be used inside { }. Write \\[ for the character itself.', 2],
-    ['{a|sgined}', 'There is no filter called \u201csgined\u201d. There are signed, upper, lower, count, avg, lookup and join.', 3],
-    ['{a|}', 'A filter is missing after \u201c|\u201d.', 3],
-    ['{a|lookup}', 'lookup needs the name of a table, like {cr|lookup:xp}.', 3],
-    ['{a|lookup: }', 'lookup needs the name of a table, like {cr|lookup:xp}.', 3],
-    ['{a|join}', 'join needs the text to join with, like {a, b|join:; }.', 3],
-    ['{a|signed:2}', 'signed takes nothing after \u201c:\u201d.', 3],
-    ['{=}', 'The formula is empty.', 2],
-    ['AC {=ac + }', 'The formula ends too early.', 10],
-    ['{=floor(hp}', 'A \u201c(\u201d is never closed.', 7],
-  ])('%j: %s', (source, message, at) => {
-    expect(syntaxOf(source)).toEqual({ kind: 'syntax', message, at });
+  it('says why each bad pattern is refused', () => {
+    for (const [source, message, at] of [
+      ['{hp', 'A \u201c{\u201d is never closed.', 0],
+      ['x {=hp + 1', 'A \u201c{\u201d is never closed.', 2],
+      ['{hp|signed', 'A \u201c{\u201d is never closed.', 0],
+      ['[{hp}', 'A \u201c[\u201d is never closed.', 0],
+      ['{hp}]', 'There is a \u201c]\u201d without a \u201c[\u201d. Write \\] for the character itself.', 4],
+      ['a}', 'There is a \u201c}\u201d without a \u201c{\u201d. Write \\} for the character itself.', 1],
+      ['{}', 'A value needs the name of a field, like {hp}.', 1],
+      ['{a,}', 'A value needs the name of a field, like {hp}.', 3],
+      ['{a[b]}', '\u201c[\u201d can\'t be used inside { }. Write \\[ for the character itself.', 2],
+      ['{a|sgined}', 'There is no filter called \u201csgined\u201d. There are signed, upper, lower, count, avg, lookup and join.', 3],
+      ['{a|}', 'A filter is missing after \u201c|\u201d.', 3],
+      ['{a|lookup}', 'lookup needs the name of a table, like {cr|lookup:xp}.', 3],
+      ['{a|lookup: }', 'lookup needs the name of a table, like {cr|lookup:xp}.', 3],
+      ['{a|join}', 'join needs the text to join with, like {a, b|join:; }.', 3],
+      ['{a|signed:2}', 'signed takes nothing after \u201c:\u201d.', 3],
+      ['{=}', 'The formula is empty.', 2],
+      ['AC {=ac + }', 'The formula ends too early.', 10],
+      ['{=floor(hp}', 'A \u201c(\u201d is never closed.', 7],
+    ] as const) {
+      expect(syntaxOf(source)).toEqual({ kind: 'syntax', message, at });
+    }
   });
 
   it('refuses optional parts nested deeper than any template needs', () => {

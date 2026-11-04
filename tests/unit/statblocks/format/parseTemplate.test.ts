@@ -74,28 +74,30 @@ describe('parseTemplate: the plan\'s templates', () => {
 });
 
 describe('parseTemplate: what is no template', () => {
-  it.each([
-    ['broken JSON', '{"format": ', /not valid JSON/],
-    ['an empty file', '', /not valid JSON/],
-    ['null', 'null', /holds null/],
-    ['a list', '[]', /holds a list/],
-    ['a string', '"template"', /holds "template"/],
-    ['another format', JSON.stringify(minimal({ format: 'atlas-map' })), /"format" is "atlas-map"/],
-    ['no format', JSON.stringify(minimal({ format: undefined })), /"format" is nothing/],
-    ['no version', JSON.stringify(minimal({ version: undefined })), /"version"/],
-    ['version 0', JSON.stringify(minimal({ version: 0 })), /"version" is 0/],
-    ['a fractional version', JSON.stringify(minimal({ version: 1.5 })), /"version" is 1.5/],
-    ['a version as text', JSON.stringify(minimal({ version: '1' })), /"version" is "1"/],
-    ['no id', JSON.stringify(minimal({ id: undefined })), /"id" is nothing/],
-    ['an id with spaces', JSON.stringify(minimal({ id: 'my template-abc123' })), /"id"/],
-    ['an id without its suffix', JSON.stringify(minimal({ id: 'marsh-creature' })), /"id"/],
-    ['an upper-case id', JSON.stringify(minimal({ id: 'Marsh-ABC123' })), /"id"/],
-    ['a numeric id', JSON.stringify(minimal({ id: 7 })), /"id" is 7/],
-  ])('%s is invalid', (_name, text, problem) => {
-    const result = parseTemplate(text);
-    expect(result.status).toBe('invalid');
-    expect(result.template).toBeNull();
-    expect(result.problems).toEqual([expect.stringMatching(problem)]);
+  it('refuses every invalid template', () => {
+    for (const [_name, text, problem] of [
+      ['broken JSON', '{"format": ', /not valid JSON/],
+      ['an empty file', '', /not valid JSON/],
+      ['null', 'null', /holds null/],
+      ['a list', '[]', /holds a list/],
+      ['a string', '"template"', /holds "template"/],
+      ['another format', JSON.stringify(minimal({ format: 'atlas-map' })), /"format" is "atlas-map"/],
+      ['no format', JSON.stringify(minimal({ format: undefined })), /"format" is nothing/],
+      ['no version', JSON.stringify(minimal({ version: undefined })), /"version"/],
+      ['version 0', JSON.stringify(minimal({ version: 0 })), /"version" is 0/],
+      ['a fractional version', JSON.stringify(minimal({ version: 1.5 })), /"version" is 1.5/],
+      ['a version as text', JSON.stringify(minimal({ version: '1' })), /"version" is "1"/],
+      ['no id', JSON.stringify(minimal({ id: undefined })), /"id" is nothing/],
+      ['an id with spaces', JSON.stringify(minimal({ id: 'my template-abc123' })), /"id"/],
+      ['an id without its suffix', JSON.stringify(minimal({ id: 'marsh-creature' })), /"id"/],
+      ['an upper-case id', JSON.stringify(minimal({ id: 'Marsh-ABC123' })), /"id"/],
+      ['a numeric id', JSON.stringify(minimal({ id: 7 })), /"id" is 7/],
+    ] as const) {
+      const result = parseTemplate(text);
+      expect(result.status).toBe('invalid');
+      expect(result.template).toBeNull();
+      expect(result.problems).toEqual([expect.stringMatching(problem)]);
+    }
   });
 
   it('reads a file that starts with a byte order mark', () => {

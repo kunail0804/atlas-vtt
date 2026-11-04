@@ -7,34 +7,38 @@ import type { TemplateField } from '../../../../src/app/statblocks/model/templat
 import { int, mulberry32, pick } from './treeFixtures';
 
 describe('labelToKey', () => {
-  it.each([
-    ['Hit Points', 'hp'], ['HP', 'hp'], ['hit points', 'hp'],
-    ['Armor Class', 'ac'], ['AC', 'ac'], ['Armor', 'ac'], ['Armour Class', 'ac'],
-    ['Hit Dice', 'hit_dice'], ['Speed', 'speed'], ['Senses', 'senses'], ['Languages', 'languages'],
-    ['Challenge', 'cr'], ['Challenge Rating', 'cr'], ['CR', 'cr'],
-    ['Saving Throws', 'saves'], ['Saves', 'saves'], ['Skills', 'skillsaves'],
-    ['Abilities', 'stats'], ['Ability Scores', 'stats'],
-    ['Damage Resistances', 'damage_resistances'], ['Damage Immunities', 'damage_immunities'],
-    ['Damage Vulnerabilities', 'damage_vulnerabilities'], ['Condition Immunities', 'condition_immunities'],
-    ['Traits', 'traits'], ['Actions', 'actions'], ['Bonus Actions', 'bonus_actions'], ['Reactions', 'reactions'],
-    ['Legendary Actions', 'legendary_actions'], ['Size', 'size'], ['Type', 'type'], ['Alignment', 'alignment'],
-    ['Level', 'level'], ['Name', 'name'], ['Image', 'image'], ['Portrait', 'image'], ['Token', 'image'],
-    ['Description', 'description'],
-  ])('%s → %s', (label, key) => {
-    expect(labelToKey(label, [])).toBe(key);
+  it('derives each key from its label', () => {
+    for (const [label, key] of [
+      ['Hit Points', 'hp'], ['HP', 'hp'], ['hit points', 'hp'],
+      ['Armor Class', 'ac'], ['AC', 'ac'], ['Armor', 'ac'], ['Armour Class', 'ac'],
+      ['Hit Dice', 'hit_dice'], ['Speed', 'speed'], ['Senses', 'senses'], ['Languages', 'languages'],
+      ['Challenge', 'cr'], ['Challenge Rating', 'cr'], ['CR', 'cr'],
+      ['Saving Throws', 'saves'], ['Saves', 'saves'], ['Skills', 'skillsaves'],
+      ['Abilities', 'stats'], ['Ability Scores', 'stats'],
+      ['Damage Resistances', 'damage_resistances'], ['Damage Immunities', 'damage_immunities'],
+      ['Damage Vulnerabilities', 'damage_vulnerabilities'], ['Condition Immunities', 'condition_immunities'],
+      ['Traits', 'traits'], ['Actions', 'actions'], ['Bonus Actions', 'bonus_actions'], ['Reactions', 'reactions'],
+      ['Legendary Actions', 'legendary_actions'], ['Size', 'size'], ['Type', 'type'], ['Alignment', 'alignment'],
+      ['Level', 'level'], ['Name', 'name'], ['Image', 'image'], ['Portrait', 'image'], ['Token', 'image'],
+      ['Description', 'description'],
+    ] as const) {
+      expect(labelToKey(label, [])).toBe(key);
+    }
   });
 
-  it.each([
-    ['Morale Rating', 'morale_rating'],
-    ['  Créature   Größe! ', 'creature_grosse'],
-    ['Armor Class (AC)', 'armor_class_ac'],
-    ['1st-level slots', 'field_1st_level_slots'],
-    ['damageResistances', 'damage_resistances'],
-    ['★ ☆', 'field'],
-    ['', 'field'],
-    ['体力', 'field'],
-  ])('snake-cases %j as %s', (label, key) => {
-    expect(labelToKey(label, [])).toBe(key);
+  it('snake-cases every label', () => {
+    for (const [label, key] of [
+      ['Morale Rating', 'morale_rating'],
+      ['  Créature   Größe! ', 'creature_grosse'],
+      ['Armor Class (AC)', 'armor_class_ac'],
+      ['1st-level slots', 'field_1st_level_slots'],
+      ['damageResistances', 'damage_resistances'],
+      ['★ ☆', 'field'],
+      ['', 'field'],
+      ['体力', 'field'],
+    ] as const) {
+      expect(labelToKey(label, [])).toBe(key);
+    }
   });
 
   it('caps long labels', () => {
@@ -72,22 +76,24 @@ describe('labelToKey', () => {
 });
 
 describe('keyProblem', () => {
-  it.each([
-    ['', 'Give the field a key.'],
-    ['  ', 'Give the field a key.'],
-    ['hit points', 'A key starts with a letter and holds only letters, digits, _ and -.'],
-    ['stats.1', 'A key starts with a letter and holds only letters, digits, _ and -.'],
-    ['1st', 'A key starts with a letter and holds only letters, digits, _ and -.'],
-    ['größe', 'A key starts with a letter and holds only letters, digits, _ and -.'],
-    ['tags', 'Obsidian reads “tags” as the note’s tags. Choose another key.'],
-    ['Tags', 'Obsidian reads “tags” as the note’s tags. Choose another key.'],
-    ['layout', '“layout” is used by Obsidian, Fantasy Statblocks or Atlas. Choose another key.'],
-    ['atlas-template', '“atlas-template” is used by Obsidian, Fantasy Statblocks or Atlas. Choose another key.'],
-    ['Statblock', '“Statblock” is used by Obsidian, Fantasy Statblocks or Atlas. Choose another key.'],
-    ['diceCallback', 'Fantasy Statblocks reads “diceCallback” as code. Choose another key.'],
-    ['Speed', 'Another field already uses “Speed”.'],
-  ])('%j: %s', (key, problem) => {
-    expect(keyProblem(key, ['speed', 'hp'])).toBe(problem);
+  it('says why each bad key is refused', () => {
+    for (const [key, problem] of [
+      ['', 'Give the field a key.'],
+      ['  ', 'Give the field a key.'],
+      ['hit points', 'A key starts with a letter and holds only letters, digits, _ and -.'],
+      ['stats.1', 'A key starts with a letter and holds only letters, digits, _ and -.'],
+      ['1st', 'A key starts with a letter and holds only letters, digits, _ and -.'],
+      ['größe', 'A key starts with a letter and holds only letters, digits, _ and -.'],
+      ['tags', 'Obsidian reads “tags” as the note’s tags. Choose another key.'],
+      ['Tags', 'Obsidian reads “tags” as the note’s tags. Choose another key.'],
+      ['layout', '“layout” is used by Obsidian, Fantasy Statblocks or Atlas. Choose another key.'],
+      ['atlas-template', '“atlas-template” is used by Obsidian, Fantasy Statblocks or Atlas. Choose another key.'],
+      ['Statblock', '“Statblock” is used by Obsidian, Fantasy Statblocks or Atlas. Choose another key.'],
+      ['diceCallback', 'Fantasy Statblocks reads “diceCallback” as code. Choose another key.'],
+      ['Speed', 'Another field already uses “Speed”.'],
+    ] as const) {
+      expect(keyProblem(key, ['speed', 'hp'])).toBe(problem);
+    }
   });
 
   it('accepts ordinary keys, name and image', () => {
@@ -96,12 +102,14 @@ describe('keyProblem', () => {
 });
 
 describe('labelFromKey', () => {
-  it.each([
-    ['hit_dice', 'Hit dice'], ['damageResistances', 'Damage resistances'], ['token-image', 'Token image'],
-    ['hp', 'Hit points'], ['ac', 'Armor class'], ['cr', 'Challenge rating'], ['stats', 'Abilities'],
-    ['skillsaves', 'Skills'], ['saves', 'Saving throws'], ['speed', 'Speed'], ['stress_1', 'Stress 1'], ['__', '__'],
-  ])('%s → %s', (key, label) => {
-    expect(labelFromKey(key)).toBe(label);
+  it('derives each key from its label, as Fantasy Statblocks does', () => {
+    for (const [key, label] of [
+      ['hit_dice', 'Hit dice'], ['damageResistances', 'Damage resistances'], ['token-image', 'Token image'],
+      ['hp', 'Hit points'], ['ac', 'Armor class'], ['cr', 'Challenge rating'], ['stats', 'Abilities'],
+      ['skillsaves', 'Skills'], ['saves', 'Saving throws'], ['speed', 'Speed'], ['stress_1', 'Stress 1'], ['__', '__'],
+    ] as const) {
+      expect(labelFromKey(key)).toBe(label);
+    }
   });
 });
 
