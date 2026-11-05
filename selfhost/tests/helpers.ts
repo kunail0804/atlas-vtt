@@ -6,6 +6,9 @@ import type { Timers } from '../../src/app/online/gm/companionTimers.ts';
 import type { GateFrame } from '../../src/app/online/gm/joinGate.ts';
 import type { PlayerInfo } from '../../src/app/online/protocol/index.ts';
 import { startRelay, type RunningRelay } from '../relay/relay.ts';
+import { newTableCode } from '../relay/ids.ts';
+import { createTable as askForTable } from '../../src/app/online/gm/createTable.ts';
+import { obsidianHttp } from '../../src/app/online/gm/account/obsidianHttp.ts';
 import { createHash } from 'node:crypto';
 import { assetIdOf } from '../../src/app/online/gm/assets/assetIds.ts';
 import type { AssetRef } from '../../src/app/online/protocol/asset.ts';
@@ -39,12 +42,13 @@ export async function stopTestRelay(test: TestRelay, keepData = false): Promise<
 }
 
 /** Signs in like the plugin does (device flow) and creates a table. */
-export async function createTable(gmOrigin: string): Promise<{ code: string; secret: string; maxPlayers: number; playerOrigin: string }> {
+/** A table on the campaign link `link`, asked for as the plugin asks (`createTable`, through Obsidian's `requestUrl`). */
+export async function createTable(gmOrigin: string, link: string = newTableCode()): Promise<{ code: string; secret: string; maxPlayers: number; playerOrigin: string }> {
   const tokenResponse = await fetch(`${gmOrigin}/auth/device/token`, { method: 'POST' });
   const { access_token: token } = (await tokenResponse.json()) as { access_token: string };
-  const response = await fetch(`${gmOrigin}/api/tables`, { method: 'POST', headers: { authorization: `Bearer ${token}` } });
-  if (response.status !== 201) throw new Error(`table not created: ${response.status}`);
-  return (await response.json()) as { code: string; secret: string; maxPlayers: number; playerOrigin: string };
+  const created = await askForTable(obsidianHttp, gmOrigin, token, link);
+  if ('message' in created) throw new Error(`table not created: ${created.status} ${created.message}`);
+  return created;
 }
 
 export const nodeTimers: Timers = {

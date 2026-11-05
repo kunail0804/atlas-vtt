@@ -3,12 +3,13 @@ import type { AddressInfo } from 'node:net';
 import type { Duplex } from 'node:stream';
 import { WebSocketServer } from 'ws';
 import { MAX_GM_FRAME, MAX_PLAYER_FRAME, TABLE_CODE_PATTERN } from '../../src/app/online/protocol/relay.ts';
+import { isRecord } from '../../src/app/online/protocol/shape.ts';
 import { createAccount } from './account.ts';
 import { createAssetStore } from './assetStore.ts';
 import { createDiagnostics } from './diagnostics.ts';
 import { IdleStop } from './idle.ts';
 import { Link } from './link.ts';
-import { sendJson, sendText } from './respond.ts';
+import { readJson, sendJson, sendText } from './respond.ts';
 import { servePlayerPage } from './staticFiles.ts';
 import { TableStore } from './tableStore.ts';
 import { Tables, type Side } from './tables.ts';
@@ -34,6 +35,8 @@ export interface RunningRelay {
 }
 
 const SOCKET_PATH = /^\/api\/tables\/([^/]+)\/socket$/;
+/** A table request holds the campaign's link and the GM's level: a few dozen bytes. */
+const MAX_CREATE_BODY = 4096;
 
 /** Sockets the public side holds at once, and from one visitor's address. */
 export const MAX_PUBLIC_SOCKETS = 300;
@@ -108,9 +111,19 @@ export async function startRelay(options: RelayOptions): Promise<RunningRelay> {
     }
     if (request.method === 'POST' && pathname === '/api/tables') {
       if (!account.isHost(request)) return sendJson(response, 401, { error: 'signed-out' });
-      return sendJson(response, 201, { ...tables.create(), playerOrigin: options.playerOrigin });
+      return void createTable(request, response);
     }
     sendJson(response, 404, { error: 'not-found' });
+  }
+
+  /** A table on the campaign's lasting link, which the GM names as `code`; Atlas runs a table only on that code. */
+  async function createTable(request: IncomingMessage, response: ServerResponse): Promise<void> {
+    const body = await readJson(request, MAX_CREATE_BODY).catch(() => null);
+    const code = isRecord(body) ? body.code : undefined;
+    if (body === null || (code !== undefined && (typeof code !== 'string' || !TABLE_CODE_PATTERN.test(code)))) {
+      return sendJson(response, 400, { error: 'bad-request' });
+    }
+    sendJson(response, 201, { ...tables.create(code), playerOrigin: options.playerOrigin });
   }
 
   function handlePublic(request: IncomingMessage, response: ServerResponse): void {

@@ -28,9 +28,9 @@ export class Tables {
     for (const saved of store.load()) this.tables.set(saved.code, this.open(saved));
   }
 
-  create(): CreatedTable {
+  /** A table on `code`, the campaign's lasting link (a fresh code where the GM names none); the tables before it end. */
+  create(code: string = newTableCode()): CreatedTable {
     for (const table of [...this.tables.values()]) table.end(CLOSE.superseded);
-    const code = newTableCode();
     const secret = newSecret();
     const saved = { code, secretHash: hashOf(secret), maxPlayers: MAX_PLAYERS, gate: { codeHash: null, ask: true }, players: [] };
     this.tables.set(code, this.open(saved));

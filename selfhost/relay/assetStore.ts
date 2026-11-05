@@ -5,7 +5,7 @@ import { readdir, readFile, rename, rm, stat, utimes, writeFile } from 'node:fs/
 import path from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { ASSET_CAPS, isAssetId, isAssetKind, type AssetKind } from '../../src/app/online/protocol/asset.ts';
-import { sendJson } from './respond.ts';
+import { readJson, sendJson } from './respond.ts';
 
 // The plugin's asset store (`src/app/online/gm/assets/`) on the relay: the GM's Atlas offers what players
 // are shown, uploads it on the GM side (loopback, with the GM's token), and players fetch it from the
@@ -73,17 +73,6 @@ function loadSalt(dir: string): Buffer {
   mkdirSync(dir, { recursive: true });
   writeFileSync(file, salt, { mode: 0o600 });
   return salt;
-}
-
-async function readJson(request: IncomingMessage): Promise<unknown> {
-  const chunks: Buffer[] = [];
-  let length = 0;
-  for await (const chunk of request) {
-    length += (chunk as Buffer).length;
-    if (length > MAX_JSON_BYTES) throw new Error('too large');
-    chunks.push(chunk as Buffer);
-  }
-  return length === 0 ? {} : JSON.parse(Buffer.concat(chunks).toString('utf8'));
 }
 
 /** Writes a request's body to `file`, at most `size` bytes and exactly that many; the SHA-256 of what came, or null where it was not `size` bytes. */
@@ -183,7 +172,7 @@ export function createAssetStore(dataDir: string, now: () => number = Date.now):
   }
 
   async function offer(request: IncomingMessage, response: ServerResponse): Promise<void> {
-    const body = await readJson(request).catch(() => null);
+    const body = await readJson(request, MAX_JSON_BYTES).catch(() => null);
     const list = isRecord(body) && Array.isArray(body.assets) ? body.assets : null;
     if (list === null || list.length > MAX_OFFERED) return sendJson(response, 400, { error: 'bad-offer' });
     forgetStaleOffers();
@@ -249,7 +238,7 @@ export function createAssetStore(dataDir: string, now: () => number = Date.now):
   async function startParts(id: string, request: IncomingMessage, response: ServerResponse): Promise<void> {
     const offer = offered.get(id);
     if (offer === undefined) return sendJson(response, 409, { error: 'not-offered' });
-    const body = await readJson(request).catch(() => null);
+    const body = await readJson(request, MAX_JSON_BYTES).catch(() => null);
     if (!isRecord(body) || body.size !== offer.size || typeof body.type !== 'string' || !isMime(mimeOf(body.type)) || !Array.isArray(body.parts)) return sendJson(response, 400, { error: 'bad-upload' });
     const parts: { sha256: string; size: number }[] = [];
     for (const part of body.parts) {

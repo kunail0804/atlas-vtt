@@ -177,6 +177,22 @@ describe('the relay with the plugin as GM', () => {
     expect(gm.connection.closeCode).toBe(CLOSE.superseded);
   });
 
+  it("opens the table on the campaign's lasting link, again after a restart of the table", async () => {
+    const { code, gm } = await table();
+    const again = await createTable(test.gmOrigin, code);
+    expect(again.code).toBe(code);
+    await until(() => gm.status === 'refused', 'old table refused');
+    // The table before, ending on the same code, leaves the new one in place.
+    const next = new TestGm(test.gmOrigin, again.code, again.secret);
+    gms.push(next);
+    await until(() => next.status === 'online', 'GM online on the same link');
+  });
+
+  it('refuses a table on a link that is no table code', async () => {
+    test = await startTestRelay();
+    await expect(createTable(test.gmOrigin, 'not-a-code')).rejects.toThrow(/400/);
+  });
+
   it('answers a frame larger than a player may send with tooLarge', async () => {
     const { code } = await table();
     const mira = player(code, { name: 'Mira' });
