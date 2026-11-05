@@ -2,17 +2,21 @@ import type { Viewport } from 'pixi-viewport';
 import type { PlayerMessage } from '../../../src/app/online/protocol/game.ts';
 import { MARKS_INTERVAL_MS, MAX_KEPT, MAX_MARK_LASER_NUMBERS, type MarkPoint, type MarkShape, type MarksMessage, type MeasureState, type SharedCursor, type SharedMeasure } from '../../../src/app/online/protocol/marks.ts';
 import type { RulesMessage } from '../../../src/app/online/protocol/rules.ts';
-import { CursorOverlay, CursorTap, MarkOverlay, PointerTap, type MeasureRules, type RemoteLaser, type RemoteMeasure } from '../../../src/app/online/marks/index.ts';
+import type { LivePlace } from '../../../src/app/online/protocol/live.ts';
+import { CursorOverlay, CursorTap, MarkOverlay, PointerTap, type MeasureRules, type RemoteDrag, type RemoteLaser, type RemoteMeasure } from '../../../src/app/online/marks/index.ts';
 import type { PlayerTool, ToolSettingsStore } from './toolSettings.ts';
 
 /** The shape each measure tool draws, as the GM's (`MEASURE_SHAPES`). */
 const SHAPES: Partial<Record<PlayerTool, MarkShape>> = { measure: 'line', 'measure-circle': 'circle', 'measure-cone': 'cone' };
 
 const FALLBACK_ACCENT = '#7c8cff';
+/** Drag rulers nobody told of for this long go, as a page gives up on a drag it hears nothing of. */
+const DRAG_SILENCE_MS = 1_500;
 
 /**
  * Everyone's lasers, measurements and cursors, drawn with the plugin's own overlays, and this
  * player's own: the laser and the ruler of the toolbar, and the cursor while the GM shares cursors.
+ * The rulers of the drags under way (this player's own too) are the GM's, measured where the GM's map lands them.
  * What the GM sends back of this player's marks is left out; they are drawn here at once.
  */
 export class MarksView {
@@ -33,6 +37,9 @@ export class MarksView {
   private kept: SharedMeasure[] = [];
   private remoteLasers: readonly RemoteLaser[] = [];
   private remoteMeasures: readonly RemoteMeasure[] = [];
+  private dragRulers: readonly RemoteDrag[] = [];
+  private snaps = true;
+  private dragSilence: number | undefined;
   private ownLaser: RemoteLaser | null = null;
   private ownMeasure: MeasureState | null = null;
   private measureStart: MarkPoint | null = null;
@@ -78,6 +85,7 @@ export class MarksView {
   rules(message: RulesMessage): void {
     if (message.scene !== this.scene()) return;
     this.measureRules = { grid: { type: message.grid.type, size: message.grid.size, offsetX: message.grid.offsetX, offsetY: message.grid.offsetY }, measurement: { ...message.measurement } };
+    this.snaps = message.snap;
     this.accent = message.accent ?? FALLBACK_ACCENT;
     if (message.cursors === true && this.cursorTap === null) this.cursorTap = new CursorTap(this.viewport, this.canvas);
     if (message.cursors !== true && this.cursorTap !== null) {
@@ -101,10 +109,25 @@ export class MarksView {
     this.cursors.show(cursors, { canvas: this.canvas, viewport: this.viewport });
   }
 
+  /**
+   * The places of the tokens being dragged (`live`): each place that carries a ruler shows it, measured
+   * for the token's size (`cellsOf`, the token list's `cells`); a drag that ended or says nothing goes.
+   */
+  drags(places: readonly LivePlace[], cellsOf: (id: string) => number | undefined): void {
+    this.dragRulers = places.flatMap((place) => place.end === true || place.path === undefined ? [] : [{
+      key: place.id, path: place.path.map(([x, y]) => ({ x, y })), cells: cellsOf(place.id) ?? 1, snaps: this.snaps,
+    }]);
+    window.clearTimeout(this.dragSilence);
+    if (this.dragRulers.length > 0) this.dragSilence = window.setTimeout(() => this.drags([], cellsOf), DRAG_SILENCE_MS);
+    this.draw();
+  }
+
   /** A new scene: every mark goes. */
   clear(): void {
     this.remoteLasers = [];
     this.remoteMeasures = [];
+    this.dragRulers = [];
+    window.clearTimeout(this.dragSilence);
     this.ownMeasure = null;
     this.kept = [];
     this.measureStart = null;
@@ -117,7 +140,7 @@ export class MarksView {
     const lasers = this.ownLaser === null ? this.remoteLasers : [...this.remoteLasers, this.ownLaser];
     const own = this.ownMeasure ?? (this.kept.length > 0 ? { color: this.accent, live: null, kept: this.kept } : null);
     const measures = own === null ? this.remoteMeasures : [...this.remoteMeasures, { who: self, ...own }];
-    this.marks.show({ lasers, measures }, { canvas: this.canvas, viewport: this.viewport });
+    this.marks.show({ lasers, measures, drags: this.dragRulers }, { canvas: this.canvas, viewport: this.viewport });
   }
 
   private world(global: { x: number; y: number }): MarkPoint {

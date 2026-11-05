@@ -99,7 +99,7 @@ async function main(): Promise<void> {
   // What the toolbar shows, kept for when it mounts (the book or the rules may come first). The tray
   // offers both sides of advantage until the scene's rules name the map's dice (`rules.dice`): a GM's
   // Atlas that names none still rolls them by its set's rules, and a set without them rolls as it is.
-  let toolbarState: ToolbarState = { advantage: ['advantage', 'disadvantage'], book: false };
+  let toolbarState: ToolbarState = { advantage: ['advantage', 'disadvantage'], dice: null, book: false };
   const reader = new Reader(app, assets);
   /** A roll of the player's, from the dice tray or the sheet; false while no scene is shared to roll in. */
   const rollAs = (formula: string, how: { readonly flavor?: string; readonly advantage?: AdvantageSide | null } = {}): boolean => {
@@ -149,7 +149,7 @@ async function main(): Promise<void> {
     if (message.t === 'rules') {
       marks.rules(message);
       if (message.scene !== scene.sceneId) return;
-      toolbarState = { ...toolbarState, advantage: message.dice?.sides ?? ['advantage', 'disadvantage'] };
+      toolbarState = { ...toolbarState, advantage: message.dice?.sides ?? ['advantage', 'disadvantage'], dice: message.dice?.dice ?? null };
       return bar?.update(toolbarState);
     }
     if (message.t === 'shown-image') return viewer.fromGm(message);
@@ -160,6 +160,7 @@ async function main(): Promise<void> {
     if (message.t === 'annotations') return message.scene === scene.sceneId ? annotations.showAnnotations(message) : undefined;
     if (message.t === 'widgets') return message.scene === scene.sceneId ? widgets.show(message.bar) : undefined;
     if (message.t === 'pins') return message.scene === scene.sceneId ? annotations.showPins(message.pins) : undefined;
+    if (message.t === 'live' && message.scene === scene.sceneId) marks.drags(message.tokens, (id) => tokens.cellsOf(id));
     scene.receive(message);
   }, (sceneId, of) => send({ t: 'resync', scene: sceneId, of }));
 
