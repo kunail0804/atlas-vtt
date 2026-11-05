@@ -31,7 +31,7 @@ function withDefaultRoll(modifier: string, defaultRoll: string): string {
  * (`FORMULA_LIMITS.completed`): a bonus whose labels (`+4[Agility]`) fill the
  * written length still rolls once the set's dice are added.
  */
-export function completeFormula(formula: string, rules: DiceRules | RollingDice): CompleteFormula | FormulaError {
+export function completeFormula(formula: string, rules: DiceRules | Pick<RollingDice, 'dice'>): CompleteFormula | FormulaError {
   // Stored dice rules roll their default roll as written: one a hand edit broke is refused, not replaced.
   const defaultRoll = 'dice' in rules ? setRoll(rules.dice) : rules.defaultRoll;
   const input = parseFormula(formula === '' ? defaultRoll : formula);

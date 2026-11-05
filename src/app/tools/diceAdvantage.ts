@@ -32,7 +32,7 @@ const isSetTerm = (term: FormulaTerm): term is DiceTerm =>
  * all of the set's dice (as criticals find them); null where they do not.
  * Terms that keep, drop or count dice of their own (`2d20kh1`) are none of them.
  */
-export function setDiceTerm(terms: readonly FormulaTerm[], rules: RollingDice): number | null {
+export function setDiceTerm(terms: readonly FormulaTerm[], rules: Pick<RollingDice, 'dice'>): number | null {
   const left = new Map<number, number>();
   for (const term of terms) if (isSetTerm(term)) left.set(term.faces, (left.get(term.faces) ?? 0) + term.count);
   for (const group of rules.dice) {
@@ -47,8 +47,16 @@ export function setDiceTerm(terms: readonly FormulaTerm[], rules: RollingDice): 
 
 /** The sides that change a roll of `formula` by `rules`: those the set has a rule for, where the roll holds the set's dice. */
 export function advantageSidesFor(formula: string, rules: RollingDice): AdvantageSide[] {
+  return rollsSetDice(formula, rules) ? ruledSides(rules) : [];
+}
+
+/**
+ * Whether a roll of `formula` holds every die of the set (`dice`), which advantage changes: a bare
+ * bonus rolls the set's dice, a roll of other dice alone holds none of them.
+ */
+export function rollsSetDice(formula: string, rules: Pick<RollingDice, 'dice'>): boolean {
   const complete = completeFormula(formula, rules);
-  return complete.ok && setDiceTerm(complete.parsed.terms, rules) !== null ? ruledSides(rules) : [];
+  return complete.ok && setDiceTerm(complete.parsed.terms, rules) !== null;
 }
 
 /** What advantage made of a roll: the terms to roll and the dice's looks, and the rules their explosions follow. */

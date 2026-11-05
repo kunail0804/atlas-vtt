@@ -4,7 +4,8 @@ import {
   BookOpen, Circle, CircleX, Dices, DoorClosed, DoorOpen, Eraser, Flame, Flashlight, Footprints, Gem, Hand, KeyRound, Lock, MessageSquare, Package, Pencil, Ruler,
   Skull, Stamp, Swords, Trash2, Triangle, TriangleAlert, Type,
 } from 'lucide-react';
-import type { AdvantageSide } from '../../../src/app/online/protocol/dice.ts';
+import type { AdvantageSide, SharedRollDice } from '../../../src/app/online/protocol/dice.ts';
+import { rollsSetDice } from '../../../src/app/tools/diceAdvantage.ts';
 import { t } from '../../../src/app/i18n/index.ts';
 import { DropdownMenuItem } from '../../../src/app/packages/components/primitives/DropdownMenuItem.tsx';
 import { DropdownModeSelector } from '../../../src/app/packages/components/primitives/DropdownModeSelector.tsx';
@@ -35,6 +36,8 @@ export interface ToolbarHost {
 /** What the page tells the toolbar. */
 export interface ToolbarState {
   readonly advantage: readonly AdvantageSide[];
+  /** The map's dice, which advantage changes; null while the GM names none (an older GM): advantage then goes with any roll. */
+  readonly dice: SharedRollDice['dice'] | null;
   readonly book: boolean;
 }
 
@@ -239,7 +242,7 @@ function PlayerToolbar({ host, state }: { host: ToolbarHost; state: () => Toolba
                     setMenu(null);
                     return true;
                   }}
-                  advantage={shown.advantage.length > 0 ? { sides: shown.advantage, applies: () => true } : undefined}
+                  advantage={shown.advantage.length > 0 ? { sides: shown.advantage, applies: (formula) => shown.dice === null || rollsSetDice(formula, { dice: shown.dice }) } : undefined}
                 />
               </div>
             </div>
@@ -266,7 +269,7 @@ function subscribeState(listener: () => void): () => void {
 
 /** The player's toolbar at the bottom of the page: the GM's toolbar's groups, the dice tray, and the log and book on either side. */
 export function mountToolbar(host: HTMLElement, toolbar: ToolbarHost): { update(change: Partial<ToolbarState>): void } {
-  let state: ToolbarState = { advantage: [], book: false };
+  let state: ToolbarState = { advantage: [], dice: null, book: false };
   const root = document.createElement('div');
   // The plugin's styles reach what lies inside its root class; a press here leaves the log open.
   root.className = 'atlas-vtt-plugin player-toolbar-root';
