@@ -1,7 +1,7 @@
 import { parsePlayerBookMessage, type BookMessage, type PlayerBook, type PlayerBookMessage } from '../../../src/app/online/protocol/book.ts';
 import { fitsPlayerFrame } from '../../../src/app/online/protocol/bookText.ts';
 import type { PlayerMessage } from '../../../src/app/online/protocol/game.ts';
-import { applyBookMessage } from '../../../src/app/online/gm/book/bookStore.ts';
+import { applyBookMessage, shelfMessageOf } from '../../../src/app/online/gm/book/bookStore.ts';
 import type { AssetLoader } from './assets.ts';
 import type { BookUi, PageContext, Tab } from './bookContext.ts';
 import { button, closeButton, node } from './bookDom.ts';
@@ -149,7 +149,9 @@ export class BookPanel {
       if (character !== null) this.book = { ...book, character: { ...character, resources: character.resources.map((resource) => (resource.key === parsed.key ? { ...resource, current: parsed.current } : resource)) } };
     } else {
       const { items, notes, pins, purse, slots, equipped } = book;
-      const written = applyBookMessage({ items, notes, pins, purse, slots, equipped }, parsed, Date.now(), new Set(book.quests.map((quest) => quest.id)));
+      // The statblock's own messages (fields, abilities, lists, refills) are the GM's to answer; this page sends none.
+      const shelf = shelfMessageOf(parsed);
+      const written = shelf === null ? null : applyBookMessage({ items, notes, pins, purse, slots, equipped }, shelf, Date.now(), new Set(book.quests.map((quest) => quest.id)));
       if (written === null) {
         this.tell(TEXT.book.full);
         return false;

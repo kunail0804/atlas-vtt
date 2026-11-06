@@ -1,42 +1,34 @@
 import React, { useEffect, useState, type ReactElement } from 'react';
 import type { App, TFile } from 'obsidian';
-import { MAX_COIN_NAME, MAX_ITEM_TEXT, MAX_PURSE_ROWS, MAX_TOKEN_VALUE, parsePlayerBookMessage, type BookItem, type BookItemDraft, type PlayerBookMessage, type PurseRow } from '../../online/protocol/index.ts';
+import { MAX_COIN_NAME, MAX_ITEM_TEXT, MAX_PURSE_ROWS, MAX_TOKEN_VALUE, parsePlayerBookMessage, type BookItem, type BookItemDraft, type PurseRow } from '../../online/protocol/index.ts';
 import { MAX_BOOK_TITLE } from '../../online/protocol/bookText.ts';
 import { activeShelf, onActiveShelf } from '../../online/gm/book/activeShelf.ts';
-import { applyBookMessage, type StoredBook } from '../../online/gm/book/bookStore.ts';
+import { applyBookMessage, shelfMessageOf, type ShelfMessage, type StoredBook } from '../../online/gm/book/bookStore.ts';
 import type { BookShelf } from '../../online/gm/book/BookShelf.ts';
 import { AssetService } from '../../services/AssetService';
 import { showNotice } from '../../ui/notice';
-import { TokenStatblockLinkService } from '../../services/TokenStatblockLinkService';
 import { SHEET_TEXT } from './sheetText.ts';
 
-/** One book of the character: the collection it was kept in, the token artwork that names it, and the collection's name. */
+/** One book of the character: the library token it is kept by (`BookShelf`'s character id), and how the GM tells it from the others. */
 export interface BookPlace {
-  readonly collection: string;
   readonly key: string;
   readonly label: string;
 }
 
 /**
- * The books of the character a sheet note is: those kept of each token linked to the note (and of its
- * `image`), in every collection that keeps one, else a new one in the collection of its first token.
- * A book is kept by the collection of the scene it was played in and the token's artwork (`Characters`):
- * the guess is right where the character's token and its scenes share a collection, as Atlas's usually do.
+ * The books of the character a sheet note is: one per library token linked to the note (or showing
+ * its `image`), kept by that token's id as online play keeps a character's book, in the order the
+ * asset index lists them. None while the index is not read or no token is linked.
  */
-export async function bookPlaces(app: App, file: TFile, shelf: BookShelf): Promise<BookPlace[]> {
-  const links = TokenStatblockLinkService.getInstance(app);
+export async function bookPlaces(app: App, file: TFile): Promise<BookPlace[]> {
   const image: unknown = app.metadataCache.getFileCache(file)?.frontmatter?.image;
-  const keys = [...new Set([...(await links.getTokensLinkedToStatblock(file.path)), ...(typeof image === 'string' && image.trim() !== '' ? [image] : [])])];
+  const art = typeof image === 'string' && image.trim() !== '' ? image : null;
   const assets = AssetService.getInstance(app);
+  const tokens = assets.loadedTokenAssets().filter((token) => token.statblockPath === file.path || (art !== null && token.imagePath === art));
   const name = async (collection: string): Promise<string> => (await assets.getCollection(collection).catch(() => null))?.name ?? (collection || SHEET_TEXT.book.noCollection);
   const places: BookPlace[] = [];
-  for (const key of keys) {
-    for (const collection of shelf.collectionsOf(key)) places.push({ collection, key, label: `${await name(collection)} · ${key.split('/').at(-1) ?? key}` });
-  }
-  if (places.length > 0 || keys.length === 0) return places;
-  const first = keys[0]!;
-  const collection = (await links.findAssetByAnyPath(first))?.collection ?? '';
-  return [{ collection, key: first, label: `${await name(collection)} · ${first.split('/').at(-1) ?? first}` }];
+  for (const token of tokens) places.push({ key: token.id, label: `${await name(token.collection)} · ${token.name}` });
+  return places;
 }
 
 /** 96 random bits in hex, as the book's ids are. */
@@ -124,7 +116,7 @@ export function SheetBook({ app, file }: { app: App; file: TFile }): ReactElemen
   useEffect(() => {
     if (shelf === null) return;
     let live = true;
-    const find = (): void => void bookPlaces(app, file, shelf).then((found) => {
+    const find = (): void => void bookPlaces(app, file).then((found) => {
       if (live) setPlaces(found);
     });
     find();
@@ -138,24 +130,24 @@ export function SheetBook({ app, file }: { app: App; file: TFile }): ReactElemen
   const place = places?.[Math.min(chosen, places.length - 1)] ?? null;
   useEffect(() => {
     if (shelf === null || place === null) return;
-    setBook(shelf.of(place.collection, place.key));
-    return shelf.subscribe((collection, key) => {
-      if (collection === place.collection && key === place.key) setBook(shelf.of(collection, key));
+    setBook(shelf.of(place.key));
+    return shelf.subscribe((characterId) => {
+      if (characterId === place.key) setBook(shelf.of(characterId));
     });
-  }, [shelf, place?.collection, place?.key]);
+  }, [shelf, place?.key]);
 
   if (shelf === null) return <p className="atlas-sheet-hint">{SHEET_TEXT.book.needsOnline}</p>;
   if (places === null) return <p className="atlas-sheet-hint">{SHEET_TEXT.loading}</p>;
   if (place === null || book === null) return <p className="atlas-sheet-hint">{SHEET_TEXT.book.noToken}</p>;
   // The GM's writes take the player's road: the protocol's parser first, so a book never holds what it could not read back.
-  const write = (message: Exclude<PlayerBookMessage, { t: 'book-resource' }>): boolean => {
-    const parsed = parsePlayerBookMessage(JSON.parse(JSON.stringify(message)) as Record<string, unknown>);
-    const written = parsed === null || parsed.t === 'book-resource' ? null : applyBookMessage(shelf.of(place.collection, place.key), parsed, Date.now(), new Set());
+  const write = (message: ShelfMessage): boolean => {
+    const parsed = shelfMessageOf(parsePlayerBookMessage(JSON.parse(JSON.stringify(message)) as Record<string, unknown>));
+    const written = parsed === null ? null : applyBookMessage(shelf.of(place.key), parsed, Date.now(), new Set());
     if (written === null) {
       showNotice(parsed === null ? SHEET_TEXT.book.invalid : SHEET_TEXT.book.full);
       return false;
     }
-    shelf.keep(place.collection, place.key, written, 'gm');
+    shelf.keep(place.key, written, 'gm');
     return true;
   };
   const equipped = new Set(book.equipped.map((entry) => entry.item));
@@ -164,7 +156,7 @@ export function SheetBook({ app, file }: { app: App; file: TFile }): ReactElemen
       <p className="atlas-sheet-hint">{SHEET_TEXT.book.hint}</p>
       {places.length > 1 && (
         <select className="atlas-sheet-input" aria-label={SHEET_TEXT.book.which} value={Math.min(chosen, places.length - 1)} onChange={(event) => setChosen(Number(event.target.value))}>
-          {places.map((entry, index) => <option key={`${entry.collection}\n${entry.key}`} value={index}>{entry.label}</option>)}
+          {places.map((entry, index) => <option key={entry.key} value={index}>{entry.label}</option>)}
         </select>
       )}
       {editing === 'new'

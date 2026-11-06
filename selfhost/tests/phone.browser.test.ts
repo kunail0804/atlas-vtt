@@ -2,10 +2,9 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { chromium, type Browser, type Page } from 'playwright';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { assetChunks, sha256Hex } from '../../src/app/online/gm/assetServe.ts';
 import { DEFAULT_BOOK_SLOTS } from '../../src/app/online/protocol/bookSlots.ts';
 import type { GmMessage } from '../../src/app/online/protocol/game.ts';
-import { TestGm, createTable, startTestRelay, stopTestRelay, until, type TestRelay } from './helpers.ts';
+import { TestGm, createTable, startTestRelay, stopTestRelay, storeAsset, until, type TestRelay } from './helpers.ts';
 import { png } from './png.ts';
 
 // The page on a phone: every control on screen and clear of the others, and a finger moves the own token.
@@ -45,11 +44,10 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player page on
     const player = gm.joined[0]?.id ?? '';
 
     const mapBytes = png(1000, 600, () => [40, 160, 60]);
-    const mapHash = await sha256Hex(mapBytes as Uint8Array<ArrayBuffer>);
-    send({ t: 'scene', scene: { id: 's1', map: { hash: mapHash, size: mapBytes.length, mime: 'image/png' }, lit: false } }, player);
+    const mapRef = await storeAsset(test, mapBytes, 'image/png');
+    send({ t: 'scene', scene: { id: 's1', map: mapRef, lit: false } }, player);
     send({ t: 'tokens', scene: 's1', seq: 1, cell: 70, snap: null, tokens: [{ id: TOKEN, x: 500, y: 300, size: 70, cells: 1, rotation: 0, art: null, name: 'Mira', ring: { colour: '#3366ff', size: 80 }, claim: 'taken', badge: null, ui: null }] }, player);
     send({ t: 'mine', scene: 's1', tokens: [TOKEN] }, player);
-    for (const chunk of assetChunks(mapHash, mapBytes)) send(chunk, player);
     const combatant = (name: string, initiative: number, turn: boolean): Record<string, unknown> => ({ initiative, name, turn, sitsOut: false, art: null, ring: null, side: 'players', hp: null });
     send({ t: 'initiative', scene: 's1', list: { isActive: true, round: 1, bySides: false, firstSide: 'players', activeSide: null, combatants: [combatant('Mira', 18, true), combatant('Bran', 7, false), combatant('Gobelin', 5, false)] } } as GmMessage, player);
     send({ t: 'widgets', scene: 's1', bar: { scale: 1, widgets: [

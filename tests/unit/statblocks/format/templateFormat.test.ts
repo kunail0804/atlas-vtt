@@ -61,7 +61,7 @@ it('serializeTemplate', () => {
     ]);
     const stat = (json.layout as { blocks: Record<string, unknown>[] }).blocks[2];
     expect(Object.keys(stat ?? {})).toEqual([
-      'id', 'type', 'field', 'label', 'look', 'pattern', 'display', 'rollFrom', 'showWhen', 'whenEmpty', 'fallback',
+      'id', 'type', 'field', 'label', 'look', 'pattern', 'display', 'rollFrom', 'rollable', 'showWhen', 'whenEmpty', 'fallback',
       'className', 'tooltip', 'emphasis',
     ]);
   }

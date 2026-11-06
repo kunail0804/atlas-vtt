@@ -100,6 +100,11 @@ export class TokenLayer {
     });
   }
 
+  /** A listed token's size as Atlas stores it (1 is one cell), by which its drag is measured. */
+  cellsOf(id: string): number | undefined {
+    return this.drawn.get(id)?.token.cells;
+  }
+
   /** Tokens someone is dragging now: drawn where the GM has them, until the list takes over again. */
   live(places: readonly LivePlace[]): void {
     for (const place of places) {

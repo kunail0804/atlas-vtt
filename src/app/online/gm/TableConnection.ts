@@ -1,5 +1,5 @@
 import {
-  ALL_PLAYERS, FINAL_CLOSE_CODES, KEEPALIVE_PONG, PROTOCOL_VERSION, parseRelayFrame, type ConnectionStats, type GmMessage, type PlayerInfo, type SendLane,
+  ALL_PLAYERS, FINAL_CLOSE_CODES, GM_LEVEL, KEEPALIVE_PONG, PROTOCOL_VERSION, parseRelayFrame, type CampaignSeat, type ConnectionStats, type GmMessage, type PlayerInfo, type SendLane, type YourCodeMessage,
 } from '../protocol/index.ts';
 import { randomHex } from '../../utils/randomHex';
 import { messageParts } from './assetServe.ts';
@@ -47,6 +47,9 @@ function cryptoFraction(): number {
   return (crypto.getRandomValues(new Uint32Array(1))[0] ?? 0) / 2 ** 32;
 }
 
+/** A `send` frame of a message as a batch carries it (`{"to":…,"body":…}`), so it is written out once. */
+const sendFrame = (entry: string): string => `{"v":${PROTOCOL_VERSION},"t":"send",${entry.slice(1)}`;
+
 /** A random id for the parts of one large message. */
 const partId = (): string => randomHex(12);
 
@@ -80,10 +83,16 @@ export class TableConnection {
   private readonly limit: Deadline;
   private readonly pulse: Pulse;
   private lastClose: number | null = null;
+  /** The least GM level the relay's player page needs, as its last welcome said; null before one or from a relay that names none. */
+  private needed: number | null = null;
   private status: TableStatus = 'connecting';
   private reconnects = 0;
   /** The players connected now, as the relay last told. */
   private readonly players = new Set<string>();
+  /** Whether the relay said in its last welcome that it takes `sends` frames. */
+  private batching = false;
+  /** The campaign's players the relay is told on every welcome, as JSON; null while the table names none. */
+  private roster: string | null = null;
 
   constructor(origin: string, code: string, secret: string, events: TableEvents, gate: GateEvents | null = null, timers: Timers = companionTimers()) {
     this.url = socketUrl(origin, code);
@@ -113,7 +122,7 @@ export class TableConnection {
     this.limit.set(OPEN_TIMEOUT_MS, () => this.giveUp());
     socket.addEventListener('open', () => {
       if (socket !== this.socket) return;
-      socket.send(JSON.stringify({ v: PROTOCOL_VERSION, t: 'hello', role: 'gm', secret: this.secret }));
+      socket.send(JSON.stringify({ v: PROTOCOL_VERSION, t: 'hello', role: 'gm', secret: this.secret, level: GM_LEVEL }));
       this.limit.set(WELCOME_TIMEOUT_MS, () => this.giveUp());
     });
     socket.addEventListener('message', (event) => {
@@ -129,22 +138,44 @@ export class TableConnection {
     return { status: this.status, reconnects: this.reconnects, lastClose: this.lastClose, latencyMs: this.pulse.latencyMs(), players: this.players.size };
   }
 
+  /** The least GM level the relay's player page needs, as its last welcome said; null while it said none. */
+  get minLevel(): number | null {
+    return this.needed;
+  }
+
   /** The code the relay last closed the socket with, or null before it closed one. */
   get closeCode(): number | null {
     return this.lastClose;
   }
 
+  /** Hears every game message that goes out (not the live lane's), as JSON, with whom it goes to: what was handed to whom. */
+  onSent: ((text: string, to: string) => void) | null = null;
+
   /**
-   * Sends a game message to one player, or to all. The relay holds back asset chunks (`bulk`) and
-   * the parts of a large message (`paced`) while a player's link is busy, so a live message is never
-   * stuck behind a whole image or a scene's walls.
+   * Sends a game message to one player, or to all. The relay holds back the parts of a large message
+   * (`paced`) while a player's link is busy, so a live message is never stuck behind a scene's walls.
    */
   send(body: GmMessage, to: string = ALL_PLAYERS): void {
     if (this.isGone(to)) return;
-    for (const part of messageParts(body, partId)) {
-      const lane: SendLane | null = part.t === 'asset-chunk' ? 'bulk' : part.t === 'part' ? 'paced' : null;
-      this.queue.push(JSON.stringify({ v: PROTOCOL_VERSION, t: 'send', to, body: part, ...(lane === null ? {} : { lane }) }), to);
+    const parts = messageParts(body, partId);
+    for (const part of parts) {
+      const lane: SendLane | null = part.t === 'part' ? 'paced' : null;
+      const entry = JSON.stringify({ to, body: part, ...(lane === null ? {} : { lane }) });
+      this.queue.push(sendFrame(entry), to, entry);
+      if (parts.length === 1) this.onSent?.(entry, to);
     }
+    // A message in parts carries its JSON in base64: it is heard as it was written.
+    if (parts.length > 1) this.onSent?.(JSON.stringify(body), to);
+  }
+
+  /** Whether the relay takes `sends` frames, as its last welcome said. */
+  get batches(): boolean {
+    return this.batching;
+  }
+
+  /** The players connected now. */
+  get connected(): ReadonlySet<string> {
+    return this.players;
   }
 
   /**
@@ -153,7 +184,8 @@ export class TableConnection {
    */
   sendLive(body: GmMessage, key: string, to: string = ALL_PLAYERS): void {
     if (this.isGone(to)) return;
-    this.queue.pushLive(`${to}\n${key}`, JSON.stringify({ v: PROTOCOL_VERSION, t: 'send', to, body, lane: 'live' }), to);
+    const entry = JSON.stringify({ to, body, lane: 'live' });
+    this.queue.pushLive(`${to}\n${key}`, sendFrame(entry), to, entry);
   }
 
   /** Whether a message to `to` would reach nobody: no player is connected, or not that one. */
@@ -169,6 +201,24 @@ export class TableConnection {
   /** Tells the relay the gates as they are now; while offline the next welcome does. */
   sendGate(frame: GateFrame): void {
     if (this.status === 'online') this.queue.push(JSON.stringify({ v: PROTOCOL_VERSION, t: 'gate', ...frame }));
+  }
+
+  /**
+   * Tells the relay the campaign's players and their own codes, now while online (unless they are
+   * what it was last told) and on every welcome.
+   */
+  setPlayers(players: readonly CampaignSeat[]): void {
+    const roster = JSON.stringify(players);
+    if (roster === this.roster) return;
+    this.roster = roster;
+    if (this.status === 'online') this.queue.push(this.playersFrame(roster));
+  }
+
+  /** Tells one player their own code. Small, so never in parts. */
+  sendCode(message: YourCodeMessage, to: string): void {
+    if (this.isGone(to)) return;
+    const entry = JSON.stringify({ to, body: message });
+    this.queue.push(sendFrame(entry), to, entry);
   }
 
   /** Lets a waiting newcomer in, or turns them away. */
@@ -224,10 +274,13 @@ export class TableConnection {
     if (frame.t === 'welcome' && frame.role === 'gm') {
       this.limit.clear();
       this.attempts = 0;
+      this.needed = frame.minLevel ?? null;
       for (const player of frame.players) this.players.add(player.id);
-      // The gates first, ahead of whatever waits in the queue: the relay keeps them, and a restarted companion's are the same.
+      // The gates and the players first, ahead of whatever waits in the queue: the relay keeps them, and a restarted companion's are the same.
       if (this.gate !== null) socket.send(JSON.stringify({ v: PROTOCOL_VERSION, t: 'gate', ...this.gate.frame() }));
-      this.queue.attach(this.pulse.start(socket));
+      if (this.roster !== null) socket.send(this.playersFrame(this.roster));
+      this.batching = frame.batch === true;
+      this.queue.attach(this.pulse.start(socket), this.batching);
       this.setStatus('online');
       // A table that still closes for want of access says so again after its welcome.
       this.events.access(null);
@@ -245,6 +298,10 @@ export class TableConnection {
       this.dropUnreachable();
       this.events.left(frame.id);
     } else if (frame.t === 'game' && frame.from !== undefined) this.events.message(frame.from, frame.body);
+  }
+
+  private playersFrame(roster: string): string {
+    return `{"v":${PROTOCOL_VERSION},"t":"players","players":${roster}}`;
   }
 
   private setStatus(status: TableStatus): void {

@@ -1,6 +1,7 @@
 import { t } from '../../../i18n';
 import type React from "react"
-import { Circle, Cloud, Eraser, Flashlight, Hand, Lightbulb, Pencil, Ruler, Stamp, Triangle, Type } from "lucide-react"
+import { Circle, Cloud, Eraser, Flashlight, Hand, Lightbulb, MapPin, Pencil, Ruler, Stamp, Triangle, Type } from "lucide-react"
+import { StairsIcon } from "../../../react/components/StairsIcon"
 import type { ViewAtlasState } from "../../../storeFactory"
 
 export type Tool = ViewAtlasState["activeTool"]
@@ -82,4 +83,10 @@ export interface ToolGroupControls {
   menuOpen: boolean
   toggleMenu: () => void
   closeMenu: () => void
+}
+
+/** Note pins, and the stairs that join a scene's levels: both lead somewhere else from a spot on the map. */
+export function pinToolFace(activeTool: Tool): ToolFace {
+  if (activeTool === "stairs") return { icon: StairsIcon, label: t('toolbar.stairs'), tool: activeTool, isActive: true }
+  return { icon: MapPin, label: t('toolbar.notePin'), tool: "note-pin", isActive: activeTool === "note-pin" }
 }

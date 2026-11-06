@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { readCreated } from '../../src/app/online/gm/createdTable.ts';
+import { BATCH_MS } from '../../src/app/online/gm/sendQueue.ts';
 import { CLOSE } from '../../src/app/online/protocol/relay.ts';
 import { PLAYER_ORIGIN, TestGm, TestPlayer, createTable, startTestRelay, stopTestRelay, until, type TestRelay } from './helpers.ts';
 
@@ -129,8 +130,29 @@ describe('the relay with the plugin as GM', () => {
     expect(mira.closeCode).toBe(CLOSE.kicked);
     gm.gateFrame = { code: null, ask: true };
     gm.connection.sendGate(gm.gateFrame);
+    // A GM's queue sends one frame at most every BATCH_MS to a relay that batches: the gate goes after the kick.
+    await new Promise((resolve) => setTimeout(resolve, 4 * BATCH_MS));
     const back = player(code, { name: 'Mira', key });
     await until(() => back.frame('waiting') !== undefined, 'kicked key is a newcomer again');
+  });
+
+  it('seats a player of the campaign by their own code past the gate, on any device, and turns away a newcomer who takes their name', async () => {
+    const { code, gm } = await table({ code: '483912', ask: true });
+    const ana = player(code, { name: 'Ana', code: '483912' });
+    await until(() => gm.knocks.length === 1, 'Ana knocks');
+    gm.connection.answer(gm.knocks[0]?.id ?? '', true);
+    await until(() => ana.frame('welcome') !== undefined, 'Ana seated');
+    const id = String(ana.frame('welcome')?.id);
+    gm.connection.setPlayers([{ id, name: 'Ana', code: '271828' }]);
+    await new Promise((resolve) => setTimeout(resolve, 4 * BATCH_MS));
+    // Another device, without a key: her own code seats her as herself, without the GM's answer.
+    const again = player(code, { name: 'Ana', code: '271828' });
+    await until(() => again.frame('welcome') !== undefined, 'Ana seated by her own code');
+    expect(again.frame('welcome')?.id).toBe(id);
+    expect(gm.knocks).toHaveLength(1);
+    const impostor = player(code, { name: 'ana', code: '483912' });
+    await until(() => impostor.closeCode !== null, 'name taken');
+    expect(impostor.closeCode).toBe(CLOSE.nameTaken);
   });
 
   it('takes a GM hello only on the GM side and a player hello only on the public side', async () => {
@@ -153,6 +175,22 @@ describe('the relay with the plugin as GM', () => {
     await createTable(test.gmOrigin);
     await until(() => gm.status === 'refused', 'old table refused');
     expect(gm.connection.closeCode).toBe(CLOSE.superseded);
+  });
+
+  it("opens the table on the campaign's lasting link, again after a restart of the table", async () => {
+    const { code, gm } = await table();
+    const again = await createTable(test.gmOrigin, code);
+    expect(again.code).toBe(code);
+    await until(() => gm.status === 'refused', 'old table refused');
+    // The table before, ending on the same code, leaves the new one in place.
+    const next = new TestGm(test.gmOrigin, again.code, again.secret);
+    gms.push(next);
+    await until(() => next.status === 'online', 'GM online on the same link');
+  });
+
+  it('refuses a table on a link that is no table code', async () => {
+    test = await startTestRelay();
+    await expect(createTable(test.gmOrigin, 'not-a-code')).rejects.toThrow(/400/);
   });
 
   it('answers a frame larger than a player may send with tooLarge', async () => {

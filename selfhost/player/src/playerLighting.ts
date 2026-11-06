@@ -44,7 +44,8 @@ export class PlayerLighting {
     this.curtain.eventMode = 'none';
     stage.viewport.addChild(this.curtain);
     this.store = createStore<LightingState>(() => ({
-      objects: { tokens: {}, walls: {}, lights: {}, lightZones: {} },
+      // The players' picture holds no fog of its own: the page draws the GM's fog above it.
+      objects: { tokens: {}, walls: {}, lights: {}, lightZones: {}, fog: {} },
       lighting: { enabled: true, ambient: 0 },
       grid: null,
       heldTokens: {},
@@ -95,7 +96,7 @@ export class PlayerLighting {
     const built = litScene(this.scene, this.sight);
     this.rules = built.rules;
     this.unitDistance = built.unitDistance;
-    this.store.setState({ ...built.state, isMapLoading: false });
+    this.store.setState({ ...built.state, objects: { ...built.state.objects, fog: {} }, isMapLoading: false });
     if (this.renderer === null) {
       this.renderer = new LightingRenderer({
         viewport: this.stage.viewport, app: this.stage.app, store: this.store,

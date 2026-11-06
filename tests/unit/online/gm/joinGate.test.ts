@@ -1,7 +1,6 @@
-// @vitest-environment node
 import { JOIN_CODE_PATTERN, shownJoinCode } from '../../../../src/app/online/protocol/index.ts';
 import { describe, expect, it } from 'vitest';
-import { ARM_MS, FULL_NOTE_MS, gateFrame, newGate, newJoinCode, readGate, TableGate, type GateFrame, type GateSettings } from '../../../../src/app/online/gm/joinGate.ts';
+import { ARM_MS, freeGate, FULL_NOTE_MS, gateFrame, newGate, newJoinCode, readGate, TableGate, type GateFrame, type GateSettings } from '../../../../src/app/online/gm/joinGate.ts';
 import { readSavedTable } from '../../../../src/app/online/gm/savedTable.ts';
 
 const MIRA = { id: 'm'.repeat(20), name: 'Mira' };
@@ -9,7 +8,7 @@ const NOOR = { id: 'n'.repeat(20), name: 'Noor' };
 const SETTINGS: GateSettings = { code: '483912', requireCode: true, askToJoin: true };
 
 /** The gates of a table with a clock and timers the test moves. */
-function gate(settings: GateSettings = SETTINGS): {
+function gate(settings: GateSettings = SETTINGS, taken: ReadonlySet<string> = new Set()): {
   gate: TableGate; sent: GateFrame[]; answers: [string, boolean][]; saved: GateSettings[]; changes: { count: number }; told: { count: number }; advance(ms: number): void; clock: { now: number }; timers(): number;
 } {
   const sent: GateFrame[] = [];
@@ -37,6 +36,7 @@ function gate(settings: GateSettings = SETTINGS): {
     },
     // Each new code is another: 100000, 100001, …
     random: () => 100_000 + draws++,
+    taken: () => taken,
   });
   /** Moves the clock on, running every timer when it is due, those set meanwhile too. */
   const advance = (ms: number): void => {
@@ -53,64 +53,68 @@ function gate(settings: GateSettings = SETTINGS): {
   return { gate: made, sent, answers, saved, changes, told, advance, clock, timers: () => timers.size };
 }
 
-it('a join code', () => {
-  // is six digits from the random source, leading zeros kept
-  {
+describe('a join code', () => {
+  it('is six digits from the random source, leading zeros kept', () => {
     expect(newJoinCode(() => 483_912)).toBe('483912');
     expect(newJoinCode(() => 42)).toBe('000042');
     expect(newJoinCode(() => 3_000_000_007)).toBe('000007');
     for (let index = 0; index < 200; index += 1) expect(newJoinCode()).toMatch(JOIN_CODE_PATTERN);
-  }
+  });
 
-  // is as likely as any other: a number past the last whole million is drawn again
-  {
+  it('is as likely as any other: a number past the last whole million is drawn again', () => {
     const draws = [4_294_967_295, 4_294_000_000, 4_293_999_999];
     expect(newJoinCode(() => draws.shift() ?? 0)).toBe('999999');
     expect(draws).toEqual([]);
-  }
+  });
 
-  // is shown in two groups
-  {
+  it('is never one of the codes it is told are taken', () => {
+    const seq = (...draws: number[]): (() => number) => () => draws.shift() ?? 0;
+    expect(newJoinCode(seq(5, 7), new Set(['000005']))).toBe('000007');
+    expect(newGate(seq(5, 7), new Set(['000005'])).code).toBe('000007');
+  });
+
+  it('of a table that comes back is made anew only where a player\'s own code is now the same', () => {
+    const seq = (...draws: number[]): (() => number) => () => draws.shift() ?? 0;
+    expect(freeGate(SETTINGS, new Set(['111111']))).toBe(SETTINGS);
+    expect(freeGate(SETTINGS, new Set(['483912', '000005']), seq(483_912, 5, 7))).toEqual({ ...SETTINGS, code: '000007' });
+  });
+
+  it('is shown in two groups', () => {
     expect(shownJoinCode('483912')).toBe('483 912');
-  }
+  });
 });
 
-it('a table\'s gates as kept', () => {
-  // start with a fresh code and both switches on
-  {
+describe('a table\'s gates as kept', () => {
+  it('start with a fresh code and both switches on', () => {
     expect(newGate(() => 7)).toEqual({ code: '000007', requireCode: true, askToJoin: true });
-  }
+  });
 
-  // are read back field by field, and a table saved before it had gates gets new ones, both on
-  {
+  it('are read back field by field, and a table saved before it had gates gets new ones, both on', () => {
     expect(readGate({ code: '483912', requireCode: false, askToJoin: false })).toEqual({ code: '483912', requireCode: false, askToJoin: false });
     for (const none of [undefined, null, 'gate', 7]) expect(readGate(none, () => 7)).toEqual({ code: '000007', requireCode: true, askToJoin: true });
     expect(readGate({ code: '48391', requireCode: 'no', askToJoin: 0 }, () => 7)).toEqual({ code: '000007', requireCode: true, askToJoin: true });
-    const saved = readSavedTable({ code: 'a'.repeat(26), secret: 's'.repeat(43), mapPath: null, maxPlayers: 4, playerOrigin: 'https://name2-vtt.kunlab.cc' });
+    const saved = readSavedTable({ code: 'a'.repeat(26), secret: 's'.repeat(43), campaignId: 'c1', mapPath: null, maxPlayers: 4, playerOrigin: 'https://name2-vtt.kunlab.cc' });
     expect(saved?.gate).toMatchObject({ requireCode: true, askToJoin: true });
     expect(saved?.gate.code).toMatch(JOIN_CODE_PATTERN);
-    expect(readSavedTable({ code: 'a'.repeat(26), secret: 's'.repeat(43), playerOrigin: 'https://name2-vtt.kunlab.cc', gate: { code: '111111', requireCode: true, askToJoin: false } })?.gate).toEqual({ code: '111111', requireCode: true, askToJoin: false });
-  }
+    expect(readSavedTable({ code: 'a'.repeat(26), secret: 's'.repeat(43), campaignId: 'c1', playerOrigin: 'https://name2-vtt.kunlab.cc', gate: { code: '111111', requireCode: true, askToJoin: false } })?.gate).toEqual({ code: '111111', requireCode: true, askToJoin: false });
+  });
 
-  // tell the relay the code only while it is asked for
-  {
+  it('tell the relay the code only while it is asked for', () => {
     expect(gateFrame(SETTINGS)).toEqual({ code: '483912', ask: true });
     expect(gateFrame({ ...SETTINGS, requireCode: false })).toEqual({ code: null, ask: true });
     expect(gateFrame({ ...SETTINGS, askToJoin: false })).toEqual({ code: '483912', ask: false });
-  }
+  });
 });
 
-it('the gates of a running table', () => {
-  // show the code and both switches, and no code while none is asked for
-  {
+describe('the gates of a running table', () => {
+  it('show the code and both switches, and no code while none is asked for', () => {
     const table = gate();
     expect(table.gate.view()).toEqual({ code: '483912', requireCode: true, askToJoin: true, waiting: [], paused: false, pauseArmed: false });
     table.gate.setRequireCode(false);
     expect(table.gate.view()).toMatchObject({ code: null, requireCode: false });
-  }
+  });
 
-  // send every choice to the relay at once and keep it with the table
-  {
+  it('send every choice to the relay at once and keep it with the table', () => {
     const table = gate();
     table.gate.setAskToJoin(false);
     table.gate.setRequireCode(false);
@@ -120,19 +124,23 @@ it('the gates of a running table', () => {
     expect(table.saved.at(-1)).toEqual({ code: '100000', requireCode: true, askToJoin: false });
     expect(table.saved).toHaveLength(4);
     expect(table.gate.frame()).toEqual({ code: '100000', ask: false });
-  }
+  });
 
-  // keep the code while it is switched off, so switching it on again shows the one the players have
-  {
+  it('never make a new code that is a player\'s own code', () => {
+    const table = gate(SETTINGS, new Set(['100000', '100001']));
+    table.gate.newCode();
+    expect(table.gate.settings.code).toBe('100002');
+  });
+
+  it('keep the code while it is switched off, so switching it on again shows the one the players have', () => {
     const table = gate();
     table.gate.setRequireCode(false);
     expect(table.gate.settings.code).toBe('483912');
     table.gate.setRequireCode(true);
     expect(table.gate.view().code).toBe('483912');
-  }
+  });
 
-  // list who knocks, in the order they came, and take a card away when its knock is gone
-  {
+  it('list who knocks, in the order they came, and take a card away when its knock is gone', () => {
     const table = gate();
     table.gate.knocked(MIRA);
     table.gate.knocked(NOOR);
@@ -143,20 +151,18 @@ it('the gates of a running table', () => {
     expect(table.gate.view().waiting).toEqual([{ ...NOOR, answered: false, full: false, armed: false }]);
     table.gate.gone('x'.repeat(20), false);
     expect(table.gate.view().waiting).toHaveLength(1);
-  }
+  });
 
-  // take the relay's welcome as who waits now
-  {
+  it('take the relay\'s welcome as who waits now', () => {
     const table = gate();
     table.gate.knocked(MIRA);
     table.gate.welcomed([NOOR]);
     expect(table.gate.view().waiting).toEqual([{ ...NOOR, answered: false, full: false, armed: false }]);
     table.gate.welcomed([]);
     expect(table.gate.view().waiting).toEqual([]);
-  }
+  });
 
-  // answer a knock once: the card is marked until the relay takes it away, and a second press sends nothing
-  {
+  it('answer a knock once: the card is marked until the relay takes it away, and a second press sends nothing', () => {
     const table = gate();
     table.gate.knocked(MIRA);
     table.gate.knocked(NOOR);
@@ -171,10 +177,9 @@ it('the gates of a running table', () => {
     table.gate.gone(MIRA.id, false);
     table.gate.gone(NOOR.id, false);
     expect(table.gate.view().waiting).toEqual([]);
-  }
+  });
 
-  // say on the card that the table was full, for a moment, when an admitted player found no seat
-  {
+  it('say on the card that the table was full, for a moment, when an admitted player found no seat', () => {
     const table = gate();
     table.gate.knocked(MIRA);
     table.advance(ARM_MS);
@@ -185,10 +190,9 @@ it('the gates of a running table', () => {
     expect(table.gate.view().waiting).toHaveLength(1);
     table.advance(1);
     expect(table.gate.view().waiting).toEqual([]);
-  }
+  });
 
-  // show a pause until the relay's time, by the time left on the relay's clock, and never longer than a pause lasts
-  {
+  it('show a pause until the relay\'s time, by the time left on the relay\'s clock, and never longer than a pause lasts', () => {
     const table = gate();
     table.gate.paused(table.clock.now + 60_000);
     expect(table.gate.view().paused).toBe(true);
@@ -201,10 +205,9 @@ it('the gates of a running table', () => {
     expect(table.gate.view().paused).toBe(false);
     table.gate.paused(table.clock.now - 1);
     expect(table.gate.view().paused).toBe(false);
-  }
+  });
 
-  // tell the GM of a pause once, however often the relay says it, and again of the next one
-  {
+  it('tell the GM of a pause once, however often the relay says it, and again of the next one', () => {
     const table = gate();
     table.gate.paused(table.clock.now + 60_000);
     // The relay says it again on every welcome.
@@ -219,10 +222,9 @@ it('the gates of a running table', () => {
     table.gate.newCode();
     table.gate.paused(table.clock.now + 60_000);
     expect(table.told.count).toBe(3);
-  }
+  });
 
-  // arm the line of a pause once it has stood, through the relay saying it again, and anew for the next pause
-  {
+  it('arm the line of a pause once it has stood, through the relay saying it again, and anew for the next pause', () => {
     const table = gate();
     table.gate.paused(table.clock.now + 60_000);
     expect(table.gate.view()).toMatchObject({ paused: true, pauseArmed: false });
@@ -245,10 +247,9 @@ it('the gates of a running table', () => {
     table.gate.paused(table.clock.now - 1);
     table.gate.dispose();
     expect(table.timers()).toBe(0);
-  }
+  });
 
-  // never arm a pause's line by the time of the pause before it: a short pause that ran out leaves nothing pending
-  {
+  it('never arm a pause\'s line by the time of the pause before it: a short pause that ran out leaves nothing pending', () => {
     const table = gate();
     // Told with less left than the arming time (the GM's socket came back near its end): it runs out unarmed.
     table.gate.paused(table.clock.now + 300);
@@ -276,10 +277,9 @@ it('the gates of a running table', () => {
     table.advance(100);
     table.gate.dispose();
     expect(table.timers()).toBe(0);
-  }
+  });
 
-  // end a pause with a new code or with the code switched off, and not with the other switch
-  {
+  it('end a pause with a new code or with the code switched off, and not with the other switch', () => {
     const table = gate();
     table.gate.paused(table.clock.now + 60_000);
     table.gate.setAskToJoin(false);
@@ -291,10 +291,9 @@ it('the gates of a running table', () => {
     expect(table.gate.view().paused).toBe(false);
     table.advance(60_000);
     expect(table.gate.view().paused).toBe(false);
-  }
+  });
 
-  // tell the panels of every change, and leave no timer running once the table is over
-  {
+  it('tell the panels of every change, and leave no timer running once the table is over', () => {
     const table = gate();
     table.gate.knocked(MIRA);
     table.gate.paused(table.clock.now + 60_000);
@@ -305,18 +304,17 @@ it('the gates of a running table', () => {
     expect(table.timers()).toBe(0);
     table.advance(60 * 60_000);
     expect(table.changes.count).toBe(before);
-  }
+  });
 });
 
 /**
  * Whoever knocks chooses the moment their card appears. A card therefore takes no answer until it has
  * stood for `ARM_MS`, counted from the knock and kept with it, whatever is drawn in between.
  */
-it('a card that just appeared', () => {
+describe('a card that just appeared', () => {
   const armed = (table: ReturnType<typeof gate>): boolean[] => table.gate.view().waiting.map((player) => player.armed);
 
-  // takes no answer inside the arming time, and takes one after it
-  {
+  it('takes no answer inside the arming time, and takes one after it', () => {
     const table = gate();
     table.gate.knocked(MIRA);
     expect(armed(table)).toEqual([false]);
@@ -331,10 +329,9 @@ it('a card that just appeared', () => {
     expect(armed(table)).toEqual([true]);
     table.gate.admit(MIRA.id);
     expect(table.answers).toEqual([[MIRA.id, true]]);
-  }
+  });
 
-  // keeps its time through every redraw and a knock told again: the time neither starts anew nor is skipped
-  {
+  it('keeps its time through every redraw and a knock told again: the time neither starts anew nor is skipped', () => {
     const table = gate();
     table.gate.knocked(MIRA);
     table.advance(400);
@@ -352,10 +349,9 @@ it('a card that just appeared', () => {
     table.advance(1);
     table.gate.admit(MIRA.id);
     expect(table.answers).toEqual([[MIRA.id, true]]);
-  }
+  });
 
-  // goes after the earlier cards and leaves them their place and their time
-  {
+  it('goes after the earlier cards and leaves them their place and their time', () => {
     const table = gate();
     table.gate.knocked(MIRA);
     table.advance(600);
@@ -369,10 +365,9 @@ it('a card that just appeared', () => {
     expect(armed(table)).toEqual([true, true]);
     table.gate.decline(NOOR.id);
     expect(table.answers).toEqual([[NOOR.id, false]]);
-  }
+  });
 
-  // is told to the panels once when it appears and once when it is armed, however many came together
-  {
+  it('is told to the panels once when it appears and once when it is armed, however many came together', () => {
     const table = gate();
     table.gate.knocked(MIRA);
     table.gate.knocked(NOOR);
@@ -383,10 +378,9 @@ it('a card that just appeared', () => {
     table.advance(60_000);
     expect(table.changes.count).toBe(3);
     expect(table.timers()).toBe(0);
-  }
+  });
 
-  // starts again when a card left: the others close up, and one may lie under the press that answered it
-  {
+  it('starts again when a card left: the others close up, and one may lie under the press that answered it', () => {
     const table = gate();
     table.gate.knocked(MIRA);
     table.gate.knocked(NOOR);
@@ -402,10 +396,9 @@ it('a card that just appeared', () => {
     table.advance(1);
     table.gate.admit(NOOR.id);
     expect(table.answers).toEqual([[MIRA.id, true], [NOOR.id, true]]);
-  }
+  });
 
-  // starts again when the card of a full table goes after its moment, and when a knock times out
-  {
+  it('starts again when the card of a full table goes after its moment, and when a knock times out', () => {
     const table = gate();
     table.gate.knocked(MIRA);
     table.gate.knocked(NOOR);
@@ -418,10 +411,9 @@ it('a card that just appeared', () => {
     expect(armed(table)).toEqual([false]);
     table.advance(ARM_MS);
     expect(armed(table)).toEqual([true]);
-  }
+  });
 
-  // starts again when the control says its cards moved, with one redraw however often it says so
-  {
+  it('starts again when the control says its cards moved, with one redraw however often it says so', () => {
     const table = gate();
     table.gate.moved();
     expect(table.changes.count).toBe(0);
@@ -445,10 +437,9 @@ it('a card that just appeared', () => {
     expect(table.changes.count).toBe(before + 2);
     table.gate.admit(MIRA.id);
     expect(table.answers).toEqual([[MIRA.id, true]]);
-  }
+  });
 
-  // is never armed by the time of a card before it: one timer at most, whatever came and went inside the window
-  {
+  it('is never armed by the time of a card before it: one timer at most, whatever came and went inside the window', () => {
     const table = gate();
     table.gate.knocked(MIRA);
     table.advance(300);
@@ -473,10 +464,9 @@ it('a card that just appeared', () => {
     expect(table.timers()).toBe(1);
     table.gate.dispose();
     expect(table.timers()).toBe(0);
-  }
+  });
 
-  // keeps its time through a welcome where it keeps its place, and starts again where it does not
-  {
+  it('keeps its time through a welcome where it keeps its place, and starts again where it does not', () => {
     const table = gate();
     table.gate.knocked(MIRA);
     table.gate.knocked(NOOR);
@@ -490,5 +480,5 @@ it('a card that just appeared', () => {
     table.advance(ARM_MS);
     table.gate.welcomed([NOOR, { id: 'r'.repeat(20), name: 'Ravi' }]);
     expect(armed(table)).toEqual([true, false]);
-  }
+  });
 });

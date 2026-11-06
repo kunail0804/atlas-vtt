@@ -1,6 +1,8 @@
+// @vitest-environment jsdom
 import { EventEmitter } from 'events';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DiceTool } from '../DiceTool';
+import { FORMULA_LIMITS } from '../parseFormula';
 import { DEFAULT_DICE_RULES } from '../../gameSystems/diceRules';
 
 function setup(defaultRoll = '1d20') {
@@ -22,20 +24,18 @@ describe('DiceTool roll inputs', () => {
     expect(ambient).not.toHaveBeenCalled();
   });
 
-  it('rejects bad input before randomness, history or events', () => {
-    for (const formula of ['d20 garbage', '101d6', 'd1001', `+3${' '.repeat(99)}`, 'd20\n']) {
-      const { tool, inputs, bus } = setup();
-      const emit = vi.spyOn(bus, 'emit');
-      const dispatch = vi.spyOn(document, 'dispatchEvent');
-      expect(tool.rollDice(formula)).toBeNull();
-      expect(inputs.onFormulaError).toHaveBeenCalledOnce();
-      expect(inputs.random).not.toHaveBeenCalled();
-      expect(inputs.rollId).not.toHaveBeenCalled();
-      expect(inputs.roller).not.toHaveBeenCalled();
-      expect(tool.getState().rollHistory).toEqual([]);
-      expect(dispatch).not.toHaveBeenCalled();
-      expect(emit).not.toHaveBeenCalled();
-    }
+  it.each(['d20 garbage', '101d6', 'd1001', `+3${' '.repeat(99)}`, 'd20\n'])('rejects %j before randomness, history or events', (formula) => {
+    const { tool, inputs, bus } = setup();
+    const emit = vi.spyOn(bus, 'emit');
+    const dispatch = vi.spyOn(document, 'dispatchEvent');
+    expect(tool.rollDice(formula)).toBeNull();
+    expect(inputs.onFormulaError).toHaveBeenCalledOnce();
+    expect(inputs.random).not.toHaveBeenCalled();
+    expect(inputs.rollId).not.toHaveBeenCalled();
+    expect(inputs.roller).not.toHaveBeenCalled();
+    expect(tool.getState().rollHistory).toEqual([]);
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(emit).not.toHaveBeenCalled();
   });
 
   it('validates the completed default roll before rolling', () => {
@@ -45,16 +45,14 @@ describe('DiceTool roll inputs', () => {
     expect(inputs.onFormulaError).toHaveBeenCalledWith({ ok: false, code: 'dice' });
   });
 
-  it('rejects default-roll completion beyond the length or terms budget', () => {
-    for (const [defaultRoll, bonus, code] of [
-      ['d20' + ' '.repeat(97), '+1', 'length'],
-      [Array(20).fill('d6').join('+'), '+1', 'terms'],
-    ] as const) {
-      const { tool, inputs } = setup(defaultRoll);
-      expect(tool.rollDice(bonus)).toBeNull();
-      expect(inputs.random).not.toHaveBeenCalled();
-      expect(inputs.onFormulaError).toHaveBeenCalledWith({ ok: false, code });
-    }
+  it.each([
+    ['d20' + ' '.repeat(FORMULA_LIMITS.completed - 4), '+1', 'length'],
+    [Array(20).fill('d6').join('+'), '+1', 'terms'],
+  ])('rejects default-roll completion beyond the %s budget', (defaultRoll, bonus, code) => {
+    const { tool, inputs } = setup(defaultRoll);
+    expect(tool.rollDice(bonus)).toBeNull();
+    expect(inputs.random).not.toHaveBeenCalled();
+    expect(inputs.onFormulaError).toHaveBeenCalledWith({ ok: false, code });
   });
 
   it('preserves default rolls for the empty quick-roll input', () => {

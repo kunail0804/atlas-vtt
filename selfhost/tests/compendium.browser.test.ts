@@ -127,8 +127,8 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the compendium pag
     await shot('compendium-edit');
     await page.click('.cpd-form button[type="submit"]');
     await until(() => fire.level === '4' && fire.text === 'A brighter streak.', 'change written', 5_000);
-    await page.waitForSelector('.cpd-card .cpd-text p');
-    expect(await page.locator('.cpd-text p').textContent()).toBe('A brighter streak.');
+    // The page shows the card it had until the GM sends the entry as written, a batch later.
+    await page.waitForFunction(() => document.querySelector('.cpd-card .cpd-text p')?.textContent === 'A brighter streak.', null, { timeout: 5_000 });
     expect(await page.locator('.cpd-row .cpd-value').first().textContent()).toBe('4');
 
     // The GM takes the Fireball back: it leaves the player's list, and the open page closes.

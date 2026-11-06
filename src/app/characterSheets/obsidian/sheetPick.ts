@@ -1,6 +1,6 @@
 import type { App, TFile } from 'obsidian';
 import { activeShelf } from '../../online/gm/book/activeShelf.ts';
-import { applyBookMessage } from '../../online/gm/book/bookStore.ts';
+import { applyBookMessage, shelfMessageOf } from '../../online/gm/book/bookStore.ts';
 import { parsePlayerBookMessage } from '../../online/protocol/index.ts';
 import { cardName, splitNote } from '../../compendium/entryCard';
 import { pickResult, type BookGear } from '../../compendium/sheetPickEdits';
@@ -25,20 +25,20 @@ const newId = (): string => [...crypto.getRandomValues(new Uint8Array(12))].map(
 async function addGear(app: App, file: TFile, gear: BookGear): Promise<boolean> {
   const shelf = activeShelf();
   if (shelf === null) return false;
-  const place = (await bookPlaces(app, file, shelf))[0];
+  const place = (await bookPlaces(app, file))[0];
   if (place === undefined) return false;
   const id = newId();
   const write = (book: ReturnType<typeof shelf.of>, message: unknown): ReturnType<typeof shelf.of> | null => {
     // The GM's writes take the player's road: the protocol's parser first, as the sheet's Book tab does.
-    const parsed = parsePlayerBookMessage(JSON.parse(JSON.stringify(message)) as Record<string, unknown>);
-    return parsed === null || parsed.t === 'book-resource' ? null : applyBookMessage(book, parsed, Date.now(), new Set());
+    const parsed = shelfMessageOf(parsePlayerBookMessage(JSON.parse(JSON.stringify(message)) as Record<string, unknown>));
+    return parsed === null ? null : applyBookMessage(book, parsed, Date.now(), new Set());
   };
-  let book = write(shelf.of(place.collection, place.key), { t: 'book-item-put', item: { id, ...gear.item } });
+  let book = write(shelf.of(place.key), { t: 'book-item-put', item: { id, ...gear.item } });
   if (book === null) return false;
   const taken = new Set(book.equipped.map((entry) => entry.slot));
   const slot = gear.slot === 'main-hand' && taken.has('main-hand') ? (taken.has('off-hand') ? null : 'off-hand') : taken.has(gear.slot) ? null : gear.slot;
   if (slot !== null) book = write(book, { t: 'book-equip', item: id, slot }) ?? book;
-  shelf.keep(place.collection, place.key, book, 'gm');
+  shelf.keep(place.key, book, 'gm');
   return true;
 }
 

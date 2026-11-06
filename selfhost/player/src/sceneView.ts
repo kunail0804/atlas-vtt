@@ -90,7 +90,7 @@ export class SceneView {
         if (message.scene === this.sceneId) this.litMarks.showSensed(message.tokens);
         return;
       case 'explored':
-        if (message.scene === this.sceneId) this.showExplored(message.mask);
+        if (message.scene === this.sceneId) this.showExplored(message.png ?? null, message.mask ?? null);
         return;
       default:
         return;
@@ -155,8 +155,12 @@ export class SceneView {
     else this.grid.updateOptions(options);
   }
 
-  /** The explored memory the GM last saved: a PNG by hash, handed to the lighting as a data URL. */
-  private showExplored(mask: AssetRef | null): void {
+  /**
+   * The explored memory the GM last saved, handed to the lighting as a data URL: inline as base64 PNG
+   * (`png`), or a PNG in the asset store (`mask`); none without either.
+   */
+  private showExplored(png: string | null, mask: AssetRef | null): void {
+    if (png !== null) return this.lighting?.setExplored(`data:image/png;base64,${png}`);
     if (mask === null) return this.lighting?.setExplored(null);
     const scene = this.sceneId;
     // The explored memory changes as players explore: kept in the browser, every save would add an entry.

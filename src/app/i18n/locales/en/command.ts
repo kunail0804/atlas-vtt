@@ -8,6 +8,7 @@ export const command = {
   'command.exportCompendiumSource': 'Export a compendium book as a source',
   'command.importStatblockTokens': 'Import tokens from Fantasy Statblocks',
   'command.openDashboard': 'Open dashboard',
+  'command.generateDungeon': 'Generate dungeon',
   'command.openPlayerWindow': 'Open player window',
   'command.openSceneBrowser': 'Open scene browser',
   'command.reportIssue': 'Report an issue…',

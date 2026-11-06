@@ -26,36 +26,32 @@ function backupsOf(files: Map<string, string>): string[] {
 }
 
 describe('map data that cannot be loaded', () => {
-  it('refuses a file with unreadable data instead of loading it as an empty map, and keeps a copy', async () => {
-    for (const [_label, content, reason] of [
-      ['invalid JSON', '{"state": {"objects": ', 'The scene file is not valid JSON'],
-      ['an unexpected structure', JSON.stringify({ version: 4, state: { objects: { tokens: ['not', 'a', 'record'] } } }), 'The scene file has an unexpected structure'],
-      ['no saved state', '{}', 'The scene file has an unexpected structure'],
-    ] as const) {
-      const { storage, files } = createStorage(content);
+  it.each([
+    ['invalid JSON', '{"state": {"objects": ', 'The scene file is not valid JSON'],
+    ['an unexpected structure', JSON.stringify({ version: 4, state: { objects: { tokens: ['not', 'a', 'record'] } } }), 'The scene file has an unexpected structure'],
+    ['no saved state', '{}', 'The scene file has an unexpected structure'],
+  ])('refuses a file with %s instead of loading it as an empty map, and keeps a copy', async (_label, content, reason) => {
+    const { storage, files } = createStorage(content);
 
-      await expect(storage.getItem('atlas')).rejects.toThrow(reason);
+    await expect(storage.getItem('atlas')).rejects.toThrow(reason);
 
-      const backups = backupsOf(files);
-      expect(backups).toHaveLength(1);
-      expect(files.get(backups[0]!)).toBe(content);
-      expect(files.get(MAP_PATH)).toBe(content);
-    }
+    const backups = backupsOf(files);
+    expect(backups).toHaveLength(1);
+    expect(files.get(backups[0]!)).toBe(content);
+    expect(files.get(MAP_PATH)).toBe(content);
   });
 
-  it('refuses a file of a newer Atlas by its version, and leaves it alone', async () => {
-    for (const [_label, saved] of [
-      ['the file', { version: 5, state: { mapPath: MAP_PATH, objects: { tokens: {} } } }],
-      ['its state', { version: 4, state: { version: 5, mapPath: MAP_PATH, objects: { tokens: {} } } }],
-    ] as const) {
-      const content = JSON.stringify(saved);
-      const { storage, files } = createStorage(content);
+  it.each([
+    ['the file', { version: 6, state: { mapPath: MAP_PATH, objects: { tokens: {} } } }],
+    ['its state', { version: 4, state: { version: 6, mapPath: MAP_PATH, objects: { tokens: {} } } }],
+  ])('refuses a file of a newer Atlas by the version of %s, and leaves it alone', async (_label, saved) => {
+    const content = JSON.stringify(saved);
+    const { storage, files } = createStorage(content);
 
-      await expect(storage.getItem('atlas')).rejects.toThrow('The scene was saved by a newer version of Atlas VTT');
+    await expect(storage.getItem('atlas')).rejects.toThrow('The scene was saved by a newer version of Atlas VTT');
 
-      expect(backupsOf(files)).toHaveLength(0);
-      expect(files.get(MAP_PATH)).toBe(content);
-    }
+    expect(backupsOf(files)).toHaveLength(0);
+    expect(files.get(MAP_PATH)).toBe(content);
   });
 
   it('refuses a file that cannot be read', async () => {
