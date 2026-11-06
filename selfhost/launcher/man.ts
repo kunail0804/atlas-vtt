@@ -14,6 +14,7 @@ export function manual(admin: boolean): string {
     '  atlas campaign create <nom>     crée <nom>-vtt.kunlab.cc (5 campagnes au plus)',
     '  atlas campaign delete <nom>     supprime la campagne et son adresse',
     '  atlas start <nom>               lance la campagne sur cette machine',
+    '  atlas start <nom> --dev         la lance avec la version de développement (image dev et son plugin)',
     '  atlas stop                      arrête la campagne en cours',
     '',
     'Un nom de campagne : 1 à 30 lettres minuscules, chiffres ou tirets.',

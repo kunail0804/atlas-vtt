@@ -3,6 +3,7 @@ import { login } from './login.ts';
 import { api, forgetSession, me, sessionToken } from './service.ts';
 import { UserError, ask, copyToClipboard } from './system.ts';
 import { campaignVault, installPlugins } from './vault.ts';
+import { imageOf, type Channel } from './channel.ts';
 
 interface Campaign {
   readonly name: string;
@@ -64,9 +65,11 @@ export async function deleteCampaign(name: string): Promise<void> {
 
 /**
  * Starts a campaign, after the checks the architecture names: Docker installed and running,
- * signed in, account approved, a vault, the port free. Each stop says what to do.
+ * signed in, account approved, a vault, the port free. Each stop says what to do. The `dev` channel
+ * runs the image develop published last, with its plugin.
  */
-export async function start(name: string): Promise<void> {
+export async function start(name: string, channel: Channel = 'stable'): Promise<void> {
+  const image = imageOf(channel);
   console.log('Vérification de Docker…');
   await checkDocker();
   const account = await me();
@@ -80,12 +83,12 @@ export async function start(name: string): Promise<void> {
     throw new UserError('Un autre programme utilise déjà le port 8787 de cette machine. Ferme-le, puis réessaie.');
   }
   const vault = await campaignVault(name);
-  console.log('Téléchargement de la dernière version d\'Atlas…');
-  await pullImage();
-  const changes = await installPlugins(vault);
+  console.log(channel === 'dev' ? `Téléchargement de la version de développement d'Atlas (${image})…` : 'Téléchargement de la dernière version d\'Atlas…');
+  await pullImage(image);
+  const changes = await installPlugins(vault, image);
   const campaign = await api<{ origin: string; tunnelToken: string }>('GET', `/campaigns/${encodeURIComponent(name)}/start`);
   console.log('Démarrage de la campagne…');
-  await startCampaign(name, campaign.origin, campaign.tunnelToken);
+  await startCampaign(name, image, campaign.origin, campaign.tunnelToken);
   await waitForRelay(name);
   const copied = await copyToClipboard(campaign.origin);
   console.log(`\nLa campagne « ${name} » tourne.`);

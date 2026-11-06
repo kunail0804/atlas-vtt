@@ -80,7 +80,7 @@ plugins: it replaces this build with the official one, which talks to `atlas-vtt
 
 ## Build the campaign image
 
-CI does this on every merge into main that changes the plugin, the relay or the player page (`.github/WORKFLOW.md`); the steps below are for a local build.
+CI does this on every merge into develop (the `dev` image) and into main (`latest`) that changes the plugin, the relay or the player page (`.github/WORKFLOW.md`); the steps below are for a local build.
 
 The image holds the relay, the built player page, the plugin build the launcher copies into a
 vault, Fantasy Statblocks 4.10.3 (MIT, `javalent/fantasy-statblocks`, in `/opt/atlas/statblocks`
@@ -138,7 +138,7 @@ sets its secrets. It is safe to run again after a change.
 
 ## Build the launcher
 
-CI does this on every merge into main that changes `VERSION` in `launcher/version.ts` (`.github/WORKFLOW.md`); the steps below are for a local build.
+CI does this on every merge into main that changes `VERSION` in `launcher/version.ts`, and makes a `-dev.<n>` prerelease on every merge into develop that changes the launcher (`.github/WORKFLOW.md`); the steps below are for a local build.
 
 The launcher (`launcher/`) is compiled with Deno, for Linux and for Windows, from Linux:
 

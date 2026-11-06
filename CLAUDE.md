@@ -2,17 +2,20 @@
 
 This repository is a fork whose `main` is its own product; `.github/WORKFLOW.md` is the whole process.
 
-- Work from an issue. Branch from main as `<kind>/<issue>-<few-words>`.
-- Open a pull request into main starting with `Closes #<issue>`, saying how the change was verified. Never push
-  to main: its ruleset refuses pushes and merges without the `Verify` check. `gh pr merge --auto --squash`.
+- Work from an issue. Branch from `develop` as `<kind>/<issue>-<few-words>`.
+- Open a pull request into `develop` starting with `Closes #<issue>`, saying how the change was verified. Never
+  push to `develop` or `main`: their rulesets refuse pushes and merges without the `Verify` check.
+  `gh pr merge --auto --squash`. Only a release pull request from `develop` goes into `main`, merged with a merge
+  commit.
 - The reviewers the issue asks for post their reports as comments on the pull request (`Review <name>`). Read
   them with `gh pr view <n> --comments`, apply what you agree with, and answer the rest in the pull request.
   `/review <name>` in a comment runs a reviewer again after your fixes.
-- CI publishes on merge: the Docker image, the launcher when `VERSION` in `selfhost/launcher/version.ts` is
+- CI publishes on merge into develop the `dev` image (`atlas start <name> --dev`) and launcher prereleases, and
+  on merge into main the Docker image, the launcher when `VERSION` in `selfhost/launcher/version.ts` is
   raised, the campaigns service when `selfhost/service/` changes, the compendium sources when
   `compendium/builder/` changes. Never push an image, a release or a deployment by hand.
 - Upstream (`atlas-vtt/atlas-vtt`) is not followed: take a commit from it with `git cherry-pick` on a branch from
-  main. Never open a pull request from an `upstream-*` branch.
+  develop. Never open a pull request from an `upstream-*` branch.
 
 # Context
 - We are working on Atlas VTT, a Virtual Tabletop plugin for Obsidian.md

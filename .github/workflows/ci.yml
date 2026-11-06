@@ -1,14 +1,17 @@
 name: CI
 
-# One run per commit: it verifies, and on main it publishes what the commit changed.
-# Pull requests into main must pass the `Verify` job (the ruleset on main requires it).
+# One run per commit: it verifies, and on develop and main it publishes what the commit changed.
+# Pull requests into develop and main must pass the `Verify` job (both rulesets require it), and
+# one into main must come from develop. develop publishes for testing (the `dev` image, launcher
+# prereleases `-dev.<n>`); main publishes for the players (`latest`, the campaigns service, the
+# compendium sources, launcher releases).
 # See .github/WORKFLOW.md for the whole process and the secrets each step needs.
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, develop]
   push:
-    branches: [main]
+    branches: [main, develop]
   # A workflow started by another workflow's token (a pull request it opened) runs CI this way.
   workflow_dispatch:
 
@@ -167,10 +170,23 @@ jobs:
         env:
           WRANGLER_SEND_METRICS: 'false'
 
+  # main takes only what was tested on develop.
+  source:
+    name: Into main only from develop
+    runs-on: ubuntu-latest
+    steps:
+      - if: github.event_name == 'pull_request' && github.base_ref == 'main' && (github.head_ref != 'develop' || github.event.pull_request.head.repo.full_name != github.repository)
+        env:
+          HEAD: ${{ github.event.pull_request.head.label }}
+        run: |
+          echo "::error::A pull request into main comes from develop, not from $HEAD. Open it into develop (see .github/WORKFLOW.md)."
+          exit 1
+      - run: echo "Source branch accepted"
+
   verify:
     name: Verify
     if: always()
-    needs: [plugin, relay, browser, launcher, service]
+    needs: [source, plugin, relay, browser, launcher, service]
     runs-on: ubuntu-latest
     steps:
       - name: Every check passed
@@ -180,7 +196,7 @@ jobs:
           exit 1
       - run: echo "Every check passed"
 
-  # ---- Publication: only for a push to main whose checks all passed ----
+  # ---- Publication: only for a push to develop or main whose checks all passed ----
 
   changes:
     name: What changed
@@ -189,6 +205,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       image: ${{ steps.diff.outputs.image }}
+      launcher: ${{ steps.diff.outputs.launcher }}
       service: ${{ steps.diff.outputs.service }}
       compendium: ${{ steps.diff.outputs.compendium }}
     steps:
@@ -209,6 +226,7 @@ jobs:
           # The image holds the plugin, the relay and the player page: anything but these leaves it as it is.
           outside='^(\.github/|docs/|tests/|selfhost/tests/|selfhost/launcher/|selfhost/service/|compendium/)|\.md$'
           if printf '%s\n' "$files" | grep -Evq "$outside"; then echo image=true; else echo image=false; fi >> "$GITHUB_OUTPUT"
+          if printf '%s\n' "$files" | grep -q '^selfhost/launcher/'; then echo launcher=true; else echo launcher=false; fi >> "$GITHUB_OUTPUT"
           if printf '%s\n' "$files" | grep -q '^selfhost/service/'; then echo service=true; else echo service=false; fi >> "$GITHUB_OUTPUT"
           if printf '%s\n' "$files" | grep -q '^compendium/builder/'; then echo compendium=true; else echo compendium=false; fi >> "$GITHUB_OUTPUT"
 
@@ -231,13 +249,16 @@ jobs:
         env:
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
         run: test -n "$DOCKERHUB_TOKEN" || { echo "::error::The secret DOCKERHUB_TOKEN is not set (see .github/WORKFLOW.md)"; exit 1; }
+      # main publishes <version>-selfhost.<n> and latest, develop <version>-dev.<n> and dev.
       - name: Next version
         id: version
         run: |
+          if [ "$GITHUB_REF_NAME" = main ]; then kind=selfhost; channel=latest; else kind=dev; channel=dev; fi
           base=$(node -p "require('./package.json').version")
-          curl -fsS -o "$RUNNER_TEMP/tags.json" "https://hub.docker.com/v2/repositories/$IMAGE/tags?page_size=100&name=$base-selfhost."
-          last=$(jq -r --arg base "$base" '[.results[].name | select(startswith($base + "-selfhost.")) | ltrimstr($base + "-selfhost.") | select(test("^[0-9]+$")) | tonumber] | max // 0' "$RUNNER_TEMP/tags.json")
-          echo "tag=$base-selfhost.$((last + 1))" >> "$GITHUB_OUTPUT"
+          curl -fsS -o "$RUNNER_TEMP/tags.json" "https://hub.docker.com/v2/repositories/$IMAGE/tags?page_size=100&name=$base-$kind."
+          last=$(jq -r --arg prefix "$base-$kind." '[.results[].name | select(startswith($prefix)) | ltrimstr($prefix) | select(test("^[0-9]+$")) | tonumber] | max // 0' "$RUNNER_TEMP/tags.json")
+          echo "tag=$base-$kind.$((last + 1))" >> "$GITHUB_OUTPUT"
+          echo "channel=$channel" >> "$GITHUB_OUTPUT"
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
@@ -250,7 +271,7 @@ jobs:
           push: true
           tags: |
             ${{ env.IMAGE }}:${{ steps.version.outputs.tag }}
-            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ steps.version.outputs.channel }}
             ${{ env.IMAGE }}:sha-${{ github.sha }}
           labels: |
             org.opencontainers.image.revision=${{ github.sha }}
@@ -262,14 +283,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.version.outputs.tag }}
+          CHANNEL: ${{ steps.version.outputs.channel }}
         run: |
           gh api "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/relay-$TAG" -f sha="$GITHUB_SHA" > /dev/null
-          echo "Published \`$IMAGE:$TAG\` and \`latest\` from $GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+          echo "Published \`$IMAGE:$TAG\` and \`$CHANNEL\` from $GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
 
   launcher-release:
     name: Release the launcher
-    needs: verify
-    if: github.event_name == 'push' && needs.verify.result == 'success'
+    needs: changes
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -284,14 +305,27 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      # A release is made once per version: raising VERSION in selfhost/launcher/version.ts releases it.
+      # On main a release is made once per version: raising VERSION in selfhost/launcher/version.ts
+      # releases it. On develop every push that changes the launcher makes launcher-v<VERSION>-dev.<n>,
+      # which installed launchers never offer as an update (update.ts reads only x.y.z).
       - name: Version
         id: version
+        env:
+          CHANGED: ${{ needs.changes.outputs.launcher }}
         run: |
           version=$(sed -n "s/^export const VERSION = '\(.*\)';$/\1/p" selfhost/launcher/version.ts)
           test -n "$version"
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          if gh release view "launcher-v$version" > /dev/null 2>&1; then echo "new=false"; else echo "new=true"; fi >> "$GITHUB_OUTPUT"
+          if [ "$GITHUB_REF_NAME" = main ]; then
+            tag="launcher-v$version"
+            if gh release view "$tag" > /dev/null 2>&1; then new=false; else new=true; fi
+            previous=$(git tag --list 'launcher-v*' --sort=-creatordate | grep -v -- '-dev\.' | head -1 || true)
+          else
+            last=$(git tag --list "launcher-v$version-dev.*" | sed "s/^launcher-v$version-dev\.//" | grep -E '^[0-9]+$' | sort -n | tail -1 || true)
+            tag="launcher-v$version-dev.$(( ${last:-0} + 1 ))"
+            new=$CHANGED
+            previous=$(git tag --list 'launcher-v*' --sort=-creatordate | head -1 || true)
+          fi
+          { echo "tag=$tag"; echo "new=$new"; echo "previous=$previous"; } >> "$GITHUB_OUTPUT"
       - if: steps.version.outputs.new == 'true'
         uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
         with:
@@ -303,9 +337,9 @@ jobs:
       - if: steps.version.outputs.new == 'true'
         name: Release
         env:
-          VERSION: ${{ steps.version.outputs.version }}
+          TAG: ${{ steps.version.outputs.tag }}
+          previous: ${{ steps.version.outputs.previous }}
         run: |
-          previous=$(git tag --list 'launcher-v*' --sort=-v:refname | head -1)
           {
             echo "The \`atlas\` launcher for the self-hosted Atlas VTT fork."
             echo
@@ -314,18 +348,23 @@ jobs:
             echo
             echo "You need Docker (Docker Desktop on Windows) and Obsidian. \`atlas man\` lists every command. \`SHA256SUMS\` holds the fingerprints of both files."
             echo
+            if [ "$GITHUB_REF_NAME" != main ]; then
+              echo "**Development build from \`develop\`**, for testing: \`atlas start <name> --dev\` runs the \`dev\` image."
+              echo
+            fi
             echo "Changes since ${previous:-the first release}:"
             git log --format='- %s (%h)' ${previous:+$previous..}HEAD -- selfhost/launcher
             echo
             echo "Built by CI from $GITHUB_SHA."
           } > "$RUNNER_TEMP/notes.md"
-          gh release create "launcher-v$VERSION" selfhost/launcher/dist/atlas selfhost/launcher/dist/atlas.exe selfhost/launcher/dist/SHA256SUMS \
-            --target "$GITHUB_SHA" --title "Atlas launcher $VERSION" --prerelease --notes-file "$RUNNER_TEMP/notes.md"
+          gh release create "$TAG" selfhost/launcher/dist/atlas selfhost/launcher/dist/atlas.exe selfhost/launcher/dist/SHA256SUMS \
+            --target "$GITHUB_SHA" --title "Atlas launcher ${TAG#launcher-v}" --prerelease --notes-file "$RUNNER_TEMP/notes.md"
 
   service-deploy:
     name: Deploy the campaigns service
     needs: changes
-    if: needs.changes.outputs.service == 'true'
+    # The players' service: deployed from main only.
+    if: github.ref_name == 'main' && needs.changes.outputs.service == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     concurrency:
@@ -360,7 +399,7 @@ jobs:
   compendium-release:
     name: Release the compendium sources
     needs: changes
-    if: needs.changes.outputs.compendium == 'true'
+    if: github.ref_name == 'main' && needs.changes.outputs.compendium == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -406,7 +445,7 @@ jobs:
           git switch -c "$branch"
           git commit -am "compendium: download the sources of $tag"
           git push origin "$branch"
-          gh pr create --base main --head "$branch" --title "compendium: download the sources of $tag" \
+          gh pr create --base develop --head "$branch" --title "compendium: download the sources of $tag" \
             --body "The compendium builder changed on main, so CI built the sources again and released them as \`$tag\`. This points \`officialSources.ts\` at them."
           # A pull request opened with the workflow's own token starts no workflow: CI is started by hand on the branch.
           gh workflow run ci.yml --ref "$branch"

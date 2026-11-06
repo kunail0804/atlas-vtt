@@ -3,7 +3,7 @@ name: Upstream
 # Every Monday: what atlas-vtt/atlas-vtt changed since last week. `upstream-main` follows its main,
 # a dated branch `upstream-sync-<date>` keeps that week's state, and an issue lists the new commits
 # and the files that would conflict with ours. Nothing is merged: take what you want into a branch
-# made from main (see .github/WORKFLOW.md). Never open a pull request from these branches: they hold
+# made from develop (see .github/WORKFLOW.md). Never open a pull request from these branches: they hold
 # upstream's workflows, which a pull request would run.
 
 on:
@@ -50,8 +50,8 @@ jobs:
           echo "changed=true" >> "$GITHUB_OUTPUT"
           range=$([ "$old" = none ] && echo "upstream/main" || echo "$old..upstream/main")
           count=$(git rev-list --count "$range")
-          behind=$(git rev-list --count origin/main..upstream/main)
-          git merge-tree --write-tree --name-only origin/main upstream/main > "$RUNNER_TEMP/merge.txt" || true
+          behind=$(git rev-list --count origin/develop..upstream/main)
+          git merge-tree --write-tree --name-only origin/develop upstream/main > "$RUNNER_TEMP/merge.txt" || true
           conflicts=$(awk 'NR > 1 && /^$/ { exit } NR > 1' "$RUNNER_TEMP/merge.txt")
           {
             echo "count=$count"
@@ -63,7 +63,7 @@ jobs:
             echo
             git log --no-merges --format='- %s ([%h](https://github.com/atlas-vtt/atlas-vtt/commit/%H))' "$range" | head -150
             echo
-            echo "### Files that would conflict if upstream/main were merged into main"
+            echo "### Files that would conflict if upstream/main were merged into develop"
             echo
             if [ -n "$conflicts" ]; then printf '%s\n' "$conflicts" | sed 's/^/- `/; s/$/`/'; else echo "None."; fi
           } > "$RUNNER_TEMP/details.md"
@@ -91,15 +91,15 @@ jobs:
           PUSHED: ${{ steps.branches.outputs.pushed }}
         run: |
           {
-            echo "Upstream ([atlas-vtt/atlas-vtt](https://github.com/atlas-vtt/atlas-vtt)) has **$COUNT** new commits since last week. main is **$BEHIND** commits behind upstream in all; merging upstream/main whole would conflict in **$CONFLICTS** files."
+            echo "Upstream ([atlas-vtt/atlas-vtt](https://github.com/atlas-vtt/atlas-vtt)) has **$COUNT** new commits since last week. develop is **$BEHIND** commits behind upstream in all; merging upstream/main whole would conflict in **$CONFLICTS** files."
             echo
             if [ "$PUSHED" = true ]; then
               echo "- This week's upstream: branch [\`$BRANCH\`](https://github.com/$GITHUB_REPOSITORY/tree/$BRANCH); \`upstream-main\` follows it."
             else
               echo "- The branches were not updated: the secret \`AUTOMATION_TOKEN\` is not set."
             fi
-            echo "- Everything upstream has that main has not: [compare](https://github.com/$GITHUB_REPOSITORY/compare/main...atlas-vtt:atlas-vtt:main)"
-            echo "- To take something: branch from main, \`git cherry-pick <commit>\`, open a pull request into main. Close this issue when the week is read."
+            echo "- Everything upstream has that main has not: [compare](https://github.com/$GITHUB_REPOSITORY/compare/develop...atlas-vtt:atlas-vtt:main)"
+            echo "- To take something: branch from develop, \`git cherry-pick <commit>\`, open a pull request into develop. Close this issue when the week is read."
             echo
             cat "$RUNNER_TEMP/details.md"
           } > "$RUNNER_TEMP/issue.md"

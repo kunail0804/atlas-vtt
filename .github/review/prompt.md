@@ -7,7 +7,8 @@ try to push, comment or merge: the workflow posts your report.
 
 - **The brief** is the issue the pull request closes and the pull request's own description. It is in the
   message you received.
-- **The change** is `git diff origin/main...HEAD`; `git log origin/main..HEAD` lists its commits.
+- **The change** is the `git diff` the message names, against the branch the pull request goes into (`develop`,
+  or `main` for a release); the `git log` it names lists its commits.
 - **The rules of the repository** are in `CLAUDE.md` and `.github/WORKFLOW.md`.
 - Dependencies are installed. `npx vitest run <file>`, `npx tsc --noEmit` and `npx eslint <file>` work at the
   root; `npm --prefix selfhost test -- <file>` runs the relay's and the player page's tests.
