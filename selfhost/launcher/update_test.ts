@@ -9,3 +9,8 @@ Deno.test('compares launcher versions number by number', () => {
   assertEquals(isNewer('garbage', '0.1.0'), false);
   assertEquals(parseVersion('1.2'), null);
 });
+
+Deno.test('a development prerelease is never offered as an update', () => {
+  assertEquals(parseVersion('0.4.0-dev.1'), null);
+  assertEquals(isNewer('0.5.0-dev.1', '0.4.0'), false);
+});
