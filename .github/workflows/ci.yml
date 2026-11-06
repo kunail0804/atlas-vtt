@@ -269,6 +269,9 @@ jobs:
           context: .
           file: selfhost/Dockerfile
           push: true
+          # A dev build names itself in the GM's map view; main's builds stay unmarked.
+          build-args: |
+            ATLAS_DEV_BUILD=${{ steps.version.outputs.channel == 'dev' && steps.version.outputs.tag || '' }}
           tags: |
             ${{ env.IMAGE }}:${{ steps.version.outputs.tag }}
             ${{ env.IMAGE }}:${{ steps.version.outputs.channel }}

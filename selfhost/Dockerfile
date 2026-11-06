@@ -9,6 +9,8 @@ RUN npm ci --ignore-scripts --no-audit --no-fund
 COPY selfhost/package.json selfhost/package-lock.json selfhost/
 RUN cd selfhost && npm ci --omit=dev --ignore-scripts --no-audit --no-fund
 COPY . .
+# develop's CI names the dev image here, and the GM's map shows it (src/app/devBuild.ts); empty elsewhere.
+ARG ATLAS_DEV_BUILD=
 RUN npm run build:ci && cd selfhost && npx vite build --config player/vite.config.mts
 
 FROM node:24-bookworm-slim AS fetch

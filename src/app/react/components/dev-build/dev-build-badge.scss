@@ -1,0 +1,13 @@
+// Shown only on plugins built by develop's CI (DevBuildBadge.tsx).
+.atlas-dev-build-badge {
+  padding: 2px $spacing-s;
+  border-radius: $radius-full;
+  background: var(--color-orange);
+  color: var(--text-on-accent);
+  font-size: var(--font-ui-smaller);
+  font-weight: var(--font-semibold);
+  line-height: 1.4;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+}
