@@ -79,7 +79,7 @@ of the *Tâche* template, or the labels `review:claude`, `review:glm`, `review:d
 
 - Branch `upstream-main` is upstream's main as of the last Monday.
 - Every Monday the `upstream` workflow keeps that week's upstream as `upstream-sync-<date>` and opens an issue
-  (label `upstream`) with the new commits and the files that would conflict with main.
+  (label `upstream`) with the new commits and the files that would conflict with develop.
 - To take something: a branch from develop, `git cherry-pick <commit>` (or copy by hand), a pull request into
   develop.
   Never open a pull request from an `upstream-*` branch: it holds upstream's workflows, which would run on it.
