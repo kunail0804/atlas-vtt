@@ -22,6 +22,10 @@ branch, a pull request and CI, so each one leaves a trace from the request to wh
    (`gh pr merge --merge`), never squashed, or develop and main would part. `Verify` fails a pull request
    into main from any other branch. CI then publishes for the players.
 
+GitHub links `Closes #<issue>` only for a pull request into the default branch: an issue stays open after its
+pull request is merged into develop, and closes when the commit that names it reaches main with the release.
+The review scripts read the issues from the description themselves (`.github/review/issues.sh`).
+
 `main` stays the default branch: it is what players run.
 
 ### What CI publishes

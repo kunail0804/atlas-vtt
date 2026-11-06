@@ -12,7 +12,7 @@ known='claude glm deepseek'
 
 from_issues() {
 	local issue
-	for issue in $(gh pr view "$PR" --json closingIssuesReferences --jq '.closingIssuesReferences[].number'); do
+	for issue in $(bash .github/review/issues.sh); do
 		gh issue view "$issue" --json labels --jq '.labels[].name | select(startswith("review:")) | ltrimstr("review:")'
 		gh issue view "$issue" --json body --jq .body | sed -nE 's/^- \[[xX]\] (Claude|GLM|DeepSeek)[[:space:]]*$/\1/p'
 	done
