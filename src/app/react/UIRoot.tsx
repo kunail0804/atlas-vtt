@@ -24,6 +24,7 @@ import { TurnAnnouncer } from './components/TurnAnnouncer';
 import { RandomTables } from './components/randomTables/RandomTablesPanel';
 import { MapLoadingOverlay } from './components/MapLoadingOverlay';
 import { SceneTabBar } from './components/SceneTabBar';
+import { DevBuildBadge } from './components/dev-build/DevBuildBadge';
 import { LevelSwitcher } from './components/levels/LevelSwitcher';
 import { LevelLinkPopoverHost } from './components/levels/LevelLinkPopover';
 import { SceneSwitcher } from './components/scene-switcher/SceneSwitcher';
@@ -178,6 +179,7 @@ export const UIRoot: React.FC<UIRootProps> = ({ app, view, pixiApp }) => {
               )}
               <div className="atlas-top-bar-start__below">
                 {!isPlayerView && <PanelBoundary name="the player window bar"><PlayerWindowBar view={view} /></PanelBoundary>}
+                {!isPlayerView && <DevBuildBadge />}
               </div>
             </div>
             {/* Widgets and the DM's dice rolls share the right end; rolls hang below the widgets */}

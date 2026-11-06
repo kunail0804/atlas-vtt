@@ -164,6 +164,8 @@ export default defineConfig({
   // Define global constants if needed (e.g., for process.env)
   define: {
     '__ATLAS_RELEASE_BUILD__': JSON.stringify(isProduction && !copyToTestVault),
+    // The dev image's tag, set by develop's CI (selfhost/Dockerfile); empty on every other build.
+    '__ATLAS_DEV_BUILD__': JSON.stringify(process.env.ATLAS_DEV_BUILD ?? ''),
     'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
     // Maintainer-only dev tooling (e.g. the statblock template/layout editor).
     // `build`, so the literal resolves to `false` and the guarded code is
