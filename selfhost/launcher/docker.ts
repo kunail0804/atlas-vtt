@@ -1,6 +1,5 @@
 import { UserError, log, run } from './system.ts';
 
-export const IMAGE = 'kunail0804/atlas-relay:latest';
 const PREFIX = 'atlas-campaign-';
 const DOWNLOAD = Deno.build.os === 'windows' ? 'https://docs.docker.com/desktop/setup/install/windows-install/' : 'https://docs.docker.com/engine/install/';
 
@@ -17,26 +16,25 @@ export async function checkDocker(): Promise<void> {
   }
 }
 
-/** Fetches the newest image; without internet, an image already here is used. */
-export async function pullImage(): Promise<void> {
-  const pulled = await run('docker', ['pull', '--quiet', IMAGE]);
+/** Fetches the newest `image`; without internet, an image already here is used. */
+export async function pullImage(image: string): Promise<void> {
+  const pulled = await run('docker', ['pull', '--quiet', image]);
   if (pulled.code === 0) return;
   await log(`docker pull: ${pulled.stderr.slice(0, 300)}`);
-  const present = await run('docker', ['image', 'inspect', IMAGE]);
+  const present = await run('docker', ['image', 'inspect', image]);
   if (present.code !== 0) throw new UserError('Impossible de télécharger l\'image Atlas. Vérifie ta connexion internet.');
 }
 
-/** The plugin build inside the image, copied to `target`: the version the relay that will run expects. */
 /** Where the image keeps the plugins the launcher copies into the vault. */
 export const IMAGE_PLUGINS = { atlas: '/opt/atlas/plugin', statblocks: '/opt/atlas/statblocks' } as const;
 
 /**
- * Copies the image's plugin builds into folders of `targets` (by `IMAGE_PLUGINS` key). One the image
+ * Copies `image`'s plugin builds into folders of `targets` (by `IMAGE_PLUGINS` key). One the image
  * does not hold (an older image without Fantasy Statblocks) is left out of the result.
  */
-export async function extractPlugins(targets: Partial<Record<keyof typeof IMAGE_PLUGINS, string>>): Promise<Set<keyof typeof IMAGE_PLUGINS>> {
+export async function extractPlugins(image: string, targets: Partial<Record<keyof typeof IMAGE_PLUGINS, string>>): Promise<Set<keyof typeof IMAGE_PLUGINS>> {
   const name = `atlas-plugin-copy-${Date.now()}`;
-  const created = await run('docker', ['create', '--name', name, IMAGE]);
+  const created = await run('docker', ['create', '--name', name, image]);
   if (created.code !== 0) throw new UserError('Impossible de préparer le plugin depuis l\'image Atlas.');
   const copied = new Set<keyof typeof IMAGE_PLUGINS>();
   try {
@@ -69,15 +67,15 @@ export async function portTaken(): Promise<boolean> {
 }
 
 /**
- * Starts a campaign: the GM side on this machine's loopback only, the tables in the campaign's own
+ * Starts a campaign from `image`: the GM side on this machine's loopback only, the tables in the campaign's own
  * volume, the tunnel token passed by name (`-e TUNNEL_TOKEN`), so it never stands in Docker's arguments.
  */
-export async function startCampaign(name: string, origin: string, tunnelToken: string): Promise<void> {
+export async function startCampaign(name: string, image: string, origin: string, tunnelToken: string): Promise<void> {
   const env = { ...Deno.env.toObject(), TUNNEL_TOKEN: tunnelToken };
   const started = await run('docker', [
     'run', '-d', '--rm', '--init', '--name', `${PREFIX}${name}`,
     '-p', '127.0.0.1:8787:8787', '-v', `atlas-${name}:/data`,
-    '-e', `PLAYER_ORIGIN=${origin}`, '-e', 'TUNNEL_TOKEN', IMAGE,
+    '-e', `PLAYER_ORIGIN=${origin}`, '-e', 'TUNNEL_TOKEN', image,
   ], { env });
   if (started.code !== 0) {
     await log(`docker run: ${started.stderr.slice(0, 500)}`);

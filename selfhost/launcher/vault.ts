@@ -86,18 +86,18 @@ export async function enablePlugins(vault: string, ids: readonly string[]): Prom
 }
 
 /**
- * Puts the image's plugins in the vault and switches them on: Atlas whenever its files differ, and
+ * Puts `image`'s plugins in the vault and switches them on: Atlas whenever its files differ, and
  * Fantasy Statblocks, which Atlas reads statblocks from, where the vault has none or an older one
  * (a newer one the GM installed is kept). Neither plugin's settings are touched.
  */
-export async function installPlugins(vault: string): Promise<VaultChanges> {
+export async function installPlugins(vault: string, image: string): Promise<VaultChanges> {
   const staging = await Deno.makeTempDir({ prefix: 'atlas-plugin-' });
   try {
     const atlasFrom = join(staging, 'atlas');
     const statblocksFrom = join(staging, 'statblocks');
     await Deno.mkdir(atlasFrom);
     await Deno.mkdir(statblocksFrom);
-    const copied = await extractPlugins({ atlas: atlasFrom, statblocks: statblocksFrom });
+    const copied = await extractPlugins(image, { atlas: atlasFrom, statblocks: statblocksFrom });
     const plugins = join(vault, '.obsidian', 'plugins');
     const atlas = await copyPlugin(atlasFrom, join(plugins, ATLAS_ID));
     let statblocks: string | null = null;

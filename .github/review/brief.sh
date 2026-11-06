@@ -6,4 +6,5 @@ for issue in $(gh pr view "$PR" --json closingIssuesReferences --jq '.closingIss
 	gh issue view "$issue" --json number,title,body --jq '"# Issue #\(.number): \(.title)\n\n\(.body)\n"'
 done
 gh pr view "$PR" --json number,title,body --jq '"# Pull request #\(.number): \(.title)\n\n\(.body)\n"'
-echo "Review this pull request. Its change is \`git diff origin/main...HEAD\`."
+base=$(gh pr view "$PR" --json baseRefName --jq .baseRefName)
+echo "Review this pull request. It goes into \`$base\`: its change is \`git diff origin/$base...HEAD\`, its commits \`git log origin/$base..HEAD\`."

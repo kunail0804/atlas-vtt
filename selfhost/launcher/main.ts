@@ -1,4 +1,5 @@
 import { adminDecide, adminList, createCampaign, deleteCampaign, listCampaigns, printCampaigns, signIn, signOut, start, status, stop } from './commands.ts';
+import { startArguments } from './channel.ts';
 import { manual } from './man.ts';
 import { logFile } from './paths.ts';
 import { me, sessionToken, type Me } from './service.ts';
@@ -41,7 +42,11 @@ async function runCommand(args: string[]): Promise<void> {
     case 'login': return signIn();
     case 'logout': return signOut();
     case 'status': return status();
-    case 'start': return start(need(sub, 'atlas start <nom>'));
+    case 'start': {
+      const parsed = startArguments(args.slice(1));
+      if (parsed.unknown.length > 0) throw new UserError(`Option inconnue : ${parsed.unknown.join(' ')}. Usage : atlas start <nom> [--dev]`);
+      return start(need(parsed.name, 'atlas start <nom> [--dev]'), parsed.channel);
+    }
     case 'stop': return stop();
     case 'campaign':
       if (sub === 'list') return printCampaigns();
