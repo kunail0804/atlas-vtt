@@ -14,7 +14,8 @@ branch, a pull request and CI, so each one leaves a trace from the request to wh
    refuse it, and refuse a merge whose `Verify` check has not passed.
 4. **CI verifies** (`.github/workflows/ci.yml`, the `Verify` check): typecheck, lint, the plugin's unit tests,
    the relay's tests, the player page in Chromium, the launcher's checks and tests, the campaigns service's
-   typecheck and bundle.
+   typecheck and bundle. Three of the player page's browser tests (`player`, `toolbar`, `lighting`) fail and
+   are left out of CI until they are fixed (issue #2).
 5. **Merge into develop**, squashed. `gh pr merge --auto --squash` merges as soon as `Verify` passes. The
    branch is deleted. A branch that carries another history (an upstream sync) is merged with a merge commit.
 6. **CI publishes the development build** (below), which you test with `atlas start <name> --dev`.
