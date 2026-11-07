@@ -14,6 +14,7 @@ import { D20_CREATURE } from './d20Creature';
 import { DRAW_STEEL_MONSTER } from './drawSteel';
 import { FATE_NPC } from './fate';
 import { FIVE_E_2014_MONSTER } from './fiveE2014';
+import { FIVE_E_2014_CHARACTER, FIVE_E_2024_CHARACTER } from './fiveECharacter';
 import { FIVE_E_2024_MONSTER } from './fiveE2024';
 import { GENERIC_CREATURE, GENERIC_HAZARD, GENERIC_NPC } from './generic';
 import { NARRATIVE_NPC } from './narrativeNpc';
@@ -30,6 +31,8 @@ export const BUILT_IN_TEMPLATES: readonly BuiltInTemplate[] = frozen([
   NARRATIVE_NPC,
   FIVE_E_2024_MONSTER,
   FIVE_E_2014_MONSTER,
+  FIVE_E_2024_CHARACTER,
+  FIVE_E_2014_CHARACTER,
   CAIRN_CREATURE,
   DRAW_STEEL_MONSTER,
   FATE_NPC,
