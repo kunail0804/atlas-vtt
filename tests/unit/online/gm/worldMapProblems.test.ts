@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { WORLD_MAP_PROBLEM_TEXT, WorldMaps, type FileStat } from '../../../../src/app/online/gm/book/worldMap.ts';
 import type { WorldMapTree } from '../../../../src/app/online/gm/book/worldMapGate.ts';
 import type { VaultImage } from '../../../../src/app/online/gm/TokenShare.ts';
@@ -26,7 +26,7 @@ async function read(image: string, files: Record<string, { stat: FileStat; image
     read: () => undefined,
     stored,
   });
-  for (let round = 0; round < 5 && maps.get() === undefined; round += 1) await new Promise((resolve) => setTimeout(resolve, 0));
+  await vi.waitFor(() => expect(maps.get()).not.toBeUndefined());
   return { map: maps.get(), problem: maps.problem() };
 }
 
