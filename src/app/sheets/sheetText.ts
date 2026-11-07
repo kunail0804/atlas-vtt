@@ -1,9 +1,9 @@
-/** The GM's words around a character sheet in Obsidian. */
+import type { PickKind } from '../compendium/pickKinds';
+
+/** A player character's sheet in French, wherever the fork draws it: the GM's panel and the player's page. */
 export const SHEET_TEXT = {
-  title: 'Fiche de personnage',
+  tabs: { sheet: 'Fiche', book: 'Livre', notes: 'Documents' },
   loading: 'Lecture de la fiche…',
-  notASheet: 'Cette note n\'est pas une fiche de personnage.',
-  noFile: 'Cette fiche n\'existe plus.',
   noMap: 'Ouvre une scène d\'Atlas pour lancer les dés depuis la fiche.',
   pickNote: 'Note à donner au joueur…',
   notesHint: 'Les notes liées ici apparaissent dans le livre du joueur qui joue ce personnage, en lecture seule.',
@@ -18,14 +18,34 @@ export const SHEET_TEXT = {
   createFailed: 'La fiche de personnage n\'a pas pu être créée.',
   newSheetCommand: 'Nouvelle fiche de personnage',
   openSheetCommand: 'Ouvrir la fiche de personnage de cette note',
+  newCharacter: 'Nouveau personnage',
   rules: 'Règles',
+  rulesSwitched: (edition: string): string => `La fiche suit maintenant les règles ${edition}.`,
+  migrated: (count: number): string => `${count} fiche${count > 1 ? 's' : ''} de personnage passée${count > 1 ? 's' : ''} au nouveau modèle.`,
   compendium: {
+    title: 'Compendium',
     notTaken: (name: string): string => `${name} n'a pas pu être ajouté à la fiche.`,
     noBook: (name: string): string => `${name} est sur la fiche, mais pas dans le livre : active le jeu en ligne et lie un token à cette fiche.`,
     notFound: (name: string): string => `« ${name} » n'est pas dans le compendium de la campagne.`,
     noOwnBook: 'La campagne n\'a pas de livre à toi où créer l\'entrée.',
     createFailed: 'L\'entrée n\'a pas pu être créée.',
-    newName: { class: 'Nouvelle classe', subclass: 'Nouvelle sous-classe', species: 'Nouvelle espèce', background: 'Nouvel historique', weapon: 'Nouvelle arme', armor: 'Nouvelle armure', spell: 'Nouveau sort' },
+    newName: { class: 'Nouvelle classe', subclass: 'Nouvelle sous-classe', species: 'Nouvelle espèce', background: 'Nouvel historique', weapon: 'Nouvelle arme', armor: 'Nouvelle armure', spell: 'Nouveau sort' } satisfies Record<PickKind, string>,
+  },
+  pick: {
+    button: {
+      class: '+ Classe', subclass: 'Sous-classe', species: 'Espèce', background: 'Historique', weapon: '+ Arme', armor: 'Armure', spell: '+ Sort',
+    } satisfies Record<PickKind, string>,
+    title: {
+      class: 'Choisir une classe', subclass: 'Choisir une sous-classe', species: 'Choisir une espèce', background: 'Choisir un historique',
+      weapon: 'Ajouter une arme', armor: 'Choisir une armure', spell: 'Ajouter un sort',
+    } satisfies Record<PickKind, string>,
+    search: 'Rechercher…',
+    close: 'Fermer',
+    loading: 'Lecture du compendium…',
+    failed: 'Le compendium ne répond pas.',
+    none: 'Le compendium de la campagne n\'en contient aucune entrée.',
+    noMatch: 'Aucune entrée de ce nom.',
+    create: (kind: PickKind): string => `Créer ${({ class: 'une classe', subclass: 'une sous-classe', species: 'une espèce', background: 'un historique', weapon: 'une arme', armor: 'une armure', spell: 'un sort' } satisfies Record<PickKind, string>)[kind]} dans le compendium`,
   },
   book: {
     hint: 'Le livre du joueur qui joue ce personnage : ses objets et sa bourse. Ce que tu changes ici lui parvient tout de suite pendant une partie.',

@@ -1,13 +1,13 @@
 import React, { useEffect, useState, type ReactElement } from 'react';
 import type { App, TFile } from 'obsidian';
-import { MAX_COIN_NAME, MAX_ITEM_TEXT, MAX_PURSE_ROWS, MAX_TOKEN_VALUE, parsePlayerBookMessage, type BookItem, type BookItemDraft, type PurseRow } from '../../online/protocol/index.ts';
-import { MAX_BOOK_TITLE } from '../../online/protocol/bookText.ts';
-import { activeShelf, onActiveShelf } from '../../online/gm/book/activeShelf.ts';
-import { applyBookMessage, shelfMessageOf, type ShelfMessage, type StoredBook } from '../../online/gm/book/bookStore.ts';
-import type { BookShelf } from '../../online/gm/book/BookShelf.ts';
-import { AssetService } from '../../services/AssetService';
-import { showNotice } from '../../ui/notice';
-import { SHEET_TEXT } from './sheetText.ts';
+import { MAX_COIN_NAME, MAX_ITEM_TEXT, MAX_PURSE_ROWS, MAX_TOKEN_VALUE, parsePlayerBookMessage, type BookItem, type BookItemDraft, type PurseRow } from '../online/protocol/index.ts';
+import { MAX_BOOK_TITLE } from '../online/protocol/bookText.ts';
+import { activeShelf, onActiveShelf } from '../online/gm/book/activeShelf.ts';
+import { applyBookMessage, shelfMessageOf, type ShelfMessage, type StoredBook } from '../online/gm/book/bookStore.ts';
+import type { BookShelf } from '../online/gm/book/BookShelf.ts';
+import { AssetService } from '../services/AssetService';
+import { showNotice } from '../ui/notice';
+import { SHEET_TEXT } from './sheetText';
 
 /** One book of the character: the library token it is kept by (`BookShelf`'s character id), and how the GM tells it from the others. */
 export interface BookPlace {

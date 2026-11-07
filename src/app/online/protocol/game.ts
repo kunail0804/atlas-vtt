@@ -1,7 +1,7 @@
 import { isCount, parseAsset, parseAssetProgress, parseVideoAsset, type AssetProgress, type AssetRef } from './asset.ts';
 import { isBookType, isPlayerBookType, parseBookCover, parseBookMessage, parseBookTokenMessage, parsePlayerBookMessage, type BookMessage, type BookTokenMessage, type PlayerBookCover, type PlayerBookMessage, type PlayerBookParts } from './book.ts';
 import { parseBookRestMessage, type BookRestMessage } from './bookRest.ts';
-import { isPlayerSheetType, parsePlayerSheetEdit, parseSheetMessage, type PlayerSheetEdit, type SheetMessage } from './sheet.ts';
+import { parseCharacterNotesMessage, type CharacterNotesMessage } from './characterNotes.ts';
 import { isPlayerAnnotationType, parsePlayerAnnotation, type PlayerAnnotationMessage } from './annotate.ts';
 import { isCompendiumType, isPlayerCompendiumType, parseCompendiumMessage, parsePlayerCompendiumMessage, type CompendiumMessage, type PlayerCompendiumMessage } from './compendium.ts';
 import { isDeltaOf, parseDelta, parseSeq, type DeltaMessage, type DeltaOf } from './delta.ts';
@@ -118,7 +118,7 @@ export type GmMessage =
   | RulesMessage
   | RollMessage
   | RollRefused
-  | SheetMessage
+  | CharacterNotesMessage
   | MarksMessage
   /** The table's log: chat, rolls, who came and went. It belongs to the table, not to a scene. */
   | LogMessage
@@ -135,7 +135,7 @@ export interface PlayerResync {
   readonly of: DeltaOf;
 }
 
-export type PlayerMessage = PlayerResync | PlayerMove | PlayerDrag | PlayerDragCancel | PlayerRoll | PlayerLaser | PlayerMeasure | PlayerCursor | PlayerLogMessage | PlayerBookMessage | PlayerBookParts | PlayerBookCover | BookTokenMessage | BookRestMessage | PlayerPinFound | PlayerAnnotationMessage | PlayerSheetEdit | PlayerCompendiumMessage;
+export type PlayerMessage = PlayerResync | PlayerMove | PlayerDrag | PlayerDragCancel | PlayerRoll | PlayerLaser | PlayerMeasure | PlayerCursor | PlayerLogMessage | PlayerBookMessage | PlayerBookParts | PlayerBookCover | BookTokenMessage | BookRestMessage | PlayerPinFound | PlayerAnnotationMessage | PlayerCompendiumMessage;
 
 const BASE64 = /^[A-Za-z0-9+/]*={0,2}$/;
 
@@ -289,8 +289,8 @@ export function parseGmMessage(value: unknown): GmMessage | null {
       return parseRoll(value);
     case 'roll-refused':
       return parseRollRefused(value);
-    case 'sheet':
-      return parseSheetMessage(value);
+    case 'character-notes':
+      return parseCharacterNotesMessage(value);
     case 'marks':
       return parseMarks(value);
     case 'delta':
@@ -325,7 +325,6 @@ export function parsePlayerMessage(value: unknown): PlayerMessage | null {
   if (value.t === 'book-parts') return { t: 'book-parts' };
   if (value.t === 'book-cover') return parseBookCover(value);
   if (isPlayerAnnotationType(value.t)) return parsePlayerAnnotation(value);
-  if (isPlayerSheetType(value.t)) return parsePlayerSheetEdit(value);
   if (isPlayerCompendiumType(value.t)) return parsePlayerCompendiumMessage(value);
   if (value.t === 'resync') return isSceneId(value.scene) && isDeltaOf(value.of) ? { t: 'resync', scene: value.scene, of: value.of } : null;
   return null;

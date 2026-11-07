@@ -1,35 +1,38 @@
 import type { App, TFile } from 'obsidian';
-import { CompendiumService } from '../../compendium/CompendiumService';
-import { OFFICIAL_SOURCES } from '../../compendium/officialSources';
-import { findSheetEntry, sheetBooks, sheetChoices } from '../../compendium/sheetPicks';
-import { isPersonalBookId } from '../../compendium/sourceTree';
-import { showNotice } from '../../ui/notice';
-import type { PickKind, SheetCompendium } from '../sheetCompendium.ts';
-import type { SheetValues } from '../sheetFields.ts';
-import { applySheetPick } from './sheetPick.ts';
-import { SHEET_TEXT } from './sheetText.ts';
+import { CompendiumService } from '../compendium/CompendiumService';
+import { OFFICIAL_SOURCES } from '../compendium/officialSources';
+import type { PickKind, SheetCompendium } from '../compendium/pickKinds';
+import { findSheetEntry, sheetBooks, sheetChoices } from '../compendium/sheetPicks';
+import { isPersonalBookId } from '../compendium/sourceTree';
+import { showNotice } from '../ui/notice';
+import { applySheetPick } from './sheetPick';
+import { SHEET_TEXT } from './sheetText';
 
 const ENTRY_KIND = { class: 'class', subclass: 'subclass', species: 'species', background: 'background', spell: 'spell', weapon: 'item', armor: 'item' } as const;
 
-/** The classes a sheet lists, by name: a subclass is picked among theirs. */
-export const classNamesOf = (values: SheetValues): string[] => (Array.isArray(values.classes) ? (values.classes as readonly Record<string, unknown>[]).map((row) => (typeof row.name === 'string' ? row.name : '')).filter((name) => name !== '') : []);
+/** The classes a character note lists, by name: a subclass is picked among theirs. */
+export function classNamesOf(note: Readonly<Record<string, unknown>> | undefined): string[] {
+  const classes = note?.classes;
+  if (!Array.isArray(classes)) return [];
+  return classes.map((entry: unknown) => (typeof entry === 'object' && entry !== null && 'name' in entry && typeof entry.name === 'string' ? entry.name : '')).filter((name) => name !== '');
+}
 
 /**
  * The compendium as the GM's sheet in Obsidian reaches it: the campaign's entries, an entry opened
  * in a tab, a new one made in the campaign's Personal book, and a pick written into the note and
- * the book. `changing` wraps each write so the sheet does not read its own echo halfway.
+ * the book.
  */
-export function gmSheetCompendium(app: App, file: TFile, values: () => SheetValues, changing: (write: Promise<unknown>) => void): SheetCompendium {
+export function gmSheetCompendium(app: App, file: TFile): SheetCompendium {
   const open = (target: TFile): void => {
     app.workspace.getLeaf('tab').openFile(target).catch((error: unknown) => console.error('[sheetCompendium] Opening the entry failed:', error));
   };
   return {
-    choices: (kind) => sheetChoices(app, kind, classNamesOf(values())),
+    choices: (kind) => sheetChoices(app, kind, classNamesOf(app.metadataCache.getFileCache(file)?.frontmatter)),
     pick: (kind, choice) => {
-      changing(applySheetPick(app, file.path, kind, choice.id).then((done) => {
+      applySheetPick(app, file.path, kind, choice.id).then((done) => {
         if (!done.sheet) showNotice(SHEET_TEXT.compendium.notTaken(choice.name));
         else if (done.book === false) showNotice(SHEET_TEXT.compendium.noBook(choice.name));
-      }));
+      }, (error: unknown) => console.error('[sheetCompendium] Taking the entry failed:', error));
     },
     view: (kind, name) => {
       void findSheetEntry(app, kind, name).then((target) => {

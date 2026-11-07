@@ -1,5 +1,5 @@
 import './src/app/plugin/host/initializeHost';
-import { registerCharacterSheets } from './src/app/characterSheets/obsidian/sheetEntries';
+import { registerCharacterSheets } from './src/app/sheets/sheetEntries';
 import { Plugin } from 'obsidian';
 // Tailwind first, so the custom SCSS can override it.
 import './styles/index.css';

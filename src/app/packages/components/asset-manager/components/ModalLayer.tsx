@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { openOrCreateSheet, openSheetIfAny } from '../../../../characterSheets/obsidian/sheetEntries';
+import { openOrCreateSheet, openSheetIfAny } from '../../../../sheets/sheetEntries';
 import { AnimatePresence } from 'framer-motion';
 import { TokenCreator } from '../TokenCreator';
 import { EncounterBuilder } from '../encounter-builder/EncounterBuilder';

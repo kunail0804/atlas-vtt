@@ -1,7 +1,7 @@
 import { bookLine, bookText, playerFrameBytes } from './bookText.ts';
 import { MAX_PLAYER_FRAME } from './relay.ts';
 import { isRecord } from './shape.ts';
-import { isPickKind, type CompendiumChoice, type PickKind } from '../../characterSheets/sheetCompendium.ts';
+import { isPickKind, type CompendiumChoice, type PickKind } from '../../compendium/pickKinds.ts';
 
 /**
  * The compendium pages the GM shares with a player, and the player's own device key, which tells

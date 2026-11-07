@@ -8,7 +8,7 @@ import type { App, TFile } from 'obsidian';
 import { CampaignFiles } from '../campaigns/CampaignFiles';
 import { CampaignPlay } from '../campaigns/campaignPlay';
 import type { StoredCampaign } from '../campaigns/campaignTypes';
-import type { CompendiumChoice, PickKind } from '../characterSheets/sheetCompendium';
+import type { CompendiumChoice, PickKind } from './pickKinds';
 import { CompendiumService } from './CompendiumService';
 import { booksOf, compendiumEntries, type CompendiumBook, type CompendiumEntry } from './compendiumEntries';
 import { choiceDetail, gearKind, linkText } from './sheetPickEdits';

@@ -1,13 +1,14 @@
 import type { App, TFile } from 'obsidian';
-import { activeShelf } from '../../online/gm/book/activeShelf.ts';
-import { applyBookMessage, shelfMessageOf } from '../../online/gm/book/bookStore.ts';
-import { parsePlayerBookMessage } from '../../online/protocol/index.ts';
-import { cardName, splitNote } from '../../compendium/entryCard';
-import { pickResult, type BookGear } from '../../compendium/sheetPickEdits';
-import type { PickKind } from '../sheetCompendium.ts';
-import { noteName } from '../../utils/pathUtils';
-import { editSheetFile, readSheetFile, sheetFile } from './sheetFiles.ts';
-import { bookPlaces } from './SheetBook.tsx';
+import { activeShelf } from '../online/gm/book/activeShelf.ts';
+import { applyBookMessage, shelfMessageOf } from '../online/gm/book/bookStore.ts';
+import { parsePlayerBookMessage } from '../online/protocol/index.ts';
+import { cardName, splitNote } from '../compendium/entryCard';
+import type { PickKind } from '../compendium/pickKinds';
+import { pickResult, type BookGear } from '../compendium/sheetPickEdits';
+import { NoteFieldWriter } from '../statblocks/notes/NoteFieldWriter';
+import { noteName } from '../utils/pathUtils';
+import { isCharacterNote, noteFile } from './characterTemplates';
+import { bookPlaces } from './SheetBook';
 
 /** What taking an entry did: whether the sheet took it, and whether its item went into the book (null: it has none). */
 export interface SheetPickDone {
@@ -43,18 +44,21 @@ async function addGear(app: App, file: TFile, gear: BookGear): Promise<boolean> 
 }
 
 /**
- * Takes the compendium entry at `entryPath` into the character sheet at `sheetPath`: its edits by the
- * sheet's own rules, and a weapon's or an armour's item into the book.
+ * Takes the compendium entry at `entryPath` into the character sheet at `sheetPath`: its fields'
+ * patches, built against the note as the write finds it, and a weapon's or an armour's item into the book.
  */
 export async function applySheetPick(app: App, sheetPath: string, kind: PickKind, entryPath: string): Promise<SheetPickDone> {
-  const file = sheetFile(app, sheetPath);
+  const file = noteFile(app, sheetPath);
   const entry = app.vault.getFileByPath(entryPath);
-  const sheet = file === null ? null : await readSheetFile(app, file);
-  if (file === null || entry === null || sheet === null) return { sheet: false, book: null };
+  if (file === null || entry === null || !isCharacterNote(app, sheetPath)) return { sheet: false, book: null };
   const { frontmatter, body } = splitNote(await app.vault.cachedRead(entry));
-  const result = pickResult(kind, cardName(frontmatter, noteName(entry.path)), frontmatter, body, sheet.values);
-  let written = true;
-  for (const edit of result.edits) written = (await editSheetFile(app, file, edit)) !== null && written;
-  const book = result.gear === null ? null : await addGear(app, file, result.gear);
-  return { sheet: written, book };
+  const name = cardName(frontmatter, noteName(entry.path));
+  let gear: BookGear | null = null;
+  const outcome = await NoteFieldWriter.forApp(app).patchNow(file.path, (note) => {
+    const result = pickResult(kind, name, frontmatter, body, note ?? {});
+    gear = result.gear;
+    return result.patches;
+  });
+  const book = gear === null ? null : await addGear(app, file, gear);
+  return { sheet: outcome.problem === null && outcome.conflicts.length === 0, book };
 }
