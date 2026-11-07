@@ -5,6 +5,7 @@ import { hotkeyOrigin, resolveHotkeys, withHotkey, type HotkeyOrigin } from '../
 import { resolveLaserPointerSettings, type LaserPointerSettings } from '../tools/laserPointerSettings';
 import { isDiceDisplay, type DiceDisplay } from '../dice3d/diceDisplay';
 import type { ExperimentalFeatureId } from '../experimental/experimentalFeatures';
+import { FORK_ALWAYS_ON } from '../experimental/forkAlwaysOn';
 import { DEFAULT_DICE_LOOK, isDiceColour, isDiceFont, type DiceLook } from '../dice3d/diceLook';
 import { readToolbarLayout, type StoredToolbarLayout } from '../toolbar/toolbarLayout';
 import {
@@ -415,7 +416,7 @@ export class SettingsService {
 
   /** Whether the GM switched an experimental feature on: off unless the file says `true`. */
   isExperimentalOn(id: ExperimentalFeatureId): boolean {
-    return this.settings.experimental[id] === true;
+    return FORK_ALWAYS_ON.has(id) || this.settings.experimental[id] === true;
   }
 
   setExperimental(id: ExperimentalFeatureId, on: boolean): void {
