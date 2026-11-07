@@ -11,7 +11,7 @@
 
 import { quoted } from '../values/valueText';
 import { syntaxError, type ExpressionError } from './errors';
-import { FORMULA_FUNCTIONS, isFormulaFunction, SLOT_WORD, type FormulaNode, type FormulaToken } from './formulaTypes';
+import { FORMULA_FUNCTIONS, HAS_FUNCTION, isFormulaFunction, SLOT_WORD, type FormulaNode, type FormulaToken } from './formulaTypes';
 import { tokenizeFormula } from './tokenize';
 import { t } from '../../i18n';
 
@@ -32,6 +32,7 @@ function tokenText(token: FormulaToken): string {
   switch (token.type) {
     case 'number': return token.text;
     case 'name': return token.name;
+    case 'text': return `"${token.text}"`;
     case 'op': return token.op;
     case 'open': return '(';
     case 'close': return ')';
@@ -117,6 +118,7 @@ class FormulaParser {
     switch (token.type) {
       case 'number': return { kind: 'number', value: token.value };
       case 'name': return this.named(token.name, token.at);
+      case 'text': return this.fail(`A quoted text only goes in ${quoted(`${HAS_FUNCTION}(…)`)}.`, token.at);
       case 'open': return this.nested(token.at, () => this.bracketed(token.at));
       case 'end': return this.fail(t('statblockEditor.expr.early'), token.at);
       case 'close': return this.fail(`There is a ${quoted(')')} without a ${quoted('(')}.`, token.at);
@@ -141,12 +143,25 @@ class FormulaParser {
   private named(name: string, at: number): FormulaNode {
     if (this.peek().type !== 'open') return name === SLOT_WORD ? { kind: 'slot' } : { kind: 'ref', ref: name };
     const fn = name.toLowerCase();
-    if (!isFormulaFunction(fn)) this.fail(`${quoted(name)} isn't a function. There are floor, ceil, round, abs, min and max.`, at);
+    if (fn === HAS_FUNCTION) return this.has(at);
+    if (!isFormulaFunction(fn)) this.fail(`${quoted(name)} isn't a function. There are floor, ceil, round, abs, min, max and has.`, at);
     const openAt = this.take().at;
     const args = this.nested(openAt, () => this.argumentsUntilClose(openAt));
     const problem = arityProblem(fn, args.length);
     if (problem) this.fail(problem, at);
     return { kind: 'call', fn, args };
+  }
+
+  /** `has(ref, "text")`, after its name: a field reference, a comma, a quoted text, the closing bracket. */
+  private has(at: number): FormulaNode {
+    const usage = `${quoted(HAS_FUNCTION)} takes a field and a quoted text, like has(skills, "Stealth").`;
+    this.take();
+    const ref = this.take();
+    const comma = this.take();
+    const text = this.take();
+    const close = this.take();
+    if (ref.type !== 'name' || ref.name === SLOT_WORD || comma.type !== 'comma' || text.type !== 'text' || close.type !== 'close') this.fail(usage, at);
+    return { kind: 'has', ref: ref.name, text: text.text };
   }
 
   private argumentsUntilClose(openAt: number): FormulaNode[] {

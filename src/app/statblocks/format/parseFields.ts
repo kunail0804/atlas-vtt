@@ -71,6 +71,7 @@ export function parseField(raw: unknown, index: number, ctx: FieldContext): Temp
     ...r.optList('counterRows', (item, at) => readCounterPreset(item, at, r.where, ctx.problems), 'rows with a name'),
     ...r.opt('prompt', asString, TEXT),
     ...r.opt('tracks', (value) => readTracking(value, r.where, ctx.problems), 'an object'),
+    ...r.opt('derive', asString, TEXT),
   });
 }
 

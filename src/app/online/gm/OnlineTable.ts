@@ -206,13 +206,13 @@ export class OnlineTable {
         this.bound()?.share.playerLeft(player);
         this.books.share.playerLeft(player);
         this.assets?.playerLeft(player);
-        this.books.sheets.playerLeft(player);
+        this.books.notes.playerLeft(player);
         this.compendium.share.playerLeft(player);
         ownership.left(player);
         this.log.left(player);
       },
       // The log, the found pins, the compendium pages and the books are the table's, so they hear players while no scene is shared too.
-      message: (from, body) => void (this.bound()?.share.heard(from, body), this.covers.receive(from, body) || this.log.receive(from, body) || this.found.receive(from, body) || this.compendium.share.receive(from, body) || this.books.sheets.receive(from, body) || this.books.share.receive(from, body) || this.bound()?.share.receive(from, body)),
+      message: (from, body) => void (this.bound()?.share.heard(from, body), this.covers.receive(from, body) || this.log.receive(from, body) || this.found.receive(from, body) || this.compendium.share.receive(from, body) || this.books.share.receive(from, body) || this.bound()?.share.receive(from, body)),
       access: (closesAt) => this.setClosing(closesAt),
     }, this.gate);
     // Each player hears only how far the assets they were sent references of have come.
@@ -404,7 +404,7 @@ export class OnlineTable {
     this.log.resend(to);
     this.image.resend(to);
     this.books.share.resend(to);
-    this.books.sheets.resend(to);
+    this.books.notes.resend(to);
     this.assets?.resend(to);
   }
 

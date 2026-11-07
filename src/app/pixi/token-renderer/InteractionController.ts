@@ -6,7 +6,7 @@
  */
 
 import type { ResourceDefsProvider } from '../../resources/resourceTypes';
-import { characterSheetEntry } from '../../characterSheets/obsidian/sheetEntries';
+import { characterSheetEntry } from '../../sheets/sheetEntries';
 import { isKillable, resetLabel } from '../../resources/resourceValues';
 import { visibleResources } from '../../resources/visibleResources';
 import React from 'react';

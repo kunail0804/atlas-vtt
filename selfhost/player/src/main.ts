@@ -153,8 +153,8 @@ async function main(): Promise<void> {
       return bar?.update(toolbarState);
     }
     if (message.t === 'shown-image') return viewer.fromGm(message);
-    if (message.t === 'book' || message.t === 'book-sheet' || message.t === 'book-item') return book.receive(message);
-    if (message.t === 'sheet') return book.receiveSheet(message);
+    if (message.t === 'book' || message.t === 'book-sheet' || message.t === 'book-item' || message.t === 'book-statblock' || message.t === 'book-rest-answer') return book.receive(message);
+    if (message.t === 'character-notes') return book.receiveNotes(message);
     if (message.t === 'compendium' || message.t === 'compendium-entry' || message.t === 'compendium-saved' || message.t === 'sheet-choices' || message.t === 'compendium-missing') return book.receiveCompendium(message);
     if (message.t === 'initiative') return message.scene === scene.sceneId ? initiative.show(message.list) : undefined;
     if (message.t === 'annotations') return message.scene === scene.sceneId ? annotations.showAnnotations(message) : undefined;

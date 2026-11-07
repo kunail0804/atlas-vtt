@@ -1,4 +1,4 @@
-import type { CompendiumChoice, PickKind, SheetCompendium } from '../../../src/app/characterSheets/sheetCompendium.ts';
+import type { CompendiumChoice, PickKind, SheetCompendium } from '../../../src/app/compendium/pickKinds.ts';
 import type { PlayerMessage } from '../../../src/app/online/protocol/game.ts';
 
 /** How long the sheet waits for the GM's list before it says the compendium does not answer. */

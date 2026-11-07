@@ -10,18 +10,16 @@ import { noteName } from '../../../utils/pathUtils';
 import { companionTimers } from '../companionTimers.ts';
 import { CompendiumShare } from './CompendiumShare.ts';
 import type { CompendiumBook } from '../../../compendium/compendiumEntries';
-import type { PickKind } from '../../../characterSheets/sheetCompendium.ts';
-import type { SheetValues } from '../../../characterSheets/sheetFields.ts';
-import { SHEET_KEY } from '../../../characterSheets/sheetSystem.ts';
-import { readNoteSheet } from '../../../characterSheets/sheetNote.ts';
-import { playerNoteFiles } from '../../../characterSheets/obsidian/sheetFiles.ts';
+import type { PickKind } from '../../../compendium/pickKinds';
+import { characterTemplateOf } from '../../../sheets/characterTemplates';
+import { playerNoteFiles, playerNoteLinks } from '../../../sheets/playerNotes';
 
 /** What reaches a sheet from the table, loaded once a table starts: it reads campaigns, sources and books. */
 const sheetModules = async () => {
   const [picks, pick, host, play, service] = await Promise.all([
     import('../../../compendium/sheetPicks'),
-    import('../../../characterSheets/obsidian/sheetPick.ts'),
-    import('../../../characterSheets/obsidian/sheetCompendiumHost.ts'),
+    import('../../../sheets/sheetPick'),
+    import('../../../sheets/sheetCompendiumHost'),
     import('../../../campaigns/campaignPlay'),
     import('../../../compendium/CompendiumService'),
   ]);
@@ -50,7 +48,7 @@ export function tableCompendium(app: App, send: (body: GmMessage, to: string) =>
   const sheetOf = (player: string): string | null => {
     const path = statblockOf(player);
     const file = path === null ? null : app.vault.getFileByPath(path);
-    return path !== null && file !== null && app.metadataCache.getFileCache(file)?.frontmatter?.[SHEET_KEY] !== undefined ? path : null;
+    return path !== null && file !== null && characterTemplateOf(app.metadataCache.getFileCache(file)?.frontmatter) !== null ? path : null;
   };
   const sheetValues = (path: string): Readonly<Record<string, unknown>> => {
     const file = app.vault.getFileByPath(path);
@@ -60,7 +58,7 @@ export function tableCompendium(app: App, send: (body: GmMessage, to: string) =>
     sheetOf,
     sheetChoices: async (kind, sheet) => {
       const read = await loaded();
-      return (await read.sheetChoices(app, kind, read.classNamesOf(sheetValues(sheet) as SheetValues))).map(({ id, name, detail }) => ({ path: id, name, ...(detail !== undefined && { detail }) }));
+      return (await read.sheetChoices(app, kind, read.classNamesOf(sheetValues(sheet)))).map(({ id, name, detail }) => ({ path: id, name, ...(detail !== undefined && { detail }) }));
     },
     pick: async (sheet, kind, entry) => (await (await loaded()).applySheetPick(app, sheet, kind, entry)).sheet,
     findEntry: async (kind, name) => (await (await loaded()).findSheetEntry(app, kind, name))?.path ?? null,
@@ -77,8 +75,8 @@ export function tableCompendium(app: App, send: (body: GmMessage, to: string) =>
         return entriesOfKind(app, books, kind).filter((entry) => set.has(entry.name.toLowerCase())).map((entry) => entry.path);
       };
       // The compendium entries the GM linked to the character among its notes (a class, a feat).
-      const notes = playerNoteFiles(app, readNoteSheet(values)?.playerNotes ?? [], sheet).entries.map((file) => file.path);
-      return [...lookup('spell', names('spell-list')), ...lookup('weapon', names('attacks')), ...notes];
+      const notes = playerNoteFiles(app, playerNoteLinks(values), sheet).entries.map((file) => file.path);
+      return [...lookup('spell', names('spell_list')), ...lookup('weapon', names('attacks')), ...notes];
     },
     send,
     nameOf,

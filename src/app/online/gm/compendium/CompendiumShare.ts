@@ -4,7 +4,7 @@ import {
 import { hashText } from '../../../utils/hashing';
 import { MoveRate } from '../moveCheck.ts';
 import { isPlayerCompendiumType } from '../../protocol/compendium.ts';
-import type { PickKind } from '../../../characterSheets/sheetCompendium.ts';
+import type { PickKind } from '../../../compendium/pickKinds';
 
 /** A page shared with a player: the note's vault path and what the player may do with it. */
 export interface PlayerShare {

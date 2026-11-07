@@ -160,6 +160,12 @@ export interface TemplateField {
   prompt?: string;
   /** number: a value a character spends and gets back (Luck, Ki, Hit Dice), read as `trackOf` reads it. */
   tracks?: FieldTracking;
+  /**
+   * A pattern the field's value is worked out from (`{classes|pluck:level|sum}`), written into the note
+   * whenever the statblock changes (`derivedPatches`), so whatever reads the note finds it. Where the
+   * pattern gives nothing, the field keeps what was typed in it.
+   */
+  derive?: string;
 }
 
 /**

@@ -21,7 +21,7 @@ import { confirmAction } from '../../../../ui/confirmDialog';
 import type { AtlasView } from '../../../../atlas-view';
 import { applyTokenDeleteImpact, describeTokenDeleteImpact, findTokenDeleteImpact } from '../utils/tokenDeleteImpact';
 import { tokenSizeSubmenu } from '../../../../react/components/context-menu/tokenSizeMenu';
-import { characterSheetEntry, sheetsForPlayerCharacters } from '../../../../characterSheets/obsidian/sheetEntries';
+import { characterSheetEntry, sheetsForPlayerCharacters } from '../../../../sheets/sheetEntries';
 import { playerCharacterEntry, setPlayerCharacters } from '../../../../react/components/context-menu/playerCharacterMenu';
 import type { TransferMode } from '../../../../services/assetTransfer/transferPlan';
 import type { CreateScenePrefill } from '../hooks/useAssetCrud';

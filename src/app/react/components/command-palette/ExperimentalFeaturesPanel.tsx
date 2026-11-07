@@ -1,5 +1,6 @@
 import React from 'react';
 import { EXPERIMENTAL_FEATURES } from '../../../experimental/experimentalFeatures';
+import { FORK_ALWAYS_ON } from '../../../experimental/forkAlwaysOn';
 import { useAtlasSettings } from '../../../keyboard/useMapHotkeys';
 import { SettingToggleRow } from './SettingRows';
 
@@ -9,7 +10,7 @@ export function ExperimentalFeaturesPanel(): React.ReactElement {
 
   return (
     <div className="atlas-command-palette-panel">
-      {EXPERIMENTAL_FEATURES.map(({ id, label, hint }) => {
+      {EXPERIMENTAL_FEATURES.filter(({ id }) => !FORK_ALWAYS_ON.has(id)).map(({ id, label, hint }) => {
         const on = settings?.isExperimentalOn(id) ?? false;
         return <SettingToggleRow key={id} label={label} hint={hint} value={on} onToggle={() => settings?.setExperimental(id, !on)} />;
       })}

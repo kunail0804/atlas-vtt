@@ -27,6 +27,7 @@ export function formulaText(node: FormulaNode, labelOf?: LabelResolver): string 
     case 'slot': return labelOf?.(SLOT_WORD) ?? SLOT_WORD;
     case 'negate': return `-${wrapped(formulaText(node.operand, labelOf), precedence(node.operand) < 3)}`;
     case 'call': return `${node.fn}(${node.args.map((arg) => formulaText(arg, labelOf)).join(', ')})`;
+    case 'has': return `has(${labelOf ? nameOf(node.ref, labelOf) : node.ref}, "${node.text}")`;
     case 'binary': {
       const own = precedence(node);
       const left = wrapped(formulaText(node.left, labelOf), precedence(node.left) < own);

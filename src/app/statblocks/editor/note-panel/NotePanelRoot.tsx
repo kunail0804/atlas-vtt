@@ -1,4 +1,5 @@
 import React from 'react';
+import { CharacterSheetTabs } from '../../../sheets/CharacterSheetTabs';
 import { PanelHostContent } from '../panel-frame/PanelHost';
 import { StatblockEditorRoot } from '../StatblockEditorRoot';
 import type { StatblockPaneProps } from '../statblock-pane/paneTypes';
@@ -15,11 +16,13 @@ export interface NotePanelRootProps {
   onResetWidth: () => void;
 }
 
-/** What the panel beside a note draws: the line that resizes it and, scrolling on its own, the statblock pane. */
+/** What the panel beside a note draws: the line that resizes it and, scrolling on its own, the statblock pane (with a player character's tabs around it). */
 export function NotePanelRoot({ pane, ...host }: NotePanelRootProps): React.JSX.Element {
   return (
     <PanelHostContent {...host}>
-      <StatblockEditorRoot surface={{ kind: 'statblock-pane', props: pane }} />
+      <CharacterSheetTabs app={pane.app} notePath={pane.notePath}>
+        <StatblockEditorRoot surface={{ kind: 'statblock-pane', props: pane }} />
+      </CharacterSheetTabs>
     </PanelHostContent>
   );
 }

@@ -1,5 +1,5 @@
 import './src/app/plugin/host/initializeHost';
-import { registerCharacterSheets } from './src/app/characterSheets/obsidian/sheetEntries';
+import { registerCharacterSheets } from './src/app/sheets/sheetEntries';
 import { Plugin } from 'obsidian';
 // Tailwind first, so the custom SCSS can override it.
 import './styles/index.css';
@@ -14,6 +14,7 @@ import { CreatureIndex } from './src/app/creatures/CreatureIndex';
 import { TemplateLibrary } from './src/app/statblocks/library/TemplateLibrary';
 import { registerStatblockFence } from './src/app/statblocks/render/statblockFence';
 import { registerNoteStatblockPanels } from './src/app/statblocks/editor/note-panel/noteStatblockPanels';
+import { registerDerivedFields } from './src/app/statblocks/notes/derivedFields';
 import { TemplateEditorView } from './src/app/statblocks/editor/TemplateEditorView';
 import { TEMPLATE_EDITOR_VIEW_TYPE } from './src/app/statblocks/editor/templateEditorState';
 import { openTemplateEditor } from './src/app/statblocks/editor/openTemplateEditor';
@@ -302,6 +303,7 @@ export default class AtlasVTTPlugin extends Plugin {
 
   /** The statblock beside every native statblock note, in every window, while the statblock editor is switched on. */
   private registerStatblockPanels(): void {
+    registerDerivedFields(this);
     registerNoteStatblockPanels(this, {
       services: appPaneServices,
       actions: {

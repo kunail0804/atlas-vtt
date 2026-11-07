@@ -32,7 +32,7 @@ describe('i18n', () => {
     expect(getLocale()).toBe('zh');
     expect(t('command.openDashboard')).toBe('打开仪表盘');
     expect(t('count.files', { count: 1 })).toBe('1 个文件');
-    setLocale('fr', TRANSLATIONS);
+    setLocale('de', TRANSLATIONS);
     expect(t('command.openDashboard')).toBe('Open dashboard');
   });
 

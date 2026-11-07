@@ -6,6 +6,7 @@
 import type { FieldValue } from '../model/templateTypes';
 import { isEmptyValue } from '../values/emptyValue';
 import type { ValueReader } from '../values/fieldValues';
+import { listItems } from '../values/listText';
 import { numericValue } from '../values/numberText';
 import { quoted } from '../values/valueText';
 import { nameOf, refError, type ExpressionError, type LabelResolver } from './errors';
@@ -91,7 +92,14 @@ function evaluateNode(node: FormulaNode, reader: ValueReader, context: FormulaCo
       }
       return call(node.fn, values);
     }
+    case 'has': return holds(reader(node.ref), node.text) ? 1 : 0;
   }
+}
+
+/** Whether a list, or a line of picks ("Stealth, Arcana"), holds the text, in any case; an empty field holds nothing. */
+function holds(value: FieldValue | undefined, text: string): boolean {
+  const wanted = text.trim().toLowerCase();
+  return listItems(value).some((item) => item.trim().toLowerCase() === wanted);
 }
 
 /** The formula's value, or why it has none. Never throws. */
