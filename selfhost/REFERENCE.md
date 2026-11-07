@@ -63,6 +63,7 @@ message's `body`.
 | A socket must send its `hello` within | 10 s, else `protocol` | `relay/tables.ts` |
 | GM hello | GM side only, with the table's secret, else `badSecret` | `Table.attachGm` |
 | Player hello | public side only; a known `key` takes its seat back without the gate | `Table.attachPlayer` |
+| Campaign players | the GM sends its campaign's players (`players`, id, name, own code) after every welcome; a hello whose `code` is a player's own takes that player's seat past the gate, from any device; a newcomer whose name is a campaign player's gets `nameTaken`. Kept in memory only | `Table.attachPlayer` |
 | Wrong join code | `wrongCode`; 10 within 10 minutes pause joins for 10 minutes (`paused`) | `relay/gate.ts` |
 | New join code from the GM | ends the pause and forgets wrong codes | `JoinGate.set` |
 | Waiting room | at most `MAX_WAITING` (8), else `tooManyKnocks`; no answer in 5 minutes gives `noAnswer` | `relay/gate.ts` |
@@ -70,7 +71,8 @@ message's `body`.
 | Player frames | `send` only, at most 4 KB (`tooLarge`), 60 per second after a burst of 120 (`rateLimited`) | `Table.fromPlayer` |
 | Player acks | `ack` with the count of frames marked `ack` the socket received, 400 per second after a burst of 800 (`rateLimited`); an ack past what was sent is ignored | `Table.fromPlayer`, `relay/outbox.ts` |
 | GM frames | at most 320 KB (`tooLarge`) | `relay/link.ts` |
-| Send lanes | A GM's `send` names a `lane` (`SendLane`). To a page whose hello says `acks`: `paced` (a part of a large message) and `bulk` (an asset chunk) go only while what is on its way would take under a second to arrive, at the speed its acks show, and are marked `ack`; `paced` and lane-less frames keep the GM's order; `bulk` goes when no ordered frame waits; `live` goes at once. A page without `acks` gets everything at once | `relay/outbox.ts` |
+| Batches | the GM's welcome says `batch`: the GM may send a moment's messages as one `sends` frame, each routed as its own `send` would be, with its lane | `Table.fromGm` |
+| Send lanes | A GM's `send` names a `lane` (`SendLane`). To a page whose hello says `acks`: `paced` (a part of a large message) and `bulk` (no sender uses it since the asset store) go only while what is on its way would take under a second to arrive, at the speed its acks show, and are marked `ack`; `paced` and lane-less frames keep the GM's order; `bulk` goes when no ordered frame waits; `live` goes at once. A page without `acks` gets everything at once | `relay/outbox.ts` |
 | Keep-alive | `ping` answered `pong` at every stage | `relay/link.ts` |
 | New table | ends the previous one: GM gets `superseded`, players `ended` | `Tables.create` |
 | Saved | tables, gate settings and players' key hashes, on every change, in `tables.json` | `relay/tableStore.ts` |
@@ -92,11 +94,11 @@ message's `body`.
 | Drawings and texts | `drawTools.ts` | The pen, stamp, eraser and text tool. What the player makes goes to the GM (`draw`, `place-text`, `erase`); the page shows its own copy until the GM's `annotations` hold it. The eraser rubs out only the player's own ink, and only the part under it |
 | Connection | `connection.ts` | Hello, keep-alive, reconnect with backoff, key kept in `localStorage` per table, wait token |
 | Inbox | `inbox.ts` | Puts `part` messages together, follows deltas with the plugin's `DeltaReader`, asks for a `resync` on a gap |
-| Assets | `assets.ts` | Asks by hash, takes chunks, checks SHA-256, continues a stalled download, takes scaled copies; quest texts are read with the plugin's `readQuestText` |
+| Assets | `assets.ts` | Fetches each stored asset from the relay by its id (`/api/assets/<id>`) once the GM's `asset-progress` says it is there (else every 5 s, ten minutes at most), checks its size and SHA-256, shrinks an image larger than the side asked for; quest texts are read with the plugin's `readQuestText` |
 | Asset cache | `assetCache.ts` | Keeps images and quest texts in Cache Storage between visits, checked against their SHA-256 on every read: at most 200 MB (or a tenth of the origin's quota) and 2,000 entries, least recently used out first, nothing over a quarter of the budget. The explored memory and everything else of the table's state is never kept |
 | Stage | `stage.ts` | The layers in order: map, grid, tokens, annotations, fog, pins |
 | Scene | `sceneView.ts` | Routes every scene message to its layer |
-| Map | `mapLayer.ts` | Draws the map at its own size; serves as the grid's `MapImageView` |
+| Map | `mapLayer.ts` | Draws the map at its own size; serves as the grid's `MosaicCanvasView` |
 | Grid | `sceneView.ts` | The plugin's `GridSystem` |
 | Tokens | `tokenLayer.ts`, `tokenUI.ts` | Draws tokens with the GM's ring artwork, their bars, conditions and the downed mark; the player's own tokens show the bars `mine` carries, every resource as their owner sees it, where everyone else's list holds only the players' resources; drags the player's own (`drag`, `move`, `drag-cancel`), by mouse or touch; follows `live` and `move-refused` |
 | Fog | `fogLayer.ts` | The plugin's `FogCanvasCompositor`, solid for players |
@@ -189,7 +191,9 @@ button shows once the player has a book or a shared page.
 
 Players draw and write with `draw`, `place-text` and `erase` (`src/app/online/protocol/annotate.ts`). The GM's `PlayerAnnotations` (`src/app/online/gm/PlayerAnnotations.ts`) keeps each as Atlas's own drawing or text, with the key `drawing_player_<id>` or `text_player_<id>` and `author` set to the player's relay id, so the GM sees it, saves it with the map and can erase or undo it (each is one undo step). `annotations` then carries `id` and `by` for a player's own. A player erases only their own; each keeps at most `MAX_PLAYER_ANNOTATIONS` (400) in a scene, within 10 % past the map's edges, at 20 a second (burst 60). A stroke longer than `MAX_STROKE_POINTS` (150) goes as several, since a player's frame holds 4 KiB.
 
-A player's roll may name `advantage` (`advantage` or `disadvantage`); the GM rolls it by the collection's dice set, as the GM's own tray does. `dice-rules` names the sides the set has a rule for, which the player's tray offers. It goes apart from `rules`, which a scene without a grid players can use goes without.
+A player's roll may name `advantage` (`advantage` or `disadvantage`); the GM rolls it by the collection's dice set, as the GM's own tray does. `rules.dice.sides` names the sides the map's set has a rule for, which the player's tray offers (both while a GM names none).
+
+A player of the campaign is sent their own code once, when the GM makes it (`your-code`); the page shows it for 30 s. With it, typed in the join form's code field, they take their seat from another device.
 
 The browser tests build nothing themselves: run `npm run player:build` first. They serve the built
 page from a real relay, drive it in `/usr/bin/chromium`, and play the GM with the plugin's
@@ -218,8 +222,8 @@ page from a real relay, drive it in `/usr/bin/chromium`, and play the GM with th
   wall collision for moves.
 - Parts of `src/app/pixi/lighting/` (`LightingRenderer`, `PlayerView`, the `engine/` folder)
   and of `src/app/pixi/fog/` (`FogCanvasCompositor`): the renderers for lighting and fog.
-- `src/app/pixi/mapImage/mapImageView.ts` and `pyramid.ts`: the map's types and tile
-  geometry only. The tile layer that draws the map (`MapImageLayer`) is not shared, so the
+- `src/app/pixi/mosaicCanvas/mosaicCanvasView.ts` and `pyramid.ts`: the map's types and tile
+  geometry only. The tile layer that draws the map (`MosaicCanvasLayer`) is not shared, so the
   page draws the map image itself.
 - `src/app/host/dom.ts`: call `installDomHost` before loading modules that create canvases.
 
@@ -231,9 +235,22 @@ A probe that imported eleven of these modules built and ran in Chromium on 2026-
 - `perMessageDeflate` is off (`relay/server.ts`): no frame waits for compression.
 - `ws` sets `TCP_NODELAY` on every socket, so small frames leave at once.
 - The relay reaches players through `cloudflared` on loopback, so a socket's `bufferedAmount` says nothing of a
-  player's link. Asset chunks and the parts of large messages go as frames the page acks (`relay/outbox.ts`), so a
-  dragged token waits behind about a second of them at most instead of a whole map or a scene's walls.
-- An asset chunk is 48 KiB (64 KiB of base64), small enough to cross a slow uplink shared between players well
-  within the page's 50 s silence limit, and always one frame, never split into `part` messages.
-- The GM sends a PNG or JPEG over 256 KiB that fits the asked side as a WebP copy when that is smaller
-  (`AssetVariants`): a 2.8 MB PNG map went out as 412 KB.
+  player's link. The parts of large messages go as frames the page acks (`relay/outbox.ts`), so a dragged token
+  waits behind about a second of them at most instead of a scene's walls.
+- Images, texts and videos never cross the table: the GM's Atlas uploads them to the relay's asset store and
+  players fetch them over HTTP, served `public, max-age=31536000, immutable`: each browser fetches an object once,
+  and a cache in front of the relay may keep it too.
+
+## The asset store
+
+The plugin's asset store (`src/app/online/gm/assets/`) on the relay (`relay/assetStore.ts`). On the GM side,
+with the GM's token: `GET /api/assets/salt` (32 bytes, kept in `asset-salt`), `POST /api/assets/offer`,
+`PUT /api/assets/<id>` (one body), `POST /api/assets/<id>/parts`, `PUT /api/assets/<id>/parts/<n>` and
+`POST /api/assets/<id>/complete` (objects over 64 MiB, in parts of 16 MiB), `DELETE /api/assets/<id>`. On the
+public side, without a token: `GET /api/assets/<id>`. An id is `HMAC-SHA-256(salt, content hash)`: the relay
+takes bytes only under the id their SHA-256 names, and the id is the capability to read them.
+
+- Tile pyramids are refused (`kind`): the GM's Atlas then sends maps as images, which the page draws whole.
+- All objects hold at most 6 GiB together (`STORE_LIMIT`); the least recently used go first to make room.
+- Served with `x-content-type-options: nosniff` and `content-security-policy: default-src 'none'; sandbox`:
+  the page fetches them, nothing in them ever runs as a page.

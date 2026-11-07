@@ -1,11 +1,13 @@
-import type { GmMessage, SharedBar } from '../protocol/index.ts';
+import type { GmMessage, SharedBar, SharedRollDice } from '../protocol/index.ts';
 
-/** Who is connected and who owns which token. */
+/** Who is connected, who owns which token, and the dice a token rolls with. */
 export interface MineSource {
   /** The ids of the players connected now. */
   onlinePlayers(): readonly string[];
   /** The owner of a token of the GM's scene, by its GM id. */
   ownerOf(tokenId: string): string | undefined;
+  /** The dice of a token's own set (its character's template's), by its GM id; undefined where it rolls with the map's. */
+  diceOf?(tokenId: string): SharedRollDice | undefined;
 }
 
 /** The token list players were last sent: its scene, and the random id players know each token by, by GM id. */
@@ -14,15 +16,16 @@ export interface ListedTokens {
   readonly aliases: ReadonlyMap<string, string>;
 }
 
-/** The ids, as players know them, of the listed tokens that are the player's, sorted. */
-export function mineOf(player: string, listed: ListedTokens, ownerOf: (tokenId: string) => string | undefined): string[] {
-  return [...listed.aliases].filter(([tokenId]) => ownerOf(tokenId) === player).map(([, alias]) => alias).sort();
+/** The listed tokens that are the player's, as GM id and the id players know it by, sorted by the latter. */
+function ownedBy(player: string, listed: ListedTokens, ownerOf: (tokenId: string) => string | undefined): [string, string][] {
+  return [...listed.aliases].filter(([tokenId]) => ownerOf(tokenId) === player).sort(([, a], [, b]) => (a < b ? -1 : a > b ? 1 : 0));
 }
 
 /**
- * Tells each connected player which tokens of the last list are theirs, with the bars of those as
- * their owner sees them: a `mine` message to that player alone, whenever their share changes. Only
- * tokens in the list are named, so a hidden token a player owns stays unknown to them.
+ * Tells each connected player which tokens of the last list are theirs, the dice of those that roll
+ * with a set of their own, and the bars of those as their owner sees them: a `mine` message to that
+ * player alone, whenever their share changes. Only tokens in the list are named, so a hidden token a
+ * player owns stays unknown to them.
  */
 export class MineShare {
   private readonly source: MineSource;
@@ -52,28 +55,31 @@ export class MineShare {
     const online = new Set(this.source.onlinePlayers());
     for (const player of this.sent.keys()) if (!online.has(player)) this.sent.delete(player);
     for (const player of online) {
-      const tokens = mineOf(player, listed, (tokenId) => this.source.ownerOf(tokenId));
-      const bars = this.ownBars(listed, tokens);
-      const key = JSON.stringify([listed.scene, tokens, bars]);
+      const owned = ownedBy(player, listed, (tokenId) => this.source.ownerOf(tokenId));
+      const dice = Object.fromEntries(owned.flatMap(([tokenId, alias]) => {
+        const own = this.source.diceOf?.(tokenId);
+        return own === undefined ? [] : [[alias, own] as const];
+      }));
+      const bars = this.ownBars(owned);
+      const body: GmMessage = {
+        t: 'mine', scene: listed.scene, tokens: owned.map(([, alias]) => alias),
+        ...(Object.keys(dice).length > 0 && { dice }), ...(bars !== null && { bars }),
+      };
+      const key = JSON.stringify(body);
       if (this.sent.get(player) === key) continue;
       this.sent.set(player, key);
-      this.send({ t: 'mine', scene: listed.scene, tokens, ...(bars !== null && { bars }) }, player);
+      this.send(body, player);
     }
   }
 
-  /** The bars of `tokens` (ids as players know them) that have some, by id; null where none has. */
-  private ownBars(listed: ListedTokens, tokens: readonly string[]): Record<string, readonly SharedBar[]> | null {
-    const gmIds = new Map([...listed.aliases].map(([tokenId, alias]) => [alias, tokenId]));
+  /** The bars of the owned tokens (GM id, then the id players know) that have some, by the players' id; null where none has. */
+  private ownBars(owned: readonly (readonly [string, string])[]): Record<string, readonly SharedBar[]> | null {
     const bars: Record<string, readonly SharedBar[]> = {};
-    let any = false;
-    for (const alias of tokens) {
-      const tokenId = gmIds.get(alias);
-      const list = tokenId === undefined ? [] : this.barsOf(tokenId);
-      if (list.length === 0) continue;
-      bars[alias] = list;
-      any = true;
+    for (const [tokenId, alias] of owned) {
+      const list = this.barsOf(tokenId);
+      if (list.length > 0) bars[alias] = list;
     }
-    return any ? bars : null;
+    return Object.keys(bars).length > 0 ? bars : null;
   }
 
   /** Sends the shares again, to one player or to all. */

@@ -37,7 +37,7 @@ export function useAssetManagerEffects({
   data, sel, crud, tags, statblock, compendiumOpen = false, compendiumDialogOpen = false,
 }: EffectDeps): void {
   const isAnySubModalOpen = compendiumDialogOpen ||
-    crud.isTokenCreatorOpen || crud.isMapCreatorOpen ||
+    crud.isTokenCreatorOpen || crud.isEncounterBuilderOpen || crud.isMapCreatorOpen ||
     crud.isCreateSceneModalOpen || crud.inputModalState.isOpen ||
     crud.isMoveModalOpen || crud.settingsModalCollectionId !== null || crud.isCreateCollectionModalOpen ||
     tags.isTagManagerOpen ||

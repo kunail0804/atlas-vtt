@@ -14,10 +14,11 @@ export class Notice {
     host.append(this.element);
   }
 
-  show(text: string): void {
+  /** Shows `text` for `ms` (`NOTICE_MS` unless named). */
+  show(text: string, ms = NOTICE_MS): void {
     this.element.textContent = text;
     this.element.hidden = false;
     window.clearTimeout(this.timer);
-    this.timer = window.setTimeout(() => (this.element.hidden = true), NOTICE_MS);
+    this.timer = window.setTimeout(() => (this.element.hidden = true), ms);
   }
 }

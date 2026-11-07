@@ -39,48 +39,52 @@ function withoutComments(source: string): string {
   return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
 }
 
-it('engine shader sources', () => {
-  // lists every engine program once
-  {
+describe('engine shader sources', () => {
+  it('lists every engine program once', () => {
     const names = shaders.map(([name]) => name);
     expect(new Set(names).size).toBe(names.length);
     expect(names.length).toBeGreaterThanOrEqual(9);
-  }
+  });
 
-  // every engine shader declares the uniforms PIXI sets with PIXI's types
-  {
-    for (const [_name, shader] of shaders) {
-      const clashes: string[] = [];
-      for (const [stage, source] of [['vertex', shader.vertex], ['fragment', shader.fragment]] as const) {
-        for (const [name, type] of uniformsOf(source)) {
-          const expected = PIXI_UNIFORMS[name];
-          if (expected && expected !== type) clashes.push(`${stage}: uniform ${type} ${name} (PIXI sets a ${expected})`);
-        }
+  it.each(shaders)('%s declares the uniforms PIXI sets with PIXI\'s types', (_name, shader) => {
+    const clashes: string[] = [];
+    for (const [stage, source] of [['vertex', shader.vertex], ['fragment', shader.fragment]] as const) {
+      for (const [name, type] of uniformsOf(source)) {
+        const expected = PIXI_UNIFORMS[name];
+        if (expected && expected !== type) clashes.push(`${stage}: uniform ${type} ${name} (PIXI sets a ${expected})`);
       }
-      expect(clashes).toEqual([]);
     }
-  }
+    expect(clashes).toEqual([]);
+  });
 
-  // every engine shader samples every texture at an explicit level
-  {
-    for (const [_name, shader] of shaders) {
-      const implicit = [shader.vertex, shader.fragment].flatMap((source) => withoutComments(source).match(IMPLICIT_GRADIENT) ?? []);
-      expect(implicit).toEqual([]);
+  // A merge once kept a read of uInputPixel and dropped its declaration: the composite failed to link and every view fell back to the Canvas picture.
+  it.each(shaders)('%s declares every uniform of PIXI\'s it reads', (_name, shader) => {
+    const undeclared: string[] = [];
+    for (const [stage, source] of [['vertex', shader.vertex], ['fragment', shader.fragment]] as const) {
+      const declared = uniformsOf(source);
+      const code = withoutComments(source);
+      for (const name of Object.keys(PIXI_UNIFORMS)) if (new RegExp(`\\b${name}\\b`).test(code) && !declared.has(name)) undeclared.push(`${stage}: ${name}`);
     }
-  }
+    expect(undeclared).toEqual([]);
+  });
 
-  // finds implicit-gradient reads, and only those (the check can fail)
-  {
+  // ANGLE translates GLSL to HLSL for Direct3D, whose compiler rejects or unrolls loops and
+  // branches that sample with implicit gradients; every engine read names its level instead.
+  it.each(shaders)('%s samples every texture at an explicit level', (_name, shader) => {
+    const implicit = [shader.vertex, shader.fragment].flatMap((source) => withoutComments(source).match(IMPLICIT_GRADIENT) ?? []);
+    expect(implicit).toEqual([]);
+  });
+
+  it('finds implicit-gradient reads, and only those (the check can fail)', () => {
     const source = 'a = texture(uMap, uv); // texture(in a comment)\nb = textureLod(uMap, uv, 0.0) + texelFetch(uMap, p, 0) + vec4(textureSize(uMap, 0), dFdx(uv));';
     expect(withoutComments(source).match(IMPLICIT_GRADIENT)).toEqual(['texture(', 'dFdx(']);
-  }
+  });
 
-  // finds the uniforms of a source (the check can fail)
-  {
+  it('finds the uniforms of a source (the check can fail)', () => {
     expect(Object.fromEntries(uniformsOf('uniform vec3 uColor;\n  uniform highp sampler2D uTile;\nuniform mat3 uProjectionMatrix;'))).toEqual({
       uColor: 'vec3',
       uTile: 'sampler2D',
       uProjectionMatrix: 'mat3',
     });
-  }
+  });
 });

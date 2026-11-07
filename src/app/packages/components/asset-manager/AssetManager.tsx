@@ -36,6 +36,8 @@ import { ActiveFilterBar } from './components/search/ActiveFilterBar';
 import { TabSwitcher } from './components/TabSwitcher';
 import { CompendiumPane } from './compendium/CompendiumPane';
 import { DIALOG_EXIT_DURATION, dialogBackdropVariants, useDialogWindowVariants } from '../primitives/dialogMotion';
+import { showDungeonGenerator } from '../dungeon-generator/openDungeonGenerator';
+import { runInBackground } from '../../../utils/backgroundTask';
 import { t } from '../../../i18n';
 
 const NO_ASSETS: AnyAsset[] = [];
@@ -186,7 +188,7 @@ export default function AssetManager({ isOpen, onClose, initialTab, onExitComple
     compendiumDialogOpen: compendiumOpen && compendiumDialogOpen,
   });
 
-  const anyModalOpen = crud.isTokenCreatorOpen || crud.isMapCreatorOpen;
+  const anyModalOpen = crud.isTokenCreatorOpen || crud.isEncounterBuilderOpen || crud.isMapCreatorOpen;
 
   return (
     <>
@@ -260,6 +262,11 @@ export default function AssetManager({ isOpen, onClose, initialTab, onExitComple
                   onOpenCompendium={openCompendium}
                   onCreateTokens={() => crud.setIsTokenCreatorOpen(true)}
                   onCreateMap={crud.handleCreateMap}
+                  onGenerateDungeon={() => {
+                    runInBackground(showDungeonGenerator(data.app, selectedCollection), 'Opening the dungeon generator');
+                    onClose();
+                  }}
+                  onCreateEncounter={() => crud.setIsEncounterBuilderOpen(true)}
                   onCreateCollection={crud.handleCreateCollection}
                   onCreateFolder={crud.handleCreateFolder}
                   sidebarToggleLabel={sidebar.toggleLabel}

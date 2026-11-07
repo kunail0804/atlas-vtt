@@ -2,12 +2,11 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { chromium, type Browser, type Page } from 'playwright';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { assetChunks, sha256Hex } from '../../src/app/online/gm/assetServe.ts';
 import type { AssetRef } from '../../src/app/online/protocol/asset.ts';
 import { DEFAULT_BOOK_SLOTS } from '../../src/app/online/protocol/bookSlots.ts';
 import type { PlayerBook } from '../../src/app/online/protocol/book.ts';
 import type { GmMessage } from '../../src/app/online/protocol/game.ts';
-import { TestGm, createTable, startTestRelay, stopTestRelay, until, type TestRelay } from './helpers.ts';
+import { TestGm, createTable, startTestRelay, stopTestRelay, storeAsset, until, type TestRelay } from './helpers.ts';
 import { png } from './png.ts';
 
 // The player's book on the built page, with the plugin's own connection code as the GM. The GM here
@@ -27,7 +26,6 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player book in
   let browser: Browser;
   let page: Page;
   let gm: TestGm;
-  let serving: ReturnType<typeof setInterval> | undefined;
 
   beforeAll(async () => {
     test = await startTestRelay();
@@ -36,7 +34,6 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player book in
   });
 
   afterAll(async () => {
-    clearInterval(serving);
     gm?.connection.stop();
     await browser?.close();
     await stopTestRelay(test);
@@ -55,22 +52,8 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player book in
     await until(() => gm.joined.length === 1, 'player seated', 10_000);
     const player = gm.joined[0]?.id ?? '';
 
-    // The assets the book names, served when the page asks, as the plugin serves them.
-    const files = new Map<string, Uint8Array>();
-    const asset = async (bytes: Uint8Array, mime: string): Promise<AssetRef> => {
-      const hash = await sha256Hex(bytes as Uint8Array<ArrayBuffer>);
-      files.set(hash, bytes);
-      return { hash, size: bytes.length, mime };
-    };
-    let answered = 0;
-    serving = setInterval(() => {
-      const requests = sentOf('asset-request');
-      for (const request of requests.slice(answered)) {
-        const bytes = files.get(request.hash as string);
-        if (bytes !== undefined) for (const chunk of assetChunks(request.hash as string, bytes)) send(chunk, player);
-      }
-      answered = requests.length;
-    }, 50);
+    // The assets the book names, in the relay's store as the plugin puts them there.
+    const asset = (bytes: Uint8Array, mime: string): Promise<AssetRef> => storeAsset(test, bytes, mime, mime.startsWith('text/') ? 'text' : 'image');
     const textRef = await asset(new TextEncoder().encode(QUEST_TEXT), 'text/markdown');
     const altarRef = await asset(png(64, 48, () => [200, 40, 40]), 'image/png');
     const worldRef = await asset(png(400, 300, () => [40, 120, 60]), 'image/png');

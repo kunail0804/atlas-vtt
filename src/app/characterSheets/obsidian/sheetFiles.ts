@@ -1,4 +1,5 @@
 import { normalizePath, TFile, type App } from 'obsidian';
+import { ENTRY_KIND_KEY, isEntryKind } from '../../compendium/sourceFormat';
 import { frontmatterOfText } from '../../statblocks/notes/statblockSource';
 import { applySheetEdit, readNoteSheet, sheetFrontmatter, type NoteSheet, type SheetEdit } from '../sheetNote.ts';
 import { MAX_PLAYER_NOTES, PLAYER_NOTES_KEY, type SheetSystem } from '../sheetSystem.ts';
@@ -89,4 +90,21 @@ export function linkedNote(app: App, link: string, from: string): TFile | null {
   const inner = /^\[\[([^\]|#]+)/.exec(link.trim())?.[1] ?? /^\[[^\]]*\]\(([^)]+)\)$/.exec(link.trim())?.[1] ?? link.trim();
   const file = app.metadataCache.getFirstLinkpathDest(decodeURIComponent(inner), from) ?? app.vault.getAbstractFileByPath(inner);
   return file instanceof TFile && file.extension === 'md' ? file : null;
+}
+
+/**
+ * The notes a sheet links for its player, from the sheet's note `from`: the compendium entries among
+ * them (a class, a spell), which the player reads as compendium pages, and the other notes, read as
+ * documents.
+ */
+export function playerNoteFiles(app: App, links: readonly string[], from: string): { entries: TFile[]; documents: TFile[] } {
+  const entries: TFile[] = [];
+  const documents: TFile[] = [];
+  for (const link of links) {
+    const file = linkedNote(app, link, from);
+    if (file === null) continue;
+    const kind: unknown = app.metadataCache.getFileCache(file)?.frontmatter?.[ENTRY_KIND_KEY];
+    (isEntryKind(kind) ? entries : documents).push(file);
+  }
+  return { entries, documents };
 }

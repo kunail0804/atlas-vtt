@@ -1,9 +1,9 @@
-import { MAX_ASSET_BYTES, isMaxSide, type AssetRef } from '../../../src/app/online/protocol/asset.ts';
-import type { GmMessage, PlayerMessage } from '../../../src/app/online/protocol/game.ts';
+import { MAX_STORED_BYTES, type AssetRef } from '../../../src/app/online/protocol/asset.ts';
+import type { GmMessage } from '../../../src/app/online/protocol/game.ts';
 import { readQuestText } from '../../../src/app/online/protocol/questText.ts';
 import type { AssetCache } from './assetCache.ts';
 
-/** An image ready to draw: `width` × `height` is the size to draw it at (a scaled copy is drawn at its original's size). */
+/** An image ready to draw: `width` × `height` is the size to draw it at (an image shrunk for this device is drawn at its own size). */
 export interface LoadedImage {
   readonly bitmap: ImageBitmap;
   /** The same image as an object URL, for elements (`<img>`): the page's policy allows blob: images. */
@@ -14,42 +14,18 @@ export interface LoadedImage {
   readonly height: number;
 }
 
-/** An asset's checked bytes, their SHA-256 (a scaled copy's own), and the size to draw a scaled copy at (null for the asset itself). */
-interface Fetched {
-  readonly blob: Blob;
-  readonly hash: string;
-  readonly drawSize: { width: number; height: number } | null;
-}
-
 /** `persist`: whether the asset is kept in the browser between visits. Off for what stands for the table's state (the explored memory). */
 export interface ImageOptions {
   readonly persist?: boolean;
 }
 
-const cacheKeyOf = (hash: string, maxSide: number | null): string => `${hash}@${maxSide ?? 'full'}`;
+/** Where the relay serves a stored object to players: the page's own origin (`assetStore.ts` in the relay). */
+export const assetUrl = (id: string): string => `/api/assets/${id}`;
 
-/** A download that hears nothing for this long asks again, from the first chunk it lacks. */
-const STALL_MS = 15_000;
-
-interface Download {
-  readonly mime: string;
-  readonly size: number;
-  readonly chunks: (Uint8Array | undefined)[];
-  received: number;
-  count: number | null;
-  /** The request this download answers; the GM continues a download `from` a chunk. */
-  readonly request: { readonly hash: string; readonly maxSide: number | null };
-  drawSize: { width: number; height: number } | null;
-  readonly waiters: { resolve: (fetched: Fetched) => void; reject: (reason: Error) => void }[];
-  stall: number | undefined;
-}
-
-function base64Bytes(data: string): Uint8Array {
-  const text = atob(data);
-  const bytes = new Uint8Array(text.length);
-  for (let index = 0; index < text.length; index += 1) bytes[index] = text.charCodeAt(index);
-  return bytes;
-}
+/** How long a fetch the store answered without the object waits before it asks again, should no progress say it is there. */
+const RETRY_MS = 5_000;
+/** How many times an object the store does not hold is asked for before it is given up (ten minutes). */
+const MAX_TRIES = 120;
 
 async function sha256Hex(bytes: Uint8Array): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', bytes as Uint8Array<ArrayBuffer>);
@@ -57,42 +33,50 @@ async function sha256Hex(bytes: Uint8Array): Promise<string> {
 }
 
 /**
- * Images by hash, as the GM serves them: the page asks once, the chunks come back, and the bytes are
- * kept only when their SHA-256 is the hash asked for. An image larger than the asked longest side
- * comes as a scaled copy under its own hash (`asset-variant`), drawn at the original's size. What
- * the browser kept from an earlier visit (`AssetCache`) is taken from there, without asking the GM.
+ * Assets as the GM's Atlas stores them for players: each is fetched from the relay by its id once the
+ * GM's progress says it is there (`asset-progress`), and kept only when its SHA-256 is the hash its
+ * reference names. An image larger than the longest side asked for is shrunk here, and drawn at its
+ * own size. What the browser kept from an earlier visit (`AssetCache`) is taken from there.
  */
 export class AssetLoader {
-  private readonly send: (message: PlayerMessage) => void;
   private readonly cache: AssetCache;
-  /** Downloads by the hash their chunks carry: the asset's own, or its scaled copy's. */
-  private readonly downloads = new Map<string, Download>();
   private readonly loaded = new Map<string, Promise<LoadedImage>>();
   private readonly texts = new Map<string, Promise<string>>();
+  private readonly blobs = new Map<string, Promise<Blob>>();
+  /** The ids the GM said can be fetched now. */
+  private readonly ready = new Set<string>();
+  /** Fetches waiting for their id to be ready, by id. */
+  private readonly waiting = new Map<string, (() => void)[]>();
 
-  constructor(send: (message: PlayerMessage) => void, cache: AssetCache) {
-    this.send = send;
+  constructor(cache: AssetCache, private readonly fetchAsset: (url: string) => Promise<Response> = (url) => fetch(url, { credentials: 'omit' })) {
     this.cache = cache;
   }
 
   image(ref: AssetRef, maxSide: number | null, options: ImageOptions = {}): Promise<LoadedImage> {
-    const side = maxSide !== null && isMaxSide(maxSide) ? maxSide : null;
-    const cacheKey = cacheKeyOf(ref.hash, side);
-    const known = this.loaded.get(cacheKey);
+    const key = `${ref.hash}@${maxSide ?? 'full'}`;
+    const known = this.loaded.get(key);
     if (known !== undefined) return known;
-    const promise = this.fetch(ref, side, options.persist ?? true).then(async ({ blob, drawSize }) => {
+    const promise = this.blob(ref, options.persist ?? true).then(async (blob) => {
       let bitmap: ImageBitmap;
       try {
         bitmap = await createImageBitmap(blob);
       } catch {
         throw new Error('The image could not be decoded.');
       }
-      const size = drawSize ?? { width: bitmap.width, height: bitmap.height };
-      return { bitmap, url: URL.createObjectURL(blob), blob, width: size.width, height: size.height };
+      const width = bitmap.width;
+      const height = bitmap.height;
+      const fit = maxSide === null ? 1 : maxSide / Math.max(width, height);
+      if (fit < 1) {
+        // A phone holds the decoded image: a large map is kept at the side asked for, and drawn at its own size.
+        const shrunk = await createImageBitmap(bitmap, { resizeWidth: Math.max(1, Math.round(width * fit)), resizeHeight: Math.max(1, Math.round(height * fit)), resizeQuality: 'high' });
+        bitmap.close();
+        bitmap = shrunk;
+      }
+      return { bitmap, url: URL.createObjectURL(blob), blob, width, height };
     });
     // A failed image is forgotten, so the next scene or token showing it asks again.
-    promise.catch(() => this.loaded.delete(cacheKey));
-    this.loaded.set(cacheKey, promise);
+    promise.catch(() => this.loaded.delete(key));
+    this.loaded.set(key, promise);
     return promise;
   }
 
@@ -100,7 +84,7 @@ export class AssetLoader {
   text(ref: AssetRef): Promise<string> {
     const known = this.texts.get(ref.hash);
     if (known !== undefined) return known;
-    const promise = this.fetch(ref, null, true).then(async ({ blob }) => {
+    const promise = this.blob(ref, true).then(async (blob) => {
       const text = readQuestText(new Uint8Array(await blob.arrayBuffer()));
       if (text === null) throw new Error('unreadable text');
       return text;
@@ -110,99 +94,62 @@ export class AssetLoader {
     return promise;
   }
 
-  private async fetch(ref: AssetRef, maxSide: number | null, persist: boolean): Promise<Fetched> {
-    // Taken before the cache is read, so chunks that come meanwhile are kept.
-    const { download, done } = this.begin(ref, maxSide);
-    // A refusal while the cache is read must not surface as an unhandled rejection; it is awaited below.
-    done.catch(() => undefined);
-    const key = cacheKeyOf(ref.hash, maxSide);
-    if (persist) {
-      const cached = await this.cache.get(key);
-      // Without a longest side the GM sends the asset itself, never a copy: a kept entry under another hash is not it.
-      if (cached !== null && (maxSide !== null || cached.hash === ref.hash) && download.received === 0) {
-        if (this.downloads.get(ref.hash) === download) this.downloads.delete(ref.hash);
-        return cached;
-      }
-    }
-    if (download.received === 0) this.ask(download, 0);
-    const fetched = await done;
-    if (persist) void this.cache.put(key, fetched);
-    return fetched;
-  }
-
-  /** A download of `ref`, ready for its chunks; nothing is asked of the GM yet. */
-  private begin(ref: AssetRef, maxSide: number | null): { readonly download: Download; readonly done: Promise<Fetched> } {
-    const waiters: Download['waiters'][number][] = [];
-    const done = new Promise<Fetched>((resolve, reject) => waiters.push({ resolve, reject }));
-    const download: Download = {
-      mime: ref.mime, size: ref.size, chunks: [], received: 0, count: null,
-      request: { hash: ref.hash, maxSide }, drawSize: null, waiters, stall: undefined,
-    };
-    this.downloads.set(ref.hash, download);
-    return { download, done };
-  }
-
-  /** Takes the asset messages; false for any other message. */
+  /** Takes the GM's upload progress; false for any other message. */
   receive(message: GmMessage): boolean {
-    if (message.t === 'asset-variant') {
-      const original = this.downloads.get(message.hash);
-      if (original === undefined || original.received > 0) return true;
-      this.downloads.delete(message.hash);
-      const copy: Download = { ...original, mime: message.variant.mime, size: message.variant.size, chunks: [], drawSize: { width: message.width, height: message.height } };
-      this.downloads.set(message.variant.hash, copy);
-      return true;
+    if (message.t !== 'asset-progress') return false;
+    for (const [id, share] of Object.entries(message.shares)) {
+      if (share < 1) continue;
+      this.ready.add(id);
+      const waiters = this.waiting.get(id);
+      this.waiting.delete(id);
+      for (const wake of waiters ?? []) wake();
     }
-    if (message.t === 'asset-refused') {
-      const download = this.downloads.get(message.hash);
-      if (download !== undefined) this.fail(message.hash, download, new Error('The GM did not send this image.'));
-      return true;
-    }
-    if (message.t !== 'asset-chunk') return false;
-    const download = this.downloads.get(message.hash);
-    if (download === undefined || message.index >= message.count) return true;
-    if (download.count === null) download.count = message.count;
-    if (download.count !== message.count || download.chunks[message.index] !== undefined) return true;
-    download.chunks[message.index] = base64Bytes(message.data);
-    download.received += 1;
-    this.watch(download);
-    if (download.received === download.count) void this.finish(message.hash, download);
     return true;
   }
 
-  private ask(download: Download, from: number): void {
-    const { hash, maxSide } = download.request;
-    this.send({ t: 'asset-request', hash, ...(from > 0 ? { from } : {}), ...(maxSide === null ? {} : { maxSide }) });
-    this.watch(download);
+  /** The checked bytes of `ref`, from the browser's cache or the relay; one fetch per hash at a time. */
+  private blob(ref: AssetRef, persist: boolean): Promise<Blob> {
+    const known = this.blobs.get(ref.hash);
+    if (known !== undefined) return known;
+    const promise = this.load(ref, persist);
+    // Kept while it runs and after it, so the same bytes are fetched once; a failure is tried again later.
+    promise.catch(() => this.blobs.delete(ref.hash));
+    this.blobs.set(ref.hash, promise);
+    return promise;
   }
 
-  private watch(download: Download): void {
-    window.clearTimeout(download.stall);
-    download.stall = window.setTimeout(() => {
-      const missing = download.chunks.findIndex((chunk) => chunk === undefined);
-      this.ask(download, download.count === null ? 0 : missing === -1 ? download.chunks.length : missing);
-    }, STALL_MS);
-  }
-
-  private async finish(hash: string, download: Download): Promise<void> {
-    window.clearTimeout(download.stall);
-    this.downloads.delete(hash);
-    const total = download.chunks.reduce((sum, chunk) => sum + (chunk?.length ?? 0), 0);
-    if (total !== download.size || total > MAX_ASSET_BYTES) return this.fail(hash, download, new Error('The asset arrived with the wrong size.'));
-    const bytes = new Uint8Array(total);
-    let offset = 0;
-    for (const chunk of download.chunks) {
-      if (chunk === undefined) continue;
-      bytes.set(chunk, offset);
-      offset += chunk.length;
+  private async load(ref: AssetRef, persist: boolean): Promise<Blob> {
+    if (ref.tiles === true) throw new Error('This relay serves no tile pyramids.');
+    if (ref.size > MAX_STORED_BYTES) throw new Error('The asset is larger than any the store holds.');
+    if (persist) {
+      const cached = await this.cache.get(ref.hash);
+      if (cached !== null && cached.hash === ref.hash) return cached.blob;
     }
-    if ((await sha256Hex(bytes)) !== hash) return this.fail(hash, download, new Error('The asset arrived damaged.'));
-    const blob = new Blob([bytes], { type: download.mime });
-    for (const waiter of download.waiters) waiter.resolve({ blob, hash, drawSize: download.drawSize });
+    const bytes = await this.fetchStored(ref.id);
+    if (bytes.length !== ref.size) throw new Error('The asset arrived with the wrong size.');
+    if ((await sha256Hex(bytes)) !== ref.hash) throw new Error('The asset arrived damaged.');
+    const blob = new Blob([bytes as Uint8Array<ArrayBuffer>], { type: ref.mime });
+    if (persist) void this.cache.put(ref.hash, { blob, hash: ref.hash, drawSize: null });
+    return blob;
   }
 
-  private fail(hash: string, download: Download, reason: Error): void {
-    window.clearTimeout(download.stall);
-    this.downloads.delete(hash);
-    for (const waiter of download.waiters) waiter.reject(reason);
+  /** The stored object's bytes: asked for at once, and again whenever the GM says it is there, or every `RETRY_MS` meanwhile, `MAX_TRIES` times at most. */
+  private async fetchStored(id: string): Promise<Uint8Array> {
+    for (let tries = 0; tries < MAX_TRIES; tries += 1) {
+      const response = await this.fetchAsset(assetUrl(id)).catch(() => null);
+      if (response?.ok === true) return new Uint8Array(await response.arrayBuffer());
+      if (response !== null && response.status !== 404) throw new Error(`The relay answered ${response.status}.`);
+      this.ready.delete(id);
+      await new Promise<void>((resolve) => {
+        const timer = window.setTimeout(resolve, RETRY_MS);
+        const list = this.waiting.get(id) ?? [];
+        list.push(() => {
+          window.clearTimeout(timer);
+          resolve();
+        });
+        this.waiting.set(id, list);
+      });
+    }
+    throw new Error('The relay never held this asset.');
   }
 }

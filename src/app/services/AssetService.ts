@@ -23,6 +23,7 @@ import { isRecord } from '../utils/guards';
 import { groupLegacyTags, hasAssetTag, tagGroupOf, tagKey, type TagGroup } from './tagGroups';
 import { t } from '../i18n';
 import { trashVaultItem } from '../utils/trashVaultItem';
+import { encounterThumbnailFile } from '../encounters/encounterThumbnailFile';
 import { LibrarySync } from './library/LibrarySync';
 import type { LibraryMergeResult } from './library/mergeLibraryChanges';
 import { LEGACY_INDEX_FILE, LIBRARY_FILE, recordFilePath } from './library/libraryPaths';
@@ -85,6 +86,11 @@ export interface EncounterTokenRef extends GroupTokenRef {
   offset?: { x: number; y: number };
   /** Full token state at save time (HP, conditions, statblock link, ...). Restored verbatim on spawn. */
   state?: TokenStateSnapshot;
+  /**
+   * Dice (`"2d4"`) that say how many copies this reference stands for, rolled on every spawn
+   * (`encounterQuantity.ts`). Unset, it is one copy, which is also what older versions spawn.
+   */
+  quantity?: string;
 }
 
 export type EncounterDifficulty = 'easy' | 'medium' | 'hard' | 'deadly';
@@ -676,7 +682,7 @@ export class AssetService {
   /** Deletes the given encounters if their token list is now empty. */
   private async deleteEmptiedGroups(groups: GroupAsset[]): Promise<void> {
     for (const group of groups) {
-      if (groupTokenRefs(group).length === 0) await this.deleteAsset(group.id);
+      if (groupTokenRefs(group).length === 0) await this.removeAsset(group.id);
     }
   }
 
@@ -1087,7 +1093,16 @@ export class AssetService {
     return { path, content: serializeRecord(asset) };
   }
 
-  async deleteAsset(id: string): Promise<void> {
+  /**
+   * Deletes an asset with its files. Holds the index while it does, so the vault check never
+   * meets a half-deleted asset: a scene whose record file is gone while its map is still there
+   * would be taken in again as a scene of its own.
+   */
+  deleteAsset(id: string): Promise<void> {
+    return this.runExclusive(() => this.removeAsset(id));
+  }
+
+  private async removeAsset(id: string): Promise<void> {
     await this.ensureLoaded();
 
     const asset = this.metadata!.assets[id];
@@ -1165,12 +1180,28 @@ export class AssetService {
       this.removeTokenReferencesFromGroups(asset.id);
       await this.trashFileIfPresent(asset.thumbnailPath);
     }
+    if (asset.type === 'encounter') await this.trashEncounterThumbnail(asset);
 
     // Remove from metadata
     delete this.metadata!.assets[id];
     await this.saveMetadata();
 
     await this.deleteEmptiedGroups(emptiedGroups);
+  }
+
+  /** An encounter's thumbnail goes with it, unless another encounter (a copy) still shows the same file. */
+  private async trashEncounterThumbnail(encounter: EncounterAsset): Promise<void> {
+    const url = encounter.thumbnailUrl;
+    if (!url) return;
+    const shared = Object.values(this.metadata!.assets)
+      .some((other) => other.id !== encounter.id && other.type === 'encounter' && other.thumbnailUrl === url);
+    const file = shared ? null : encounterThumbnailFile(this.app, url);
+    if (!file) return;
+    try {
+      await trashVaultItem(this.app, file);
+    } catch (error) {
+      console.error('[AssetService] Error deleting encounter thumbnail:', error);
+    }
   }
 
   private async trashFileIfPresent(path: string | undefined): Promise<void> {
@@ -1602,19 +1633,22 @@ export class AssetService {
       .filter((asset) => asset.collection === collectionId && tagGroupOf(asset.type) === group);
   }
 
-  /**
-   * Update asset tags
-   */
-  async updateAssetTags(assetId: string, tags: string[]): Promise<void> {
+  /** Replaces the tags of several assets in one save of the index; changes nothing when one of them is gone. */
+  async updateTagsOfAssets(changes: readonly { id: string; tags: string[] }[]): Promise<void> {
     await this.ensureLoaded();
-    if (!this.metadata) throw new Error('Metadata not loaded');
-    
-    const asset = this.metadata.assets[assetId];
-    if (!asset) throw new Error(`Asset ${assetId} not found`);
-    
-    asset.tags = tags;
-    asset.modifiedAt = Date.now();
-    
+    const metadata = this.metadata;
+    if (!metadata) throw new Error('Metadata not loaded');
+
+    for (const { id } of changes) {
+      if (!metadata.assets[id]) throw new Error(`Asset ${id} not found`);
+    }
+    const now = Date.now();
+    for (const { id, tags } of changes) {
+      const asset = metadata.assets[id]!;
+      asset.tags = tags;
+      asset.modifiedAt = now;
+    }
+
     await this.saveMetadata();
   }
 

@@ -1,7 +1,8 @@
 import type { WebSocket } from 'ws';
 import {
-  ALL_PLAYERS, CLOSE, PROTOCOL_VERSION, isOtherVersion, parseClientFrame, type PlayerHello, type PlayerInfo, type SendLane,
+  ALL_PLAYERS, CLOSE, PROTOCOL_VERSION, isOtherVersion, parseClientFrame, samePlayerName, type PlayerHello, type PlayerInfo, type SendLane,
 } from '../../src/app/online/protocol/relay.ts';
+import type { CampaignSeat } from '../../src/app/online/protocol/seat.ts';
 import { closeSocket, sendFrame, sendText } from './frames.ts';
 import { JoinGate } from './gate.ts';
 import { hashOf, matchesHash, newPlayerId, newSecret } from './ids.ts';
@@ -45,6 +46,11 @@ export class Table {
   private readonly secretHash: string;
   private readonly maxPlayers: number;
   private readonly seats = new Map<string, Seat>();
+  /**
+   * The players of the GM's campaign, each with a code of their own (`players`): one who comes with
+   * their code takes their seat on any device. The GM sends it after every welcome, so it is not saved.
+   */
+  private campaign: readonly CampaignSeat[] = [];
   private gm: Link | null = null;
   /** Waiting newcomers keep their link and whether their page acks, so an admitted one is seated on it. */
   private readonly linksByKnockSocket = new WeakMap<WebSocket, { readonly link: Link; readonly acks: boolean }>();
@@ -85,7 +91,8 @@ export class Table {
       this.toPlayers({ t: 'gm', online: false });
     });
     const waiting = this.gate.waiting();
-    sendFrame(link.socket, { t: 'welcome', role: 'gm', players: this.connectedPlayers(), ...(waiting.length === 0 ? {} : { waiting }) });
+    // `batch`: the GM may send the messages of one moment in one `sends` frame.
+    sendFrame(link.socket, { t: 'welcome', role: 'gm', players: this.connectedPlayers(), ...(waiting.length === 0 ? {} : { waiting }), batch: true });
     if (previous === null) this.toPlayers({ t: 'gm', online: true });
   }
 
@@ -96,6 +103,12 @@ export class Table {
     switch (frame.t) {
       case 'send':
         this.route(frame.to ?? ALL_PLAYERS, frame.body, frame.lane ?? null);
+        return;
+      case 'sends':
+        for (const send of frame.sends) this.route(send.to, send.body, send.lane ?? null);
+        return;
+      case 'players':
+        this.campaign = frame.players;
         return;
       case 'ack':
         return closeSocket(link.socket, CLOSE.protocol, 'malformed frame');
@@ -174,6 +187,11 @@ export class Table {
       this.linksByKnockSocket.set(link.socket, { link, acks: hello.acks === true });
       return;
     }
+    // A player of the campaign comes back with their own code: their seat, whatever the gate says.
+    const own = hello.code === undefined ? undefined : this.campaign.find((player) => player.code === hello.code);
+    if (own !== undefined) return this.seatCampaignPlayer(link, own, hello.acks === true);
+    // A newcomer may not take the name of a player of the campaign: that player comes back with their code.
+    if (this.campaign.some((player) => samePlayerName(player.name, hello.name))) return closeSocket(link.socket, CLOSE.nameTaken, 'name taken');
     const check = this.gate.check(hello.code);
     if (check === 'paused') return closeSocket(link.socket, CLOSE.paused, 'joins paused');
     if (check === 'wrong') return closeSocket(link.socket, CLOSE.wrongCode, 'wrong code');
@@ -185,6 +203,17 @@ export class Table {
       return;
     }
     this.seatNewcomer(link, newPlayerId(), hello.name, hello.acks === true);
+  }
+
+  /** Seats a player of the campaign under the id the GM knows them by, with a new key for this device. */
+  private seatCampaignPlayer(link: Link, player: CampaignSeat, acks: boolean): void {
+    const known = this.seats.get(player.id);
+    if (known === undefined) return this.seatNewcomer(link, player.id, player.name, acks);
+    const key = newSecret();
+    const seat: Seat = { ...known, keyHash: hashOf(key) };
+    this.seats.set(player.id, seat);
+    this.ports.changed();
+    this.seat(link, seat, key, player.name, acks);
   }
 
   private seatAdmitted(socket: WebSocket, id: string, name: string): void {

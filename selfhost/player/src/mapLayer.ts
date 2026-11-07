@@ -1,18 +1,18 @@
 import { Container, Sprite, Texture } from 'pixi.js';
-import type { MapImageChange, MapImageView } from '../../../src/app/pixi/mapImage/mapImageView.ts';
-import type { PixelRect } from '../../../src/app/pixi/mapImage/pyramid.ts';
+import type { MosaicCanvasChange, MosaicCanvasView } from '../../../src/app/pixi/mosaicCanvas/mosaicCanvasView.ts';
+import type { PixelRect } from '../../../src/app/pixi/mosaicCanvas/pyramid.ts';
 import type { LoadedImage } from './assets.ts';
 
 /**
  * The shared map image, drawn at its natural size at (0, 0) as the GM's map is. It is also what the
- * plugin's grid needs to know of a map (`MapImageView`): its rect, its layer, and its pixels for the
- * automatic line colour.
+ * plugin's grid needs to know of a map (`MosaicCanvasView`): its rect, its layer, and its pixels for
+ * the automatic line colour.
  */
-export class MapLayer implements MapImageView {
+export class MapLayer implements MosaicCanvasView {
   readonly layer: Container;
   private sprite: Sprite | null = null;
   private image: LoadedImage | null = null;
-  private readonly listeners = new Set<(change: MapImageChange) => void>();
+  private readonly listeners = new Set<(change: MosaicCanvasChange) => void>();
 
   constructor(layer: Container) {
     this.layer = layer;
@@ -47,7 +47,22 @@ export class MapLayer implements MapImageView {
     return createImageBitmap(bitmap, { resizeWidth: Math.max(1, Math.round(bitmap.width * scale)), resizeHeight: Math.max(1, Math.round(bitmap.height * scale)) });
   }
 
-  onChange(listener: (change: MapImageChange) => void): () => void {
+  /** `rect` of the image's own pixels fit within `maxSide`; null without an image or for a rect outside it. */
+  async window(rect: PixelRect, maxSide: number): Promise<ImageBitmap | null> {
+    if (this.image === null) return null;
+    const { bitmap } = this.image;
+    // The bitmap may be shrunk for this device: the rect is read from it at its scale.
+    const ratio = bitmap.width / this.image.width;
+    const x = Math.max(0, Math.floor(rect.x * ratio));
+    const y = Math.max(0, Math.floor(rect.y * ratio));
+    const width = Math.min(bitmap.width - x, Math.ceil(rect.width * ratio));
+    const height = Math.min(bitmap.height - y, Math.ceil(rect.height * ratio));
+    if (width <= 0 || height <= 0) return null;
+    const scale = Math.min(1, maxSide / Math.max(width, height));
+    return createImageBitmap(bitmap, x, y, width, height, { resizeWidth: Math.max(1, Math.round(width * scale)), resizeHeight: Math.max(1, Math.round(height * scale)) });
+  }
+
+  onChange(listener: (change: MosaicCanvasChange) => void): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
   }

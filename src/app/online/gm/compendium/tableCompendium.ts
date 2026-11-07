@@ -13,6 +13,8 @@ import type { CompendiumBook } from '../../../compendium/compendiumEntries';
 import type { PickKind } from '../../../characterSheets/sheetCompendium.ts';
 import type { SheetValues } from '../../../characterSheets/sheetFields.ts';
 import { SHEET_KEY } from '../../../characterSheets/sheetSystem.ts';
+import { readNoteSheet } from '../../../characterSheets/sheetNote.ts';
+import { playerNoteFiles } from '../../../characterSheets/obsidian/sheetFiles.ts';
 
 /** What reaches a sheet from the table, loaded once a table starts: it reads campaigns, sources and books. */
 const sheetModules = async () => {
@@ -74,7 +76,9 @@ export function tableCompendium(app: App, send: (body: GmMessage, to: string) =>
         const set = new Set(wanted.map((name) => name.toLowerCase()));
         return entriesOfKind(app, books, kind).filter((entry) => set.has(entry.name.toLowerCase())).map((entry) => entry.path);
       };
-      return [...lookup('spell', names('spell-list')), ...lookup('weapon', names('attacks'))];
+      // The compendium entries the GM linked to the character among its notes (a class, a feat).
+      const notes = playerNoteFiles(app, readNoteSheet(values)?.playerNotes ?? [], sheet).entries.map((file) => file.path);
+      return [...lookup('spell', names('spell-list')), ...lookup('weapon', names('attacks')), ...notes];
     },
     send,
     nameOf,

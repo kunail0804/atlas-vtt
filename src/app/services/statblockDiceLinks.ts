@@ -24,28 +24,8 @@ import { rollStatblockDice, statblockRollingDice, type DiceRollSource, type OffM
 import { advantageSide, advantageSidesFor } from '../tools/diceAdvantage';
 import type { AdvantageSide } from '../types/diceSetTypes';
 import { t } from '../i18n';
-
-/**
- * One dice term: `2d8`, `d20`, with the exploding notation (`1d6!i`, `1d6!3`,
- * `1d6!!`) and keep marks (`4d6kh3`). A single `!` is left out: in running
- * text it ends a sentence far more often than it means a die that explodes once.
- */
-const DIE = String.raw`\d*d\d+(?:!!?(?:\d+|i(?![a-z]))|!!)?(?:k[hl]\d*(?![a-z]))?`;
-
-/** A further signed term: a die or a constant after `+`, `-`, a minus sign or an en dash, or after "+ -" (the 5e SRD's "3d6 + -1"). */
-const NEXT_TERM = String.raw`\s*(?:\+\s*-|[+\-−–])\s*(?:${DIE}|\d+)`;
-
-/**
- * Dice expressions (`2d8+3`, `2d6 - 1d4`) plus bare bonuses (`+4`, `−1`,
- * `ATK: +4`). Neither starts inside a word or a number ("x2d6" is no die);
- * brackets are punctuation, so "(2d6 + 3)" links "2d6 + 3". A bare sign must
- * sit directly on its digits and must not open a dice term, so the dash in
- * "Very Close - 1d12+2" is punctuation rather than a -1 roll.
- */
-const DICE_PATTERN = new RegExp(
-  String.raw`((?<!\w)${DIE}(?:${NEXT_TERM})*|(?:ATK|Attack)\s*:\s*[+-]\d+|(?<!\w)[+\-−]\d+(?!\s*d\d))`,
-  'gi',
-);
+import { BONUS_ID_ATTRIBUTE } from '../statblocks/rollBonuses/armedBonuses';
+import { splitDiceSegments, toRollFormula } from './statblockDiceText';
 
 const LINK_CLASS = 'atlas-dice-link';
 
@@ -75,18 +55,6 @@ const SIDE_LABELS: Record<AdvantageSide, () => string> = {
   advantage: () => t('dice.rollWithAdvantage'),
   disadvantage: () => t('dice.rollWithDisadvantage'),
 };
-
-/**
- * Turns matched display text into a formula the dice tool understands. A bare
- * bonus stays bare: the dice tool adds it to the collection's default roll.
- */
-export function toRollFormula(text: string): string {
-  return text
-    .replace(/\s+/g, '')
-    .replace(/^(?:ATK|Attack):/i, '')
-    .replace(/[−–]/g, '-')
-    .replace(/\+-/g, '-');
-}
 
 /** Nearest heading-ish label above the roll, used to title the dice toast. */
 function abilityNameFor(node: Node): string | undefined {
@@ -144,25 +112,19 @@ function bareBonusRolls(textNode: Text): boolean {
 
 function linkTextNode(textNode: Text): void {
   const text = textNode.nodeValue ?? '';
-  DICE_PATTERN.lastIndex = 0;
-  if (!DICE_PATTERN.test(text)) return;
-
   const bareRolls = bareBonusRolls(textNode);
-  DICE_PATTERN.lastIndex = 0;
+  // A bare bonus that does not roll here stays text, like any other words.
+  const segments = splitDiceSegments(text).map((segment) => (
+    segment.dice && !bareRolls && isBareBonus(segment.text) ? { ...segment, dice: false } : segment
+  ));
+  if (!segments.some((segment) => segment.dice)) return;
+
   const fragment = createFragment();
-  let cursor = 0;
-  let linked = 0;
-  let match: RegExpExecArray | null;
-
-  while ((match = DICE_PATTERN.exec(text)) !== null) {
-    const [matched] = match;
-    // Left as text: the cursor stays, so it goes out with the text before the next roll.
-    if (!bareRolls && isBareBonus(matched)) continue;
-    linked += 1;
-    if (match.index > cursor) {
-      fragment.append(text.slice(cursor, match.index));
+  for (const { text: matched, dice } of segments) {
+    if (!dice) {
+      fragment.append(matched);
+      continue;
     }
-
     const link = createSpan();
     link.className = LINK_CLASS;
     link.textContent = matched;
@@ -171,13 +133,6 @@ function linkTextNode(textNode: Text): void {
     link.setAttribute('tabindex', '0');
     link.setAttribute('aria-label', t('dice.rollFormula', { formula: link.dataset.formula ?? '' }));
     fragment.append(link);
-
-    cursor = match.index + matched.length;
-  }
-
-  if (linked === 0) return;
-  if (cursor < text.length) {
-    fragment.append(text.slice(cursor));
   }
   textNode.replaceWith(fragment);
 }
@@ -232,7 +187,9 @@ export function attachDiceRolling(
       return;
     }
 
-    rollStatblockDice(app, formula, { ...getSource(), abilityName }, offMap?.(), side);
+    // A value that adds to rolls, rolled from its own number, is in the roll once: as the number clicked.
+    const rolledBonus = link.closest<HTMLElement>(`[${BONUS_ID_ATTRIBUTE}]`)?.getAttribute(BONUS_ID_ATTRIBUTE) ?? undefined;
+    rollStatblockDice(app, formula, { ...getSource(), abilityName, rolledBonus }, offMap?.(), side);
   };
 
   const linkOf = (event: Event): HTMLElement | null =>
@@ -300,24 +257,4 @@ export function diceLinkProps(matched: string): {
     tabIndex: 0,
     'aria-label': t('dice.rollFormula', { formula }),
   };
-}
-
-/** Splits text into plain and dice segments, for renderers that build their own nodes. */
-export function splitDiceSegments(text: string): Array<{ text: string; dice: boolean }> {
-  const segments: Array<{ text: string; dice: boolean }> = [];
-  DICE_PATTERN.lastIndex = 0;
-
-  let cursor = 0;
-  let match: RegExpExecArray | null;
-  while ((match = DICE_PATTERN.exec(text)) !== null) {
-    if (match.index > cursor) {
-      segments.push({ text: text.slice(cursor, match.index), dice: false });
-    }
-    segments.push({ text: match[0], dice: true });
-    cursor = match.index + match[0].length;
-  }
-  if (cursor < text.length) {
-    segments.push({ text: text.slice(cursor), dice: false });
-  }
-  return segments;
 }

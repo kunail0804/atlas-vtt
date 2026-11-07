@@ -1,9 +1,12 @@
+import type { TokenEntity } from '../../types';
+import type { DiceSet } from '../../types/diceSetTypes';
+import type { RollOptions } from '../../tools/DiceTool';
+import { gatedStatblocks } from './book/statblockGate.ts';
 import type { WorkspaceLeaf } from 'obsidian';
 import type { DiceRollOrigin } from '../../types/diceRollOrigin';
 import type { DiceRollResult } from '../../types/diceTypes';
 import type { DiceRules } from '../../types/diceRulesTypes';
-import type { AdvantageSide, RollingDice } from '../../types/diceSetTypes';
-import { ruledSides } from '../../tools/diceAdvantage';
+import type { RollingDice } from '../../types/diceSetTypes';
 import { call } from './atlasView.ts';
 
 /** What `dice-rolled` carries on an Atlas view's bus: the roll and, when known, the token it was made for. */
@@ -15,10 +18,10 @@ export type DiceRolledListener = (result: DiceRollResult, origin?: DiceRollOrigi
  */
 export interface DiceSource {
   readonly viewId: string;
-  rollDice(formula: string, source?: DiceRollResult['source'], origin?: DiceRollOrigin, options?: { readonly advantage?: AdvantageSide }): DiceRollResult | null;
-  /** The sides of advantage the tool's dice set has a rule for; none from an Atlas that tells none. */
-  advantageSides?(): readonly AdvantageSide[];
-  /** The dice the tool rolls a bare bonus with: its map's dice set (or a collection's stored dice rules). */
+  rollDice(formula: string, source?: DiceRollResult['source'], origin?: DiceRollOrigin, options?: RollOptions): DiceRollResult | null;
+  /** The template's dice for an already-authorized character; absent means the campaign's. */
+  setFor?(token: TokenEntity): DiceSet | undefined;
+  /** The map's dice set, used where the character has no override. */
   rules(): DiceRules | RollingDice;
   on(event: 'dice-rolled', listener: DiceRolledListener): unknown;
   off(event: 'dice-rolled', listener: DiceRolledListener): unknown;
@@ -43,7 +46,11 @@ export function diceSourceOf(leaf: WorkspaceLeaf): DiceSource | null {
   return {
     viewId,
     rollDice: (formula, source, origin, options) => tool.rollDice(formula, source, origin, options) as DiceRollResult | null,
-    advantageSides: () => (hasMethods(tool, 'rollingDice') ? ruledSides(tool.rollingDice() as RollingDice) : []),
+    setFor: (token) => {
+      const path = (token.kind === 'character' ? token.statblockPath : undefined)
+        || gatedStatblocks.libraryStatblock(token);
+      return gatedStatblocks.diceSet?.(path ?? undefined);
+    },
     rules: () => tool.getDiceRules() as DiceRules | RollingDice,
     on: (event, listener) => bus.on(event, listener),
     off: (event, listener) => bus.off(event, listener),

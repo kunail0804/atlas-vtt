@@ -21,6 +21,9 @@ export function installBrowserDomHost(): void {
       const doc = node.ownerDocument ?? (node as Document);
       return doc.defaultView ?? window;
     },
+    createVideo(doc) {
+      return doc.createElement('video');
+    },
     activeDocument: () => document,
   });
 }

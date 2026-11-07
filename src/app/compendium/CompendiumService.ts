@@ -10,7 +10,8 @@ import { exportSource, personalManifest, sourceFolderNames, type ExportedSource 
 import { ENTRY_KIND_KEY, ENTRY_SOURCE_KEY, ENTRY_SYSTEM_KEY, MONSTER_TEMPLATES, isEntryKind, isFolderName, sourceIdOf, sourceManifestProblem, sourceRootOf, type CompendiumSourceManifest, type EntryKind, type SourceLabel } from './sourceFormat';
 import { entryFileStem, entryFolder, entryProperties, newEntryText, type CompendiumBook } from './compendiumEntries';
 import { ensureFolder } from '../plugin/vaultFolders';
-import { createStatblockNote, freeNotePath } from '../statblocks/notes/createStatblockNote';
+import { createStatblockNote } from '../statblocks/notes/createStatblockNote';
+import { freeNotePath } from '../utils/notePaths';
 
 /**
  * The vault's compendium: which sources it has installed, installing one from Atlas' list or

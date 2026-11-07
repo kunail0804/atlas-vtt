@@ -191,8 +191,15 @@ html, body, #app { margin: 0; height: 100%; background: #101114; color: var(--te
 .book-slot-setting { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 4px 0; font-size: 14px; }
 .book-inline-form { display: flex; gap: 6px; margin-top: 6px; }
 .book-inline-form .book-input { flex: 1; min-width: 0; }
-.doc-text { white-space: pre-wrap; font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+.doc-text { font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
 .doc-image { display: block; max-width: 100%; height: auto; margin: 8px 0; border-radius: 8px; }
+/* Markdown drawn by markdownText.ts: a compendium page's text and a readable text (documentView.ts). */
+:is(.cpd-text, .doc-text) :is(h1, h2, h3, h4, h5, h6) { margin: 12px 0 4px; font-size: 15px; color: var(--color-red, #b4413a); }
+:is(.cpd-text, .doc-text) p { margin: 6px 0; }
+:is(.cpd-text, .doc-text) :is(ul, ol) { margin: 6px 0; padding-inline-start: 20px; }
+:is(.cpd-text, .doc-text) blockquote { margin: 6px 0; padding-inline-start: 10px; border-inline-start: 3px solid var(--background-modifier-border); color: var(--text-muted); }
+:is(.cpd-text, .doc-text) code { padding: 0 3px; border-radius: 4px; background: var(--background-primary); font-size: 13px; }
+:is(.cpd-text, .doc-text) .md-link { color: var(--interactive-accent); }
 /* The compendium pages the GM shares (bookCompendium.ts): a list by kind, a page as a statblock card. */
 .cpd-list { display: flex; flex-direction: column; gap: 6px; }
 .cpd-folder { border-radius: 10px; }
@@ -224,12 +231,6 @@ html, body, #app { margin: 0; height: 100%; background: #101114; color: var(--te
 .cpd-section { margin: 12px 0 4px; padding-bottom: 2px; border-bottom: 1px solid var(--color-red, #b4413a); font-size: 15px; font-variant: small-caps; color: var(--color-red, #b4413a); }
 .cpd-entry-text { margin: 4px 0; white-space: pre-wrap; }
 .cpd-entry-name { font-style: italic; }
-.cpd-text h3, .cpd-text h4, .cpd-text h5, .cpd-text h6 { margin: 12px 0 4px; font-size: 15px; color: var(--color-red, #b4413a); }
-.cpd-text p { margin: 6px 0; }
-.cpd-text ul, .cpd-text ol { margin: 6px 0; padding-inline-start: 20px; }
-.cpd-text blockquote { margin: 6px 0; padding-inline-start: 10px; border-inline-start: 3px solid var(--background-modifier-border); color: var(--text-muted); }
-.cpd-text code { padding: 0 3px; border-radius: 4px; background: var(--background-primary); font-size: 13px; }
-.cpd-text .md-link { color: var(--interactive-accent); }
 .md-table { overflow-x: auto; margin: 6px 0; }
 .md-table table { border-collapse: collapse; font-size: 13px; }
 .md-table th, .md-table td { padding: 3px 8px; border: 1px solid var(--background-modifier-border); text-align: start; }

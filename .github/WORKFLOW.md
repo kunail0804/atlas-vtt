@@ -8,24 +8,46 @@ branch, a pull request and CI, so each one leaves a trace from the request to wh
 
 1. **An issue says what to do.** Use the *Tâche* template: what changes, when it is done, what not to touch.
    Bugs use *Bug*.
-2. **A branch from main**, named `<kind>/<issue>-<few-words>`: `feat/42-dice-sounds`, `fix/57-fog-reload`.
-3. **A pull request into main** whose description starts with `Closes #<issue>` and says how the change was
-   verified (`.github/pull_request_template.md`). Nobody pushes to main directly: the ruleset on main refuses
-   it, and refuses a merge whose `Verify` check has not passed.
+2. **A branch from develop**, named `<kind>/<issue>-<few-words>`: `feat/42-dice-sounds`, `fix/57-fog-reload`.
+3. **A pull request into develop** whose description starts with `Closes #<issue>` and says how the change was
+   verified (`.github/pull_request_template.md`). Nobody pushes to develop or main directly: their rulesets
+   refuse it, and refuse a merge whose `Verify` check has not passed.
 4. **CI verifies** (`.github/workflows/ci.yml`, the `Verify` check): typecheck, lint, the plugin's unit tests,
    the relay's tests, the player page in Chromium, the launcher's checks and tests, the campaigns service's
    typecheck and bundle.
-5. **Merge**, squashed. `gh pr merge --auto --squash` merges as soon as `Verify` passes. The branch is deleted.
-6. **CI publishes** what the merged commit changed, from that commit:
+5. **Merge into develop**, squashed. `gh pr merge --auto --squash` merges as soon as `Verify` passes. The
+   branch is deleted. A branch that carries another history (an upstream sync) is merged with a merge commit.
+6. **CI publishes the development build** (below), which you test with `atlas start <name> --dev`.
+7. **A release**: a pull request from `develop` into `main`, merged with a merge commit
+   (`gh pr merge --merge`), never squashed, or develop and main would part. `Verify` fails a pull request
+   into main from any other branch. CI then publishes for the players.
 
-| What changed | What CI does | Trace |
-|---|---|---|
-| The plugin, the relay or the player page (anything outside the folders below, tests and docs) | Builds `selfhost/Dockerfile`, pushes `kunail0804/atlas-relay:<version>-selfhost.<n>`, `latest` and `sha-<commit>` to Docker Hub. `atlas start` takes `latest`. | Git tag `relay-<version>-selfhost.<n>`; the image's `org.opencontainers.image.revision` label |
-| `VERSION` in `selfhost/launcher/version.ts` (a version with no release yet) | Builds `atlas` and `atlas.exe` with Deno, releases them as `launcher-v<VERSION>` with `SHA256SUMS`. Launchers already installed tell the GM a new version is out. | GitHub release, notes listing the launcher's commits |
-| `selfhost/service/` | Applies the D1 migrations, deploys the Worker to `campaigns.kunlab.cc`. The Worker's own secrets stay as `selfhost/service/setup.sh` set them. | The run's summary |
-| `compendium/builder/` | Builds the SRD sources from the latest 5e-database; if they differ from what Atlas downloads, releases them as `compendium-v<n>` and opens a pull request pointing `src/app/compendium/officialSources.ts` at them. Merging it ships them with the next image. | GitHub release, the pull request |
+GitHub links `Closes #<issue>` only for a pull request into the default branch: an issue stays open after its
+pull request is merged into develop, and closes when the commit that names it reaches main with the release.
+The review scripts read the issues from the description themselves (`.github/review/issues.sh`).
+
+`main` stays the default branch: it is what players run.
+
+### What CI publishes
+
+From the pushed commit, only what it changed:
+
+| What changed | develop (for testing) | main (for the players) | Trace |
+|---|---|---|---|
+| The plugin, the relay or the player page (anything outside the folders below, tests and docs) | Pushes `kunail0804/atlas-relay:<version>-dev.<n>`, `dev` and `sha-<commit>`. `atlas start <name> --dev` takes `dev`. | Pushes `<version>-selfhost.<n>`, `latest` and `sha-<commit>`. `atlas start <name>` takes `latest`. | Git tag `relay-<version>-dev.<n>` or `relay-<version>-selfhost.<n>`; the image's `org.opencontainers.image.revision` label |
+| `selfhost/launcher/` | Releases `launcher-v<VERSION>-dev.<n>`, a prerelease installed launchers never offer as an update. | When `VERSION` in `selfhost/launcher/version.ts` has no release yet: releases `launcher-v<VERSION>` with `SHA256SUMS`. Launchers already installed tell the GM a new version is out. | GitHub release, notes listing the launcher's commits |
+| `selfhost/service/` | Nothing. | Applies the D1 migrations, deploys the Worker to `campaigns.kunlab.cc`. The Worker's own secrets stay as `selfhost/service/setup.sh` set them. | The run's summary |
+| `compendium/builder/` | Nothing. | Builds the SRD sources from the latest 5e-database; if they differ from what Atlas downloads, releases them as `compendium-v<n>` and opens a pull request into develop pointing `src/app/compendium/officialSources.ts` at them. The next release ships them. | GitHub release, the pull request |
 
 Docs, tests and `.github/` alone publish nothing.
+
+### What `atlas start` runs
+
+The image holds the relay, the player page and the plugin built from the same commit. `atlas start <name>`
+pulls the image (`latest`, or `dev` with `--dev`), copies its plugin into the campaign's vault
+(`.obsidian/plugins/atlas-vtt/`, wherever the files differ; `data.json` is never touched), then starts the
+campaign's container. The vault takes whichever plugin the last start brought, so keep a campaign of its own,
+on a test vault, for `--dev`.
 
 ## Agents and reviews
 
@@ -42,7 +64,7 @@ of the *Tâche* template, or the labels `review:claude`, `review:glm`, `review:d
 | `deepseek` | `deepseek/deepseek-v4-flash-0731`, through OpenCode | OpenRouter (`OPENROUTER_API_KEY`) |
 
 - They start when the pull request is opened (or leaves draft), each on its own runner, in parallel. A
-  reviewer reads the issue, the pull request and `git diff origin/main...HEAD`, may run the tests and break the
+  reviewer reads the issue, the pull request and its diff against the branch it goes into, may run the tests and break the
   code to test them, and never pushes. Its instructions are `.github/review/prompt.md`.
 - Each report is a comment on the pull request, headed `Review <name>` with the model, the commit, the time
   taken and the cost. The coding agent reads them with `gh pr view <n> --comments`, applies what it agrees
@@ -57,11 +79,12 @@ of the *Tâche* template, or the labels `review:claude`, `review:glm`, `review:d
 
 - Branch `upstream-main` is upstream's main as of the last Monday.
 - Every Monday the `upstream` workflow keeps that week's upstream as `upstream-sync-<date>` and opens an issue
-  (label `upstream`) with the new commits and the files that would conflict with main.
-- To take something: a branch from main, `git cherry-pick <commit>` (or copy by hand), a pull request into main.
+  (label `upstream`) with the new commits and the files that would conflict with develop.
+- To take something: a branch from develop, `git cherry-pick <commit>` (or copy by hand), a pull request into
+  develop.
   Never open a pull request from an `upstream-*` branch: it holds upstream's workflows, which would run on it.
 
-Locally the remote `upstream` points at it: `git fetch upstream`, then `git log main..upstream/main`.
+Locally the remote `upstream` points at it: `git fetch upstream`, then `git log develop..upstream/main`.
 
 ## Secrets
 

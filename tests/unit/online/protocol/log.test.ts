@@ -1,4 +1,3 @@
-// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { chatText, inlineMarks, MAX_CHAT_LINES, MAX_CHAT_TEXT, MAX_LOG_ENTRIES, MAX_REPLY_PREVIEW, parseGmMessage, parseLogEntry, parseLogMessage, parsePlayerLog, parsePlayerMessage, quoting, replyPreview, rolledFormulas, type ChatEntry, type LogEntry, type SharedRoll } from '../../../../src/app/online/protocol/index.ts';
 
@@ -9,38 +8,33 @@ const ALIAS = 'a1'.repeat(12);
 const ROLL: SharedRoll = { id: 'roll_1', timestamp: 1_700_000_000_000, formula: '1d20 + 2', modifiers: 2, total: 22, crit: 'high', rolls: [{ die: 'd20', value: 20, max: 20 }] };
 const CHAT: ChatEntry = { id: ID, at: 1_700_000_000_000, who: PLAYER, name: 'Mira', kind: 'chat', text: 'I check the door.' };
 
-it('chat text', () => {
-  // keeps letters, emoji and line breaks, and collapses white space
-  {
+describe('chat text', () => {
+  it('keeps letters, emoji and line breaks, and collapses white space', () => {
     expect(chatText('  Hello   there \r\n  second\tline  ')).toBe('Hello there\nsecond line');
     expect(chatText('Grüße 👩\u200d👩\u200d👧 مرحبا')).toBe('Grüße 👩\u200d👩\u200d👧 مرحبا');
-  }
+  });
 
-  // removes controls, direction overrides and unseen characters
-  {
+  it('removes controls, direction overrides and unseen characters', () => {
     expect(chatText('a\u0000b\u202ec\u200bd\u2066e')).toBe('a b cd e');
-  }
+  });
 
-  // keeps at most one blank line in a row and none at the ends
-  {
+  it('keeps at most one blank line in a row and none at the ends', () => {
     expect(chatText('\n\none\n\n\n\ntwo\n\n')).toBe('one\n\ntwo');
-  }
+  });
 
-  // joins lines past the limit to the last one
-  {
+  it('joins lines past the limit to the last one', () => {
     const lines = Array.from({ length: MAX_CHAT_LINES + 3 }, (_, index) => `line ${index}`);
     const text = chatText(lines.join('\n'));
     expect(text?.split('\n')).toHaveLength(MAX_CHAT_LINES);
     expect(text?.endsWith(`line ${MAX_CHAT_LINES - 1} line ${MAX_CHAT_LINES} line ${MAX_CHAT_LINES + 1} line ${MAX_CHAT_LINES + 2}`)).toBe(true);
-  }
+  });
 
-  // refuses nothing that shows, too much and what is no string
-  {
+  it('refuses nothing that shows, too much and what is no string', () => {
     for (const value of ['', '   ', '\n\n', '\u200b\u2060', '\u3164', 'x'.repeat(MAX_CHAT_TEXT + 1), 7, null, ['hi']]) expect(chatText(value), JSON.stringify(value)).toBeNull();
     expect(chatText('x'.repeat(MAX_CHAT_TEXT))).toHaveLength(MAX_CHAT_TEXT);
     // Characters, not UTF-16 units.
     expect(chatText('🎲'.repeat(MAX_CHAT_TEXT))).not.toBeNull();
-  }
+  });
 });
 
 describe('reply previews', () => {
@@ -62,9 +56,8 @@ describe('what a reply quotes once its original changed', () => {
   });
 });
 
-it('log entries', () => {
-  // read a chat message with a reply, an edit time and reactions
-  {
+describe('log entries', () => {
+  it('read a chat message with a reply, an edit time and reactions', () => {
     const entry: LogEntry = {
       ...CHAT, edited: 1_700_000_005_000,
       reply: { id: OTHER, who: 'gm', name: 'GM', preview: 'The door is locked.' },
@@ -72,24 +65,21 @@ it('log entries', () => {
     };
     expect(parseLogEntry(entry)).toEqual(entry);
     expect(parseLogEntry({ ...CHAT, reply: { id: OTHER, who: PLAYER, name: 'Mira', preview: '', gone: true } })).toEqual({ ...CHAT, reply: { id: OTHER, who: PLAYER, name: 'Mira', preview: '', gone: true } });
-  }
+  });
 
-  // read a roll with or without a token, and who came and went
-  {
+  it('read a roll with or without a token, and who came and went', () => {
     const roll: LogEntry = { id: ID, at: 5, who: 'gm', name: 'GM', kind: 'roll', roll: ROLL, token: ALIAS };
     expect(parseLogEntry(roll)).toEqual(roll);
     expect(parseLogEntry({ ...roll, token: null })).toEqual({ ...roll, token: null });
     expect(parseLogEntry({ id: ID, at: 5, who: PLAYER, name: 'Mira', kind: 'joined' })).toEqual({ id: ID, at: 5, who: PLAYER, name: 'Mira', kind: 'joined' });
     expect(parseLogEntry({ id: ID, at: 5, who: PLAYER, name: 'Mira', kind: 'left', text: 'x', reactions: [] })).toEqual({ id: ID, at: 5, who: PLAYER, name: 'Mira', kind: 'left' });
-  }
+  });
 
-  // drop empty reaction lists and fields no client is meant to read
-  {
+  it('drop empty reaction lists and fields no client is meant to read', () => {
     expect(parseLogEntry({ ...CHAT, reactions: [], hidden: true, source: { tokenId: 'gm-id' } })).toEqual(CHAT);
-  }
+  });
 
-  // refuse anything malformed
-  {
+  it('refuse anything malformed', () => {
     const bad: unknown[] = [
       null, [], 'chat',
       { ...CHAT, id: 'short' }, { ...CHAT, id: ID.toUpperCase() },
@@ -114,78 +104,66 @@ it('log entries', () => {
       { id: ID, at: 5, who: 'gm', name: 'GM', kind: 'roll', roll: ROLL },
     ];
     for (const value of bad) expect(parseLogEntry(value), JSON.stringify(value)).toBeNull();
-  }
+  });
 });
 
-it('the GM\'s log messages', () => {
-  // read the whole log, one entry, a removal and a refusal
-  {
+describe('the GM\'s log messages', () => {
+  it('read the whole log, one entry, a removal and a refusal', () => {
     expect(parseGmMessage({ t: 'log', entries: [CHAT] })).toEqual({ t: 'log', entries: [CHAT] });
     expect(parseGmMessage({ t: 'log', entries: [] })).toEqual({ t: 'log', entries: [] });
     expect(parseGmMessage({ t: 'log-entry', entry: CHAT })).toEqual({ t: 'log-entry', entry: CHAT });
     expect(parseGmMessage({ t: 'log-remove', id: ID })).toEqual({ t: 'log-remove', id: ID });
     for (const reason of ['rate', 'text', 'gone']) expect(parseGmMessage({ t: 'chat-refused', reason })).toEqual({ t: 'chat-refused', reason });
-  }
+  });
 
-  // leave an entry they cannot read out of a log and keep the rest
-  {
+  it('leave an entry they cannot read out of a log and keep the rest', () => {
     expect(parseGmMessage({ t: 'log', entries: [{ ...CHAT, id: 'x' }, CHAT, null, { ...CHAT, id: OTHER, reactions: [{ emoji: '👍', by: [] }] }] })).toEqual({ t: 'log', entries: [CHAT] });
-  }
+  });
 
-  // refuse a log that is none or too long, a single bad entry, and unknown reasons
-  {
+  it('refuse a log that is none or too long, a single bad entry, and unknown reasons', () => {
     expect(parseGmMessage({ t: 'log', entries: Array.from({ length: MAX_LOG_ENTRIES + 1 }, () => CHAT) })).toBeNull();
     expect(parseGmMessage({ t: 'log', entries: 'all' })).toBeNull();
     expect(parseGmMessage({ t: 'log-entry', entry: null })).toBeNull();
     expect(parseGmMessage({ t: 'log-remove', id: 7 })).toBeNull();
     expect(parseGmMessage({ t: 'chat-refused', reason: 'mood' })).toBeNull();
-  }
+  });
 });
 
-it('what a player sends to the log', () => {
-  // reads a message, cleaned, with or without the entry it answers
-  {
+describe('what a player sends to the log', () => {
+  it('reads a message, cleaned, with or without the entry it answers', () => {
     expect(parsePlayerMessage({ t: 'chat', text: '  hi\u202e  there ' })).toEqual({ t: 'chat', text: 'hi there' });
     expect(parsePlayerMessage({ t: 'chat', text: 'hi', reply: ID })).toEqual({ t: 'chat', text: 'hi', reply: ID });
-  }
+  });
 
-  // reads an edit, a deletion and a reaction
-  {
+  it('reads an edit, a deletion and a reaction', () => {
     expect(parsePlayerMessage({ t: 'chat-edit', id: ID, text: 'better' })).toEqual({ t: 'chat-edit', id: ID, text: 'better' });
     expect(parsePlayerMessage({ t: 'chat-delete', id: ID })).toEqual({ t: 'chat-delete', id: ID });
     expect(parsePlayerMessage({ t: 'react', id: ID, emoji: '❤️', on: true })).toEqual({ t: 'react', id: ID, emoji: '❤️', on: true });
     expect(parsePlayerMessage({ t: 'react', id: ID, emoji: '❤️', on: false })).toEqual({ t: 'react', id: ID, emoji: '❤️', on: false });
-  }
+  });
 
-  // never takes an author, a name or a time from a player
-  {
+  it('never takes an author, a name or a time from a player', () => {
     expect(parsePlayerMessage({ t: 'chat', text: 'hi', who: 'gm', name: 'GM', at: 1, id: ID })).toEqual({ t: 'chat', text: 'hi' });
-  }
+  });
 
-  // refuses anything malformed
-  {
+  it('refuses anything malformed', () => {
     for (const body of [
       { t: 'chat' }, { t: 'chat', text: '' }, { t: 'chat', text: 'x'.repeat(MAX_CHAT_TEXT + 1) }, { t: 'chat', text: 'hi', reply: 'that one' },
       { t: 'chat-edit', id: ID }, { t: 'chat-edit', id: 'x', text: 'hi' }, { t: 'chat-edit', id: ID, text: ' ' },
       { t: 'chat-delete' }, { t: 'chat-delete', id: 5 },
       { t: 'react', id: ID, emoji: '🍆', on: true }, { t: 'react', id: ID, emoji: '👍' }, { t: 'react', id: ID, emoji: '👍', on: 'yes' }, { t: 'react', id: 'x', emoji: '👍', on: true },
     ]) expect(parsePlayerMessage(body), JSON.stringify(body)).toBeNull();
-  }
+  });
 });
 
-it('the table chat\'s fields', () => {
+describe('the table chat\'s fields', () => {
   const ID = '0'.repeat(24);
-
   const MIRA = 'a'.repeat(20);
-
   const base = { id: ID, at: 1, who: 'gm', name: 'GM' };
-
   const ROLLED = { id: 'r1', timestamp: 1, formula: '1d20', modifiers: 0, total: 7, rolls: [{ die: 'd20', value: 7, max: 20 }] };
+  const SPEAKER = { name: 'Goblin', token: null, art: { hash: 'f'.repeat(64), size: 3, mime: 'image/png', id: 'e'.repeat(64) }, ring: '#ff0000' };
 
-  const SPEAKER = { name: 'Goblin', token: null, art: { hash: 'f'.repeat(64), size: 3, mime: 'image/png' }, ring: '#ff0000' };
-
-  // reads whispers, speakers, styles and the rolls a text rolled
-  {
+  it('reads whispers, speakers, styles and the rolls a text rolled', () => {
     const entry = { ...base, kind: 'chat', text: 'Hit [[1d20]] then [[/br 1d20+2]]{Perception}', style: 'ic', speaker: SPEAKER, to: [MIRA], inline: [ROLLED] };
     expect(parseLogEntry(entry)).toEqual(entry);
     expect(parseLogEntry({ ...entry, inline: [] })).toBeNull();
@@ -195,10 +173,9 @@ it('the table chat\'s fields', () => {
     expect(parseLogEntry({ ...entry, style: 'shout' })).toBeNull();
     expect(parseLogEntry({ ...entry, speaker: { ...SPEAKER, name: '‮' } })).toBeNull();
     expect(parseLogEntry({ ...entry, speaker: { ...SPEAKER, ring: 'red' } })).toBeNull();
-  }
+  });
 
-  // reads private rolls whole or as the line that one was made
-  {
+  it('reads private rolls whole or as the line that one was made', () => {
     const roll = { ...base, kind: 'roll', roll: ROLLED, token: null, mode: 'blind', to: ['gm'], flavor: 'Perception', request: { id: ID, label: 'Perception' } };
     expect(parseLogEntry(roll)).toEqual(roll);
     expect(parseLogEntry({ ...roll, to: undefined })).toBeNull();
@@ -206,20 +183,18 @@ it('the table chat\'s fields', () => {
     const secret = { ...base, kind: 'secret', mode: 'gm' };
     expect(parseLogEntry(secret)).toEqual(secret);
     expect(parseLogEntry({ ...secret, mode: 'loud' })).toBeNull();
-  }
+  });
 
-  // reads who is at the table
-  {
+  it('reads who is at the table', () => {
     expect(parseLogMessage({ t: 'people', people: [{ id: MIRA, name: ' Mira ' }] })).toEqual({ t: 'people', people: [{ id: MIRA, name: 'Mira' }] });
     expect(parseLogMessage({ t: 'people', people: [{ id: 'gm', name: 'GM' }] })).toBeNull();
-  }
+  });
 
-  // reads what a player says: a whisper, a style and a token of theirs
-  {
+  it('reads what a player says: a whisper, a style and a token of theirs', () => {
     expect(parsePlayerLog({ t: 'chat', text: 'hi', to: ['gm'], style: 'emote', speaker: ID })).toEqual({ t: 'chat', text: 'hi', to: ['gm'], style: 'emote', speaker: ID });
     expect(parsePlayerLog({ t: 'chat', text: 'hi', speaker: 'gm-token' })).toBeNull();
     expect(parsePlayerLog({ t: 'chat', text: 'hi', to: 'gm' })).toBeNull();
-  }
+  });
 });
 
 describe('rolls written into a text', () => {

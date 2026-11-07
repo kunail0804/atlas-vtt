@@ -2,10 +2,9 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { chromium, type Browser, type Page } from 'playwright';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { assetChunks, sha256Hex } from '../../src/app/online/gm/assetServe.ts';
 import { DEFAULT_BOOK_SLOTS } from '../../src/app/online/protocol/bookSlots.ts';
 import type { GmMessage } from '../../src/app/online/protocol/game.ts';
-import { TestGm, createTable, startTestRelay, stopTestRelay, until, type TestRelay } from './helpers.ts';
+import { TestGm, createTable, startTestRelay, stopTestRelay, storeAsset, until, type TestRelay } from './helpers.ts';
 import { png } from './png.ts';
 
 // The player's toolbar on the built page: the GM's tool groups and dice tray, the log and the book on
@@ -54,10 +53,9 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player toolbar
     const player = gm.joined[0]?.id ?? '';
 
     const mapBytes = png(MAP_W, MAP_H, () => [40, 120, 60]);
-    const mapHash = await sha256Hex(mapBytes as Uint8Array<ArrayBuffer>);
-    send({ t: 'scene', scene: { id: 's1', map: { hash: mapHash, size: mapBytes.length, mime: 'image/png' }, lit: false } }, player);
+    const mapRef = await storeAsset(test, mapBytes, 'image/png');
+    send({ t: 'scene', scene: { id: 's1', map: mapRef, lit: false } }, player);
     send({ t: 'tokens', scene: 's1', seq: 1, cell: 70, snap: null, tokens: [] }, player);
-    for (const chunk of assetChunks(mapHash, mapBytes)) send(chunk, player);
     const measurement = { mode: 'metric', unitType: 'feet', unitDistance: 5, ruleDistance: 5, diagonalRule: 'equidistant', rangeBands: [], coneAngle: 53 };
     send({ t: 'rules', scene: 's1', grid: { type: 'square', size: 70, offsetX: 0, offsetY: 0 }, snap: true, measurement, accent: '#7c8cff' } as GmMessage, player);
     send({ t: 'book', book: { character: null, worldMap: null, items: [], notes: [], pins: [], quests: [], purse: [], slots: DEFAULT_BOOK_SLOTS, equipped: [] } } as GmMessage, player);

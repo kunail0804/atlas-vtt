@@ -5,7 +5,7 @@ import './page.css';
 // The page's policy forbids eval (relay/staticFiles.ts); PixiJS then needs its own replacement for it.
 import 'pixi.js/unsafe-eval';
 import type { GmMessage } from '../../../src/app/online/protocol/game.ts';
-import type { RollAdvantage } from '../../../src/app/online/protocol/dice.ts';
+import type { AdvantageSide } from '../../../src/app/online/protocol/dice.ts';
 import { TABLE_CODE_PATTERN } from '../../../src/app/online/protocol/relay.ts';
 import { AssetLoader } from './assets.ts';
 import { AssetCache } from './assetCache.ts';
@@ -31,6 +31,11 @@ import { StatusLine, askToJoin, closeText } from './ui.ts';
 import { DrawTools, askText } from './drawTools.ts';
 import { mountToolbar, type ToolbarState } from './toolbar.tsx';
 import { ToolSettingsStore } from './toolSettings.ts';
+import { parseYourCode } from '../../../src/app/online/protocol/seat.ts';
+import { shownJoinCode } from '../../../src/app/online/protocol/identity.ts';
+
+/** How long a player's own code stays on screen. */
+const YOUR_CODE_MS = 30_000;
 
 const NOTICE_TEXT: Readonly<Record<SceneNotice, string | null>> = {
   none: null,
@@ -62,7 +67,7 @@ async function main(): Promise<void> {
 
   let connection: PlayerConnection | null = null;
   const send = (body: Parameters<PlayerConnection['send']>[0]): void => connection?.send(body);
-  const assets = new AssetLoader(send, new AssetCache());
+  const assets = new AssetLoader(new AssetCache());
   const tokens = new TokenLayer(stage.tokens, stage.viewport, assets, send);
   let notice: SceneNotice = 'no-scene';
   let gmOnline = false;
@@ -92,12 +97,12 @@ async function main(): Promise<void> {
   let dice: DiceView | null = null;
   const notices = new Notice(app);
   // What the toolbar shows, kept for when it mounts (the book or the rules may come first). The tray
-  // offers both sides of advantage until the GM names the dice set's (`dice-rules`): a GM's Atlas that
-  // names none still rolls them by its set's rules, and a set without them rolls as it is.
-  let toolbarState: ToolbarState = { advantage: ['advantage', 'disadvantage'], book: false };
+  // offers both sides of advantage until the scene's rules name the map's dice (`rules.dice`): a GM's
+  // Atlas that names none still rolls them by its set's rules, and a set without them rolls as it is.
+  let toolbarState: ToolbarState = { advantage: ['advantage', 'disadvantage'], dice: null, book: false };
   const reader = new Reader(app, assets);
   /** A roll of the player's, from the dice tray or the sheet; false while no scene is shared to roll in. */
-  const rollAs = (formula: string, how: { readonly flavor?: string; readonly advantage?: RollAdvantage | null } = {}): boolean => {
+  const rollAs = (formula: string, how: { readonly flavor?: string; readonly advantage?: AdvantageSide | null } = {}): boolean => {
     const shared = scene.sceneId;
     if (shared === null) {
       notices.show(TEXT.rolls.noScene);
@@ -141,10 +146,10 @@ async function main(): Promise<void> {
     if (message.t === 'roll-refused') return notices.show(TEXT.rolls.refused[message.reason]);
     if (assets.receive(message) || log.receive(message)) return;
     if (message.t === 'marks') return marks.receive(message);
-    if (message.t === 'rules') return marks.rules(message);
-    if (message.t === 'dice-rules') {
+    if (message.t === 'rules') {
+      marks.rules(message);
       if (message.scene !== scene.sceneId) return;
-      toolbarState = { ...toolbarState, advantage: message.advantage };
+      toolbarState = { ...toolbarState, advantage: message.dice?.sides ?? ['advantage', 'disadvantage'], dice: message.dice?.dice ?? null };
       return bar?.update(toolbarState);
     }
     if (message.t === 'shown-image') return viewer.fromGm(message);
@@ -155,6 +160,7 @@ async function main(): Promise<void> {
     if (message.t === 'annotations') return message.scene === scene.sceneId ? annotations.showAnnotations(message) : undefined;
     if (message.t === 'widgets') return message.scene === scene.sceneId ? widgets.show(message.bar) : undefined;
     if (message.t === 'pins') return message.scene === scene.sceneId ? annotations.showPins(message.pins) : undefined;
+    if (message.t === 'live' && message.scene === scene.sceneId) marks.drags(message.tokens, (id) => tokens.cellsOf(id));
     scene.receive(message);
   }, (sceneId, of) => send({ t: 'resync', scene: sceneId, of }));
 
@@ -179,8 +185,12 @@ async function main(): Promise<void> {
         // A GM's Atlas that came back knows no one at the table yet.
         if (gmOnline) send({ t: 'identify', key: deviceKey() });
         return refresh();
-      case 'game':
+      case 'game': {
+        // A player of the campaign is told their own code once, when the GM makes it: long enough to note it.
+        const own = parseYourCode(event.body);
+        if (own !== null) return own.first ? notices.show(TEXT.seat.yourCode(shownJoinCode(own.code)), YOUR_CODE_MS) : undefined;
         return inbox.receive(event.body);
+      }
       case 'closed':
         if (!event.final) return status.show(`${closeText(event.code)} Reconnexion…`, 'warn');
         status.show(null);

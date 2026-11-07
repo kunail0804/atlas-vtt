@@ -2,9 +2,8 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { chromium, type Browser, type Page } from 'playwright';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { assetChunks, sha256Hex } from '../../src/app/online/gm/assetServe.ts';
 import type { GmMessage } from '../../src/app/online/protocol/game.ts';
-import { TestGm, createTable, startTestRelay, stopTestRelay, until, type TestRelay } from './helpers.ts';
+import { TestGm, createTable, startTestRelay, stopTestRelay, storeAsset, until, type TestRelay } from './helpers.ts';
 import { png } from './png.ts';
 
 // A lit scene must never show players what no token sees. The plugin's own engine lights it on the
@@ -63,7 +62,7 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('dynamic lighting o
     gm = new TestGm(test.gmOrigin, created.code, created.secret);
     await until(() => gm.status === 'online', 'GM online');
     const mapBytes = png(MAP_W, MAP_H, () => [210, 210, 210]);
-    const mapHash = await sha256Hex(mapBytes as Uint8Array<ArrayBuffer>);
+    const mapRef = await storeAsset(test, mapBytes, 'image/png');
     await page.goto(`http://127.0.0.1:${test.relay.publicPort}/#${created.code}`);
     await page.fill('.join-input >> nth=0', 'Mira');
     await page.click('.join-button');
@@ -71,9 +70,7 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('dynamic lighting o
     const player = gm.joined[0]?.id ?? '';
     const send = (body: GmMessage): void => gm.connection.send(body, player);
 
-    send({ t: 'scene', scene: { id: 'lit', map: { hash: mapHash, size: mapBytes.length, mime: 'image/png' }, lit: true } });
-    await until(() => gm.messages.some((m) => (m.body as { t?: string }).t === 'asset-request'), 'map requested', 10_000);
-    for (const chunk of assetChunks(mapHash, mapBytes)) send(chunk);
+    send({ t: 'scene', scene: { id: 'lit', map: mapRef, lit: true } });
     send({ t: 'lighting', scene: 'lit', cellSize: 70, unitDistance: 5, walls: [{ p: [500, 0, 500, 600] }], zones: [], senses: [] } as GmMessage);
     await page.waitForTimeout(1_200);
     // The map has loaded and the walls are known, but not yet what the tokens see: all of it dark.
@@ -106,11 +103,9 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('dynamic lighting o
     // The explored memory the GM saved: the right half was seen before. It shows there, dimmed,
     // where no token sees now; what is not remembered stays black.
     const maskBytes = png(MAP_W, MAP_H, (x, y) => (x > 600 && y < 300 ? [255, 255, 255] : [0, 0, 0]));
-    const maskHash = await sha256Hex(maskBytes as Uint8Array<ArrayBuffer>);
+    const maskRef = await storeAsset(test, maskBytes, 'image/png');
     const requests = gm.messages.length;
-    send({ t: 'explored', scene: 'lit', mask: { hash: maskHash, size: maskBytes.length, mime: 'image/png' } } as GmMessage);
-    await until(() => gm.messages.slice(requests).some((m) => (m.body as { hash?: string }).hash === maskHash), 'mask requested', 5_000);
-    for (const chunk of assetChunks(maskHash, maskBytes)) send(chunk);
+    send({ t: 'explored', scene: 'lit', mask: maskRef } as GmMessage);
     await page.waitForTimeout(1_500);
     const remembered = brightness(await pixel(850, 120));
     expect(remembered).toBeGreaterThan(20);

@@ -98,6 +98,10 @@ export const TEXT = {
     textAdd: 'Placer',
     noScene: 'Le MJ ne partage aucune scène pour l\'instant.',
   },
+  seat: {
+    /** The code of their own the GM made for a player of the campaign: with it they take their seat from any device. */
+    yourCode: (code: string): string => `Ton code personnel : ${code}. Note-le : il te rend ta place depuis un autre appareil.`,
+  },
   rolls: {
     noScene: 'Le MJ ne partage aucune scène : les jets attendent qu\'il en montre une.',
     refused: {

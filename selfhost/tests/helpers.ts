@@ -6,6 +6,12 @@ import type { Timers } from '../../src/app/online/gm/companionTimers.ts';
 import type { GateFrame } from '../../src/app/online/gm/joinGate.ts';
 import type { PlayerInfo } from '../../src/app/online/protocol/index.ts';
 import { startRelay, type RunningRelay } from '../relay/relay.ts';
+import { newTableCode } from '../relay/ids.ts';
+import { createTable as askForTable } from '../../src/app/online/gm/createTable.ts';
+import { obsidianHttp } from '../../src/app/online/gm/account/obsidianHttp.ts';
+import { createHash } from 'node:crypto';
+import { assetIdOf } from '../../src/app/online/gm/assets/assetIds.ts';
+import type { AssetRef } from '../../src/app/online/protocol/asset.ts';
 
 export const PLAYER_ORIGIN = 'https://test-vtt.kunlab.cc';
 
@@ -36,12 +42,13 @@ export async function stopTestRelay(test: TestRelay, keepData = false): Promise<
 }
 
 /** Signs in like the plugin does (device flow) and creates a table. */
-export async function createTable(gmOrigin: string): Promise<{ code: string; secret: string; maxPlayers: number; playerOrigin: string }> {
+/** A table on the campaign link `link`, asked for as the plugin asks (`createTable`, through Obsidian's `requestUrl`). */
+export async function createTable(gmOrigin: string, link: string = newTableCode()): Promise<{ code: string; secret: string; maxPlayers: number; playerOrigin: string }> {
   const tokenResponse = await fetch(`${gmOrigin}/auth/device/token`, { method: 'POST' });
   const { access_token: token } = (await tokenResponse.json()) as { access_token: string };
-  const response = await fetch(`${gmOrigin}/api/tables`, { method: 'POST', headers: { authorization: `Bearer ${token}` } });
-  if (response.status !== 201) throw new Error(`table not created: ${response.status}`);
-  return (await response.json()) as { code: string; secret: string; maxPlayers: number; playerOrigin: string };
+  const created = await askForTable(obsidianHttp, gmOrigin, token, link);
+  if ('message' in created) throw new Error(`table not created: ${created.status} ${created.message}`);
+  return created;
 }
 
 export const nodeTimers: Timers = {
@@ -123,4 +130,22 @@ export async function until(check: () => boolean, what: string, ms = 5_000): Pro
     if (Date.now() > deadline) throw new Error(`timed out waiting for ${what}`);
     await new Promise((resolve) => setTimeout(resolve, 10));
   }
+}
+
+/**
+ * Puts `bytes` into the test relay's asset store as the GM's Atlas does (salt, offer, upload in one
+ * body) and gives the reference players are sent: the page then fetches it from the relay by its id.
+ */
+export async function storeAsset(test: TestRelay, bytes: Uint8Array, mime: string, kind: 'image' | 'text' = 'image'): Promise<AssetRef> {
+  const tokenResponse = await fetch(`${test.gmOrigin}/auth/device/token`, { method: 'POST' });
+  const { access_token: token } = (await tokenResponse.json()) as { access_token: string };
+  const authorization = `Bearer ${token}`;
+  const saltText = ((await (await fetch(`${test.gmOrigin}/api/assets/salt`, { headers: { authorization } })).json()) as { salt: string }).salt;
+  const hash = createHash('sha256').update(bytes).digest('hex');
+  const id = await assetIdOf(new Uint8Array(Buffer.from(saltText, 'base64')), hash);
+  const offered = await fetch(`${test.gmOrigin}/api/assets/offer`, { method: 'POST', headers: { authorization, 'content-type': 'application/json' }, body: JSON.stringify({ assets: [{ id, kind, size: bytes.length }] }) });
+  if (offered.status !== 200) throw new Error(`asset not offered: ${offered.status}`);
+  const put = await fetch(`${test.gmOrigin}/api/assets/${id}`, { method: 'PUT', headers: { authorization, 'content-type': mime, 'x-asset-sha256': hash }, body: bytes });
+  if (put.status !== 200 && put.status !== 412) throw new Error(`asset not stored: ${put.status}`);
+  return { hash, size: bytes.length, mime, id };
 }

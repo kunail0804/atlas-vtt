@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { BUILT_IN_DICE_SETS } from '../../../src/app/gameSystems/builtInDiceSets';
-import { advantageSide, advantageSidesFor } from '../../../src/app/tools/diceAdvantage';
+import { advantageSide, advantageSidesFor, rollsSetDice } from '../../../src/app/tools/diceAdvantage';
 import { rollDiceFormula, type DiceRollInputs } from '../../../src/app/tools/DiceTool';
 import type { DiceSet } from '../../../src/app/types/diceSetTypes';
 
@@ -144,6 +144,12 @@ it('when advantage changes a roll', () => {
     expect(advantageSidesFor('+4', builtIn('builtin:d10-exploding'))).toEqual([]);
     // A roll that keeps dice of its own is no roll of the set's dice.
     expect(advantageSidesFor('2d20kh1+4', d20)).toEqual([]);
+    // A player's page knows the map's dice alone (`rules.dice`): a roll of them, or with them, is one; other dice alone are none.
+    const mapDice = { dice: [{ count: 1, sides: 20 }] };
+    expect(['1d20', '2d20', '1d20+1d6', '1d20+3', '+3'].map((formula) => rollsSetDice(formula, mapDice))).toEqual([true, true, true, true, true]);
+    expect(['1d6', '2d8+3', '1d12+1d4'].map((formula) => rollsSetDice(formula, mapDice))).toEqual([false, false, false]);
+    expect(rollsSetDice('1d12+1d10', { dice: [{ count: 1, sides: 12 }, { count: 1, sides: 12 }] })).toBe(false);
+    expect(rollsSetDice('2d12+1', { dice: [{ count: 1, sides: 12 }, { count: 1, sides: 12 }] })).toBe(true);
   }
 
   // refuses advantage that takes a roll past a limit before any die is rolled
