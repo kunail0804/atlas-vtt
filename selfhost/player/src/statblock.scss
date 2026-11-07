@@ -1,0 +1,269 @@
+// The player's statblock page (`statblockPage.ts`): the GM's card's blocks in its columns, every
+// container with equal padding and gaps, inner elements one radius step below their container.
+@use '../../../styles/tokens' as *;
+
+.sb-page {
+  gap: $spacing-s;
+}
+
+.sb-header,
+.sb-section,
+.sb-metric,
+.sb-track,
+.sb-counters,
+.sb-table-wrap,
+.sb-list,
+.sb-ability-list {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-xs;
+}
+
+.sb-sigils,
+.sb-row,
+.sb-chips,
+.sb-actions,
+.sb-stepper,
+.sb-editor,
+.sb-picks,
+.sb-boxes,
+.sb-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $spacing-xs;
+}
+
+.sb-sigils > *,
+.sb-row > * {
+  flex: 1 1 8em;
+  min-width: 0;
+}
+
+.sb-row > [data-size='fit'] {
+  flex: 0 1 auto;
+}
+
+.sb-row[data-align='center'] {
+  justify-content: center;
+}
+
+.sb-row[data-align='spread'] {
+  justify-content: space-between;
+}
+
+.sb-blocks {
+  columns: var(--sb-column, 22em) var(--sb-columns, 2);
+  column-gap: $spacing-m;
+}
+
+.sb-blocks > * {
+  break-inside: avoid;
+  margin-bottom: $spacing-s;
+}
+
+.sb-section,
+.sb-rests {
+  padding: $spacing-s;
+  border-radius: $radius-xl;
+  background: var(--background-secondary);
+}
+
+.sb-heading {
+  margin: 0;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-red, #b4413a);
+}
+
+.sb-minor {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.sb-value {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: $spacing-xs;
+  font-size: 14px;
+}
+
+.sb-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.sb-prompt,
+.sb-unit,
+.sb-counter-note {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+.sb-text {
+  font-size: 14px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.sb-input {
+  min-width: 0;
+  padding: $spacing-xs;
+}
+
+.sb-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: $spacing-xs;
+  padding: $spacing-xs;
+  border-radius: $radius-full;
+  background: var(--background-primary);
+  font-size: 13px;
+}
+
+.sb-roll,
+.sb-chip-remove {
+  padding: $spacing-xs;
+  border: 0;
+  border-radius: $radius-l;
+  background: var(--background-primary);
+  color: var(--interactive-accent);
+  font: inherit;
+  cursor: pointer;
+}
+
+.sb-chip-remove {
+  padding: $spacing-xs;
+  color: var(--text-muted);
+}
+
+.sb-step {
+  padding: $spacing-xs;
+}
+
+.sb-number {
+  font-variant-numeric: tabular-nums;
+}
+
+.sb-box {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 1px solid var(--text-muted);
+  border-radius: $radius-s;
+  background: transparent;
+  cursor: pointer;
+
+  &.sb-box-filled {
+    background: var(--interactive-accent);
+    border-color: var(--interactive-accent);
+  }
+
+  &:disabled {
+    cursor: default;
+  }
+}
+
+.sb-gauge {
+  height: 8px;
+  border-radius: $radius-s;
+  background: #1b1d22;
+  overflow: hidden;
+}
+
+.sb-gauge-fill {
+  display: block;
+  height: 100%;
+  background: var(--interactive-accent);
+}
+
+.sb-counter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $spacing-xs;
+  font-size: 14px;
+}
+
+.sb-counter-name {
+  min-width: 8em;
+}
+
+.sb-table {
+  border-collapse: collapse;
+  font-size: 13px;
+
+  th,
+  td {
+    padding: $spacing-xs;
+    text-align: center;
+  }
+
+  .sb-worked {
+    color: var(--text-muted);
+  }
+}
+
+.sb-cell-input {
+  width: 4em;
+  padding: $spacing-xs;
+  text-align: center;
+}
+
+.sb-divider {
+  width: 100%;
+  margin: 0;
+  border: 0;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.sb-ability {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-xs;
+  padding: $spacing-s;
+  border-radius: $radius-l;
+  background: var(--background-primary);
+}
+
+.sb-ability-name,
+.sb-ability-parts,
+.sb-spells,
+.sb-rest-action {
+  margin: 0;
+}
+
+.sb-ability-parts,
+.sb-rest-action {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.sb-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-xs;
+}
+
+.sb-rest-step {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-xs;
+  padding: $spacing-s;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: $radius-l;
+}
+
+.sb-rest-pick {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $spacing-xs;
+}
+
+.sb-ability-list > .book-button {
+  align-self: flex-start;
+}
