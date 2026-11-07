@@ -63,6 +63,7 @@ message's `body`.
 | A socket must send its `hello` within | 10 s, else `protocol` | `relay/tables.ts` |
 | GM hello | GM side only, with the table's secret, else `badSecret` | `Table.attachGm` |
 | Player hello | public side only; a known `key` takes its seat back without the gate | `Table.attachPlayer` |
+| Table started again | a new table on the same link (`POST /api/tables` with the campaign's `code`) keeps the seats and keys of the one before, so a returning device takes its seat back by its `key` | `Tables.create` |
 | Campaign players | the GM sends its campaign's players (`players`, id, name, own code) after every welcome; a hello whose `code` is a player's own takes that player's seat past the gate, from any device; a newcomer whose name is a campaign player's gets `nameTaken`. Kept in memory only | `Table.attachPlayer` |
 | Wrong join code | `wrongCode`; 10 within 10 minutes pause joins for 10 minutes (`paused`) | `relay/gate.ts` |
 | New join code from the GM | ends the pause and forgets wrong codes | `JoinGate.set` |
