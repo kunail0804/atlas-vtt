@@ -104,6 +104,8 @@ function character(id: typeof FIVE_E_2024_CHARACTER_ID | typeof FIVE_E_2014_CHAR
     fields: characterFields(words),
     ...hiddenParts('type', 'description'),
     layout: LAYOUT,
+    // Always worked out from other fields: a player's change would be written over at once.
+    players: { proficiency: 'read', initiative: 'read' },
     sample: { name: 'Nom du personnage', level: 1, stats: [10, 10, 10, 10, 10, 10] },
   });
 }
