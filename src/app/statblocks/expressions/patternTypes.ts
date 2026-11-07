@@ -5,7 +5,8 @@
  *   value    := '{' ref ( ',' ref )* ( '|' filter )* '}'  |  '{=' formula ( '|' filter )* '}'
  *   optional := '[' pattern ']'      dropped when a value directly inside it is empty
  *   ref      := key ( '.' index )?   stats.1, hp
- *   filter   := signed | upper | lower | count | avg | lookup ':' table | join ':' text
+ *   filter   := signed | upper | lower | count | avg | sum | lookup ':' table | join ':' text
+ *             | pluck ':' key | pool ':' countKey ',' dieKey
  *
  * A backslash escapes { } [ ] \ , | anywhere ("AC {ac} \[{aac}\]").
  */
@@ -13,9 +14,11 @@
 import type { FormulaNode } from './formulaTypes';
 
 export type PatternFilter =
-  | { name: 'signed' | 'upper' | 'lower' | 'count' | 'avg' }
+  | { name: 'signed' | 'upper' | 'lower' | 'count' | 'avg' | 'sum' }
   | { name: 'lookup'; table: string }
-  | { name: 'join'; text: string };
+  | { name: 'join'; text: string }
+  | { name: 'pluck'; key: string }
+  | { name: 'pool'; count: string; die: string };
 
 export type PatternFilterName = PatternFilter['name'];
 

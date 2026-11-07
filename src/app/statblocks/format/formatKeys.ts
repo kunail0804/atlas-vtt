@@ -60,7 +60,7 @@ export const FIELD_KEYS = keyOrder<keyof TemplateField>({
   key: true, label: true, type: true, meaning: true, formerKeys: true, unit: true, options: true, open: true,
   several: true, numbered: true,
   slots: true, slotKeys: true, header: true, rows: true, align: true, addRows: true, addColumns: true, entry: true,
-  counterRows: true, prompt: true, tracks: true,
+  counterRows: true, prompt: true, tracks: true, derive: true,
 });
 
 export const FIELD_TRACKING_KEYS = keyOrder<keyof FieldTracking>({ counts: true, max: true });

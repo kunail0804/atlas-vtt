@@ -7,12 +7,17 @@
  * - `count`: how many items there are;
  * - `avg`: the average of dice notation, rounded down ("7d10 + 14" is 52);
  * - `lookup:<table>`: the row of one of the template's lookup tables; no row, no value;
- * - `join:<text>`: the items joined by the text, as written ("join:; ").
+ * - `join:<text>`: the items joined by the text, as written ("join:; ");
+ * - `sum`: the total of the items that are numbers;
+ * - `pluck:<key>`: each item's part of that name (a list's entries' `level`);
+ * - `pool:<count>,<die>`: the dice the items make, each `count` of its `die`, the same dice added up
+ *   ("3d10 + 2d6" for a fighter 3 and a wizard 2 of a list of classes).
  */
 
 import type { FieldValue } from '../model/templateTypes';
 import { diceAverage } from '../values/diceNotation';
 import { isEmptyValue } from '../values/emptyValue';
+import { indexInto } from '../values/fieldValues';
 import { formatSigned, numericValue, parseRatingText } from '../values/numberText';
 import { quoted, valueText } from '../values/valueText';
 import { refError, syntaxError, type ExpressionError } from './errors';
@@ -27,10 +32,10 @@ export interface FilterStep {
   problem?: ExpressionError;
 }
 
-const PLAIN_FILTERS: ReadonlySet<string> = new Set<PatternFilterName>(['signed', 'upper', 'lower', 'count', 'avg']);
-const ALL_FILTERS = 'signed, upper, lower, count, avg, lookup and join';
+const PLAIN_FILTERS: ReadonlySet<string> = new Set<PatternFilterName>(['signed', 'upper', 'lower', 'count', 'avg', 'sum']);
+const ALL_FILTERS = 'signed, upper, lower, count, avg, sum, lookup, join, pluck and pool';
 
-function isPlainFilter(name: string): name is 'signed' | 'upper' | 'lower' | 'count' | 'avg' {
+function isPlainFilter(name: string): name is 'signed' | 'upper' | 'lower' | 'count' | 'avg' | 'sum' {
   return PLAIN_FILTERS.has(name);
 }
 
@@ -45,6 +50,14 @@ export function parseFilter(source: string, at: number): PatternFilter | Express
   }
   if (name === 'join') {
     return argument === null ? syntaxError('join needs the text to join with, like {a, b|join:; }.', at) : { name, text: argument };
+  }
+  if (name === 'pluck') {
+    const key = argument?.trim();
+    return key ? { name, key } : syntaxError('pluck needs the name of a part, like {classes|pluck:level}.', at);
+  }
+  if (name === 'pool') {
+    const [count, die, ...rest] = (argument ?? '').split(',').map((part) => part.trim());
+    return count && die && rest.length === 0 ? { name, count, die } : syntaxError('pool needs the parts of the count and of the die, like {classes|pool:level,die}.', at);
   }
   if (isPlainFilter(name)) {
     return argument === null ? { name } : syntaxError(`${name} takes nothing after ${quoted(':')}.`, at);
@@ -91,5 +104,25 @@ export function applyFilter(items: readonly FieldValue[], filter: PatternFilter,
     case 'avg': return present(items.map((item) => diceAverage(valueText(item))));
     case 'lookup': return lookUp(items, filter.table, lookups);
     case 'join': return present([items.map(valueText).filter((text) => text.trim() !== '').join(filter.text)]);
+    case 'sum': return sum(items);
+    case 'pluck': return present(items.map((item) => indexInto(item, filter.key) ?? null));
+    case 'pool': return pool(items, filter.count, filter.die);
   }
+}
+
+function sum(items: readonly FieldValue[]): FilterStep {
+  const numbers = items.map(numericValue).filter((number): number is number => number !== null);
+  return { items: numbers.length === 0 ? [] : [numbers.reduce((total, number) => total + number, 0)] };
+}
+
+const DIE = /^d(\d+)$/i;
+
+function pool(items: readonly FieldValue[], countKey: string, dieKey: string): FilterStep {
+  const counts = new Map<string, number>();
+  for (const item of items) {
+    const die = DIE.exec(valueText(indexInto(item, dieKey) ?? null).trim())?.[1];
+    const count = numericValue(indexInto(item, countKey) ?? null);
+    if (die !== undefined && count !== null && count > 0) counts.set(`d${die}`, (counts.get(`d${die}`) ?? 0) + count);
+  }
+  return present([[...counts].map(([die, count]) => `${count}${die}`).join(' + ')]);
 }

@@ -229,7 +229,7 @@ it('pattern syntax', () => {
       ['{}', 'A value needs the name of a field, like {hp}.', 1],
       ['{a,}', 'A value needs the name of a field, like {hp}.', 3],
       ['{a[b]}', '\u201c[\u201d can\'t be used inside { }. Write \\[ for the character itself.', 2],
-      ['{a|sgined}', 'There is no filter called \u201csgined\u201d. There are signed, upper, lower, count, avg, lookup and join.', 3],
+      ['{a|sgined}', 'There is no filter called \u201csgined\u201d. There are signed, upper, lower, count, avg, sum, lookup, join, pluck and pool.', 3],
       ['{a|}', 'A filter is missing after \u201c|\u201d.', 3],
       ['{a|lookup}', 'lookup needs the name of a table, like {cr|lookup:xp}.', 3],
       ['{a|lookup: }', 'lookup needs the name of a table, like {cr|lookup:xp}.', 3],
