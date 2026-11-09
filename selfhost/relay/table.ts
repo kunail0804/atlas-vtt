@@ -92,7 +92,7 @@ export class Table {
     });
     const waiting = this.gate.waiting();
     // `batch`: the GM may send the messages of one moment in one `sends` frame.
-    sendFrame(link.socket, { t: 'welcome', role: 'gm', players: this.connectedPlayers(), ...(waiting.length === 0 ? {} : { waiting }), batch: true });
+    sendFrame(link.socket, { t: 'welcome', role: 'gm', players: this.connectedPlayers(), ...(waiting.length === 0 ? {} : { waiting }), batch: true, clock: true });
     if (previous === null) this.toPlayers({ t: 'gm', online: true });
   }
 
@@ -124,6 +124,9 @@ export class Table {
         if (admitted !== null) this.seatAdmitted(admitted.socket, admitted.id, admitted.name);
         return;
       }
+      case 'time':
+        answerTime(link.socket, frame.t1);
+        return;
       case 'end':
         this.end(CLOSE.ended);
         return;
@@ -256,7 +259,7 @@ export class Table {
       seat.link = null;
       this.toGm({ t: 'player-left', id: seat.id });
     });
-    sendFrame(link.socket, { t: 'welcome', role: 'player', id: seat.id, key, gmOnline: this.gm !== null });
+    sendFrame(link.socket, { t: 'welcome', role: 'player', id: seat.id, key, gmOnline: this.gm !== null, clock: true });
     this.toGm({ t: 'player-joined', id: seat.id, name: seat.name });
   }
 
@@ -267,6 +270,7 @@ export class Table {
     if (!limit.take()) return closeSocket(link.socket, CLOSE.rateLimited, 'too many frames');
     if (isOtherVersion(text)) return closeSocket(link.socket, CLOSE.version, 'protocol version');
     if (frame?.t === 'ack') return this.outboxes.get(link)?.ack(frame.n);
+    if (frame?.t === 'time') return answerTime(link.socket, frame.t1);
     // Otherwise a player only ever sends game messages, and they always go to the GM.
     if (frame === null || frame.t !== 'send' || frame.to !== undefined) return closeSocket(link.socket, CLOSE.protocol, 'malformed frame');
     this.toGm({ t: 'game', from: seat.id, body: frame.body });
@@ -303,4 +307,9 @@ export class Table {
   private toPlayers(frame: Readonly<Record<string, unknown>>): void {
     for (const seat of this.seats.values()) if (seat.link !== null) sendFrame(seat.link.socket, frame);
   }
+}
+
+/** The answer to a time exchange: the relay's clock is the table's, one clock for the GM and every player. */
+function answerTime(socket: WebSocket, t1: number): void {
+  sendFrame(socket, { t: 'time', t1, t2: Date.now() });
 }
