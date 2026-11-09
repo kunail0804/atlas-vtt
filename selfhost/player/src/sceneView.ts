@@ -14,6 +14,9 @@ import { LitMarks } from './litMarks.ts';
 /** The map is asked for at most this large; a larger one comes as a scaled copy drawn at its own size. */
 const MAP_SIDE = 8192;
 
+/** Whether two references name the same stored object. */
+const sameReference = (a: AssetRef, b: AssetRef): boolean => a.id === b.id && a.tiles === b.tiles;
+
 /** What the page tells the player about the scene, outside the canvas. */
 export type SceneNotice = 'none' | 'no-scene' | 'loading' | 'lit-failed' | 'map-failed';
 
@@ -102,7 +105,14 @@ export class SceneView {
   }
 
   private showScene(scene: SharedScene | null): void {
-    if (scene !== null && this.scene !== null && scene.id === this.scene.id && scene.lit === this.scene.lit && scene.map?.hash === this.scene.map?.hash) return;
+    if (scene !== null && this.scene !== null && scene.id === this.scene.id && scene.lit === this.scene.lit && scene.map?.hash === this.scene.map?.hash) {
+      // The same image under another reference (its pyramid, then the image itself): only the map loads again.
+      if (scene.map !== null && this.scene.map !== null && !sameReference(scene.map, this.scene.map)) {
+        this.scene = scene;
+        if (this.map.worldRect === null) this.loadMap(scene.id, scene.map);
+      }
+      return;
+    }
     this.scene = scene;
     this.lastFog = undefined;
     this.lighting?.destroy();
@@ -117,10 +127,17 @@ export class SceneView {
     this.drawGrid();
     if (scene === null) return this.notice('no-scene');
     if (scene.map === null) return this.notice('none');
+    this.loadMap(scene.id, scene.map);
+  }
+
+  private loadMap(id: string, ref: AssetRef): void {
     this.notice('loading');
-    const id = scene.id;
-    this.assets.image(scene.map, MAP_SIDE).then((image) => {
-      if (this.scene?.id !== id) return;
+    // This relay serves no tile pyramids: the GM's Atlas hands the map again as one image.
+    if (ref.tiles === true) return;
+    // A load of an earlier reference, or of an earlier scene, changes nothing.
+    const current = (): boolean => this.scene?.id === id && this.scene.map === ref;
+    this.assets.image(ref, MAP_SIDE).then((image) => {
+      if (!current()) return;
       this.map.show(image);
       this.lighting?.setBounds(image.width, image.height);
       frame(this.stage, image.width, image.height);
@@ -128,7 +145,7 @@ export class SceneView {
       this.drawGrid();
       this.notice('none');
     }).catch(() => {
-      if (this.scene?.id === id) this.notice('map-failed');
+      if (current()) this.notice('map-failed');
     });
   }
 

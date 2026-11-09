@@ -8,6 +8,8 @@ import type { StoreResult } from '../../../../src/app/online/gm/assets/storeClie
 
 const SALT = Uint8Array.from({ length: 32 }, (_, n) => n + 1);
 const SALT_TEXT = btoa(String.fromCharCode(...SALT));
+const OTHER_SALT = Uint8Array.from({ length: 32 }, (_, n) => 200 - n);
+const OTHER_SALT_TEXT = btoa(String.fromCharCode(...OTHER_SALT));
 
 /** Obsidian's secret storage as an app has it: secrets by id, an empty one where cleared. */
 function secretApp(): { app: App; secrets: Map<string, string> } {
@@ -48,7 +50,8 @@ function saltSetup(answer: () => StoreResult<unknown>): { salt: AssetSalt; store
     signedIn: () => setup.signedIn.value,
     signedOutByServer: () => void (setup.signedOut += 1),
     now: () => setup.clock.now,
-    sleep: () => Promise.resolve(),
+    // The relay answers within the wait.
+    sleep: () => new Promise(() => undefined),
   });
   return setup;
 }
@@ -90,6 +93,33 @@ describe('the GM\'s salt', () => {
     const setup = saltSetup(() => ({ ok: false, trouble: 'signed-out' }));
     expect(await setup.salt.ensure()).toBeNull();
     expect(setup.signedOut).toBe(1);
+  });
+
+  it('replaces a kept salt the relay does not hand out before any id is made with it (a salt of another campaign\'s relay)', async () => {
+    const setup = saltSetup(() => ({ ok: true, value: SALT_TEXT }));
+    setup.store.set(OTHER_SALT);
+    expect(await setup.salt.soon()).toEqual(SALT);
+    expect(setup.store.kept).toEqual(SALT);
+    expect(await setup.salt.soon()).toEqual(SALT);
+    expect(setup.asked).toBe(1);
+  });
+
+  it('asks the relay again at sign-in, a salt kept or not', async () => {
+    let relay = SALT_TEXT;
+    const setup = saltSetup(() => ({ ok: true, value: relay }));
+    expect(await setup.salt.ensure()).toEqual(SALT);
+    relay = OTHER_SALT_TEXT;
+    expect(await setup.salt.ensure(true)).toEqual(OTHER_SALT);
+    expect(await setup.salt.soon()).toEqual(OTHER_SALT);
+    expect(setup.asked).toBe(2);
+  });
+
+  it('goes on with the kept salt while the relay cannot be reached', async () => {
+    const setup = saltSetup(() => ({ ok: false, trouble: 'retry' }));
+    setup.store.set(OTHER_SALT);
+    expect(await setup.salt.soon()).toEqual(OTHER_SALT);
+    expect(await setup.salt.soon()).toEqual(OTHER_SALT);
+    expect(setup.asked).toBe(1);
   });
 
   it('refuses an answer that is no salt', async () => {
