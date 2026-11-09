@@ -113,14 +113,14 @@ message's `body`.
 | Dice | `dice.tsx` | Rolls thrown in 3D with the plugin's `DiceRollStack` |
 | Chat and dice log | `logPanel.ts` | The plugin's `TableLogPanel` with `LogState` |
 | Book | `book.ts`, `book*.ts` | Character with editable resources, items the player adds, changes and takes away (`book-item-put`, `book-item-delete`, those the GM handed over too; `bookItems.ts`), equipment slots (equip, hide default slots, add own ones), free notes, quests with their whole text and images, notes on a quest, purse, world map with the maps its entrances lead into and the player's own pins. The GM takes a write without answering, so the page applies it to its own copy with the plugin's `applyBookMessage` (on the message as the GM's parser cleans it); a refused write is answered with the whole book |
-| Character sheet | `bookSheet.tsx` | The book's Fiche tab: the plugin's own sheet (`src/app/characterSheets/CharacterSheet.tsx`), editable. A change shows at once and goes to the GM once typing pauses (`sheet-edit`, `sheet-row`); what the GM sends back does not undo a change of the last two seconds. Current hit points are the token's resource (`book-resource`). A click on a modifier, save, skill, initiative or attack rolls it, named after it |
+| Character sheet | `statblockPage.ts`, `statblock*.ts`, `statblock.scss` | The book's Fiche tab: the character's statblock as the GM's Atlas draws it (`book-statblock`): name, header plates, sections, rows, tabs, values, tables with their worked-out rows, tracks, counters, abilities, refills and recovery buttons, laid out in the GM's card's columns. A value the GM lets the player change is an input of its kind, sent when the player leaves it or presses Enter (`book-field`, a table's cell alone with `cell`); words and labelled values are added and taken out one by one (`book-list`); abilities of the player's lists are added, changed and removed (`book-ability`); a counter's boxes send the whole block back (`book-field`); a value or track that is a resource of the character steps it (`book-resource`); a refill is taken at once (`book-refill`); a rest is asked of the GM through its form, with its spends and the actions of its steps (`book-rest`), and the GM's answer is told (`book-rest-answer`). Every change waits for the GM's next statblock; what is being typed stays until the value it was typed against changes. A value, cell or pair with a roll rolls it, named after it. Read only where the statblock is not editable |
 | Compendium | `bookCompendium.ts`, `markdownText.ts`, `deviceKey.ts` | The compendium pages the GM shared with this player, in folders by book then kind, read as cards and changed where the GM lets them; the notes the GM linked to the character, opened in the reader |
-| Sheet and compendium | `sheetCompendium.ts` | The sheet's pickers ask the GM for a kind's entries (`sheet-choices`), take one (`sheet-pick`) and open one (`sheet-view`) |
+| Sheet and compendium | `sheetCompendium.ts` | The plugin's `SheetCompendiumBar` above an editable statblock: its pickers ask the GM for a kind's entries (`sheet-choices`), take one (`sheet-pick`) and open one (`sheet-view`) |
 | Found notes | `reader.ts`, `documentView.ts` | The note a found pin lets players read, opened from the log or the pin |
 | Notices | `notice.ts` | A new item, a refused roll, a roll without a scene, a book that is full |
 | Words | `text.ts` | Every text the page writes itself |
 
-The chat panel is in English: the plugin ships no French locale.
+The chat panel is in English: the plugin's French covers only the statblock panel.
 
 On a screen under 640 px wide the toolbar takes a row of its own under the log's and the book's buttons, and the widget bar sits above them instead of at the top.
 
@@ -128,26 +128,27 @@ The log stays open beside the book and the toolbar: a press in anything marked `
 
 ### Character sheets
 
-A character sheet is a statblock note whose frontmatter names its system: `atlas-sheet: dnd5e-2024` or
-`dnd5e-2014` (`src/app/characterSheets/`). Both have the same fields and work out the same values; the 2014
-sheet says Race and Inspiration where the 2024 one says Espèce and Inspiration héroïque. The GM switches a
-sheet from one to the other with Règles above it (`setSheetSystem`), keeping every value; players cannot.
-What the character carries and its coins are not on the sheet: they are its book's. A sheet written before
-keeps its `equipment` and `cp` to `pp` keys in its frontmatter untouched, but the sheet no longer reads them and
-nothing moves them into the book. Its values are frontmatter keys; `name`, `ac`, `hp`, `stats`, `speed`,
-`languages` and `traits` are Fantasy Statblocks' own, and every write also sets `statblock: true`,
-`saves`, `skillsaves`, `senses` and `actions` worked out from the sheet, so Fantasy Statblocks, the
-token's statblock link and Atlas's hit points read the same note. `atlas-player-notes` lists the
-notes linked for the character's player as `[[links]]`. A system is one `SheetSystem`
-(`dnd5e2024.ts`): its fields (`sheetFields.ts`, which also checks every value read or sent), what
-follows from them, and the keys it writes for Fantasy Statblocks.
+A character sheet is a native statblock note of one of the two built-in 5E character templates:
+`atlas-template: builtin:5e-2024-character` or `builtin:5e-2014-character`
+(`src/app/statblocks/presets/fiveECharacter.ts`, fields in `fiveECharacterFields.ts`, in French). Both have
+the same fields and work out the same values; the 2014 template says Race and Inspiration where the 2024
+one says Espèce and Inspiration héroïque. The GM switches a sheet from one to the other with Règles above
+it (`src/app/sheets/editionSwitch.ts`), keeping every value; players cannot. What the character carries and
+its coins are not on the sheet: they are its book's. Saving throws, skills (proficiency once, expertise
+twice, with `has(…)` in formulas), passive Perception and the spell DC are worked out where the card shows
+them; `class`, `level`, `hit_dice` (from the `classes` entries), `proficiency` and `initiative` are fields
+with `derive`, written into the note after every change (`src/app/statblocks/notes/derivedFields.ts`), so
+Atlas's initiative and hit points read them. `atlas-player-notes` lists the notes linked for the
+character's player as `[[links]]`. A sheet of the former engine (`atlas-sheet: dnd5e-2024`) is moved onto
+the template in place at every start (`src/app/sheets/migrateSheets.ts`, rules in `sheetMigration.ts`).
 
-The GM opens a sheet in its own tab (`CharacterSheetView`, view `atlas-character-sheet`): from a
-token's menu in the library or on the map (Créer / Ouvrir la fiche de personnage), from Link
-Statblock (Créer une fiche de personnage, or linking a note that is a sheet), when a token is made in
-the Players tab without a statblock role, when a token is made a player character, and with the
-commands Nouvelle fiche de personnage and Ouvrir la fiche de personnage de cette note. New sheets go
-to `Personnages/`. The sheet's Documents tab links notes for the player.
+The GM's sheet is the statblock panel beside the note (`src/app/sheets/CharacterSheetTabs.tsx` around
+upstream's pane): tabs Fiche (the rules, the compendium's buttons and the statblock), Livre and Documents.
+It opens from a token's menu in the library or on the map (Créer / Ouvrir la fiche de personnage), from
+Link Statblock (Créer une fiche de personnage, or linking a note that is a sheet), when a token is made in
+the Players tab without a statblock role, when a token is made a player character, and with the commands
+Nouvelle fiche de personnage and Ouvrir la fiche de personnage de cette note. New sheets go to
+`Personnages/`. The Documents tab links notes for the player.
 
 The sheet's Livre tab (`SheetBook.tsx`) is the GM's way into the character's book: its items and purse,
 which the GM adds to, changes and takes from. It needs online play on, which keeps the books
@@ -156,12 +157,12 @@ collection's book of that artwork, else a new one in the collection of its first
 is kept as the GM's (`BookShelf.keep(…, 'gm')`), and `BookShare` sends the whole book at once to whoever
 plays that character.
 
-At the table, `SheetShare` (`src/app/online/gm/book/`) sends each player `sheet`: the sheet of the
-statblock note of the character they play, and the linked notes as found notes are sent (opening
-inline, whole text and images by hash, served to that player alone). It sends again when their
-character, the note or a linked note changes. A player's `sheet-edit` or `sheet-row` is applied by
-the sheet's system and written into the note at once; one that is refused is answered with the sheet
-as the note keeps it. A player edits only their own character's sheet, at 8 edits a second (burst 40).
+At the table, each player is sent `book-statblock`: the statblock of the character they play, as
+the GM's Atlas draws it for them (`src/app/online/gm/book/statblockSheet.ts`), and `character-notes`:
+the notes linked for them, sent as found notes are (opening inline, whole text and images by hash,
+served to that player alone). Both are sent again when their character, the note or a linked note
+changes. A player's `book-field`, `book-list`, `book-ability`, `book-refill` and `book-rest` are checked
+against the statblock last sent and written into the note; the next `book-statblock` shows the result.
 
 ### Compendium
 
@@ -207,9 +208,8 @@ page from a real relay, drive it in `/usr/bin/chromium`, and play the GM with th
 | `tests/book.browser.test.ts` | Every page of the book, each write reaching the GM and showing without an answer, the world map's levels and pins, quest images, found notes, a refused roll; markup in names stays text |
 | `tests/diagnostics.test.ts` | Feedback and error reports kept in the data folder; malformed, too large, web-page and flooding requests refused |
 | `tests/phone.browser.test.ts` | At 390 × 844, every control on screen and apart; a touch drag moves the own token |
-| `tests/sheetCompendium.browser.test.ts` | The sheet's class picker through the GM: two classes taken, the level following, a class opened and the way back |
 | `tests/compendium.browser.test.ts` | The Compendium tab: the player known by their device, their pages by kind, a monster and a spell read as cards, a change written into the note, a page taken back, the same player after a reload |
-| `tests/sheet.browser.test.ts` | The Fiche tab: the sheet's values and worked-out bonuses, a roll from it, a field, a proficiency, hit points and an equipment row reaching the GM, an older sheet not undoing a fresh change, and a linked document read whole |
+| `tests/statblock.browser.test.ts` | The Fiche tab: the statblock drawn, a field, a roll from a worked-out modifier, hit points and an ability removal reaching the GM, a class picked through the compendium bar, and a linked document read whole |
 | `tests/toolbar.browser.test.ts` | The toolbar's menus, the log open beside the book, and what each tool sends: a pen stroke, a stamp, a text, a partial erase, delete all, a kept circle, the laser's colour, a d20 with advantage. `ATLAS_SHOTS=<dir>` writes screenshots |
 
 ## What the player page can import

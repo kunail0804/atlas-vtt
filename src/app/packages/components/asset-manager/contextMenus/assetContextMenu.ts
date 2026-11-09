@@ -21,11 +21,12 @@ import { confirmAction } from '../../../../ui/confirmDialog';
 import type { AtlasView } from '../../../../atlas-view';
 import { applyTokenDeleteImpact, describeTokenDeleteImpact, findTokenDeleteImpact } from '../utils/tokenDeleteImpact';
 import { tokenSizeSubmenu } from '../../../../react/components/context-menu/tokenSizeMenu';
-import { characterSheetEntry, sheetsForPlayerCharacters } from '../../../../characterSheets/obsidian/sheetEntries';
+import { characterSheetEntry, sheetsForPlayerCharacters } from '../../../../sheets/sheetEntries';
 import { playerCharacterEntry, setPlayerCharacters } from '../../../../react/components/context-menu/playerCharacterMenu';
 import type { TransferMode } from '../../../../services/assetTransfer/transferPlan';
 import type { CreateScenePrefill } from '../hooks/useAssetCrud';
 import { sceneMenuEntries } from './sceneMenuEntries';
+import { openScene } from '../hooks/useOpenAsset';
 import { createStatblockEntry } from '../../../../statblocks/editor/create/entryPoints';
 import { copyAssetLink } from '../../../../links/atlasLinkText';
 import { t } from '../../../../i18n';
@@ -79,6 +80,16 @@ export function buildAssetContextMenuEntries(
 
   // ── Create Scene from Map(s) ──────────────────────────────────
   entries.push(...sceneMenuEntries(asset, selectedAssets, deps));
+
+  // ── Open Scene (single scene) ─────────────────────────────────
+  if (asset.type === 'scenes' && selectedAssets.length === 1) {
+    entries.push({
+      type: 'item',
+      label: t('am.menu.openScene'),
+      icon: 'play',
+      onClick: () => runInBackground(openScene(deps, asset.id), `Opening scene ${asset.id}`, t('am.menu.openSceneFailed')),
+    });
+  }
 
   // ── Spawn: on the map, or into the initiative tracker ─────────
   entries.push(...spawnMenuEntries(asset, selectedAssets, spawnCtx, deps.onClose));

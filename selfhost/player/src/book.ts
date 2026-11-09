@@ -13,8 +13,9 @@ import { characterPage, pursePage } from './bookPages.ts';
 import { questsPage } from './bookQuests.ts';
 import { worldMapPage } from './bookWorldMap.ts';
 import { TEXT } from './text.ts';
-import { BookSheet, type SheetPorts } from './bookSheet.tsx';
-import type { SheetMessage } from '../../../src/app/online/protocol/sheet.ts';
+import { StatblockSheet } from './statblockPage.ts';
+import type { CharacterNotesMessage } from '../../../src/app/online/protocol/characterNotes.ts';
+import type { FoundNote } from '../../../src/app/online/protocol/logShown.ts';
 import type { CompendiumMessage } from '../../../src/app/online/protocol/compendium.ts';
 import { CompendiumPages } from './bookCompendium.ts';
 import { PlayerSheetCompendium } from './sheetCompendium.ts';
@@ -23,6 +24,12 @@ const TABS: readonly Tab[] = ['character', 'sheet', 'compendium', 'items', 'equi
 const PAGES: Readonly<Record<Exclude<Tab, 'sheet' | 'compendium'>, (context: PageContext) => HTMLElement>> = {
   character: characterPage, items: itemsPage, equipment: equipmentPage, notes: notesPage, quests: questsPage, purse: pursePage, map: worldMapPage,
 };
+
+/** What the book's statblock page takes from the table: rolls, and the reader for the character's notes. */
+export interface SheetPorts {
+  readonly roll: (formula: string, label: string) => void;
+  readonly openNote: (note: FoundNote) => void;
+}
 
 /**
  * The player's own pages besides the table, as the GM keeps them. The GM takes a write without an
@@ -43,17 +50,22 @@ export class BookPanel {
   /** Told whether the player has a book, for the toolbar's button. */
   private readonly available: (has: boolean) => void;
 
-  /** The character sheet and the notes the GM linked to it. */
-  private readonly sheet: BookSheet;
+  /** The character's statblock and the notes the GM linked to it. */
+  private readonly sheet: StatblockSheet;
 
   /** The compendium pages the GM shared with this player, whether or not they play a character. */
   private readonly compendium: CompendiumPages;
   private readonly sheetCompendium: PlayerSheetCompendium;
 
-  constructor(host: HTMLElement, assets: AssetLoader, send: (message: PlayerMessage) => void, tell: (text: string) => void, available: (has: boolean) => void, sheet: Omit<SheetPorts, 'send' | 'setHitPoints'>) {
+  constructor(host: HTMLElement, assets: AssetLoader, send: (message: PlayerMessage) => void, tell: (text: string) => void, available: (has: boolean) => void, sheet: SheetPorts) {
     // The sheet reaches the compendium through the GM; a page it asks to read opens in the compendium tab.
     this.sheetCompendium = new PlayerSheetCompendium(send, () => this.compendium.expectView());
-    this.sheet = new BookSheet({ ...sheet, send, setHitPoints: (current) => this.setHitPoints(current), compendium: this.sheetCompendium });
+    this.sheet = new StatblockSheet({
+      ...sheet, assets, tell, compendium: this.sheetCompendium,
+      write: (message) => this.write(message),
+      askRest: (message) => send(message),
+      redraw: () => { if (!this.panel.hidden && this.ui.tab === 'sheet') this.render(); },
+    });
     this.assets = assets;
     this.send = send;
     this.tell = tell;
@@ -94,9 +106,9 @@ export class BookPanel {
     else if (this.book !== null && message.t === 'book-item') {
       this.book = { ...this.book, items: [...this.book.items.filter((item) => item.id !== message.item.id), message.item] };
       this.tell(TEXT.book.newItem(message.item.name));
-    }
+    } else if (message.t === 'book-statblock') this.sheet.receive(message.statblock);
+    else if (message.t === 'book-rest-answer') this.sheet.receiveRestAnswer(message);
     this.tellAvailable();
-    this.sheet.setCharacter(this.book?.character ?? null);
     if (!this.panel.hidden) this.render();
   }
 
@@ -118,17 +130,11 @@ export class BookPanel {
     this.available(this.book !== null || this.compendium.hasPages || this.sheet.documents().length > 0);
   }
 
-  /** The character sheet and its notes, as the GM sent them. */
-  receiveSheet(message: SheetMessage): void {
-    this.sheet.receive(message);
+  /** The notes the GM linked to the character, as the GM sent them. */
+  receiveNotes(message: CharacterNotesMessage): void {
+    this.sheet.receiveNotes(message.notes);
     this.tellAvailable();
     if (!this.panel.hidden && this.ui.tab === 'compendium') this.render();
-  }
-
-  /** The character's hit points, set from its sheet as from its sheet's resource. */
-  private setHitPoints(current: number): void {
-    const resource = this.book?.character?.resources.find((entry) => entry.key === 'hp');
-    if (resource?.key != null && resource.editable) this.write({ t: 'book-resource', key: resource.key, current: Math.max(0, Math.min(resource.max, current)) });
   }
 
   private write(message: PlayerBookMessage): boolean {
@@ -147,11 +153,12 @@ export class BookPanel {
     if (parsed.t === 'book-resource') {
       const character = book.character;
       if (character !== null) this.book = { ...book, character: { ...character, resources: character.resources.map((resource) => (resource.key === parsed.key ? { ...resource, current: parsed.current } : resource)) } };
-    } else {
+    }
+    // The statblock's own messages (fields, abilities, lists, refills) change nothing here: the GM answers with the next statblock.
+    const shelf = shelfMessageOf(parsed);
+    if (shelf !== null) {
       const { items, notes, pins, purse, slots, equipped } = book;
-      // The statblock's own messages (fields, abilities, lists, refills) are the GM's to answer; this page sends none.
-      const shelf = shelfMessageOf(parsed);
-      const written = shelf === null ? null : applyBookMessage({ items, notes, pins, purse, slots, equipped }, shelf, Date.now(), new Set(book.quests.map((quest) => quest.id)));
+      const written = applyBookMessage({ items, notes, pins, purse, slots, equipped }, shelf, Date.now(), new Set(book.quests.map((quest) => quest.id)));
       if (written === null) {
         this.tell(TEXT.book.full);
         return false;
@@ -175,7 +182,11 @@ export class BookPanel {
   private render(): void {
     for (const choice of this.panel.querySelectorAll<HTMLElement>('.book-tab')) choice.setAttribute('aria-pressed', String(choice.dataset.tab === this.ui.tab));
     this.panel.classList.toggle('book-wide', this.ui.tab === 'map' || this.ui.tab === 'sheet');
-    if (this.ui.tab === 'sheet') return this.body.replaceChildren(this.sheet.sheetPage());
+    if (this.ui.tab === 'sheet') {
+      // The statblock shows the book's resources, which a step of the player's changes before the GM answers.
+      this.sheet.setCharacter(this.book?.character ?? null);
+      return this.renderKeepingFocus(() => this.sheet.page());
+    }
     if (this.ui.tab === 'compendium') return this.renderKeepingFocus(() => this.compendium.page());
     const book = this.book;
     if (book === null) return this.body.replaceChildren(node('p', 'book-empty', TEXT.book.coming));

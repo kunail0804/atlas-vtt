@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { TFile, type App } from 'obsidian';
-import { playerNoteFiles } from '../../../../src/app/characterSheets/obsidian/sheetFiles';
+import { playerNoteFiles } from '../../../../src/app/sheets/playerNotes';
 
 const BARBARIAN = 'Compendium/D&D 5e 2014/SRD 5.1/Classes/Barbarian.md';
 const DIARY = 'Players/Mira diary.md';

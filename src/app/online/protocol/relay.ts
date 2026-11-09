@@ -1,9 +1,11 @@
 import { JOIN_CODE_PATTERN, PLAYER_ID_PATTERN, playerName } from './identity.ts';
+import { isSendLane, parseSends, type BatchedSend, type SendLane } from './relayBatch.ts';
 import { levelIn } from './level.ts';
 import { type CampaignSeat, parseSeats } from './seat.ts';
 import { isRecord } from './shape.ts';
 
 export * from './identity.ts';
+export * from './relayBatch.ts';
 
 /** The version every frame carries. A hello of another version is closed with `CLOSE.version`. */
 export const PROTOCOL_VERSION = 1;
@@ -24,8 +26,6 @@ export const KEEPALIVE_MS = 30_000;
 
 /** Largest frame a GM may send: one asset chunk with its envelope. */
 export const MAX_GM_FRAME = 320 * 1024;
-/** The most game messages one `sends` frame of the GM carries. */
-export const MAX_BATCH_SENDS = 64;
 /** Largest frame a player or a socket that has not said hello may send. */
 export const MAX_PLAYER_FRAME = 4 * 1024;
 /** Players connected at once. */
@@ -104,14 +104,6 @@ export interface GmHello {
 
 export type Hello = GmHello | PlayerHello;
 
-/** One game message of a GM's `sends` frame: to one player, or to all (`ALL_PLAYERS`). */
-export interface BatchedSend {
-  readonly to: string;
-  readonly body: unknown;
-  /** How the relay paces it to a player whose page acks (`SendLane`), as a `send` names it. */
-  readonly lane?: SendLane;
-}
-
 /**
  * What a client sends the relay. A player's `send` has no `to`: it always reaches the GM. `kick`,
  * `gate` (the join code, or null for none, and whether newcomers wait for the GM), `admit` and
@@ -119,18 +111,6 @@ export interface BatchedSend {
  * campaign's whole roster. A GM's `send` names its `lane` (`SendLane`). A player's `ack` counts the
  * frames marked `ack` its socket received so far.
  */
-/**
- * How the relay sends a GM's message to a player whose page acks. None: at once, in order with the
- * other messages. `paced`: in that same order, but only as fast as the player's link takes it (a
- * part of a large message). `bulk`: as fast as the link takes it, after everything else (an asset
- * chunk, which nothing depends on the order of). `live`: at once, before anything waiting (where
- * a dragged token is now, which only its latest value matters for).
- */
-export type SendLane = 'paced' | 'bulk' | 'live';
-
-const SEND_LANES: readonly string[] = ['paced', 'bulk', 'live'] satisfies readonly SendLane[];
-const isSendLane = (value: unknown): value is SendLane => typeof value === 'string' && SEND_LANES.includes(value);
-
 export type ClientFrame =
   | Hello
   | { readonly v: 1; readonly t: 'send'; readonly to?: string; readonly body: unknown; readonly lane?: SendLane }
@@ -142,6 +122,8 @@ export type ClientFrame =
   | { readonly v: 1; readonly t: 'players'; readonly players: readonly CampaignSeat[] }
   | { readonly v: 1; readonly t: 'admit'; readonly id: string }
   | { readonly v: 1; readonly t: 'decline'; readonly id: string }
+  /** One time exchange: `t1` is the client's own clock when it sent this. Only to a relay that offers it (`clock`). */
+  | { readonly v: 1; readonly t: 'time'; readonly t1: number }
   | { readonly v: 1; readonly t: 'end' };
 
 /** What the relay sends a client. */
@@ -150,8 +132,9 @@ export type RelayFrame =
    * `waiting`: the newcomers who wait for the GM's answer, left out while there are none. `batch`: the
    * relay takes `sends` frames; an older one says nothing. `minLevel`: the least GM level the relay's
    * player page needs; a GM below it was let in because players sit at the table, and should update.
+   * `clock`: the relay answers time exchanges; an older one says nothing, and would close a socket that sent one.
    */
-  | { readonly v: 1; readonly t: 'welcome'; readonly role: 'gm'; readonly players: readonly PlayerInfo[]; readonly waiting?: readonly PlayerInfo[]; readonly batch?: true; readonly minLevel?: number }
+  | { readonly v: 1; readonly t: 'welcome'; readonly role: 'gm'; readonly players: readonly PlayerInfo[]; readonly waiting?: readonly PlayerInfo[]; readonly batch?: true; readonly minLevel?: number; readonly clock?: true }
   /** A newcomer waits for the GM's answer; `knock-gone` once they do not (left, timed out, answered; `full`: admitted into a table without a seat). */
   | { readonly v: 1; readonly t: 'knock'; readonly id: string; readonly name: string }
   | { readonly v: 1; readonly t: 'knock-gone'; readonly id: string; readonly full?: true }
@@ -162,8 +145,8 @@ export type RelayFrame =
    * that keeps it (in memory only): a later hello with it takes the same wait up again.
    */
   | { readonly v: 1; readonly t: 'waiting'; readonly wait?: string }
-  /** `gmLevel`: what the table's GM serves (`GM_LEVEL`) while one is there; an older relay names none. */
-  | { readonly v: 1; readonly t: 'welcome'; readonly role: 'player'; readonly id: string; readonly key: string; readonly gmOnline: boolean; readonly gmLevel?: number }
+  /** `gmLevel`: what the table's GM serves (`GM_LEVEL`) while one is there; an older relay names none. `clock`: as the GM's. */
+  | { readonly v: 1; readonly t: 'welcome'; readonly role: 'player'; readonly id: string; readonly key: string; readonly gmOnline: boolean; readonly gmLevel?: number; readonly clock?: true }
   | { readonly v: 1; readonly t: 'player-joined'; readonly id: string; readonly name: string }
   | { readonly v: 1; readonly t: 'player-left'; readonly id: string }
   /** The GM came or went; `level`: what the GM who came serves, named by a relay that knows it. */
@@ -173,6 +156,8 @@ export type RelayFrame =
    * clock, in milliseconds) unless the account may host again by then; null once it may.
    */
   | { readonly v: 1; readonly t: 'access'; readonly closesAt: number | null }
+  /** The table's answer to a time exchange: the client's `t1` and the table's clock (`t2`), which is one clock for everyone at the table. */
+  | { readonly v: 1; readonly t: 'time'; readonly t1: number; readonly t2: number }
   /**
    * A game message; `from` names the player on the GM's side, stamped by the relay. `ack`: the page
    * answers it with `ack` (a paced or bulk message), when its hello said it acks.
@@ -199,6 +184,7 @@ export function parseClientFrame(text: string): ClientFrame | null {
   const value = parseJson(text);
   if (!isRecord(value) || value.v !== PROTOCOL_VERSION) return null;
   if (value.t === 'end') return { v: 1, t: 'end' };
+  if (value.t === 'time') return isClockTime(value.t1) ? { v: 1, t: 'time', t1: value.t1 } : null;
   if (value.t === 'kick' || value.t === 'admit' || value.t === 'decline') return typeof value.id === 'string' && PLAYER_ID_PATTERN.test(value.id) ? { v: 1, t: value.t, id: value.id } : null;
   if (value.t === 'gate') {
     const code = value.code === null ? null : joinCode(value.code);
@@ -215,7 +201,10 @@ export function parseClientFrame(text: string): ClientFrame | null {
     return typeof value.to === 'string' ? { v: 1, t: 'send', to: value.to, body: value.body, ...lane } : null;
   }
   if (value.t === 'ack') return typeof value.n === 'number' && Number.isSafeInteger(value.n) && value.n >= 0 ? { v: 1, t: 'ack', n: value.n } : null;
-  if (value.t === 'sends') return parseSends(value.sends);
+  if (value.t === 'sends') {
+    const sends = parseSends(value.sends);
+    return sends === null ? null : { v: 1, t: 'sends', sends };
+  }
   if (value.t !== 'hello') return null;
   if (value.role === 'gm') return typeof value.secret === 'string' && SECRET_PATTERN.test(value.secret) ? { v: 1, t: 'hello', role: 'gm', secret: value.secret, level: levelIn(value, 'level') } : null;
   if (value.role !== 'player') return null;
@@ -234,17 +223,6 @@ export function parseClientFrame(text: string): ClientFrame | null {
     ...(value.acks === true ? { acks: true as const } : {}),
     ...(value.newcomer === true ? { newcomer: true as const } : {}),
   };
-}
-
-/** A GM's `sends` frame: one to `MAX_BATCH_SENDS` messages, each with whom it goes to; null for anything else. Bodies are left unread. */
-function parseSends(value: unknown): ClientFrame | null {
-  if (!Array.isArray(value) || value.length === 0 || value.length > MAX_BATCH_SENDS) return null;
-  const sends: BatchedSend[] = [];
-  for (const entry of value) {
-    if (!isRecord(entry) || typeof entry.to !== 'string' || !('body' in entry) || (entry.lane !== undefined && !isSendLane(entry.lane))) return null;
-    sends.push({ to: entry.to, body: entry.body, ...(isSendLane(entry.lane) && { lane: entry.lane }) });
-  }
-  return { v: 1, t: 'sends', sends };
 }
 
 /** A join code as sent, or undefined for anything that is none. */
@@ -278,11 +256,11 @@ export function parseRelayFrame(text: string): RelayFrame | null {
         if (players === null || waiting === null) return null;
         return {
           v: 1, t: 'welcome', role: 'gm', players, ...(waiting.length > 0 && { waiting }), ...(value.batch === true && { batch: true as const }),
-          ...(value.minLevel !== undefined && { minLevel: levelIn(value, 'minLevel') }),
+          ...(value.minLevel !== undefined && { minLevel: levelIn(value, 'minLevel') }), ...(value.clock === true && { clock: true as const }),
         };
       }
       if (value.role === 'player' && typeof value.id === 'string' && typeof value.key === 'string' && typeof value.gmOnline === 'boolean') {
-        return { v: 1, t: 'welcome', role: 'player', id: value.id, key: value.key, gmOnline: value.gmOnline, ...(value.gmLevel !== undefined && { gmLevel: levelIn(value, 'gmLevel') }) };
+        return { v: 1, t: 'welcome', role: 'player', id: value.id, key: value.key, gmOnline: value.gmOnline, ...(value.gmLevel !== undefined && { gmLevel: levelIn(value, 'gmLevel') }), ...(value.clock === true && { clock: true as const }) };
       }
       return null;
     case 'player-joined': {
@@ -308,6 +286,8 @@ export function parseRelayFrame(text: string): RelayFrame | null {
     case 'access':
       if (value.closesAt === null) return { v: 1, t: 'access', closesAt: null };
       return typeof value.closesAt === 'number' && Number.isFinite(value.closesAt) ? { v: 1, t: 'access', closesAt: value.closesAt } : null;
+    case 'time':
+      return isClockTime(value.t1) && isClockTime(value.t2) ? { v: 1, t: 'time', t1: value.t1, t2: value.t2 } : null;
     case 'game': {
       if (!('body' in value)) return null;
       const ack = value.ack === true ? { ack: true as const } : {};
@@ -317,6 +297,11 @@ export function parseRelayFrame(text: string): RelayFrame | null {
     default:
       return null;
   }
+}
+
+/** A time in an exchange, in ms of either clock. */
+function isClockTime(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && Math.abs(value) <= Number.MAX_SAFE_INTEGER;
 }
 
 function parseJson(text: string): unknown {

@@ -7,7 +7,7 @@ import { isPlayerCharacter, libraryTokenOf, type PlacedTokenSource } from '../..
 import { playerVisionChanges } from '../../../characters/playerVision';
 import { runInBackground } from '../../../utils/backgroundTask';
 import { t } from '../../../i18n';
-import { sheetsForPlayerCharacters } from '../../../characterSheets/obsidian/sheetEntries';
+import { sheetsForPlayerCharacters } from '../../../sheets/sheetEntries';
 
 /**
  * Marks library tokens as player characters or no longer, and tells every list of them.

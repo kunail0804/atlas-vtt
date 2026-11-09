@@ -13,7 +13,7 @@ import { useStatblockEntries, type BestiaryStatus } from './statblock-link/useSt
 import { NewStatblockButton } from '../../../statblocks/editor/create/RoleMenu';
 import type { NewStatblockOption } from '../../../statblocks/editor/create/roleChoices';
 import { t } from '../../../i18n';
-import { SHEET_TEXT } from '../../../characterSheets/obsidian/sheetText';
+import { SHEET_TEXT } from '../../../sheets/sheetText';
 
 interface StatblockLinkModalProps {
   isOpen: boolean;

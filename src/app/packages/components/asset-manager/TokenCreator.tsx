@@ -1,6 +1,6 @@
 import { AssetRegistrationUncertainError } from '../../../services/assetRegistrationRecovery';
 import { runInBackground } from '../../../utils/backgroundTask';
-import { sheetsForPlayerCharacters } from '../../../characterSheets/obsidian/sheetEntries';
+import { sheetsForPlayerCharacters } from '../../../sheets/sheetEntries';
 import { AssetService } from '../../../services/AssetService';
 import { StatblockImportContent } from './statblock-import/StatblockImportContent';
 import { VaultImageContent } from './vault-images/VaultImageContent';

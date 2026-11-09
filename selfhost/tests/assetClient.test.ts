@@ -4,6 +4,7 @@ import { startTestRelay, stopTestRelay, type TestRelay } from './helpers.ts';
 import { AssetStoreClient } from '../../src/app/online/gm/assets/storeClient.ts';
 import { assetIdOf } from '../../src/app/online/gm/assets/assetIds.ts';
 import { partSizes } from '../../src/app/online/gm/assets/assetRoutes.ts';
+import { AssetSalt } from '../../src/app/online/gm/assets/assetSalt.ts';
 
 // The GM's own client, as the plugin runs it: Obsidian's requestUrl is `fetch` here (`obsidian.ts`).
 
@@ -60,5 +61,28 @@ describe('the plugin\'s asset store client against the relay', () => {
     expect(await client.complete(id, hash)).toEqual({ ok: true, value: null });
     const served = await fetch(`${test.publicUrl.replace('ws', 'http')}/api/assets/${id}`);
     expect(sha256(new Uint8Array(await served.arrayBuffer()))).toBe(hash);
+  });
+  it('makes ids with this relay\'s salt where the GM kept another relay\'s (issue #47)', async () => {
+    const bytes = new Uint8Array([9, 8, 7, 6]);
+    const hash = sha256(bytes);
+    // A salt kept from another campaign's relay: the relay refuses what is uploaded under its ids.
+    let kept: Uint8Array<ArrayBuffer> | null = new Uint8Array(32).fill(1);
+    const stale = await assetIdOf(kept, hash);
+    expect((await client.offer([{ id: stale, kind: 'image', size: bytes.length }])).ok).toBe(true);
+    expect(await client.putWhole(stale, bytes.buffer, 'image/png', hash)).toEqual({ ok: false, trouble: 'rejected' });
+
+    const salt = new AssetSalt({
+      store: { get: () => kept, set: (value) => void (kept = Uint8Array.from(value)), clear: () => void (kept = null) },
+      fetch: () => client.salt(),
+      signedIn: () => true,
+      signedOutByServer: () => undefined,
+      now: () => Date.now(),
+      sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+    });
+    const relaySalt = await salt.soon();
+    if (relaySalt === null) throw new Error('no salt');
+    const id = await assetIdOf(relaySalt, hash);
+    expect((await client.offer([{ id, kind: 'image', size: bytes.length }])).ok).toBe(true);
+    expect(await client.putWhole(id, bytes.buffer, 'image/png', hash)).toEqual({ ok: true, value: null });
   });
 });

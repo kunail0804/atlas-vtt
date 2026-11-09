@@ -7,7 +7,7 @@ import type { ViewAtlasState } from '../storeFactory';
 import type { StoreApi } from 'zustand';
 import { barDimensions } from '../styles/designTokens';
 import { TokenConditionsUI, type TokenConditionsLayout } from './token-renderer/TokenConditionsUI';
-import { isNameplateVisible } from './token-renderer/nameplateVisibility';
+import { isNameplateVisible, nameplateShownToPlayers } from './token-renderer/nameplateVisibility';
 import { tokenDisplayName } from './token-renderer/tokenDisplayName';
 import type { ConditionDefinition } from '../types/collectionSettingsTypes';
 import type { TokenGestureEventDetail } from '../types/atlasWindowEvents';
@@ -18,6 +18,7 @@ import type { ResourceDefsProvider, ResourceViewer, VisibleResource } from '../r
 import { isDefeated, isSpent } from '../resources/resourceValues';
 import { shapeOf, visibleResources } from '../resources/visibleResources';
 import { destroyTree } from './utils/destroyTree';
+import { canvasBadgeColors, isDarkTheme } from './utils/canvasBadgeColors';
 import { computeTokenStrokeWidth, NAMEPLATE_HEIGHT, NAMEPLATE_TEXT, restingTokenUIScale, selectedTokenUIScale, TOKEN_TEXT_RESOLUTION, tokenTextResolution } from './token-renderer/tokenSizing';
 import { getTokenRingCenterRadius } from './token-renderer/tokenRingMetrics';
 import { ValueTransition } from './utils/ValueTransition';
@@ -331,7 +332,8 @@ export class TokenUIRenderer {
 
     const resourcesKey = shown.map(({ definition, value, slot }) =>
       `${definition.key}:${slot}:${definition.name}:${definition.color}:${value.current}/${value.max}`).join('|');
-    const showNameplate = playerSettings ? playerSettings.showTokenNameplates : isNameplateVisible(token, tokenSettings?.showNameplates ?? false);
+    const mapShowsNameplates = tokenSettings?.showNameplates ?? false;
+    const showNameplate = playerSettings ? nameplateShownToPlayers(token, mapShowsNameplates, playerSettings.showTokenNameplates) : isNameplateVisible(token, mapShowsNameplates);
     const conditionsKey = `${token.conditions?.join(',') ?? ''}${JSON.stringify(token.conditionValues ?? {})}`;
     const defeated = isDefeated(token, definitions);
     // The ring's size setting moves the resize buttons, and with them the wheels
@@ -393,11 +395,9 @@ export class TokenUIRenderer {
 
     // Only show nameplate if enabled AND we have a name to display
     if (showNameplate && displayName) {
-      // Get theme colors
-      const isDarkMode = document.body.classList.contains('theme-dark');
-      const bgColor = isDarkMode ? 0x2a2a2a : 0xe3e3e3;
-      const strokeColor = isDarkMode ? 0xffffff : 0x000000;
-      
+      const isDarkMode = isDarkTheme();
+      const { background: bgColor, stroke: strokeColor } = canvasBadgeColors();
+      if (this.nameText.style.fill !== strokeColor) this.nameText.style.fill = strokeColor;
       this.nameText.text = displayName;
       // In PIXI v8, text updates automatically when setting the text property
       const textBounds = this.nameText.getLocalBounds();
@@ -862,10 +862,8 @@ export class TokenUIRenderer {
     
     // Function to update both badge size and cursor position
     const updateNameBadgeAndCursor = () => {
-      // Get theme colors (same as normal badge)
-      const isDarkMode = document.body.classList.contains('theme-dark');
-      const bgColor = isDarkMode ? 0x2a2a2a : 0xe3e3e3;
-      const strokeColor = isDarkMode ? 0xffffff : 0x000000;
+      const isDarkMode = isDarkTheme();
+      const { background: bgColor, stroke: strokeColor } = canvasBadgeColors();
       
       // Get current text bounds
       const textBounds = this.nameText.getLocalBounds();

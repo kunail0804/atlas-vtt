@@ -43,6 +43,13 @@ export function tokenizeFormula(source: string, offset = 0): FormulaToken[] | Ex
       index += number.length;
       continue;
     }
+    if (char === '"') {
+      const close = source.indexOf('"', index + 1);
+      if (close < 0) return syntaxError(`A ${quoted('"')} is never closed.`, at);
+      tokens.push({ type: 'text', text: source.slice(index + 1, close), at });
+      index = close + 1;
+      continue;
+    }
     const name = matchAt(NAME, source, index);
     if (name !== null) {
       tokens.push({ type: 'name', name, at });

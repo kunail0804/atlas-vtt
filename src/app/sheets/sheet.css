@@ -1,0 +1,33 @@
+/* A player character's sheet around its statblock: the compendium's buttons and list, the Book and Documents tabs. Theme variables only. */
+.atlas-sheet-input { width: 100%; box-sizing: border-box; padding: 4px 6px; border-radius: 6px; border: 1px solid var(--background-modifier-border); background: var(--background-modifier-form-field); color: var(--text-normal); font: inherit; }
+textarea.atlas-sheet-input { min-height: 72px; resize: vertical; }
+.atlas-sheet-label { display: block; font-size: 10px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted); }
+.atlas-sheet-labelled { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.atlas-sheet-hint { margin: 0; color: var(--text-muted); font-size: 12px; }
+.atlas-sheet-box { padding: 8px; border-radius: 12px; border: 1px solid var(--background-modifier-border); background: var(--background-secondary); }
+.atlas-sheet-box__title { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted); }
+.atlas-sheet-page { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.atlas-sheet-tabs { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px; border-bottom: 1px solid var(--background-modifier-border); }
+.atlas-sheet-tab { padding: 6px 12px; border: 0; border-radius: 8px; background: transparent; color: var(--text-normal); font: inherit; cursor: pointer; }
+.atlas-sheet-tab[aria-selected='true'] { background: var(--interactive-accent); color: var(--text-on-accent); }
+.atlas-sheet-rules { display: flex; align-items: center; gap: 8px; }
+.atlas-sheet-rules .atlas-sheet-input { width: auto; }
+.atlas-sheet-remove { flex: none; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--text-muted); cursor: pointer; }
+.atlas-sheet-remove:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
+.atlas-sheet-add { align-self: flex-start; padding: 4px 10px; border: 1px solid var(--background-modifier-border); border-radius: 8px; background: transparent; color: var(--text-muted); font: inherit; cursor: pointer; }
+.atlas-sheet-add:hover { color: var(--text-normal); }
+.atlas-sheet-book-form, .atlas-sheet-book-item { display: flex; flex-direction: column; gap: 6px; }
+.atlas-sheet-book-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.atlas-sheet-book-coin { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 6px; margin-bottom: 6px; }
+
+/* The compendium over the sheet (CompendiumPicker.tsx): its buttons, and the list it opens. */
+.atlas-sheet-compendium { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px; }
+.atlas-sheet-picker { position: fixed; inset: 0; z-index: 50; display: flex; align-items: flex-start; justify-content: center; padding: 8vh 12px 12px; background: rgba(0, 0, 0, 0.35); }
+.atlas-sheet-picker__panel { display: flex; flex-direction: column; gap: 8px; width: min(440px, 100%); max-height: 76vh; padding: 12px; border-radius: 12px; background: var(--background-primary); box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4); }
+.atlas-sheet-picker__head { display: flex; align-items: center; justify-content: space-between; }
+.atlas-sheet-picker__search { display: flex; gap: 6px; }
+.atlas-sheet-picker__search .atlas-sheet-input { flex: 1; min-width: 0; }
+.atlas-sheet-picker__list { margin: 0; padding: 0; list-style: none; overflow-y: auto; }
+.atlas-sheet-picker__choice { display: flex; justify-content: space-between; gap: 8px; width: 100%; padding: 6px 8px; border: 0; border-radius: 8px; background: transparent; color: var(--text-normal); font: inherit; text-align: start; cursor: pointer; }
+.atlas-sheet-picker__choice:hover, .atlas-sheet-picker__choice:focus-visible { background: var(--background-modifier-hover); }
+.atlas-sheet-picker__detail { color: var(--text-muted); font-size: 12px; }
