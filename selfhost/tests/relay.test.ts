@@ -43,6 +43,21 @@ describe('the relay with the plugin as GM', () => {
     expect(readCreated(201, created)).toEqual(created);
   });
 
+  it('answers a time exchange with its own clock, which it offers in the welcome', async () => {
+    const { code } = await table();
+    const mira = player(code, { name: 'Mira' });
+    await until(() => mira.frame('welcome') !== undefined, 'player welcome');
+    expect(mira.frame('welcome')).toMatchObject({ clock: true });
+
+    const before = Date.now();
+    mira.socket.send(JSON.stringify({ v: 1, t: 'time', t1: 1234.5 }));
+    await until(() => mira.frame('time') !== undefined, 'time answer');
+    const answer = mira.frame('time');
+    expect(answer?.t1).toBe(1234.5);
+    expect(answer?.t2).toBeGreaterThanOrEqual(before);
+    expect(answer?.t2).toBeLessThanOrEqual(Date.now());
+  });
+
   it('seats a player without a gate and carries game messages both ways', async () => {
     const { code, gm } = await table();
     const mira = player(code, { name: 'Mira' });
