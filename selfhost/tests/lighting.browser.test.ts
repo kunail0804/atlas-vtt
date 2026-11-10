@@ -51,11 +51,21 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('dynamic lighting o
     }, { data: shot.toString('base64'), places: at });
   }
 
-  async function pixel(x: number, y: number): Promise<number[]> {
-    return (await pixels([[x, y]]))[0] ?? [0, 0, 0];
-  }
-
   const brightness = (rgb: number[]): number => Math.max(...rgb);
+
+  /**
+   * The brightness at `points` once `ready` holds for one frame, or in the last frame read after
+   * `timeoutMs`: what a message changes reaches the screen after the page fetched and drew it, which
+   * takes seconds on a loaded machine. Every check of a step then reads that one frame.
+   */
+  async function frameWhere(points: readonly (readonly [number, number])[], ready: (values: number[]) => boolean, timeoutMs = 15_000): Promise<number[]> {
+    const deadline = Date.now() + timeoutMs;
+    for (;;) {
+      const values = (await pixels(points)).map(brightness);
+      if (ready(values) || Date.now() > deadline) return values;
+      await page.waitForTimeout(250);
+    }
+  }
 
   it('shows only what the token sees, and nothing before sight is known or while blind', async () => {
     const created = await createTable(test.gmOrigin);
@@ -74,54 +84,55 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('dynamic lighting o
     send({ t: 'lighting', scene: 'lit', cellSize: 70, unitDistance: 5, walls: [{ p: [500, 0, 500, 600] }], zones: [], senses: [] } as GmMessage);
     await page.waitForTimeout(1_200);
     // The map has loaded and the walls are known, but not yet what the tokens see: all of it dark.
-    expect(brightness(await pixel(250, 300))).toBeLessThan(20);
-    expect(brightness(await pixel(800, 300))).toBeLessThan(20);
+    const unknown = (await pixels([[250, 300], [800, 300]])).map(brightness);
+    expect(unknown[0]).toBeLessThan(20);
+    expect(unknown[1]).toBeLessThan(20);
 
     const sight = (overrides: Record<string, unknown>): GmMessage => ({
       t: 'sight', scene: 'lit', lighting: { enabled: true, ambient: 0 }, lights: [], held: [],
       tokens: [{ id: EYE, x: 250, y: 300, size: 1, vision: { senses: [] }, light: TORCH }], ...overrides,
     } as GmMessage);
     send(sight({}));
-    await page.waitForTimeout(1_500);
     // In the torch's light on the token's side: the map shows. Behind the wall: dark.
-    expect(brightness(await pixel(300, 300))).toBeGreaterThan(100);
-    expect(brightness(await pixel(800, 300))).toBeLessThan(20);
-    expect(brightness(await pixel(530, 300))).toBeLessThan(20);
+    const seen = await frameWhere([[300, 300], [800, 300], [530, 300]], ([torchlit = 0]) => torchlit > 100);
+    expect(seen[0]).toBeGreaterThan(100);
+    expect(seen[1]).toBeLessThan(20);
+    expect(seen[2]).toBeLessThan(20);
 
     // A door the players see gets its badge; a token they only sense, behind the wall, its outline.
     send({ t: 'doors', scene: 'lit', doors: [{ p: [500, 250, 500, 350], open: false }] } as GmMessage);
     send({ t: 'sensed', scene: 'lit', tokens: [{ x: 800, y: 300, size: 70 }] } as GmMessage);
-    await page.waitForTimeout(600);
     // The badge's white rim and glyph: the brightest of a line of samples across it.
-    const across = (await pixels(Array.from({ length: 31 }, (_, index) => [504, 285 + index] as const))).map(brightness);
-    expect(Math.max(...across)).toBeGreaterThan(150);
-    const ring = (await pixels(Array.from({ length: 16 }, (_, step) => [800 + Math.cos((step / 16) * Math.PI * 2) * 34, 300 + Math.sin((step / 16) * Math.PI * 2) * 34] as const))).map(brightness);
-    expect(Math.max(...ring)).toBeGreaterThan(150);
+    const across = Array.from({ length: 31 }, (_, index) => [504, 285 + index] as const);
+    const around = Array.from({ length: 16 }, (_, step) => [800 + Math.cos((step / 16) * Math.PI * 2) * 34, 300 + Math.sin((step / 16) * Math.PI * 2) * 34] as const);
+    const badgeAndRing = (values: number[]): boolean => Math.max(...values.slice(0, across.length)) > 150 && Math.max(...values.slice(across.length, across.length + around.length)) > 150;
+    const marked = await frameWhere([...across, ...around, [900, 150]], badgeAndRing);
+    expect(Math.max(...marked.slice(0, across.length))).toBeGreaterThan(150);
+    expect(Math.max(...marked.slice(across.length, across.length + around.length))).toBeGreaterThan(150);
     // The map behind the wall is still dark beside the outline.
-    expect(brightness(await pixel(900, 150))).toBeLessThan(20);
+    expect(marked.at(-1)).toBeLessThan(20);
 
     // The explored memory the GM saved: the right half was seen before. It shows there, dimmed,
     // where no token sees now; what is not remembered stays black.
     const maskBytes = png(MAP_W, MAP_H, (x, y) => (x > 600 && y < 300 ? [255, 255, 255] : [0, 0, 0]));
     const maskRef = await storeAsset(test, maskBytes, 'image/png');
-    const requests = gm.messages.length;
     send({ t: 'explored', scene: 'lit', mask: maskRef } as GmMessage);
-    await page.waitForTimeout(1_500);
-    const remembered = brightness(await pixel(850, 120));
+    const [remembered = 0, lit = 0, forgotten = 0] = await frameWhere([[850, 120], [300, 300], [850, 500]], ([memory = 0]) => memory > 20);
     expect(remembered).toBeGreaterThan(20);
-    expect(remembered).toBeLessThan(brightness(await pixel(300, 300)));
-    expect(brightness(await pixel(850, 500))).toBeLessThan(20);
+    expect(remembered).toBeLessThan(lit);
+    expect(forgotten).toBeLessThan(20);
 
     // Full daylight, every vision token hidden: the GM says blind, and nothing shows.
     send(sight({ lighting: { enabled: true, ambient: 1 }, tokens: [], blind: true }));
-    await page.waitForTimeout(1_500);
     // Blind, only the remembered corner may show (Atlas shows memory wherever nothing is perceived now).
-    expect(brightness(await pixel(300, 300))).toBeLessThan(20);
-    expect(brightness(await pixel(800, 450))).toBeLessThan(20);
+    // The torch's side was lit: waiting for it to go dark waits for the page to take the message.
+    const blind = await frameWhere([[300, 300], [800, 450]], ([torchSide = 255]) => torchSide < 20);
+    expect(blind[0]).toBeLessThan(20);
+    expect(blind[1]).toBeLessThan(20);
 
     // Control: full daylight and no vision token at all is Atlas's "players see what the light shows".
     send(sight({ lighting: { enabled: true, ambient: 1 }, tokens: [] }));
-    await page.waitForTimeout(1_500);
-    expect(brightness(await pixel(800, 300))).toBeGreaterThan(100);
+    const [daylight = 0] = await frameWhere([[800, 300]], ([behindWall = 0]) => behindWall > 100);
+    expect(daylight).toBeGreaterThan(100);
   }, 60_000);
 });

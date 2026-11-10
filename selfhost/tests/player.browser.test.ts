@@ -222,7 +222,8 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player page in
     const pageErrors: string[] = [];
     page.on('pageerror', (error) => pageErrors.push(String(error)));
     send({ t: 'roll', who: 'gm', token: null, result: { id: 'roll-1', timestamp: Date.now(), formula: '1d20+3', rolls: [{ die: 'd20', value: 17, max: 20 }], modifiers: 3, total: 20 } } as GmMessage, player);
-    await page.waitForSelector('.dice-area > *', { timeout: 5_000 });
+    // The first roll builds the dice's 3D stage, which takes seconds with WebGL in software (CI, a headless Chromium).
+    await page.waitForSelector('.dice-area > *', { timeout: 20_000 });
     await page.waitForTimeout(2_500);
     await page.screenshot({ path: '/tmp/atlas-dice-shot.png' });
     expect(pageErrors).toEqual([]);

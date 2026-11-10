@@ -191,11 +191,8 @@ jobs:
         run: npm run player:build --prefix selfhost
       - name: Relay tests
         run: ./node_modules/.bin/vitest run --config selfhost/vitest.config.mts --exclude 'selfhost/tests/**/*.browser.test.ts'
-      # Three tests fail and are left out of CI until they are fixed (issue #2).
       - name: Browser tests
-        run: ./node_modules/.bin/vitest run --config selfhost/vitest.config.mts .browser.test $KNOWN_FAILING
-        env:
-          KNOWN_FAILING: --exclude selfhost/tests/player.browser.test.ts --exclude selfhost/tests/toolbar.browser.test.ts --exclude selfhost/tests/lighting.browser.test.ts
+        run: ./node_modules/.bin/vitest run --config selfhost/vitest.config.mts .browser.test
 
   launcher:
     name: Launcher
