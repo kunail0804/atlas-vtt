@@ -114,17 +114,24 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player page in
     const measurement = { mode: 'metric', unitType: 'meters', unitDistance: 1.5, ruleDistance: 1.5, diagonalRule: 'equidistant', rangeBands: [], coneAngle: 53 } as const;
     send({ t: 'rules', scene: 's1', grid: { type: 'square', size: 70, offsetX: 0, offsetY: 0 }, snap: true, measurement, accent: '#ffffff' } as GmMessage, player);
     send({ t: 'marks', scene: 's1', lasers: [], measures: [{ who: 'gm', color: '#ffffff', live: null, kept: [{ shape: 'line', a: [60, 520], b: [440, 520] }] }] }, player);
-    await page.waitForTimeout(500);
-    const marked = await page.screenshot();
-    const onLine = await page.evaluate(async ({ data, px, py }) => {
-      const image = new Image();
-      image.src = `data:image/png;base64,${data}`;
-      await image.decode();
-      const canvas = new OffscreenCanvas(image.width, image.height);
-      const context = canvas.getContext('2d');
-      context?.drawImage(image, 0, 0);
-      return [...(context?.getImageData(Math.round(px), Math.round(py), 1, 1).data ?? [])];
-    }, { data: marked.toString('base64'), px: screen(420, 520).x, py: screen(420, 520).y });
+    // Read from new screenshots until the line is drawn: the messages pass the relay and the page
+    // draws them in its next frame, which takes far longer than a fixed pause with WebGL in software (CI).
+    const lineAt = screen(420, 520);
+    let onLine: number[] = [];
+    for (const deadline = Date.now() + 15_000; ;) {
+      const marked = await page.screenshot();
+      onLine = await page.evaluate(async ({ data, px, py }) => {
+        const image = new Image();
+        image.src = `data:image/png;base64,${data}`;
+        await image.decode();
+        const canvas = new OffscreenCanvas(image.width, image.height);
+        const context = canvas.getContext('2d');
+        context?.drawImage(image, 0, 0);
+        return [...(context?.getImageData(Math.round(px), Math.round(py), 1, 1).data ?? [])];
+      }, { data: marked.toString('base64'), px: lineAt.x, py: lineAt.y });
+      if ((onLine[0] ?? 0) > 150 || Date.now() > deadline) break;
+      await page.waitForTimeout(250);
+    }
     expect(onLine[0]).toBeGreaterThan(150);
 
     // The player's own ruler: a drag sends the measurement while it lasts, and its end on release.
