@@ -134,5 +134,6 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('dynamic lighting o
     send(sight({ lighting: { enabled: true, ambient: 1 }, tokens: [] }));
     const [daylight = 0] = await frameWhere([[800, 300]], ([behindWall = 0]) => behindWall > 100);
     expect(daylight).toBeGreaterThan(100);
-  }, 60_000);
+  // 120 s: the page redraws every frame (#63), and with WebGL in software (CI) each frame and so each step takes long.
+  }, 120_000);
 });

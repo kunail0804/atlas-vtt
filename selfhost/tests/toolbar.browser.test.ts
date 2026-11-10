@@ -229,5 +229,6 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player toolbar
     await until(() => sentOf('roll').length === 1, 'roll sent', 5_000);
     expect(sentOf('roll')[0]).toEqual({ t: 'roll', scene: 's1', formula: '1d20', token: null, advantage: 'advantage' });
     expect(await page.locator('.atlas-dice-tray').count()).toBe(0);
-  }, 60_000);
+  // 120 s: the page redraws every frame (#63), and with WebGL in software (CI) each frame and so each step takes long.
+  }, 120_000);
 });

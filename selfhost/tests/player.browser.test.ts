@@ -234,5 +234,6 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player page in
     await page.waitForTimeout(2_500);
     await page.screenshot({ path: '/tmp/atlas-dice-shot.png' });
     expect(pageErrors).toEqual([]);
-  }, 60_000);
+  // 120 s: the page redraws every frame (#63), and with WebGL in software (CI) each frame and so each step takes long.
+  }, 120_000);
 });
