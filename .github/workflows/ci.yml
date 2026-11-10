@@ -6,6 +6,11 @@ name: CI
 # prereleases `-dev.<n>`); main publishes for the players (`latest`, the campaigns service, the
 # compendium sources, launcher releases).
 # See .github/WORKFLOW.md for the whole process and the secrets each step needs.
+#
+# `plan` decides what runs. A pull request runs only the checks its files concern (a change of this
+# workflow or its actions runs them all). A push runs no check when a pull request already verified
+# the very tree it pushes (`verified-tree-<tree>` artifact), so it goes straight to publication. The
+# image is built while the checks run and is only tagged for players once `Verify` passed.
 
 on:
   pull_request:
@@ -29,76 +34,163 @@ env:
   LC_ALL: C.UTF-8
 
 jobs:
-  plugin:
-    name: Plugin
+  plan:
+    name: What to run
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      tree: ${{ steps.plan.outputs.tree }}
+      plugin: ${{ steps.plan.outputs.plugin }}
+      relay: ${{ steps.plan.outputs.relay }}
+      launcher: ${{ steps.plan.outputs.launcher }}
+      service: ${{ steps.plan.outputs.service }}
+      image: ${{ steps.plan.outputs.image }}
+      launcher-release: ${{ steps.plan.outputs.launcher-release }}
+      service-deploy: ${{ steps.plan.outputs.service-deploy }}
+      compendium: ${{ steps.plan.outputs.compendium }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # A pull request's merge commit and its base, to list the files it changes.
+          fetch-depth: 2
+          persist-credentials: false
+      - id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+          REPO_ID: ${{ github.repository_id }}
+        run: |
+          tree=$(git rev-parse 'HEAD^{tree}')
+          echo "tree=$tree" >> "$GITHUB_OUTPUT"
+          case "$EVENT" in
+            pull_request) files=$(git diff --name-only HEAD^1 HEAD) ;;
+            push)
+              if git fetch --quiet --depth=1 origin "$BEFORE" 2>/dev/null && git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+                files=$(git diff --name-only "$BEFORE" HEAD)
+              else
+                files=$(git ls-files)
+              fi ;;
+            *) files=$(git ls-files) ;;
+          esac
+          printf '%s\n' "$files"
+          any() { printf '%s\n' "$files" | grep -Eq "$1"; }
+          other() { printf '%s\n' "$files" | grep -Evq "$1"; }
+          out() { if "$@"; then echo true; else echo false; fi; }
+
+          # Publication, for a push: what the commit changed.
+          # The image holds the plugin, the relay and the player page; a change of the pipeline that builds
+          # and publishes it publishes it again.
+          outside='^(\.github/|docs/|tests/|selfhost/tests/|selfhost/launcher/|selfhost/service/|compendium/)|\.md$'
+          pipeline='^\.github/(workflows|actions)/'
+          if any "$pipeline" || other "$outside"; then echo image=true; else echo image=false; fi >> "$GITHUB_OUTPUT"
+          {
+            echo "launcher-release=$(out any '^selfhost/launcher/')"
+            echo "service-deploy=$(out any '^selfhost/service/')"
+            echo "compendium=$(out any '^compendium/builder/')"
+          } >> "$GITHUB_OUTPUT"
+
+          # Checks. A push whose tree a pull request verified runs none; otherwise each runs where its files changed.
+          verified=false
+          if [ "$EVENT" = push ]; then
+            count=$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=verified-tree-$tree" \
+              --jq "[.artifacts[] | select(.expired | not) | select(.workflow_run.head_repository_id == $REPO_ID)] | length")
+            if [ "$count" -gt 0 ]; then verified=true; echo "A pull request verified tree $tree: no check runs again." >> "$GITHUB_STEP_SUMMARY"; fi
+          fi
+          if [ "$verified" = true ]; then
+            for job in plugin relay launcher service; do echo "$job=false"; done >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "$EVENT" != pull_request ] || any "$pipeline|^\.nvmrc$"; then
+            for job in plugin relay launcher service; do echo "$job=true"; done >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          {
+            echo "plugin=$(out other '^(selfhost/launcher/|selfhost/service/|docs/|\.github/)|\.md$')"
+            echo "relay=$(out other '^(selfhost/launcher/|selfhost/service/|docs/|compendium/|tests/|\.github/)|\.md$')"
+            echo "launcher=$(out any '^selfhost/launcher/')"
+            echo "service=$(out any '^selfhost/service/')"
+          } >> "$GITHUB_OUTPUT"
+
+  typecheck:
+    name: Plugin typecheck
+    needs: plan
+    if: needs.plan.outputs.plugin == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - run: npm ci --ignore-scripts
-      - name: Typecheck
-        run: ./node_modules/.bin/tsc --noEmit
-      - name: Lint
-        run: npm run lint
-      - name: Code shared with the player page
-        run: npm run check:boundaries
-      - name: Unit tests
-        run: ./node_modules/.bin/vitest run --project unit
-      - name: Build
-        run: npm run build:ci
+      - uses: ./.github/actions/node-deps
+      - run: ./node_modules/.bin/tsc --noEmit
 
-  relay:
-    name: Relay and player page
+  lint:
+    name: Plugin lint
+    needs: plan
+    if: needs.plan.outputs.plugin == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/node-deps
+      - run: npm run lint
+
+  unit:
+    name: Plugin unit tests
+    needs: plan
+    if: needs.plan.outputs.plugin == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-          cache-dependency-path: |
-            package-lock.json
-            selfhost/package-lock.json
-      - run: npm ci --ignore-scripts && npm ci --ignore-scripts --prefix selfhost
-      - name: Typecheck
-        run: npm run typecheck --prefix selfhost
-      # The relay serves the built page; its security tests read the page's headers.
-      - name: Build the player page
-        run: npm run player:build --prefix selfhost
-      - name: Relay tests
-        run: ./node_modules/.bin/vitest run --config selfhost/vitest.config.mts --exclude 'selfhost/tests/**/*.browser.test.ts'
+      - uses: ./.github/actions/node-deps
+      - run: ./node_modules/.bin/vitest run --project unit
 
-  browser:
-    name: Player page in Chromium
+  build:
+    name: Plugin build
+    needs: plan
+    if: needs.plan.outputs.plugin == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/node-deps
+      - name: Code shared with the player page
+        run: npm run check:boundaries
+      - name: Build
+        run: npm run build:ci
+
+  relay:
+    name: Relay and player page
+    needs: plan
+    if: needs.plan.outputs.relay == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      - uses: ./.github/actions/node-deps
         with:
-          node-version-file: .nvmrc
-          cache: npm
-          cache-dependency-path: |
-            package-lock.json
-            selfhost/package-lock.json
-      - run: npm ci --ignore-scripts && npm ci --ignore-scripts --prefix selfhost
-      # The browser tests drive /usr/bin/chromium: Playwright's own build is put there.
-      - name: Chromium
-        run: |
-          ./node_modules/.bin/playwright install --with-deps chromium
-          sudo ln -sf "$(node -p "require('playwright').chromium.executablePath()")" /usr/bin/chromium
-      - run: npm run player:build --prefix selfhost
+          projects: . selfhost
+          chromium: 'true'
+      - name: Typecheck
+        run: npm run typecheck --prefix selfhost
+      # The relay serves the built page; its security tests read the page's headers, and the browser tests drive it.
+      - name: Build the player page
+        run: npm run player:build --prefix selfhost
+      - name: Relay tests
+        run: ./node_modules/.bin/vitest run --config selfhost/vitest.config.mts --exclude 'selfhost/tests/**/*.browser.test.ts'
       # Three tests fail and are left out of CI until they are fixed (issue #2).
       - name: Browser tests
         run: ./node_modules/.bin/vitest run --config selfhost/vitest.config.mts .browser.test $KNOWN_FAILING
@@ -107,6 +199,8 @@ jobs:
 
   launcher:
     name: Launcher
+    needs: plan
+    if: needs.plan.outputs.launcher == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     defaults:
@@ -124,23 +218,21 @@ jobs:
 
   service:
     name: Campaigns service
+    needs: plan
+    if: needs.plan.outputs.service == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    defaults:
-      run:
-        working-directory: selfhost/service
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      - uses: ./.github/actions/node-deps
         with:
-          node-version-file: .nvmrc
-          cache: npm
-          cache-dependency-path: selfhost/service/package-lock.json
-      - run: npm ci --ignore-scripts
+          projects: selfhost/service
       - run: npm run typecheck
+        working-directory: selfhost/service
       - name: Bundle without deploying
+        working-directory: selfhost/service
         run: ./node_modules/.bin/wrangler deploy --dry-run --outdir "$RUNNER_TEMP/worker"
         env:
           WRANGLER_SEND_METRICS: 'false'
@@ -158,64 +250,50 @@ jobs:
           exit 1
       - run: echo "Source branch accepted"
 
+  # A check that `plan` left out is skipped, and that is a pass; one that failed or was cancelled is not.
   verify:
     name: Verify
     if: always()
-    needs: [source, plugin, relay, browser, launcher, service]
+    needs: [plan, source, typecheck, lint, unit, build, relay, launcher, service]
     runs-on: ubuntu-latest
     steps:
       - name: Every check passed
-        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped')
+        if: needs.plan.result != 'success' || needs.source.result != 'success' || contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
         run: |
           echo "::error::A check did not pass"
           exit 1
       - run: echo "Every check passed"
+      # A pull request whose checks all ran and passed names its tree, so the push that merges it runs none again.
+      - id: mark
+        if: >-
+          github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository &&
+          needs.typecheck.result == 'success' && needs.lint.result == 'success' && needs.unit.result == 'success' &&
+          needs.build.result == 'success' && needs.relay.result == 'success' && needs.launcher.result == 'success' &&
+          needs.service.result == 'success'
+        env:
+          TREE: ${{ needs.plan.outputs.tree }}
+        run: |
+          echo "$TREE" > "$RUNNER_TEMP/verified-tree"
+          echo "verified=true" >> "$GITHUB_OUTPUT"
+      - if: steps.mark.outputs.verified == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: verified-tree-${{ needs.plan.outputs.tree }}
+          path: ${{ runner.temp }}/verified-tree
+          retention-days: 14
 
   # ---- Publication: only for a push to develop or main whose checks all passed ----
 
-  changes:
-    name: What changed
-    if: github.event_name == 'push'
-    needs: verify
-    runs-on: ubuntu-latest
-    outputs:
-      image: ${{ steps.diff.outputs.image }}
-      launcher: ${{ steps.diff.outputs.launcher }}
-      service: ${{ steps.diff.outputs.service }}
-      compendium: ${{ steps.diff.outputs.compendium }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - id: diff
-        env:
-          BEFORE: ${{ github.event.before }}
-        run: |
-          if git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
-            files=$(git diff --name-only "$BEFORE" "$GITHUB_SHA")
-          else
-            files=$(git ls-files)
-          fi
-          printf '%s\n' "$files"
-          # The image holds the plugin, the relay and the player page: anything but these leaves it as it is.
-          outside='^(\.github/|docs/|tests/|selfhost/tests/|selfhost/launcher/|selfhost/service/|compendium/)|\.md$'
-          if printf '%s\n' "$files" | grep -Evq "$outside"; then echo image=true; else echo image=false; fi >> "$GITHUB_OUTPUT"
-          if printf '%s\n' "$files" | grep -q '^selfhost/launcher/'; then echo launcher=true; else echo launcher=false; fi >> "$GITHUB_OUTPUT"
-          if printf '%s\n' "$files" | grep -q '^selfhost/service/'; then echo service=true; else echo service=false; fi >> "$GITHUB_OUTPUT"
-          if printf '%s\n' "$files" | grep -q '^compendium/builder/'; then echo compendium=true; else echo compendium=false; fi >> "$GITHUB_OUTPUT"
-
-  image:
-    name: Publish the image
-    needs: changes
-    if: needs.changes.outputs.image == 'true'
+  # Built while the checks run, pushed only as sha-<commit>; `image` names it for players once Verify passed.
+  image-build:
+    name: Build the image
+    needs: plan
+    if: github.event_name == 'push' && needs.plan.outputs.image == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    permissions:
-      contents: write
-    concurrency:
-      group: publish-image
-      cancel-in-progress: false
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      channel: ${{ steps.version.outputs.channel }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -247,28 +325,51 @@ jobs:
           # A dev build names itself in the GM's map view; main's builds stay unmarked.
           build-args: |
             ATLAS_DEV_BUILD=${{ steps.version.outputs.channel == 'dev' && steps.version.outputs.tag || '' }}
-          tags: |
-            ${{ env.IMAGE }}:${{ steps.version.outputs.tag }}
-            ${{ env.IMAGE }}:${{ steps.version.outputs.channel }}
-            ${{ env.IMAGE }}:sha-${{ github.sha }}
+          tags: ${{ env.IMAGE }}:sha-${{ github.sha }}
           labels: |
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.version=${{ steps.version.outputs.tag }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  image:
+    name: Publish the image
+    needs: [verify, image-build]
+    if: github.event_name == 'push' && needs.verify.result == 'success' && needs.image-build.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    concurrency:
+      group: publish-image
+      cancel-in-progress: false
+    env:
+      TAG: ${{ needs.image-build.outputs.tag }}
+      CHANNEL: ${{ needs.image-build.outputs.channel }}
+    steps:
+      # Two pushes built at once may have taken the same number: the later one stops here rather than overwrite it.
+      - name: The version is still free
+        run: |
+          status=$(curl -s -o /dev/null -w '%{http_code}' "https://hub.docker.com/v2/repositories/$IMAGE/tags/$TAG")
+          test "$status" = 404 || { echo "::error::$IMAGE:$TAG exists already (HTTP $status): push again to publish this commit"; exit 1; }
+      - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          username: kunail0804
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Tag the image
+        run: docker buildx imagetools create --tag "$IMAGE:$TAG" --tag "$IMAGE:$CHANNEL" "$IMAGE:sha-$GITHUB_SHA"
       - name: Tag the commit
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.version.outputs.tag }}
-          CHANNEL: ${{ steps.version.outputs.channel }}
         run: |
           gh api "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/relay-$TAG" -f sha="$GITHUB_SHA" > /dev/null
           echo "Published \`$IMAGE:$TAG\` and \`$CHANNEL\` from $GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
 
   launcher-release:
     name: Release the launcher
-    needs: changes
+    needs: [plan, verify]
+    if: github.event_name == 'push' && needs.verify.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -289,7 +390,7 @@ jobs:
       - name: Version
         id: version
         env:
-          CHANGED: ${{ needs.changes.outputs.launcher }}
+          CHANGED: ${{ needs.plan.outputs.launcher-release }}
         run: |
           version=$(sed -n "s/^export const VERSION = '\(.*\)';$/\1/p" selfhost/launcher/version.ts)
           test -n "$version"
@@ -340,9 +441,9 @@ jobs:
 
   service-deploy:
     name: Deploy the campaigns service
-    needs: changes
+    needs: [plan, verify]
     # The players' service: deployed from main only.
-    if: github.ref_name == 'main' && needs.changes.outputs.service == 'true'
+    if: github.event_name == 'push' && github.ref_name == 'main' && needs.verify.result == 'success' && needs.plan.outputs.service-deploy == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     concurrency:
@@ -376,8 +477,8 @@ jobs:
 
   compendium-release:
     name: Release the compendium sources
-    needs: changes
-    if: github.ref_name == 'main' && needs.changes.outputs.compendium == 'true'
+    needs: [plan, verify]
+    if: github.event_name == 'push' && github.ref_name == 'main' && needs.verify.result == 'success' && needs.plan.outputs.compendium == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:

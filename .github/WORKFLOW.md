@@ -15,7 +15,17 @@ branch, a pull request and CI, so each one leaves a trace from the request to wh
 4. **CI verifies** (`.github/workflows/ci.yml`, the `Verify` check): typecheck, lint, the plugin's unit tests,
    the relay's tests, the player page in Chromium, the launcher's checks and tests, the campaigns service's
    typecheck and bundle. Three of the player page's browser tests (`player`, `toolbar`, `lighting`) fail and
-   are left out of CI until they are fixed (issue #2).
+   are left out of CI until they are fixed (issue #2). The checks run in parallel jobs, with `node_modules`
+   and Playwright's Chromium restored from a cache (`.github/actions/node-deps`). The `plan` job decides what
+   runs:
+   - A pull request runs only the checks its files concern: the plugin's checks for anything outside
+     `selfhost/launcher/`, `selfhost/service/`, `docs/`, `.github/` and Markdown; the relay's for anything
+     outside those and `compendium/` and `tests/`; the launcher's and the service's for their own folder.
+     A change of `.github/workflows/`, `.github/actions/` or `.nvmrc` runs them all. A check left out counts
+     as passed for `Verify`; one that failed or was cancelled does not.
+   - A pull request whose checks all ran and passed leaves a `verified-tree-<tree>` artifact. A push whose
+     tree (`git rev-parse HEAD^{tree}`) one of them verified runs no check again and goes straight to
+     publication; any other push runs every check.
 5. **Merge into develop**, squashed. `gh pr merge --auto --squash` merges as soon as `Verify` passes. The
    branch is deleted. A branch that carries another history (an upstream sync) is merged with a merge commit.
 6. **CI publishes the development build** (below), which you test with `atlas start <name> --dev`.
@@ -35,12 +45,16 @@ From the pushed commit, only what it changed:
 
 | What changed | develop (for testing) | main (for the players) | Trace |
 |---|---|---|---|
-| The plugin, the relay or the player page (anything outside the folders below, tests and docs) | Pushes `kunail0804/atlas-relay:<version>-dev.<n>`, `dev` and `sha-<commit>`. `atlas start <name> --dev` takes `dev`. | Pushes `<version>-selfhost.<n>`, `latest` and `sha-<commit>`. `atlas start <name>` takes `latest`. | Git tag `relay-<version>-dev.<n>` or `relay-<version>-selfhost.<n>`; the image's `org.opencontainers.image.revision` label |
+| The plugin, the relay or the player page (anything outside the folders below, tests and docs), or the pipeline that builds them (`.github/workflows/`, `.github/actions/`) | Pushes `kunail0804/atlas-relay:<version>-dev.<n>`, `dev` and `sha-<commit>`. `atlas start <name> --dev` takes `dev`. | Pushes `<version>-selfhost.<n>`, `latest` and `sha-<commit>`. `atlas start <name>` takes `latest`. | Git tag `relay-<version>-dev.<n>` or `relay-<version>-selfhost.<n>`; the image's `org.opencontainers.image.revision` label |
 | `selfhost/launcher/` | Releases `launcher-v<VERSION>-dev.<n>`, a prerelease installed launchers never offer as an update. | When `VERSION` in `selfhost/launcher/version.ts` has no release yet: releases `launcher-v<VERSION>` with `SHA256SUMS`. Launchers already installed tell the GM a new version is out. | GitHub release, notes listing the launcher's commits |
 | `selfhost/service/` | Nothing. | Applies the D1 migrations, deploys the Worker to `campaigns.kunlab.cc`. The Worker's own secrets stay as `selfhost/service/setup.sh` set them. | The run's summary |
 | `compendium/builder/` | Nothing. | Builds the SRD sources from the latest 5e-database; if they differ from what Atlas downloads, releases them as `compendium-v<n>` and opens a pull request into develop pointing `src/app/compendium/officialSources.ts` at them. The next release ships them. | GitHub release, the pull request |
 
-Docs, tests and `.github/` alone publish nothing.
+Docs, tests and the rest of `.github/` alone publish nothing.
+
+The image is built while the checks run and pushed only as `sha-<commit>`; once `Verify` passed, the publish
+job names it `<version>-…<n>` and `dev` or `latest` without building it again. Two pushes built at once may
+take the same number: the later one then fails rather than overwrite it, and is published by the next push.
 
 ### What `atlas start` runs
 
