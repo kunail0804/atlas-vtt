@@ -131,9 +131,11 @@ describe('the pyramids of a scene\'s floors', () => {
     const { store, hashes } = await threeFloors();
     store.cache.manual = true;
     for (const path of FLOORS) store.cache.add(path, hashes.get(path)!, 3000, 2000, { stored: [] });
-    store.publisher.storing.floorMaps?.({ presented: GROUND, watched: [CELLAR], rest: [VAULT] });
+    // The floors players look at are handed before the vault is staged: their hashes and the vault's are
+    // worked out at once, and whichever finished first took the tile worker.
     await mapRef(store, GROUND);
     await mapRef(store, CELLAR);
+    store.publisher.storing.floorMaps?.({ presented: GROUND, watched: [CELLAR], rest: [VAULT] });
     await store.advance(1000);
     // One at a time, the presented floor first.
     expect(store.cache.builds).toEqual([GROUND]);

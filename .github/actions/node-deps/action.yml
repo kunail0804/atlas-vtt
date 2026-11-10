@@ -1,0 +1,60 @@
+name: Node dependencies
+description: >-
+  Node from .nvmrc and the node_modules of the given projects, restored from a cache keyed on their lockfiles
+  and Node's version (npm ci only on a miss), and optionally Playwright's Chromium at /usr/bin/chromium.
+
+inputs:
+  projects:
+    description: Space-separated directories that hold a package-lock.json, e.g. ". selfhost".
+    default: .
+  chromium:
+    description: "'true' installs Playwright's Chromium and links it to /usr/bin/chromium, which the browser tests drive."
+    default: 'false'
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      with:
+        node-version-file: .nvmrc
+    - id: deps
+      shell: bash
+      env:
+        PROJECTS: ${{ inputs.projects }}
+      run: |
+        paths=""
+        sums=""
+        for dir in $PROJECTS; do
+          paths+="$dir/node_modules"$'\n'
+          sums+="$dir $(sha256sum < "$dir/package-lock.json")"$'\n'
+        done
+        echo "key=node-modules-$RUNNER_OS-$(node -v)-$(printf '%s' "$sums" | sha256sum | cut -c1-32)" >> "$GITHUB_OUTPUT"
+        { echo "paths<<PATHS_END"; printf '%s' "$paths"; echo "PATHS_END"; } >> "$GITHUB_OUTPUT"
+    - id: cache
+      uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+      with:
+        path: ${{ steps.deps.outputs.paths }}
+        key: ${{ steps.deps.outputs.key }}
+    - if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      env:
+        PROJECTS: ${{ inputs.projects }}
+      run: for dir in $PROJECTS; do npm ci --ignore-scripts --no-audit --no-fund --prefix "$dir"; done
+
+    - if: inputs.chromium == 'true'
+      id: playwright
+      shell: bash
+      run: echo "version=$(node -p "require('playwright/package.json').version")" >> "$GITHUB_OUTPUT"
+    - if: inputs.chromium == 'true'
+      id: browsers
+      uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+      with:
+        path: ~/.cache/ms-playwright
+        key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+    - if: inputs.chromium == 'true'
+      shell: bash
+      env:
+        CACHED: ${{ steps.browsers.outputs.cache-hit }}
+      run: |
+        if [ "$CACHED" = true ]; then ./node_modules/.bin/playwright install-deps chromium; else ./node_modules/.bin/playwright install --with-deps chromium; fi
+        sudo ln -sf "$(node -p "require('playwright').chromium.executablePath()")" /usr/bin/chromium

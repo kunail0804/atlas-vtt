@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { WORLD_MAP_PROBLEM_TEXT, WorldMaps, type FileStat } from '../../../../src/app/online/gm/book/worldMap.ts';
 import type { WorldMapTree } from '../../../../src/app/online/gm/book/worldMapGate.ts';
 import type { VaultImage } from '../../../../src/app/online/gm/TokenShare.ts';
@@ -19,14 +19,20 @@ function png(width: number, height: number): Uint8Array<ArrayBuffer> {
 
 /** The world map of `image` read from `files`, once everything is read: what it is, and why it is none. */
 async function read(image: string, files: Record<string, { stat: FileStat; image: VaultImage | null }>, stored = fakeStoring()): Promise<{ map: unknown; problem: unknown }> {
+  // Waits on `read`, which hears every answer, rather than polling on a timer: polling failed now and then in CI.
+  let answered = (): void => undefined;
+  const settled = new Promise<void>((resolve) => (answered = resolve));
   const maps = new WorldMaps({
     stat: (path) => files[path]?.stat ?? null,
     readImage: (path) => Promise.resolve(files[path]?.image ?? null),
     source: () => Promise.resolve(tree(image)),
-    read: () => undefined,
+    read: () => {
+      if (maps.get() !== undefined) answered();
+    },
     stored,
   });
-  await vi.waitFor(() => expect(maps.get()).not.toBeUndefined());
+  expect(maps.get()).toBeUndefined();
+  await settled;
   return { map: maps.get(), problem: maps.problem() };
 }
 
