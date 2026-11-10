@@ -5,6 +5,12 @@ import { playerDoorSight, playerTokenSight } from '../../src/app/pixi/lighting/p
 import { heldForSight, holdTokens } from '../../src/app/lighting/sightOnDrop';
 import { byteDifferences, rgb, tableScenes, visionToken } from '../helpers/tableSightScene';
 
+/**
+ * The floor's own colour (0x6699cc): in daylight the tonemap's toe takes nothing off (0.10.2), so a
+ * map lit by the day shows as painted.
+ */
+const PAINTED_FLOOR = [102, 153, 204];
+
 describe('table sight through the lighting renderer', () => {
   const { scene } = tableScenes();
 
@@ -51,7 +57,7 @@ describe('table sight through the lighting renderer', () => {
   it('removes hidden sight in a mixed scene while retaining the visible room', async () => {
     const h = await scene({ tokens: { party: visionToken('party', 60), hidden: visionToken('hidden', 190, true) } });
     const pixels = h.pixels('player');
-    expect(rgb(pixels, 60, 128)).toEqual([86, 144, 198]);
+    expect(rgb(pixels, 60, 128)).toEqual(PAINTED_FLOOR);
     expect(rgb(pixels, 190, 128)).toEqual([0, 0, 0]);
     expect(playerDoorSight(h.lighting, h.store.getState().objects.walls).size).toBe(0);
   });
@@ -59,7 +65,7 @@ describe('table sight through the lighting renderer', () => {
   it('keeps the no-vision fallback and the disabled token-vision picture open', async () => {
     const h = await scene({ tokens: {}, lighting: { exploredMemory: false } });
     const noVision = h.pixels('player');
-    expect(rgb(noVision, 190, 128)).toEqual([86, 144, 198]);
+    expect(rgb(noVision, 190, 128)).toEqual(PAINTED_FLOOR);
     h.store.getState().setSceneLighting({ tokenVision: false });
     h.store.getState().addToken(visionToken('hidden', 190, true));
     expect(byteDifferences(noVision, h.pixels('player'))).toBe(0);
@@ -119,7 +125,7 @@ describe('table sight through the lighting renderer', () => {
     const h = await scene({ lighting: { sightOnDrop: false, exploredMemory: false } });
     holdTokens(h.store, ['party']);
     h.store.getState().moveToken('party', 190, 128);
-    expect(rgb(h.pixels('player'), 190, 128)).toEqual([86, 144, 198]);
+    expect(rgb(h.pixels('player'), 190, 128)).toEqual(PAINTED_FLOOR);
     h.store.getState().updateToken('party', { isHidden: true });
     expect(rgb(h.pixels('player'), 190, 128)).toEqual([0, 0, 0]);
   });
@@ -137,6 +143,6 @@ describe('table sight through the lighting renderer', () => {
     holdTokens(h.store, []);
     expect(rgb(h.pixels('player'), 190, 128)).toEqual([0, 0, 0]);
     h.store.getState().updateToken('party', { isHidden: false });
-    expect(rgb(h.pixels('player'), 190, 128)).toEqual([86, 144, 198]);
+    expect(rgb(h.pixels('player'), 190, 128)).toEqual(PAINTED_FLOOR);
   });
 });

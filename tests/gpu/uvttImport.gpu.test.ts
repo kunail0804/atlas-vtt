@@ -26,7 +26,14 @@ interface Bench {
   binaries: Map<string, ArrayBuffer>;
 }
 
-async function bench(): Promise<Bench> {
+/**
+ * A map preset whose longest side is 32,767 px. A real map keeps up to 65,535 px a side (`MAP_MAX_SIDE`)
+ * and keeps a JPEG within that as uploaded, so the tests of an image the import scales down lower the
+ * limit, as the image workers' own tests do (`losslessMosaicCanvases`).
+ */
+const NARROW_MAPS = { ...IMAGE_PRESETS.map, maxWidth: 32767, maxHeight: 32767 };
+
+async function bench(preset = IMAGE_PRESETS.map): Promise<Bench> {
   const vault = createInMemoryApp();
   AssetService.resetInstance();
   const assets = AssetService.getInstance(vault.app);
@@ -42,7 +49,7 @@ async function bench(): Promise<Bench> {
     deps: {
       app: vault.app,
       assetService: assets,
-      convertImage: (image) => optimizeImage(image, IMAGE_PRESETS.map, { thumbnail: THUMBNAIL_SPEC }),
+      convertImage: (image) => optimizeImage(image, preset, { thumbnail: THUMBNAIL_SPEC }),
       thumbnails: new AssetThumbnailService(vault.app, assets),
     },
   };
@@ -116,9 +123,9 @@ describe('importing a Universal VTT file with the image workers', () => {
   });
 
   it('puts the walls on the image as it is saved when the image is larger than a map keeps', async () => {
-    const b = await bench();
+    const b = await bench(NARROW_MAPS);
 
-    // 34,000 px wide: more than a map's longest side, so the saved image is fit to 32,767 px and written as PNG.
+    // 34,000 px wide: more than this map's longest side, so the saved image is fit to 32,767 px and written as PNG.
     const result = arrived(await importUvttFile(b.deps, await mapFile({ x: 340, y: 60 }, 100, 'image/jpeg'), COLLECTION));
 
     const scene = sceneOf(b, result);
@@ -196,7 +203,7 @@ describe('importing Universal VTT floors with the image workers', () => {
   });
 
   it('fits a floor whose image was larger than a map keeps to the scene\'s grid, its wall on its art', async () => {
-    const b = await bench();
+    const b = await bench(NARROW_MAPS);
     const cellar = await mapFile({ x: 10, y: 8 }, 100, 'image/jpeg', { name: 'Hall-_00.dd2vtt' });
     const hall = await mapFile({ x: 340, y: 60 }, 100, 'image/jpeg', { name: 'Hall-_01.dd2vtt' });
 

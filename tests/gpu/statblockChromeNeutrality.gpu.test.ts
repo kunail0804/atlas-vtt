@@ -41,7 +41,8 @@ const TOLERANCE = 0.5;
 const h = React.createElement;
 const noop = (): void => undefined;
 
-interface Box { x: number; y: number; width: number; height: number }
+/** `shown` is false for a block the card does not draw (in a tab that is not open): such a block has no place. */
+interface Box { x: number; y: number; width: number; height: number; shown: boolean }
 
 /** Every block's box, relative to its card's corner. */
 function blockBoxes(card: Element): Map<string, Box> {
@@ -49,7 +50,8 @@ function blockBoxes(card: Element): Map<string, Box> {
   const boxes = new Map<string, Box>();
   for (const frame of card.querySelectorAll('[data-block-id]')) {
     const rect = frame.getBoundingClientRect();
-    boxes.set(frame.getAttribute('data-block-id') ?? '', { x: rect.left - origin.left, y: rect.top - origin.top, width: rect.width, height: rect.height });
+    const shown = frame.getClientRects().length > 0;
+    boxes.set(frame.getAttribute('data-block-id') ?? '', { x: rect.left - origin.left, y: rect.top - origin.top, width: rect.width, height: rect.height, shown });
   }
   return boxes;
 }
@@ -75,6 +77,8 @@ function compare(selection: BlockSelection, builtIn: BuiltInTemplate, width: num
   expect([...editor.keys()]).toEqual([...runtime.keys()]);
   for (const [id, box] of runtime) {
     const dressed = editor.get(id)!;
+    expect(dressed.shown, `${builtIn.id} ${id} shown at ${width}px`).toBe(box.shown);
+    if (!box.shown) continue;
     for (const side of ['x', 'y', 'width', 'height'] as const) {
       expect(Math.abs(dressed[side] - box[side]), `${builtIn.id} ${id} ${side} at ${width}px`).toBeLessThanOrEqual(TOLERANCE);
     }
@@ -107,6 +111,6 @@ describe('the template editor\'s chrome', () => {
     for (const frame of document.querySelectorAll('.editor [data-block-id]')) frame.setAttribute('data-sb-hover', '');
     const runtime = blockBoxes(document.querySelector('.runtime .atlas-statblock')!);
     const editor = blockBoxes(document.querySelector('.editor .atlas-statblock')!);
-    for (const [id, box] of runtime) expect(Math.abs(editor.get(id)!.y - box.y)).toBeLessThanOrEqual(TOLERANCE);
+    for (const [id, box] of runtime) if (box.shown) expect(Math.abs(editor.get(id)!.y - box.y)).toBeLessThanOrEqual(TOLERANCE);
   });
 });
