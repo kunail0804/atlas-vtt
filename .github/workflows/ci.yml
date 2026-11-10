@@ -283,6 +283,8 @@ jobs:
           retention-days: 14
 
   # ---- Publication: only for a push to develop or main whose checks all passed ----
+  # A job is skipped when a job it needs, even indirectly, was skipped, unless its `if` names a status:
+  # the checks `plan` leaves out are skipped, so each publication job asks `!cancelled()` and Verify's result.
 
   # Built while the checks run, pushed only as sha-<commit>; `image` names it for players once Verify passed.
   image-build:
@@ -336,7 +338,7 @@ jobs:
   image:
     name: Publish the image
     needs: [verify, image-build]
-    if: github.event_name == 'push' && needs.verify.result == 'success' && needs.image-build.result == 'success'
+    if: "!cancelled() && github.event_name == 'push' && needs.verify.result == 'success' && needs.image-build.result == 'success'"
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -369,7 +371,7 @@ jobs:
   launcher-release:
     name: Release the launcher
     needs: [plan, verify]
-    if: github.event_name == 'push' && needs.verify.result == 'success'
+    if: "!cancelled() && github.event_name == 'push' && needs.verify.result == 'success'"
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -443,7 +445,7 @@ jobs:
     name: Deploy the campaigns service
     needs: [plan, verify]
     # The players' service: deployed from main only.
-    if: github.event_name == 'push' && github.ref_name == 'main' && needs.verify.result == 'success' && needs.plan.outputs.service-deploy == 'true'
+    if: "!cancelled() && github.event_name == 'push' && github.ref_name == 'main' && needs.verify.result == 'success' && needs.plan.outputs.service-deploy == 'true'"
     runs-on: ubuntu-latest
     timeout-minutes: 15
     concurrency:
@@ -478,7 +480,7 @@ jobs:
   compendium-release:
     name: Release the compendium sources
     needs: [plan, verify]
-    if: github.event_name == 'push' && github.ref_name == 'main' && needs.verify.result == 'success' && needs.plan.outputs.compendium == 'true'
+    if: "!cancelled() && github.event_name == 'push' && github.ref_name == 'main' && needs.verify.result == 'success' && needs.plan.outputs.compendium == 'true'"
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
