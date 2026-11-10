@@ -14,8 +14,7 @@ branch, a pull request and CI, so each one leaves a trace from the request to wh
    refuse it, and refuse a merge whose `Verify` check has not passed.
 4. **CI verifies** (`.github/workflows/ci.yml`, the `Verify` check): typecheck, lint, the plugin's unit tests,
    the relay's tests, the player page in Chromium, the launcher's checks and tests, the campaigns service's
-   typecheck and bundle. Three of the player page's browser tests (`player`, `toolbar`, `lighting`) fail and
-   are left out of CI until they are fixed (issue #2). The checks run in parallel jobs, with `node_modules`
+   typecheck and bundle. The checks run in parallel jobs, with `node_modules`
    and Playwright's Chromium restored from a cache (`.github/actions/node-deps`). The `plan` job decides what
    runs:
    - A pull request runs only the checks its files concern: the plugin's checks for anything outside

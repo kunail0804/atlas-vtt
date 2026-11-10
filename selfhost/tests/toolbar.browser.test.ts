@@ -57,7 +57,8 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player toolbar
     send({ t: 'scene', scene: { id: 's1', map: mapRef, lit: false } }, player);
     send({ t: 'tokens', scene: 's1', seq: 1, cell: 70, snap: null, tokens: [] }, player);
     const measurement = { mode: 'metric', unitType: 'feet', unitDistance: 5, ruleDistance: 5, diagonalRule: 'equidistant', rangeBands: [], coneAngle: 53 };
-    send({ t: 'rules', scene: 's1', grid: { type: 'square', size: 70, offsetX: 0, offsetY: 0 }, snap: true, measurement, accent: '#7c8cff' } as GmMessage, player);
+    const rules = { t: 'rules', scene: 's1', grid: { type: 'square', size: 70, offsetX: 0, offsetY: 0 }, snap: true, measurement, accent: '#7c8cff' } as const;
+    send(rules as GmMessage, player);
     send({ t: 'book', book: { character: null, worldMap: null, items: [], notes: [], pins: [], quests: [], purse: [], slots: DEFAULT_BOOK_SLOTS, equipped: [] } } as GmMessage, player);
     await page.waitForFunction(() => (document.querySelector('.status') as HTMLElement | null)?.hidden === true, null, { timeout: 10_000 });
     await page.waitForSelector('.player-toolbar');
@@ -205,18 +206,18 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player toolbar
     await until(() => sentOf('laser').some((message) => message.on === true), 'laser sent', 5_000);
     expect(sentOf('laser').find((message) => message.on === true)?.color).toBe('#3d6bff');
 
-    // The dice tray offers advantage until the GM names a set without it, then no more.
+    // The dice tray offers advantage until the scene's rules name dice without it (`rules.dice`), then no more.
     await page.keyboard.press('r');
     await page.waitForSelector('.atlas-dice-tray');
     expect(await page.locator('.atlas-dice-tray .atlas-segmented__option').allTextContents()).toEqual(['Normal', 'Advantage', 'Disadvantage']);
     await page.keyboard.press('r');
-    send({ t: 'dice-rules', scene: 's1', advantage: [] } as GmMessage, player);
+    send({ ...rules, dice: { dice: [{ count: 1, sides: 20 }], sides: [] } } as GmMessage, player);
     await page.waitForTimeout(200);
     await page.keyboard.press('r');
     await page.waitForSelector('.atlas-dice-tray');
     expect(await page.locator('.atlas-dice-tray .atlas-segmented__option').count()).toBe(0);
     await page.keyboard.press('r');
-    send({ t: 'dice-rules', scene: 's1', advantage: ['advantage', 'disadvantage'] } as GmMessage, player);
+    send({ ...rules, dice: { dice: [{ count: 1, sides: 20 }], sides: ['advantage', 'disadvantage'] } } as GmMessage, player);
     await page.waitForTimeout(200);
 
     // The dice tray: a d20 with advantage goes to the GM, who rolls it by the collection's dice set.
@@ -228,5 +229,6 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player toolbar
     await until(() => sentOf('roll').length === 1, 'roll sent', 5_000);
     expect(sentOf('roll')[0]).toEqual({ t: 'roll', scene: 's1', formula: '1d20', token: null, advantage: 'advantage' });
     expect(await page.locator('.atlas-dice-tray').count()).toBe(0);
-  }, 60_000);
+  // 120 s: the page redraws every frame (#63), and with WebGL in software (CI) each frame and so each step takes long.
+  }, 120_000);
 });
