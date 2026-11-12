@@ -14,44 +14,11 @@ const memory = vi.hoisted(() => ({ recorded: [] as unknown[] }));
 
 // The view works its sight out on the CPU and hands what the tokens saw to the explored memory,
 // which draws. The engine and the memory are left out: this suite holds what the view records.
-vi.mock('../../src/app/pixi/lighting/engine/LightingEngine', async () => {
-  const { Container: Layer } = await import('pixi.js');
-  return {
-    LightingEngine: class {
-      readonly layer = new Layer();
-      readonly failed = false;
-      takeRestored(): boolean { return false; }
-      renderFrame<T>(_frame: unknown, render: () => T): T { return render(); }
-      hasWorld(): boolean { return false; }
-      busy(): boolean { return false; }
-      animate(): boolean { return false; }
-      setEnabled(): void {}
-      setCoverage(): void {}
-      setExplored(): void {}
-      setMode(): void {}
-      setView(): void {}
-      setGrid(): void {}
-      update(): void {}
-      flush(): void {}
-      fail(): void {}
-      destroy(): void {}
-    },
-  };
-});
-vi.mock('../../src/app/pixi/lighting/ExploredMemory', () => ({
-  ExploredMemory: class {
-    sync(): void {}
-    record(shapes: unknown): void { memory.recorded.push(shapes); }
-    stampDue(): boolean { return false; }
-    reload(): void {}
-    reset(): void {}
-    edit(): boolean { return false; }
-    forgetEdits(): void {}
-    holdSaves(): void {}
-    cancelSaves(): void {}
-    beforeMapUnload(): void {}
-    destroy(): void {}
-  },
+vi.mock('../../src/app/pixi/lighting/engine/LightingEngine', async () => ({
+  LightingEngine: (await import('../helpers/lightingRendererStubs')).stubLightingEngine(),
+}));
+vi.mock('../../src/app/pixi/lighting/ExploredMemory', async () => ({
+  ExploredMemory: (await import('../helpers/lightingRendererStubs')).stubExploredMemory((shapes) => memory.recorded.push(shapes)),
 }));
 
 const MAP: MapBounds = { width: 1000, height: 1000 };
