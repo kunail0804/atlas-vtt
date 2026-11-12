@@ -43,7 +43,7 @@ describe('world backups', () => {
     files.set(`${CAMPAIGN}/stray.json`, '{}');
 
     const plan = await backups.preview(made?.name ?? '');
-    expect(plan.replaced).toEqual([ONLINE_DATA_PATH, `${CAMPAIGN}/campaign.json`].sort());
+    expect([...plan.replaced].sort()).toEqual([ONLINE_DATA_PATH, `${CAMPAIGN}/campaign.json`].sort());
     expect(plan.added).toEqual([`${CAMPAIGN}/players.json`]);
     expect(plan.removed).toEqual([`${CAMPAIGN}/stray.json`]);
 

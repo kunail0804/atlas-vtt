@@ -121,7 +121,11 @@ export class WorldBackups {
     const taken = new Set(await this.deps.vault.backupNames());
     const base = backupName(backup.createdAt, backup.reason);
     let name = base;
-    for (let n = 2; taken.has(name); n += 1) name = base.replace(/\.json$/, `-${n}.json`);
+    let n = 2;
+    while (taken.has(name)) {
+      name = base.replace(/\.json$/, `-${n}.json`);
+      n += 1;
+    }
     return name;
   }
 

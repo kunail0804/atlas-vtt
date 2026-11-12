@@ -101,7 +101,8 @@ export function planRestore(current: Readonly<Record<string, string>>, backup: W
     else replaced.push(path);
   }
   const removed = Object.keys(current).filter((path) => backup.files[path] === undefined);
-  return { replaced: replaced.sort(), added: added.sort(), removed: removed.sort(), unchanged: unchanged.sort() };
+  const byPath = (a: string, b: string): number => a.localeCompare(b);
+  return { replaced: replaced.toSorted(byPath), added: added.toSorted(byPath), removed: removed.toSorted(byPath), unchanged: unchanged.toSorted(byPath) };
 }
 
 /** Whether a restore following `plan` changes nothing. */
