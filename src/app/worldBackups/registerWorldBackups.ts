@@ -5,7 +5,10 @@ import { CampaignBooks } from '../campaigns/players/CampaignBooks';
 import { CampaignPlayers } from '../campaigns/players/CampaignPlayers';
 import type { OnlinePlay } from '../plugin/onlinePlay';
 import type { WorldBackupControls } from '../settings/worldBackupsSettingsSection';
+import { showNotice } from '../ui/notice';
+import { backupFolderOf } from './backupLocation';
 import { backupDue, loadBackupInterval } from './backupSchedule';
+import { folderProblemText } from './restoreBackupFlow';
 import { WorldBackups, type BackupSummary } from './WorldBackups';
 import { obsidianWorldVault } from './worldVault';
 
@@ -20,6 +23,7 @@ export function registerWorldBackups(plugin: Plugin, onlinePlay: OnlinePlay): Wo
   const { app } = plugin;
   const backups = new WorldBackups({
     vault: obsidianWorldVault(app),
+    folder: () => backupFolderOf(app),
     now: () => Date.now(),
     settle: async () => {
       await Promise.all([
@@ -36,6 +40,8 @@ export function registerWorldBackups(plugin: Plugin, onlinePlay: OnlinePlay): Wo
   /** When the last backup was made or found; undefined until the backups were listed once. */
   let lastAt: number | null | undefined;
   let checking = false;
+  /** The folder problem last told; a failing folder is told once, not at every check until it is fixed. */
+  let told: string | null = null;
   const noted = (made: BackupSummary | null, at: number): BackupSummary | null => {
     lastAt = made?.createdAt ?? at;
     return made;
@@ -49,8 +55,12 @@ export function registerWorldBackups(plugin: Plugin, onlinePlay: OnlinePlay): Wo
       if (!backupDue(loadBackupInterval(app), lastAt, now)) return;
       // A skipped backup (nothing changed) still counts, so unchanged data is not read again before the next interval.
       noted(await backups.create('scheduled'), now);
+      told = null;
     } catch (error) {
       console.error('[Atlas] A scheduled world backup failed:', error);
+      const problem = folderProblemText(error);
+      if (problem !== null && problem !== told) showNotice(problem);
+      told = problem;
     } finally {
       checking = false;
     }
