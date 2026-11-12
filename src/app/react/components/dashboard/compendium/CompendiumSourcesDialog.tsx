@@ -8,6 +8,7 @@ import { PERSONAL_BOOK_ID, downloadsFor, isPersonalBookId, personalBooksFor, sou
 import { CompendiumService } from '../../../../compendium/CompendiumService';
 import { Button } from '../../../../packages/components/primitives/button';
 import { t } from '../../../../i18n';
+import { describeError } from '../../../../utils/errors';
 import { SettingsDialog } from '../../collection-settings/SettingsDialog';
 import { SystemCheckbox } from './SystemCheckbox';
 import { useInstalledSources } from './useInstalledSources';
@@ -41,7 +42,8 @@ export function CompendiumSourcesDialog({ app, campaign, service, onClose }: Com
   const missing = sources === undefined ? [] : [...chosen].filter((id) => !known.has(id));
   const busy = installs.busy !== null;
 
-  const [makeError, setMakeError] = useState<string | null>(null);
+  /** Why making a personal book or saving the campaign's choice failed; null while nothing did. */
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const toggleMissing = (id: string): void => {
     const next = new Set(chosen);
@@ -52,7 +54,7 @@ export function CompendiumSourcesDialog({ app, campaign, service, onClose }: Com
   const save = async (): Promise<void> => {
     if (busy) return;
     if (!(await installs.download(downloadsFor(tree, chosen)))) return;
-    setMakeError(null);
+    setSaveError(null);
     const own: string[] = [];
     try {
       for (const system of personalBooksFor(tree, chosen)) {
@@ -60,15 +62,17 @@ export function CompendiumSourcesDialog({ app, campaign, service, onClose }: Com
       }
     } catch (error) {
       console.error('[CompendiumSourcesDialog] Making a personal book failed:', error);
-      setMakeError(t('compendium.personalFailed', { error: error instanceof Error ? error.message : String(error) }));
+      setSaveError(t('compendium.personalFailed', { error: describeError(error) }));
       return;
     }
     try {
-      service.update(campaign.id, { sources: [...chosen, ...own] });
-      onClose();
+      await service.save(campaign.id, { sources: [...chosen, ...own] });
     } catch (error) {
       console.error('[CompendiumSourcesDialog] Saving the campaign sources failed:', error);
+      setSaveError(t('compendium.saveFailed', { error: describeError(error) }));
+      return;
     }
+    onClose();
   };
 
   const installFile = async (): Promise<void> => {
@@ -155,7 +159,7 @@ export function CompendiumSourcesDialog({ app, campaign, service, onClose }: Com
         </div>
         {installs.busy !== null && <p className="compendium-sources__status" role="status">{installs.busy}</p>}
         {installs.error !== null && <p className="compendium-sources__error" role="alert">{installs.error}</p>}
-        {makeError !== null && <p className="compendium-sources__error" role="alert">{makeError}</p>}
+        {saveError !== null && <p className="compendium-sources__error" role="alert">{saveError}</p>}
       </div>
     </SettingsDialog>
   );
