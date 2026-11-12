@@ -5,6 +5,9 @@ through `https://vtt.kunlab.cc`, with the relay running on the GM's own machine.
 itself lives in the repository root. For what each route does and what is left to write, see
 [the relay reference](REFERENCE.md).
 
+This page is for developers. To install the launcher and run a campaign as a GM, follow
+[Install Atlas VTT on Linux](../docs/install/linux.md) or [Install Atlas VTT on Windows](../docs/install/windows.md).
+
 ## Requirements
 
 - Node 24 or later. The relay runs its TypeScript files directly, without a build.
@@ -147,6 +150,7 @@ cd launcher
 deno task build
 ```
 
-It writes `dist/atlas` and `dist/atlas.exe`. GMs download them from the fork's GitHub Releases;
+It writes `dist/atlas` and `dist/atlas.exe`. GMs download them from the fork's GitHub Releases, as the
+installation guides for [Linux](../docs/install/linux.md) and [Windows](../docs/install/windows.md) describe;
 `atlas man` lists every command.
 
