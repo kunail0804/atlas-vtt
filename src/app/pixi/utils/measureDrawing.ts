@@ -4,6 +4,8 @@
  * (`MeasureInk`); the distance goes on a `MeasureLabel`.
  */
 
+import { cellsCoveredBy, type AreaShape } from '../../grid/areaCoverage';
+import type { GridGeometry } from '../../grid/gridDistance';
 import type { Point } from '../../grid/hexGeometry';
 import { MEASURE_DOT, type LabelTarget } from './measureLabelLayout';
 import type { InkTrace, MeasureInk } from './measureInk';
@@ -81,12 +83,49 @@ export function drawMeasureCone(ink: MeasureInk, color: number, start: Point, en
   ink.stroke(trace, color);
 }
 
+/** The area a measurement covers: a circle or sphere around its start, a cone `coneAngle` degrees wide; a line covers none. */
+export function measureArea({ shape, start, end }: MeasureRecord, coneAngle: number): AreaShape | null {
+  switch (shape) {
+    case 'line':
+      return null;
+    case 'circle':
+    case 'sphere':
+      return { kind: 'circle', center: start, radius: Math.hypot(end.x - start.x, end.y - start.y) };
+    case 'cone':
+      return { kind: 'cone', apex: start, toward: end, angle: coneAngle };
+  }
+}
+
+/** The cells last worked out for a measurement, so a redraw at another zoom does not work them out again. */
+interface CoveredOutlines {
+  readonly grid: GridGeometry;
+  readonly coneAngle: number;
+  readonly outlines: readonly (readonly Point[])[];
+}
+
+const coveredByRecord = new WeakMap<MeasureRecord, CoveredOutlines>();
+
+const sameGrid = (a: GridGeometry, b: GridGeometry): boolean =>
+  a.type === b.type && a.size === b.size && (a.offsetX ?? 0) === (b.offsetX ?? 0) && (a.offsetY ?? 0) === (b.offsetY ?? 0);
+
+/** The outlines of the cells `measurement` covers on `grid` (`cellsCoveredBy`). */
+export function coveredCellOutlines(measurement: MeasureRecord, coneAngle: number, grid: GridGeometry): readonly (readonly Point[])[] {
+  const known = coveredByRecord.get(measurement);
+  if (known && known.coneAngle === coneAngle && sameGrid(known.grid, grid)) return known.outlines;
+  const area = measureArea(measurement, coneAngle);
+  const outlines = area ? cellsCoveredBy(area, grid).map((cell) => cell.corners) : [];
+  coveredByRecord.set(measurement, { grid: { ...grid }, coneAngle, outlines });
+  return outlines;
+}
+
 /**
  * Draws `measurement` in `color` onto `ink` (begun at the zoom it is shown at): a line with a dot at
- * its end, a circle around its start, or a cone `coneAngle` degrees wide; then the dot at its start.
+ * its end, a circle around its start, or a cone `coneAngle` degrees wide, over the cells of `grid` it
+ * covers (none without a grid); then the dot at its start.
  */
-export function drawMeasurement(ink: MeasureInk, color: number, measurement: MeasureRecord, coneAngle: number): void {
+export function drawMeasurement(ink: MeasureInk, color: number, measurement: MeasureRecord, coneAngle: number, grid: GridGeometry | null): void {
   const { shape, start, end } = measurement;
+  if (grid) ink.cells(coveredCellOutlines(measurement, coneAngle, grid), color);
   switch (shape) {
     case 'line':
       drawMeasurePath(ink, color, [start, end]);

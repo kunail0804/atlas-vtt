@@ -7,6 +7,9 @@ import type { HideableLayer } from '../playerSafeFrame';
 /** Opacity of a measured area's fill: present, never hiding the map. */
 const AREA_ALPHA = 0.14;
 
+/** Opacity of the cells an area covers, beneath its wash: the cells read darker than the rest of the area. */
+const CELL_ALPHA = 0.22;
+
 /** The middle of a ring dot: white, as the handles of a selected token. */
 const HOLLOW_MIDDLE = 0xffffff;
 
@@ -127,6 +130,13 @@ export class MeasureInk {
   fill(trace: InkTrace, color: number): void {
     trace(this.area);
     this.area.fill({ color, alpha: AREA_ALPHA });
+  }
+
+  /** Fills the cells `outlines` (world points) with a wash of `color`, as one shape: cells side by side never add up. */
+  cells(outlines: readonly (readonly Point[])[], color: number): void {
+    if (outlines.length === 0) return;
+    for (const corners of outlines) this.area.poly(corners.flatMap((corner) => { const { x, y } = this.screen(corner); return [x, y]; }));
+    this.area.fill({ color, alpha: CELL_ALPHA });
   }
 
   /** Takes the measurement off its layer. */
