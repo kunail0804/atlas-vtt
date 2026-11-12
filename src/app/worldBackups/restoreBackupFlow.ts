@@ -3,12 +3,19 @@ import { ChoiceModal } from '../plugin/ChoiceModal';
 import { ATLAS_NATIVE_MODAL_CLASSES } from '../ui/nativeModal';
 import { showNotice } from '../ui/notice';
 import { formatList, getLocale, t, type MessageKey } from '../i18n';
+import { BackupFolderError } from './backupFolder';
 import type { RestorePlan } from './worldBackupArchive';
 import { changesNothing } from './worldBackupArchive';
 import { UnreadableBackupError, type BackupSummary, type WorldBackups } from './WorldBackups';
 
 /** A backup's date as the GM reads it. */
 export const backupDate = (createdAt: number): string => new Date(createdAt).toLocaleString(getLocale(), { dateStyle: 'medium', timeStyle: 'short' });
+
+/** What the GM is told when the backup folder cannot be used; null for any other failure. */
+export function folderProblemText(error: unknown): string | null {
+  if (!(error instanceof BackupFolderError)) return null;
+  return t(error.problem === 'missing' ? 'worldBackup.folderMissing' : 'worldBackup.folderUnwritable', { folder: error.folder });
+}
 
 const REASON_KEYS: Readonly<Record<BackupSummary['reason'], MessageKey>> = {
   manual: 'worldBackup.reason.manual',
@@ -64,7 +71,14 @@ function planParagraphs(plan: RestorePlan): string[] {
  * back and moves to the trash, and confirms; the current data is saved as a backup before the restore.
  */
 export async function restoreBackupFlow(app: App, backups: WorldBackups): Promise<void> {
-  const list = await backups.list();
+  let list: BackupSummary[];
+  try {
+    list = await backups.list();
+  } catch (error) {
+    console.error('[Atlas] Listing the world backups failed:', error);
+    showNotice(folderProblemText(error) ?? t('worldBackup.restoreFailed'));
+    return;
+  }
   if (list.length === 0) {
     showNotice(t('worldBackup.noBackups'));
     return;
@@ -92,6 +106,6 @@ export async function restoreBackupFlow(app: App, backups: WorldBackups): Promis
       return;
     }
     console.error('[Atlas] Restoring a world backup failed:', error);
-    showNotice(t('worldBackup.restoreFailed'));
+    showNotice(folderProblemText(error) ?? t('worldBackup.restoreFailed'));
   }
 }

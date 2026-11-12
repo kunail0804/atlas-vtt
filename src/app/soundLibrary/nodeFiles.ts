@@ -25,7 +25,7 @@ export interface NodeWatcher {
   on(event: 'error', listener: (error: unknown) => void): unknown;
 }
 
-/** The part of Node's `fs` a linked folder on disk needs. */
+/** The part of Node's `fs` Atlas uses for folders on disk: a linked sound folder, a world backup folder. */
 export interface NodeFsModule {
   promises: {
     readdir(path: string, options: { withFileTypes: true }): Promise<NodeDirent[]>;
@@ -34,6 +34,9 @@ export interface NodeFsModule {
     mkdir(path: string, options: { recursive: boolean }): Promise<unknown>;
     rename(from: string, to: string): Promise<void>;
     open(path: string, flags: string): Promise<NodeFileHandle>;
+    readFile(path: string, encoding: 'utf8'): Promise<string>;
+    writeFile(path: string, text: string, encoding: 'utf8'): Promise<void>;
+    unlink(path: string): Promise<void>;
   };
   watch(path: string, options: { recursive: boolean }, listener: (event: string, name: string | Uint8Array | null) => void): NodeWatcher;
 }
