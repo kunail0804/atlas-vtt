@@ -12,6 +12,8 @@ export interface CampaignStorage {
   create(entry: StoredCampaign): void;
   /** Changes the stored campaign `id` with `change`, which gets the campaign as stored. */
   update(id: string, change: (stored: StoredCampaign) => StoredCampaign): void;
+  /** `update`, settling once the change is stored; rejects when it could not be. */
+  save(id: string, change: (stored: StoredCampaign) => StoredCampaign): Promise<void>;
   remove(id: string): void;
   /** The file that holds the campaign `id`, or null when none does. */
   pathOf(id: string): string | null;
