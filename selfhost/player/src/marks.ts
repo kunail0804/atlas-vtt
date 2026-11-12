@@ -4,6 +4,9 @@ import { MARKS_INTERVAL_MS, MAX_KEPT, MAX_MARK_LASER_NUMBERS, type MarkPoint, ty
 import type { RulesMessage } from '../../../src/app/online/protocol/rules.ts';
 import type { LivePlace } from '../../../src/app/online/protocol/live.ts';
 import { CursorOverlay, CursorTap, MarkOverlay, PointerTap, type MeasureRules, type RemoteDrag, type RemoteLaser, type RemoteMeasure } from '../../../src/app/online/marks/index.ts';
+import { cellToWorld, formationGridFromOptions, worldToCell } from '../../../src/app/encounters/encounterFormation.ts';
+import { snapTokenCenter } from '../../../src/app/grid/gridPlacement.ts';
+import type { OwnDrag } from './tokenLayer.ts';
 import type { PlayerTool, ToolSettingsStore } from './toolSettings.ts';
 
 /** The shape each measure tool draws, as the GM's (`MEASURE_SHAPES`). */
@@ -16,7 +19,9 @@ const DRAG_SILENCE_MS = 1_500;
 /**
  * Everyone's lasers, measurements and cursors, drawn with the plugin's own overlays, and this
  * player's own: the laser and the ruler of the toolbar, and the cursor while the GM shares cursors.
- * The rulers of the drags under way (this player's own too) are the GM's, measured where the GM's map lands them.
+ * The rulers of other people's drags are the GM's, measured where the GM's map lands them; the ruler of
+ * this player's own drag is drawn here from the token under the pointer, snapped as the GM snaps it
+ * (`dragRulerPaths`), and the GM's late echoes of it are left out (`TokenLayer.echoes`).
  * What the GM sends back of this player's marks is left out; they are drawn here at once.
  */
 export class MarksView {
@@ -38,6 +43,8 @@ export class MarksView {
   private remoteLasers: readonly RemoteLaser[] = [];
   private remoteMeasures: readonly RemoteMeasure[] = [];
   private dragRulers: readonly RemoteDrag[] = [];
+  /** The player's own drag under way and its token's size (1 is one cell), or null. */
+  private own: { readonly drag: OwnDrag; readonly cells: number } | null = null;
   private snaps = true;
   private dragSilence: number | undefined;
   private ownLaser: RemoteLaser | null = null;
@@ -122,11 +129,18 @@ export class MarksView {
     this.draw();
   }
 
+  /** The player's own drag as the token moves under the pointer (`cells`, its size), or null once it is put down. */
+  ownDrag(drag: OwnDrag | null, cells: number): void {
+    this.own = drag === null ? null : { drag, cells };
+    this.draw();
+  }
+
   /** A new scene: every mark goes. */
   clear(): void {
     this.remoteLasers = [];
     this.remoteMeasures = [];
     this.dragRulers = [];
+    this.own = null;
     window.clearTimeout(this.dragSilence);
     this.ownMeasure = null;
     this.kept = [];
@@ -140,7 +154,20 @@ export class MarksView {
     const lasers = this.ownLaser === null ? this.remoteLasers : [...this.remoteLasers, this.ownLaser];
     const own = this.ownMeasure ?? (this.kept.length > 0 ? { color: this.accent, live: null, kept: this.kept } : null);
     const measures = own === null ? this.remoteMeasures : [...this.remoteMeasures, { who: self, ...own }];
-    this.marks.show({ lasers, measures, drags: this.dragRulers }, { canvas: this.canvas, viewport: this.viewport });
+    const ownRuler = this.ownRuler();
+    const drags = ownRuler === null ? this.dragRulers : [...this.dragRulers, ownRuler];
+    this.marks.show({ lasers, measures, drags }, { canvas: this.canvas, viewport: this.viewport });
+  }
+
+  /** The ruler of the player's own drag: from where the token was taken to where it would land, both snapped as the GM's map snaps them. */
+  private ownRuler(): RemoteDrag | null {
+    if (this.own === null) return null;
+    const { drag, cells } = this.own;
+    const grid = this.snaps ? formationGridFromOptions(this.measureRules?.grid) : null;
+    const snap = (point: { readonly x: number; readonly y: number }): { x: number; y: number } => (grid === null
+      ? { x: point.x, y: point.y }
+      : snapTokenCenter(point, cells, grid.type, grid.size, (at) => cellToWorld(grid, worldToCell(grid, at))));
+    return { key: drag.id, path: [snap(drag.from), snap(drag.at)], cells, snaps: this.snaps };
   }
 
   private world(global: { x: number; y: number }): MarkPoint {
