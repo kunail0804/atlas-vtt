@@ -300,6 +300,6 @@ export function kindOf({ darkness, priority, cone }: LightReachKind): LightReach
  * the options, and the ambient light crossing a threshold (choosing "Day" records at once).
  */
 export function sightOptionsChanged(a: SceneLighting, b: SceneLighting): boolean {
-  return a.tokenVision !== b.tokenVision || a.exploredMemory !== b.exploredMemory || a.litThreshold !== b.litThreshold
+  return a.tokenVision !== b.tokenVision || a.exploredMemory !== b.exploredMemory || a.exploredBy !== b.exploredBy || a.litThreshold !== b.litThreshold
     || a.brightThreshold !== b.brightThreshold || ambientLevel(a) !== ambientLevel(b);
 }

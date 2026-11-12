@@ -25,7 +25,7 @@ function token(id: string, x: number, y: number, vision: TokenEntity['vision']):
  */
 function build({ store, displayFrames }: LitView): void {
   const state = store.getState();
-  state.setSceneLighting({ enabled: true, ambient: 0.08 });
+  state.setSceneLighting({ enabled: true, ambient: 0.08, exploredBy: 'players' });
   store.setState((s) => ({ objects: { ...s.objects, tokens: {
     // Ada sees 84 px around her, Bo 98
     ada: token('ada', 40, 215, { enabled: true, range: 6 }),

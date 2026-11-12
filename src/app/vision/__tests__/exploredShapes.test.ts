@@ -42,6 +42,15 @@ describe('exploredShapes', () => {
     expect(recorded(sight, { ambient: 0, litThreshold: 0 }, [])).toEqual({ polygons: [seen.polygon, dark.polygon], clip: null });
   });
 
+  it('records what tokens see only where the players reveal the memory; unset, the GM reveals it by hand', () => {
+    expect(exploredShapes(sight, { ambient: 1 }, [torch])).toBeNull();
+    expect(exploredShapes(sight, { ambient: 1, exploredBy: 'gm' }, [torch])).toBeNull();
+    expect(exploredShapes(sight, { ambient: 0, exploredBy: 'gm' }, [torch])).toBeNull();
+    expect(recorded(sight, { ambient: 1, exploredBy: 'players' }, [torch])).toEqual({ polygons: [seen.polygon, dark.polygon], clip: null });
+    // Players reveal nothing of a scene that remembers nothing.
+    expect(recorded(sight, { ambient: 1, exploredBy: 'players', exploredMemory: false }, [torch])).toBeNull();
+  });
+
   it('records nothing while the scene remembers no explored areas', () => {
     expect(recorded(sight, { ambient: 1, exploredMemory: false }, [torch])).toBeNull();
     expect(recorded(sight, { ambient: 0, exploredMemory: false }, [torch])).toBeNull();
@@ -106,13 +115,13 @@ describe('exploredShapes', () => {
   });
 
   it('names the point each star-shaped polygon is seen from, never an area light\'s outline or its reflection', () => {
-    const fans = exploredShapes(sight, { ambient: 0 }, [torch])?.fans;
+    const fans = exploredShapes(sight, { ambient: 0, exploredBy: 'players' }, [torch])?.fans;
     expect(fans?.get(seen.polygon!)).toBe(seen.origin);
     expect(fans?.get(dark.polygon!)).toBe(dark.origin);
     expect(fans?.get(torch.polygon)).toBe(torch.origin);
     const part = { origin: { x: 9, y: 9 }, polygon: square(4) };
     const lava: LightReach = { origin: { x: 7, y: 7 }, bright: 5, dim: 10, polygon: square(3), parts: [part] };
-    const area = exploredShapes(sight, { ambient: 0 }, [lava])?.fans;
+    const area = exploredShapes(sight, { ambient: 0, exploredBy: 'players' }, [lava])?.fans;
     expect(area?.has(lava.polygon)).toBe(false);
     expect(area?.get(part.polygon)).toBe(part.origin);
   });

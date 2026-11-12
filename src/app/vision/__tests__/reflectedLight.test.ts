@@ -147,7 +147,7 @@ describe('reflected light', () => {
       }
     }
     const sight = { all: false, regions: [{ tokenId: 'hero', sense: NORMAL_SIGHT, polygon: computeVisibility({ x: 700, y: 300 }, 1000, rooms()), precise: true }] };
-    const shapes = exploredShapes(sight as never, { ...DARK }, [reach!]);
+    const shapes = exploredShapes(sight as never, { ...DARK, exploredBy: 'players' }, [reach!]);
     expect(shapes!.polygons.some((polygon) => pointInPolygon({ x: 560, y: 330 }, polygon))).toBe(true);
   });
 });

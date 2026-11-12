@@ -12,11 +12,12 @@ import {
   darkSightLookOf,
   darkSightTintOf,
   exploredMemoryOn,
+  exploredRevealerOf,
   litThresholdOf,
   sightOnDropOn,
   tokenVisionOn,
 } from '../../lighting/sceneLightingOptions';
-import type { DarkSightLook } from '../../types/lightingTypes';
+import type { DarkSightLook, ExploredRevealer } from '../../types/lightingTypes';
 import type { SegmentedOption } from '../../packages/components/primitives/SegmentedControl';
 import { ChoiceField, ColorField, SliderField, TintField, ToggleField } from './lightingPanelFields';
 import { t } from '../../i18n';
@@ -27,6 +28,11 @@ const DARK_SIGHT_LOOK_OPTIONS: readonly SegmentedOption<DarkSightLook>[] = [
   { value: 'system', label: t('sceneLight.look.system') },
   { value: 'grey', label: t('sceneLight.look.grey') },
   { value: 'colour', label: t('sceneLight.look.colour') },
+];
+
+const EXPLORED_BY_OPTIONS: readonly SegmentedOption<ExploredRevealer>[] = [
+  { value: 'gm', label: t('sceneLight.exploredBy.gm') },
+  { value: 'players', label: t('sceneLight.exploredBy.players') },
 ];
 
 /** First placement: the top right of the map, below the scene tabs, like the other map windows. */
@@ -90,6 +96,10 @@ function SceneLightingPanel(): React.ReactElement {
           tooltipOff={t('sceneLight.memoryOff')}
           onChange={(exploredMemory) => setSceneLighting({ exploredMemory })}
         />
+        {/* The GM revealing by hand is the default and is stored as no choice at all. */}
+        <ChoiceField label={t('sceneLight.exploredBy')} value={exploredRevealerOf(lighting)} options={EXPLORED_BY_OPTIONS}
+          disabled={!exploredMemoryOn(lighting)}
+          onChange={(by) => setSceneLighting({ exploredBy: by === 'gm' ? undefined : by })} />
         <ToggleField
           label={t('sceneLight.sightOnDrop')}
           value={sightOnDropOn(lighting)}

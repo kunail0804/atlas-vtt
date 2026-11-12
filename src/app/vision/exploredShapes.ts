@@ -1,6 +1,6 @@
 import { perceivedLevel, showsMap } from '../gameSystems/senseRules';
 import type { SceneLighting } from '../types/lightingTypes';
-import { exploredMemoryOn } from '../lighting/sceneLightingOptions';
+import { tokensRecordMemory } from '../lighting/sceneLightingOptions';
 import { ambientLevel } from './lightLevels';
 import { litPolygons, type AmbientLight, type LightReach, type Sight, type SightRegion } from './sight';
 import type { Point } from '../types/visionTypes';
@@ -60,15 +60,15 @@ function seesInDarkness(region: SightRegion): boolean {
  * through one that only senses creatures): in ambient light, every region whose sense sees at
  * that level; in a dark scene, where light reaches inside a region that sees by light, and the
  * regions of senses that see in darkness. Null when nothing is recorded: when the scene
- * remembers nothing, and when no token has vision (then line of sight hides nothing and there
+ * remembers nothing or the GM fills its memory by hand, and when no token has vision (then line of sight hides nothing and there
  * is nothing to remember).
  */
 export function exploredShapes(
   sight: Sight,
-  scene: AmbientLight & Pick<SceneLighting, 'exploredMemory'>,
+  scene: AmbientLight & Pick<SceneLighting, 'exploredMemory' | 'exploredBy'>,
   lights: readonly LightReach[],
 ): ExploredShapes | null {
-  if (!exploredMemoryOn(scene) || sight.all) return null;
+  if (!tokensRecordMemory(scene) || sight.all) return null;
   const regions = sight.regions.filter(isMapRegion);
   const extras = { ...magicalDarkness(regions, lights), fans: fansOf(regions, lights) };
   const level = ambientLevel(scene);
