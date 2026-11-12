@@ -4,13 +4,7 @@ import { ONLINE_DATA_PATH } from '../online/gm/onlineData';
 import { toBase64 } from '../online/gm/assetServe';
 import { ensureAdapterFolder } from '../plugin/vaultFolders';
 
-/**
- * Where this device keeps world backups. They hold online play's data, with the running table's
- * secret, so they stay with that data in the folder no sync tool carries.
- */
-export const BACKUPS_FOLDER = 'atlas-vtt/.atlas-data/backups';
-
-/** What world backups need of the vault: the world data's files, and the backups themselves. */
+/** What world backups need of the vault: the world data's files. */
 export interface WorldVault {
   /** Every file of the world data now: vault path → bytes as base64. */
   readWorld(): Promise<Record<string, string>>;
@@ -18,11 +12,6 @@ export interface WorldVault {
   writeWorld(path: string, base64: string): Promise<void>;
   /** Removes one file of the world data. */
   removeWorld(path: string): Promise<void>;
-  /** The names of the saved backups. */
-  backupNames(): Promise<string[]>;
-  readBackup(name: string): Promise<string>;
-  writeBackup(name: string, text: string): Promise<void>;
-  removeBackup(name: string): Promise<void>;
 }
 
 const parentOf = (path: string): string => path.slice(0, Math.max(0, path.lastIndexOf('/')));
@@ -75,16 +64,5 @@ export function obsidianWorldVault(app: App): WorldVault {
       if (file instanceof TFile) return app.fileManager.trashFile(file);
       if (await adapter.exists(path)) await adapter.remove(path);
     },
-    async backupNames() {
-      if (!(await adapter.exists(BACKUPS_FOLDER))) return [];
-      const listed = await adapter.list(BACKUPS_FOLDER);
-      return listed.files.map((path) => path.slice(BACKUPS_FOLDER.length + 1)).filter((name) => name.endsWith('.json'));
-    },
-    readBackup: (name) => adapter.read(`${BACKUPS_FOLDER}/${name}`),
-    async writeBackup(name, text) {
-      await ensureAdapterFolder(app, BACKUPS_FOLDER);
-      await adapter.write(`${BACKUPS_FOLDER}/${name}`, text);
-    },
-    removeBackup: (name) => adapter.remove(`${BACKUPS_FOLDER}/${name}`),
   };
 }

@@ -2,6 +2,7 @@ import {
   BACKUP_FORMAT, backupName, backupText, changesNothing, planRestore, readBackup, sameFiles,
   type BackupReason, type RestorePlan, type WorldBackup,
 } from './worldBackupArchive';
+import type { BackupFolder } from './backupFolder';
 import type { WorldVault } from './worldVault';
 
 /** Scheduled backups kept; older ones go. Backups the GM made and those a restore made stay until the GM removes them. */
@@ -23,6 +24,8 @@ export interface RestoreResult {
 
 export interface WorldBackupsDeps {
   readonly vault: WorldVault;
+  /** The folder backups go to and are listed from, asked anew for every operation, so a change of folder holds at once. */
+  readonly folder: () => BackupFolder;
   readonly now: () => number;
   /** Settles once every pending write of the world data is on disk, so a backup holds it. */
   readonly settle: () => Promise<void>;
@@ -52,15 +55,20 @@ export class WorldBackups {
    * when the newest backup already holds exactly this data.
    */
   async create(reason: BackupReason): Promise<BackupSummary | null> {
+    const folder = this.deps.folder();
     await this.deps.settle();
-    return this.save(reason, await this.deps.vault.readWorld());
+    return this.save(folder, reason, await this.deps.vault.readWorld());
   }
 
   /** The saved backups, newest first; a file that is no backup is left out. */
   async list(): Promise<BackupSummary[]> {
+    return this.listIn(this.deps.folder());
+  }
+
+  private async listIn(folder: BackupFolder): Promise<BackupSummary[]> {
     const summaries: BackupSummary[] = [];
-    for (const name of await this.deps.vault.backupNames()) {
-      const backup = await this.read(name).catch(() => null);
+    for (const name of await folder.names()) {
+      const backup = await this.read(folder, name).catch(() => null);
       if (backup !== null) summaries.push(summaryOf(name, backup));
     }
     return summaries.sort((a, b) => b.createdAt - a.createdAt || b.name.localeCompare(a.name));
@@ -68,7 +76,7 @@ export class WorldBackups {
 
   /** What restoring the backup `name` would change now. */
   async preview(name: string): Promise<RestorePlan> {
-    const backup = await this.readOrThrow(name);
+    const backup = await this.readOrThrow(this.deps.folder(), name);
     await this.deps.settle();
     return planRestore(await this.deps.vault.readWorld(), backup);
   }
@@ -79,13 +87,14 @@ export class WorldBackups {
    * that save fails.
    */
   async restore(name: string): Promise<RestoreResult> {
-    const backup = await this.readOrThrow(name);
+    const folder = this.deps.folder();
+    const backup = await this.readOrThrow(folder, name);
     return this.deps.quiet(async () => {
       await this.deps.settle();
       const current = await this.deps.vault.readWorld();
       const plan = planRestore(current, backup);
       if (changesNothing(plan)) return { plan, keptAs: null };
-      const kept = await this.save('before-restore', current, true);
+      const kept = await this.save(folder, 'before-restore', current, true);
       if (kept === null) throw new Error('The world data could not be saved before the restore.');
       for (const path of [...plan.replaced, ...plan.added]) await this.deps.vault.writeWorld(path, backup.files[path] ?? '');
       for (const path of plan.removed) await this.deps.vault.removeWorld(path);
@@ -99,26 +108,26 @@ export class WorldBackups {
     return newest?.createdAt ?? null;
   }
 
-  private async save(reason: BackupReason, files: Record<string, string>, always = false): Promise<BackupSummary | null> {
+  private async save(folder: BackupFolder, reason: BackupReason, files: Record<string, string>, always = false): Promise<BackupSummary | null> {
     if (!always && Object.keys(files).length === 0) return null;
-    if (reason === 'scheduled' && (await this.newestHolds(files))) return null;
+    if (reason === 'scheduled' && (await this.newestHolds(folder, files))) return null;
     const backup: WorldBackup = { format: BACKUP_FORMAT, createdAt: this.deps.now(), reason, files };
-    const name = await this.freeName(backup);
-    await this.deps.vault.writeBackup(name, backupText(backup));
-    if (reason === 'scheduled') await this.pruneScheduled();
+    const name = await this.freeName(folder, backup);
+    await folder.write(name, backupText(backup));
+    if (reason === 'scheduled') await this.pruneScheduled(folder);
     return summaryOf(name, backup);
   }
 
-  private async newestHolds(files: Record<string, string>): Promise<boolean> {
-    const [newest] = await this.list();
+  private async newestHolds(folder: BackupFolder, files: Record<string, string>): Promise<boolean> {
+    const [newest] = await this.listIn(folder);
     if (newest === undefined) return false;
-    const backup = await this.read(newest.name).catch(() => null);
+    const backup = await this.read(folder, newest.name).catch(() => null);
     return backup !== null && sameFiles(backup.files, files);
   }
 
   /** The backup's name; two made in the same millisecond take a number. */
-  private async freeName(backup: WorldBackup): Promise<string> {
-    const taken = new Set(await this.deps.vault.backupNames());
+  private async freeName(folder: BackupFolder, backup: WorldBackup): Promise<string> {
+    const taken = new Set(await folder.names());
     const base = backupName(backup.createdAt, backup.reason);
     let name = base;
     let n = 2;
@@ -129,17 +138,17 @@ export class WorldBackups {
     return name;
   }
 
-  private async pruneScheduled(): Promise<void> {
-    const scheduled = (await this.list()).filter((summary) => summary.reason === 'scheduled');
-    for (const old of scheduled.slice(KEPT_SCHEDULED_BACKUPS)) await this.deps.vault.removeBackup(old.name);
+  private async pruneScheduled(folder: BackupFolder): Promise<void> {
+    const scheduled = (await this.listIn(folder)).filter((summary) => summary.reason === 'scheduled');
+    for (const old of scheduled.slice(KEPT_SCHEDULED_BACKUPS)) await folder.remove(old.name);
   }
 
-  private async read(name: string): Promise<WorldBackup | null> {
-    return readBackup(await this.deps.vault.readBackup(name));
+  private async read(folder: BackupFolder, name: string): Promise<WorldBackup | null> {
+    return readBackup(await folder.read(name));
   }
 
-  private async readOrThrow(name: string): Promise<WorldBackup> {
-    const backup = await this.read(name).catch(() => null);
+  private async readOrThrow(folder: BackupFolder, name: string): Promise<WorldBackup> {
+    const backup = await this.read(folder, name).catch(() => null);
     if (backup === null) throw new UnreadableBackupError(name);
     return backup;
   }
