@@ -49,13 +49,16 @@ function aroundName(sentence: (name: string) => string): { before: string; text:
   return { before, text };
 }
 
+/** What a waiting newcomer asks for: a seat of their own, or the seat of the campaign's player of their name. */
+const askKey = (player: WaitingPlayer): 'online.knock.join' | 'online.knock.reclaim' => (player.reclaim === true ? 'online.knock.reclaim' : 'online.knock.join');
+
 /** A card per newcomer who waits: Decline and Admit, or for a moment that the table was full. */
 export function knockCards(waiting: readonly WaitingPlayer[], actions: Pick<GateActions, 'admit' | 'decline'>): StackCard[] {
   return waiting.map((player) => ({
     key: knockKey(player.id),
-    label: t('online.knock.join', { name: player.name }),
+    label: t(askKey(player), { name: player.name }),
     name: player.name,
-    ...aroundName((name) => t(player.full ? 'online.knock.full' : 'online.knock.join', { name })),
+    ...aroundName((name) => t(player.full ? 'online.knock.full' : askKey(player), { name })),
     armed: player.armed,
     answered: player.answered,
     actions: player.full ? [] : [

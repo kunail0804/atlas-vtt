@@ -117,6 +117,18 @@ describe('the cards over the online control', () => {
     for (const tooltip of tooltips) tooltip.dispose();
   });
 
+  it('say when a newcomer asks for the seat of a player of the campaign, with the same answers', () => {
+    const gate = { admit: vi.fn(), decline: vi.fn() };
+    const parent = document.body.createDiv();
+    renderCards(parent, knockCards([{ ...MIRA, reclaim: true, answered: false, full: false, armed: true }], gate));
+    const row = parent.querySelector<HTMLElement>('.atlas-online-knock');
+    expect(row?.getAttribute('aria-label')).toBe('Mira asks for their seat back from a new device');
+    expect(row?.querySelector('.atlas-online-knock__name')?.textContent).toBe('Mira');
+    expect([...row!.querySelectorAll('button')].map((button) => button.textContent)).toEqual(['Decline', 'Admit']);
+    row!.querySelectorAll('button')[1]?.click();
+    expect(gate.admit).toHaveBeenCalledWith(MIRA.id);
+  });
+
   it('take no answer before they are armed, nor twice', () => {
     const timers = clock();
     const { rests } = requests(timers, new ArmedCards(timers));

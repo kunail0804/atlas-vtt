@@ -85,6 +85,7 @@ export const online = {
   'online.kick': 'Remove from table',
   'online.knock.full': '{name}: table full',
   'online.knock.join': '{name} wants to join',
+  'online.knock.reclaim': '{name} asks for their seat back from a new device',
   'online.knock.nothingToRestore': 'Nothing to restore',
   'online.knock.region': 'Players asking the GM',
   'online.knock.rest': '{name} asks for a {rest}',

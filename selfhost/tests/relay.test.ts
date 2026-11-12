@@ -151,7 +151,7 @@ describe('the relay with the plugin as GM', () => {
     await until(() => back.frame('waiting') !== undefined, 'kicked key is a newcomer again');
   });
 
-  it('seats a player of the campaign by their own code past the gate, on any device, and turns away a newcomer who takes their name', async () => {
+  it('seats a player of the campaign by their own code past the gate, on any device, and leaves a newcomer who takes their name to the GM', async () => {
     const { code, gm } = await table({ code: '483912', ask: true });
     const ana = player(code, { name: 'Ana', code: '483912' });
     await until(() => gm.knocks.length === 1, 'Ana knocks');
@@ -166,8 +166,114 @@ describe('the relay with the plugin as GM', () => {
     expect(again.frame('welcome')?.id).toBe(id);
     expect(gm.knocks).toHaveLength(1);
     const impostor = player(code, { name: 'ana', code: '483912' });
-    await until(() => impostor.closeCode !== null, 'name taken');
-    expect(impostor.closeCode).toBe(CLOSE.nameTaken);
+    await until(() => gm.knocks.length === 2, 'the GM is asked for her seat');
+    expect(gm.knocks[1]).toMatchObject({ name: 'ana', reclaim: true });
+    expect(impostor.frame('welcome')).toBeUndefined();
+    gm.connection.answer(gm.knocks[1]?.id ?? '', false);
+    await until(() => impostor.closeCode !== null, 'declined');
+    expect(impostor.closeCode).toBe(CLOSE.declined);
+    expect(again.closeCode).toBeNull();
+  });
+
+  /** Mira at a table that asks for no code and lets newcomers in without the GM, then made a player of the campaign. */
+  async function campaignTable(): Promise<{ code: string; gm: TestGm; mira: TestPlayer; id: string; key: string }> {
+    const { code, gm } = await table({ code: null, ask: false });
+    const mira = player(code, { name: 'Mira' });
+    await until(() => mira.frame('welcome') !== undefined, 'Mira seated');
+    const { id, key } = mira.frame('welcome') as { id: string; key: string };
+    gm.connection.setPlayers([{ id, name: 'Mira', code: '271828' }]);
+    await new Promise((resolve) => setTimeout(resolve, 4 * BATCH_MS));
+    return { code, gm, mira, id, key };
+  }
+
+  it('gives a player of the campaign who lost their key their seat back once the GM admits them, and the old key no longer seats anyone', async () => {
+    const { code, gm, mira, id, key } = await campaignTable();
+    // She clears her browser: the page comes back with her name only, no key and no own code.
+    mira.socket.close();
+    await until(() => mira.closeCode !== null, 'old page gone');
+    const back = player(code, { name: 'Mira' });
+    await until(() => back.frame('waiting') !== undefined || back.closeCode !== null, 'Mira waits or is refused');
+    expect(back.closeCode).toBeNull();
+    // The GM is asked even though the table lets newcomers in without asking, and is told it is a seat taken back.
+    await until(() => gm.knocks.length === 1, 'GM asked');
+    expect(gm.knocks[0]).toMatchObject({ name: 'Mira', reclaim: true });
+
+    gm.connection.answer(gm.knocks[0]?.id ?? '', true);
+    await until(() => back.frame('welcome') !== undefined, 'Mira seated again');
+    const welcome = back.frame('welcome') as { id: string; key: string };
+    expect(welcome.id).toBe(id);
+    expect(welcome.key).not.toBe(key);
+
+    // The key of the browser she cleared seats nobody now: it only asks the GM again.
+    const stale = player(code, { name: 'Mira', key });
+    await until(() => stale.frame('waiting') !== undefined || stale.frame('welcome') !== undefined || stale.closeCode !== null, 'old key answered');
+    expect(stale.frame('welcome')).toBeUndefined();
+    expect(stale.frame('waiting')).toBeDefined();
+    expect(back.closeCode).toBeNull();
+    // The new key keeps the seat from one page to the next.
+    back.socket.close();
+    const reload = player(code, { name: 'Mira', key: welcome.key });
+    await until(() => reload.frame('welcome') !== undefined, 'new key seats her');
+    expect(reload.frame('welcome')?.id).toBe(id);
+  });
+
+  it('never seats two pages on one seat: a key that was not moved loses the seat to the one the GM admitted, and cannot take it back', async () => {
+    const { code, gm, mira, id, key } = await campaignTable();
+    // Someone else holds her old key and sits in her seat when she asks for it from a new browser.
+    mira.socket.close();
+    await until(() => mira.closeCode !== null, 'old page gone');
+    const thief = player(code, { name: 'Mira', key });
+    await until(() => thief.frame('welcome') !== undefined, 'old key seated before the transfer');
+    const back = player(code, { name: 'Mira' });
+    const other = player(code, { name: 'MIRA' });
+    await until(() => gm.knocks.length === 2, 'GM asked twice');
+    expect(gm.knocks.every((knock) => knock.reclaim === true)).toBe(true);
+
+    const leftBefore = gm.left.length;
+    gm.connection.answer(gm.knocks[0]?.id ?? '', true);
+    await until(() => back.frame('welcome') !== undefined, 'admitted page seated');
+    expect(back.frame('welcome')?.id).toBe(id);
+    await until(() => thief.closeCode !== null, 'old key put off the seat');
+    expect(thief.closeCode).toBe(CLOSE.replaced);
+    // The page put off the seat does not take the player who now sits in it off the GM's table.
+    back.send({ t: 'ping-gm' });
+    await until(() => gm.messages.some((message) => message.from === id), 'the seated page reaches the GM');
+    expect(gm.left.slice(leftBefore)).toEqual([]);
+    expect(gm.joined.at(-1)).toEqual({ id, name: 'Mira' });
+    // The second page that asked is still waiting: it holds no seat.
+    expect(other.frame('welcome')).toBeUndefined();
+    expect(other.closeCode).toBeNull();
+
+    const again = player(code, { name: 'Mira', key });
+    await until(() => again.frame('waiting') !== undefined || again.frame('welcome') !== undefined || again.closeCode !== null, 'old key answered');
+    expect(again.frame('welcome')).toBeUndefined();
+    gm.connection.answer(gm.knocks[1]?.id ?? '', false);
+    await until(() => other.closeCode !== null, 'second page declined');
+    expect(other.closeCode).toBe(CLOSE.declined);
+    expect(back.closeCode).toBeNull();
+  });
+
+  it('keeps the seat on its key when the GM declines, and asks a page that takes a seat back for the join code first', async () => {
+    const { code, gm, mira, key } = await campaignTable();
+    const asking = player(code, { name: 'Mira' });
+    await until(() => gm.knocks.length === 1, 'GM asked');
+    gm.connection.answer(gm.knocks[0]?.id ?? '', false);
+    await until(() => asking.closeCode !== null, 'declined');
+    expect(asking.closeCode).toBe(CLOSE.declined);
+    expect(mira.closeCode).toBeNull();
+
+    gm.gateFrame = { code: '483912', ask: false };
+    gm.connection.sendGate(gm.gateFrame);
+    await new Promise((resolve) => setTimeout(resolve, 4 * BATCH_MS));
+    const noCode = player(code, { name: 'Mira' });
+    await until(() => noCode.closeCode !== null, 'no join code');
+    expect(noCode.closeCode).toBe(CLOSE.wrongCode);
+    expect(gm.knocks).toHaveLength(1);
+
+    mira.socket.close();
+    await until(() => mira.closeCode !== null, 'old page gone');
+    const back = player(code, { name: 'Mira', key });
+    await until(() => back.frame('welcome') !== undefined, 'her key still seats her');
   });
 
   it('takes a GM hello only on the GM side and a player hello only on the public side', async () => {

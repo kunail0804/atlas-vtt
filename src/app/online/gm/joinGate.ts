@@ -1,5 +1,5 @@
 import { newJoinCode } from '../../utils/joinCode.ts';
-import { JOIN_CODE_PATTERN, type PlayerInfo } from '../protocol/index.ts';
+import { JOIN_CODE_PATTERN, type KnockInfo } from '../protocol/index.ts';
 import type { ArmedCards } from './armedCards.ts';
 import type { Timers } from './companionTimers.ts';
 import { ARM_MS, WaitingKnocks, type WaitingPlayer } from './waitingKnocks.ts';
@@ -157,13 +157,13 @@ export class TableGate implements GateActions {
   }
 
   /** The relay's welcome: who waits now, in place of whoever was listed. */
-  welcomed(waiting: readonly PlayerInfo[]): void {
+  welcomed(waiting: readonly KnockInfo[]): void {
     this.knocks.welcomed(waiting);
   }
 
   /** A newcomer knocked. */
-  knocked(player: PlayerInfo): void {
-    this.knocks.knocked(player);
+  knocked(knock: KnockInfo): void {
+    this.knocks.knocked(knock);
   }
 
   /** A knock ended; `full`: admitted, but the table had no seat left. */

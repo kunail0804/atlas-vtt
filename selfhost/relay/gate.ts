@@ -1,5 +1,5 @@
 import type { WebSocket } from 'ws';
-import { CLOSE, MAX_WAITING, type PlayerInfo } from '../../src/app/online/protocol/relay.ts';
+import { CLOSE, MAX_WAITING, type KnockInfo } from '../../src/app/online/protocol/relay.ts';
 import { closeSocket, sendFrame } from './frames.ts';
 import { hashOf, matchesHash, newPlayerId, newSecret } from './ids.ts';
 import type { SavedGate } from './tableStore.ts';
@@ -17,6 +17,8 @@ export const KNOCKS_PER_SOURCE = 2;
 interface Knock {
   readonly id: string;
   readonly name: string;
+  /** The id of the campaign's player whose seat they ask for; null for a seat of their own. */
+  readonly seat: string | null;
   readonly source: string;
   socket: WebSocket;
   readonly waitHash: string | null;
@@ -90,16 +92,19 @@ export class JoinGate {
   }
 
   /** The newcomers waiting for an answer, for the GM's welcome. */
-  waiting(): PlayerInfo[] {
-    return [...this.knocks.values()].map((knock) => ({ id: knock.id, name: knock.name }));
+  waiting(): KnockInfo[] {
+    return [...this.knocks.values()].map(knockInfo);
   }
 
   socketCount(): number {
     return this.knocks.size;
   }
 
-  /** A newcomer knocks. `waits`: their page keeps a token that takes the wait up again after a reconnect. */
-  knock(socket: WebSocket, name: string, waits: boolean, source: string): void {
+  /**
+   * A newcomer knocks. `waits`: their page keeps a token that takes the wait up again after a reconnect.
+   * `seat`: the id of the campaign's player whose seat they ask for, or null.
+   */
+  knock(socket: WebSocket, name: string, seat: string | null, waits: boolean, source: string): void {
     const fromSource = [...this.knocks.values()].filter((knock) => knock.source === source).length;
     if (this.knocks.size >= MAX_WAITING || fromSource >= KNOCKS_PER_SOURCE) {
       closeSocket(socket, CLOSE.tooManyKnocks, 'too many waiting');
@@ -108,11 +113,11 @@ export class JoinGate {
     const id = newPlayerId();
     const wait = waits ? newSecret() : null;
     const timer = setTimeout(() => this.timeOut(id), NO_ANSWER_MS);
-    const knock: Knock = { id, name, source, socket, waitHash: wait === null ? null : hashOf(wait), timer };
+    const knock: Knock = { id, name, seat, source, socket, waitHash: wait === null ? null : hashOf(wait), timer };
     this.knocks.set(id, knock);
     this.watch(knock, socket);
     sendFrame(socket, wait === null ? { t: 'waiting' } : { t: 'waiting', wait });
-    this.ports.toGm({ t: 'knock', id, name });
+    this.ports.toGm({ t: 'knock', ...knockInfo(knock) });
   }
 
   /** A newcomer back with their wait token: the same wait goes on with the new socket. False when no wait has that token. */
@@ -130,11 +135,11 @@ export class JoinGate {
   }
 
   /** The GM answered a knock: the newcomer is handed back to be seated, or turned away. Null for a knock that is gone. */
-  answer(id: string, admit: boolean): { socket: WebSocket; id: string; name: string } | null {
+  answer(id: string, admit: boolean): { socket: WebSocket; id: string; name: string; seat: string | null } | null {
     const knock = this.knocks.get(id);
     if (knock === undefined) return null;
     this.forget(knock);
-    if (admit) return { socket: knock.socket, id: knock.id, name: knock.name };
+    if (admit) return { socket: knock.socket, id: knock.id, name: knock.name, seat: knock.seat };
     this.ports.toGm({ t: 'knock-gone', id });
     closeSocket(knock.socket, CLOSE.declined, 'declined');
     return null;
@@ -169,4 +174,9 @@ export class JoinGate {
     clearTimeout(knock.timer);
     this.knocks.delete(knock.id);
   }
+}
+
+/** A knock as the GM is told it: the seat asked for is said, not named, since the GM's admission alone decides it. */
+function knockInfo(knock: Knock): KnockInfo {
+  return knock.seat === null ? { id: knock.id, name: knock.name } : { id: knock.id, name: knock.name, reclaim: true };
 }
