@@ -56,12 +56,10 @@ export const CLOSE = {
   noAccess: 4015,
   /** The table ended because its account started another table. */
   superseded: 4016,
-  /** A newcomer's name is another player's in the GM's campaign: they come back with their own code, or under another name. */
-  nameTaken: 4017,
 } as const;
 
 /** The close codes of the join gates: the player's page stops and says why; only a new try by the player connects again. */
-export const GATE_CLOSE_CODES: readonly number[] = [CLOSE.wrongCode, CLOSE.paused, CLOSE.declined, CLOSE.noAnswer, CLOSE.tooManyKnocks, CLOSE.nameTaken];
+export const GATE_CLOSE_CODES: readonly number[] = [CLOSE.wrongCode, CLOSE.paused, CLOSE.declined, CLOSE.noAnswer, CLOSE.tooManyKnocks];
 
 /** Close codes after which a client gives up instead of reconnecting. */
 export const FINAL_CLOSE_CODES: readonly number[] = [CLOSE.badSecret, CLOSE.version, CLOSE.ended, CLOSE.replaced, CLOSE.kicked, CLOSE.noAccess, CLOSE.superseded, ...GATE_CLOSE_CODES];
@@ -70,6 +68,15 @@ export const FINAL_CLOSE_CODES: readonly number[] = [CLOSE.badSecret, CLOSE.vers
 export interface PlayerInfo {
   readonly id: string;
   readonly name: string;
+}
+
+/**
+ * A newcomer who waits for the GM's answer. `reclaim`: their name is a player's of the GM's campaign,
+ * and they come without that player's key or own code (a cleared browser, another device): admitted,
+ * they take that player's seat, and the key it had seats nobody any more.
+ */
+export interface KnockInfo extends PlayerInfo {
+  readonly reclaim?: true;
 }
 
 /**
@@ -134,9 +141,9 @@ export type RelayFrame =
    * player page needs; a GM below it was let in because players sit at the table, and should update.
    * `clock`: the relay answers time exchanges; an older one says nothing, and would close a socket that sent one.
    */
-  | { readonly v: 1; readonly t: 'welcome'; readonly role: 'gm'; readonly players: readonly PlayerInfo[]; readonly waiting?: readonly PlayerInfo[]; readonly batch?: true; readonly minLevel?: number; readonly clock?: true }
-  /** A newcomer waits for the GM's answer; `knock-gone` once they do not (left, timed out, answered; `full`: admitted into a table without a seat). */
-  | { readonly v: 1; readonly t: 'knock'; readonly id: string; readonly name: string }
+  | { readonly v: 1; readonly t: 'welcome'; readonly role: 'gm'; readonly players: readonly PlayerInfo[]; readonly waiting?: readonly KnockInfo[]; readonly batch?: true; readonly minLevel?: number; readonly clock?: true }
+  /** A newcomer waits for the GM's answer (`KnockInfo`); `knock-gone` once they do not (left, timed out, answered; `full`: admitted into a table without a seat). */
+  | ({ readonly v: 1; readonly t: 'knock' } & KnockInfo)
   | { readonly v: 1; readonly t: 'knock-gone'; readonly id: string; readonly full?: true }
   /** Too many wrong codes: nobody new joins until `until` (the relay's clock, in milliseconds). */
   | { readonly v: 1; readonly t: 'gate-paused'; readonly until: number }
@@ -230,12 +237,18 @@ function joinCode(value: unknown): string | undefined {
   return typeof value === 'string' && JOIN_CODE_PATTERN.test(value) ? value : undefined;
 }
 
+function knockInfo(value: unknown): KnockInfo | null {
+  const player = playerInfo(value);
+  if (player === null || !isRecord(value)) return null;
+  return value.reclaim === true ? { ...player, reclaim: true } : player;
+}
+
 /** A list of players as a relay sent it; null when one of them is malformed. A relay from before the list had none. */
-function playerList(value: unknown): PlayerInfo[] | null {
+function listOf<T>(value: unknown, read: (entry: unknown) => T | null): T[] | null {
   if (value === undefined) return [];
   if (!Array.isArray(value)) return null;
-  const players = value.map(playerInfo);
-  return players.every((player) => player !== null) ? players : null;
+  const entries = value.map(read);
+  return entries.every((entry): entry is T => entry !== null) ? entries : null;
 }
 
 /** Whether a frame's text names another protocol version: the relay closes it with `CLOSE.version`. */
@@ -251,8 +264,8 @@ export function parseRelayFrame(text: string): RelayFrame | null {
   switch (value.t) {
     case 'welcome':
       if (value.role === 'gm') {
-        const players = value.players === undefined ? null : playerList(value.players);
-        const waiting = playerList(value.waiting);
+        const players = value.players === undefined ? null : listOf(value.players, playerInfo);
+        const waiting = listOf(value.waiting, knockInfo);
         if (players === null || waiting === null) return null;
         return {
           v: 1, t: 'welcome', role: 'gm', players, ...(waiting.length > 0 && { waiting }), ...(value.batch === true && { batch: true as const }),
@@ -270,8 +283,8 @@ export function parseRelayFrame(text: string): RelayFrame | null {
     case 'player-left':
       return typeof value.id === 'string' ? { v: 1, t: 'player-left', id: value.id } : null;
     case 'knock': {
-      const player = playerInfo(value);
-      return player === null ? null : { v: 1, t: 'knock', ...player };
+      const knock = knockInfo(value);
+      return knock === null ? null : { v: 1, t: 'knock', ...knock };
     }
     case 'knock-gone':
       if (typeof value.id !== 'string' || !PLAYER_ID_PATTERN.test(value.id)) return null;

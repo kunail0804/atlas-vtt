@@ -24,7 +24,8 @@ const ACK_BURST = 800;
 interface Seat {
   readonly id: string;
   name: string;
-  readonly keyHash: string;
+  /** Changed in place when the seat takes a new key: the handlers of its pages hold this very seat. */
+  keyHash: string;
   link: Link | null;
 }
 
@@ -121,7 +122,7 @@ export class Table {
       case 'admit':
       case 'decline': {
         const admitted = this.gate.answer(frame.id, frame.t === 'admit');
-        if (admitted !== null) this.seatAdmitted(admitted.socket, admitted.id, admitted.name);
+        if (admitted !== null) this.seatAdmitted(admitted.socket, admitted.id, admitted.name, admitted.seat);
         return;
       }
       case 'time':
@@ -193,41 +194,52 @@ export class Table {
     // A player of the campaign comes back with their own code: their seat, whatever the gate says.
     const own = hello.code === undefined ? undefined : this.campaign.find((player) => player.code === hello.code);
     if (own !== undefined) return this.seatCampaignPlayer(link, own, hello.acks === true);
-    // A newcomer may not take the name of a player of the campaign: that player comes back with their code.
-    if (this.campaign.some((player) => samePlayerName(player.name, hello.name))) return closeSocket(link.socket, CLOSE.nameTaken, 'name taken');
+    // A newcomer under the name of a player of the campaign, without that player's key or code (a cleared
+    // browser, another device), asks for that player's seat: past the gate like any newcomer, then always
+    // the GM's answer, whatever the gate says, since an admission moves the seat away from the key it had.
+    const claimed = this.campaign.find((player) => samePlayerName(player.name, hello.name));
     const check = this.gate.check(hello.code);
     if (check === 'paused') return closeSocket(link.socket, CLOSE.paused, 'joins paused');
     if (check === 'wrong') return closeSocket(link.socket, CLOSE.wrongCode, 'wrong code');
-    if (this.gate.asksTheGm()) {
+    if (claimed !== undefined || this.gate.asksTheGm()) {
       // A waiting newcomer only sends keep-alives until the GM answers.
       link.onText(() => closeSocket(link.socket, CLOSE.protocol, 'waiting'));
-      this.gate.knock(link.socket, hello.name, hello.waits === true, link.source);
+      this.gate.knock(link.socket, hello.name, claimed?.id ?? null, hello.waits === true, link.source);
       this.linksByKnockSocket.set(link.socket, { link, acks: hello.acks === true });
       return;
     }
     this.seatNewcomer(link, newPlayerId(), hello.name, hello.acks === true);
   }
 
-  /** Seats a player of the campaign under the id the GM knows them by, with a new key for this device. */
+  /**
+   * Seats a player of the campaign under the id the GM knows them by, with a new key for this device:
+   * the seat keeps its id (the campaign's name, characters and tokens follow it), the key it had
+   * seats nobody any more, and a page still on the seat is closed as `replaced`.
+   */
   private seatCampaignPlayer(link: Link, player: CampaignSeat, acks: boolean): void {
     const known = this.seats.get(player.id);
     if (known === undefined) return this.seatNewcomer(link, player.id, player.name, acks);
     const key = newSecret();
-    const seat: Seat = { ...known, keyHash: hashOf(key) };
-    this.seats.set(player.id, seat);
+    known.keyHash = hashOf(key);
     this.ports.changed();
-    this.seat(link, seat, key, player.name, acks);
+    this.seat(link, known, key, player.name, acks);
   }
 
-  private seatAdmitted(socket: WebSocket, id: string, name: string): void {
+  /** `seat`: the campaign player whose seat the newcomer asked for; one the campaign no longer has leaves them a newcomer. */
+  private seatAdmitted(socket: WebSocket, id: string, name: string, seat: string | null): void {
     const knock = this.linksByKnockSocket.get(socket);
     if (knock === undefined) return;
-    if (this.connectedCount() >= this.maxPlayers) {
+    const claimed = seat === null ? undefined : this.campaign.find((player) => player.id === seat);
+    // A seat taken back from a page still on it frees as many places as it takes.
+    const seated = claimed === undefined ? undefined : this.seats.get(claimed.id);
+    const takesAPlace = seated === undefined || seated.link === null;
+    if (takesAPlace && this.connectedCount() >= this.maxPlayers) {
       this.toGm({ t: 'knock-gone', id, full: true });
       closeSocket(socket, CLOSE.full, 'table full');
       return;
     }
     this.toGm({ t: 'knock-gone', id });
+    if (claimed !== undefined) return this.seatCampaignPlayer(knock.link, claimed, knock.acks);
     this.seatNewcomer(knock.link, id, name, knock.acks);
   }
 

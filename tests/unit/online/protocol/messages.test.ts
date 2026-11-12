@@ -66,6 +66,15 @@ describe('the join gates\' frames', () => {
     expect(parseRelayFrame('{"v":1,"t":"welcome","role":"gm","players":[],"batch":"yes"}')).toEqual({ v: 1, t: 'welcome', role: 'gm', players: [] });
   });
 
+  it('read a knock that asks for the seat of a player of the campaign, alone and in the waiting list, and nothing else as one', () => {
+    expect(parseRelayFrame(`{"v":1,"t":"knock","id":"${id}","name":"Mira","reclaim":true}`)).toEqual({ v: 1, t: 'knock', id, name: 'Mira', reclaim: true });
+    expect(parseRelayFrame(`{"v":1,"t":"knock","id":"${id}","name":"Mira","reclaim":"yes"}`)).toEqual({ v: 1, t: 'knock', id, name: 'Mira' });
+    expect(parseRelayFrame(`{"v":1,"t":"welcome","role":"gm","players":[],"waiting":[{"id":"${id}","name":"Mira","reclaim":true}]}`))
+      .toEqual({ v: 1, t: 'welcome', role: 'gm', players: [], waiting: [{ id, name: 'Mira', reclaim: true }] });
+    // The players at the table never carry it.
+    expect(parseRelayFrame(`{"v":1,"t":"welcome","role":"gm","players":[{"id":"${id}","name":"Mira","reclaim":true}]}`)).toEqual({ v: 1, t: 'welcome', role: 'gm', players: [{ id, name: 'Mira' }] });
+  });
+
   it('refuse a knock without a name or id, a knock-gone without an id, a pause without a time and a welcome whose waiting list is malformed', () => {
     for (const text of [
       `{"v":1,"t":"knock","id":"${id}"}`, `{"v":1,"t":"knock","id":"${id}","name":""}`, '{"v":1,"t":"knock","id":"x","name":"Mira"}', '{"v":1,"t":"knock-gone"}', '{"v":1,"t":"knock-gone","id":"x"}',

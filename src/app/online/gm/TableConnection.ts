@@ -1,5 +1,5 @@
 import {
-  ALL_PLAYERS, FINAL_CLOSE_CODES, GM_LEVEL, KEEPALIVE_PONG, PROTOCOL_VERSION, parseRelayFrame, type CampaignSeat, type ConnectionStats, type GmMessage, type PlayerInfo, type SendLane, type YourCodeMessage,
+  ALL_PLAYERS, FINAL_CLOSE_CODES, GM_LEVEL, KEEPALIVE_PONG, PROTOCOL_VERSION, parseRelayFrame, type CampaignSeat, type ConnectionStats, type GmMessage, type KnockInfo, type PlayerInfo, type SendLane, type YourCodeMessage,
 } from '../protocol/index.ts';
 import { randomHex } from '../../utils/randomHex';
 import { messageParts } from './assetServe.ts';
@@ -28,8 +28,8 @@ export interface GateEvents {
   /** The gates the relay is told on every welcome, before anything else. */
   frame(): GateFrame;
   /** Welcomed: the newcomers who wait for an answer now. */
-  welcomed(waiting: readonly PlayerInfo[]): void;
-  knocked(player: PlayerInfo): void;
+  welcomed(waiting: readonly KnockInfo[]): void;
+  knocked(knock: KnockInfo): void;
   /** A knock ended; `full`: admitted, but the table had no seat left. */
   gone(id: string, full: boolean): void;
   /** Too many wrong codes: no newcomer joins until `until`, by the relay's clock. */
@@ -301,7 +301,7 @@ export class TableConnection {
       this.events.access(null);
       this.gate?.welcomed(frame.waiting ?? []);
       this.events.welcome(frame.players);
-    } else if (frame.t === 'knock') this.gate?.knocked({ id: frame.id, name: frame.name });
+    } else if (frame.t === 'knock') this.gate?.knocked({ id: frame.id, name: frame.name, ...(frame.reclaim === true && { reclaim: true as const }) });
     else if (frame.t === 'knock-gone') this.gate?.gone(frame.id, frame.full === true);
     else if (frame.t === 'gate-paused') this.gate?.paused(frame.until);
     else if (frame.t === 'access') this.events.access(frame.closesAt);

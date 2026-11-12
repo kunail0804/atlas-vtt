@@ -18,7 +18,6 @@ const CLOSE_TEXT: Readonly<Record<number, string>> = {
   [CLOSE.version]: 'Cette page n\'est plus à jour : recharge-la.',
   [CLOSE.rateLimited]: 'Trop de messages envoyés d\'un coup.',
   [CLOSE.protocol]: 'Erreur de communication avec la table.',
-  [CLOSE.nameTaken]: 'Ce nom est celui d\'un joueur de la campagne. S\'il est le tien, entre ton code personnel ; sinon choisis un autre nom.',
 };
 
 export function closeText(code: number): string {

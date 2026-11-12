@@ -1,4 +1,4 @@
-import type { PlayerInfo } from '../protocol/index.ts';
+import type { KnockInfo } from '../protocol/index.ts';
 import { ArmedCards } from './armedCards.ts';
 import type { Timers } from './companionTimers.ts';
 
@@ -7,7 +7,7 @@ export { ARM_MS } from './armedCards.ts';
 export const FULL_NOTE_MS = 4_000;
 
 /** A newcomer who waits for the GM's answer. */
-export interface WaitingPlayer extends PlayerInfo {
+export interface WaitingPlayer extends KnockInfo {
   /** The GM answered; the relay has not confirmed yet. */
   readonly answered: boolean;
   /** The GM admitted them, but the table had filled meanwhile. */
@@ -52,7 +52,7 @@ export class WaitingKnocks {
   }
 
   /** The relay's welcome: who waits now. A card that keeps its place keeps its time; an answer under way is void. */
-  welcomed(waiting: readonly PlayerInfo[]): void {
+  welcomed(waiting: readonly KnockInfo[]): void {
     this.clearNotes();
     const kept = new Set(waiting.filter((player, index) => this.list[index]?.id === player.id).map((player) => player.id));
     for (const player of this.list) if (!kept.has(player.id)) this.cards.drop(knockKey(player.id), this.heard);
@@ -63,7 +63,7 @@ export class WaitingKnocks {
   }
 
   /** A newcomer knocked: their card goes after the others. A knock already shown changes nothing. */
-  knocked(player: PlayerInfo): void {
+  knocked(player: KnockInfo): void {
     if (this.list.some((other) => other.id === player.id)) return;
     this.cards.show(knockKey(player.id), this.heard);
     this.list = [...this.list, { ...player, answered: false, full: false, armed: false }];
