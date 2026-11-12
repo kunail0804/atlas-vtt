@@ -38,6 +38,24 @@ async function colourAt(page: Page, x: number, y: number): Promise<number[]> {
   }, shot.toString('base64'));
 }
 
+/** How many pixels of an 8 × 8 square around a world point are not the green map: a ruler's ink, a token. */
+async function offGreen(page: Page, x: number, y: number): Promise<number> {
+  const at = screen(x, y);
+  const shot = await page.screenshot({ clip: { x: at.x - 4, y: at.y - 4, width: 8, height: 8 } });
+  return page.evaluate(async (data) => {
+    const image = new Image();
+    image.src = `data:image/png;base64,${data}`;
+    await image.decode();
+    const canvas = new OffscreenCanvas(image.width, image.height);
+    const context = canvas.getContext('2d');
+    context?.drawImage(image, 0, 0);
+    const pixels = context?.getImageData(0, 0, image.width, image.height).data ?? new Uint8ClampedArray();
+    let off = 0;
+    for (let index = 0; index < pixels.length; index += 4) if (Math.abs((pixels[index] ?? 0) - 40) + Math.abs((pixels[index + 1] ?? 0) - 160) + Math.abs((pixels[index + 2] ?? 0) - 60) > 60) off += 1;
+    return off;
+  }, shot.toString('base64'));
+}
+
 describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player\'s own token', () => {
   let test: TestRelay;
   let browser: Browser;
@@ -55,6 +73,20 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player\'s own 
     await browser?.close();
     await stopTestRelay(test);
   });
+
+  // Whether a token's grey disc covers this world point (the map is green there otherwise).
+  const tokenAt = async (x: number, y: number): Promise<boolean> => ((await colourAt(page, x, y))[1] ?? 0) < 130;
+  const eventually = async (check: () => Promise<boolean>, what: string): Promise<void> => {
+    for (const deadline = Date.now() + 10_000; !(await check());) {
+      if (Date.now() > deadline) throw new Error(`timed out waiting for ${what}`);
+      await page.waitForTimeout(100);
+    }
+  };
+  /** A live message from the GM; the other token moves in it, and once the page shows it there, the message was taken. */
+  const deliverLive = async (send: (body: GmMessage, to: string) => void, player: string, places: readonly LivePlace[], otherTo: { x: number; y: number }): Promise<void> => {
+    send({ t: 'live', scene: 's1', at: Math.round(performance.now()), tokens: [...places, { id: OTHER, ...otherTo }] }, player);
+    await eventually(() => tokenAt(otherTo.x, otherTo.y), 'the other token to move');
+  };
 
   /** A new table, and this player seated at it on a fresh page, shown scene `s1` over a green map. */
   const seatOnGreenMap = async (): Promise<{ send: (body: GmMessage, to: string) => void; player: string }> => {
@@ -137,22 +169,7 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player\'s own 
     await page.waitForTimeout(300);
 
     // Along the ruler, between the start and the token: map green before the drag, the ruler's ink during it.
-    const along = screen(385, 315);
-    const changed = async (): Promise<number> => {
-      const shot = await page.screenshot({ clip: { x: along.x - 4, y: along.y - 4, width: 8, height: 8 } });
-      return page.evaluate(async (data) => {
-        const image = new Image();
-        image.src = `data:image/png;base64,${data}`;
-        await image.decode();
-        const canvas = new OffscreenCanvas(image.width, image.height);
-        const context = canvas.getContext('2d');
-        context?.drawImage(image, 0, 0);
-        const pixels = context?.getImageData(0, 0, image.width, image.height).data ?? new Uint8ClampedArray();
-        let off = 0;
-        for (let index = 0; index < pixels.length; index += 4) if (Math.abs((pixels[index] ?? 0) - 40) + Math.abs((pixels[index + 1] ?? 0) - 160) + Math.abs((pixels[index + 2] ?? 0) - 60) > 60) off += 1;
-        return off;
-      }, shot.toString('base64'));
-    };
+    const changed = (): Promise<number> => offGreen(page, 385, 315);
     expect(await changed()).toBe(0);
 
     // The GM follows the player's drag and sends its ruler: from the cell it left to the one it would land on, four cells on.
@@ -183,19 +200,7 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player\'s own 
     send({ t: 'mine', scene: 's1', tokens: [TOKEN] }, player);
     await page.waitForFunction(() => (document.querySelector('.status') as HTMLElement | null)?.hidden === true, null, { timeout: 10_000 });
 
-    // Whether a token's grey disc covers this world point (the map is green there otherwise).
-    const tokenAt = async (x: number, y: number): Promise<boolean> => ((await colourAt(page, x, y))[1] ?? 0) < 130;
-    const eventually = async (check: () => Promise<boolean>, what: string): Promise<void> => {
-      for (const deadline = Date.now() + 10_000; !(await check());) {
-        if (Date.now() > deadline) throw new Error(`timed out waiting for ${what}`);
-        await page.waitForTimeout(100);
-      }
-    };
-    // The other token moves in the same message: once the page shows it there, the message was taken.
-    const deliver = async (places: readonly LivePlace[], otherTo: { x: number; y: number }): Promise<void> => {
-      send({ t: 'live', scene: 's1', at: Math.round(performance.now()), tokens: [...places, { id: OTHER, ...otherTo }] }, player);
-      await eventually(() => tokenAt(otherTo.x, otherTo.y), 'the other token to move');
-    };
+    const deliver = (places: readonly LivePlace[], otherTo: { x: number; y: number }): Promise<void> => deliverLive(send, player, places, otherTo);
     await eventually(() => tokenAt(start.x, start.y), 'the own token');
 
     // The drag: 400 px right in steps the page sends out as drags. The GM echoes none of them yet.
@@ -232,5 +237,57 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player\'s own 
     await page.waitForTimeout(300);
     expect(await tokenAt(drop.x, drop.y)).toBe(true);
     expect(await tokenAt(start.x, start.y)).toBe(false);
+  }, 60_000);
+
+  // Issue #111. The ruler of the player's own drag is drawn by the page from where the token was taken to
+  // where it is, without waiting for the GM, and goes when the token is put down: the GM's echoes of the
+  // drag, held back here and delivered after the drop, never bring it back.
+  it('draws the ruler of its own drag at once and drops it with the token, whatever the GM echoes late', async () => {
+    const start = { x: 315, y: 315 };
+    const { send, player } = await seatOnGreenMap();
+    const measurement = { mode: 'metric', unitType: 'feet', unitDistance: 5, ruleDistance: 5, diagonalRule: 'equidistant', rangeBands: [], coneAngle: 53 };
+    send({ t: 'rules', scene: 's1', grid: { type: 'square', size: 70, offsetX: 0, offsetY: 0 }, snap: true, measurement, accent: '#7c8cff' } as GmMessage, player);
+    send({ t: 'tokens', scene: 's1', seq: 1, cell: 70, snap: null, tokens: [plainToken(TOKEN, start, 'Mira', 'taken'), plainToken(OTHER, { x: 150, y: 500 }, 'Gobelin', null)] }, player);
+    send({ t: 'mine', scene: 's1', tokens: [TOKEN] }, player);
+    await page.waitForFunction(() => (document.querySelector('.status') as HTMLElement | null)?.hidden === true, null, { timeout: 10_000 });
+    await eventually(() => tokenAt(start.x, start.y), 'the own token');
+    const inked = (x: number, y: number): Promise<boolean> => offGreen(page, x, y).then((off) => off > 0);
+    const clear = (x: number, y: number): Promise<boolean> => offGreen(page, x, y).then((off) => off === 0);
+    expect(await clear(385, 315)).toBe(true);
+
+    // Two cells to the right: the ruler runs from the cell the token left. The GM answers nothing.
+    const from = screen(start.x, start.y);
+    await page.mouse.move(from.x, from.y);
+    await page.mouse.down();
+    const near = screen(start.x + 140, start.y);
+    await page.mouse.move(near.x, near.y, { steps: 4 });
+    await eventually(() => inked(385, 315), 'the ruler under way');
+    // Four cells on, it follows the token.
+    const far = screen(start.x + 420, start.y);
+    await page.mouse.move(far.x, far.y, { steps: 6 });
+    await eventually(() => inked(630, 315), 'the ruler to follow the token');
+    expect(await inked(start.x, start.y)).toBe(true);
+    if (process.env.ATLAS_SHOTS) await page.screenshot({ path: path.join(process.env.ATLAS_SHOTS, 'own-drag-ruler.png') });
+
+    await page.mouse.up();
+    await until(() => gm.messages.some((m) => (m.body as { t?: string }).t === 'move'), 'move sent', 5_000);
+    const drop = gm.messages.find((m) => (m.body as { t?: string }).t === 'move')?.body as { x: number; y: number };
+    // Gone with the drop: one look, well before a ruler nobody tells of would go by itself (`DRAG_SILENCE_MS`).
+    expect(await clear(630, 315)).toBe(true);
+    expect(await clear(385, 315)).toBe(true);
+
+    // The GM's echo of the middle of the drag, with its ruler, arrives after the drop: no ruler comes back.
+    await deliverLive(send, player, [{ id: TOKEN, x: 525, y: 315, path: [[315, 315], [525, 315]] }], { x: 300, y: 500 });
+    await page.waitForTimeout(100);
+    expect(await clear(385, 315)).toBe(true);
+    // The lane's end, then the list that lands the drop.
+    await deliverLive(send, player, [{ id: TOKEN, x: drop.x, y: drop.y, end: true }], { x: 450, y: 500 });
+    send({ t: 'tokens', scene: 's1', seq: 2, cell: 70, snap: null, tokens: [plainToken(TOKEN, { x: Math.round(drop.x), y: Math.round(drop.y) }, 'Mira', 'taken'), plainToken(OTHER, { x: 450, y: 500 }, 'Gobelin', null)] }, player);
+    await page.waitForTimeout(300);
+    expect(await clear(385, 315)).toBe(true);
+
+    // A token someone else drags keeps the GM's ruler.
+    send({ t: 'live', scene: 's1', at: Math.round(performance.now()), tokens: [{ id: OTHER, x: 590, y: 500, path: [[450, 500], [590, 500]] }] }, player);
+    await eventually(() => inked(505, 500), 'the GM\'s ruler of the other token');
   }, 60_000);
 });

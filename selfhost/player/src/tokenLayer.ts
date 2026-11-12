@@ -14,6 +14,13 @@ import { drawTokenUI } from './tokenUI.ts';
 /** Drags go out at most this often, as the GM's own live messages do (`LIVE_INTERVAL_MS`). */
 const DRAG_INTERVAL_MS = 33;
 
+/** The player's own drag under way: the token, where it was taken from and where it is now (world pixels). */
+export interface OwnDrag {
+  readonly id: string;
+  readonly from: { readonly x: number; readonly y: number };
+  readonly at: { readonly x: number; readonly y: number };
+}
+
 interface Drawn {
   token: SharedToken;
   readonly group: Container;
@@ -40,10 +47,12 @@ export class TokenLayer {
   /** The bars of the player's own tokens as their owner sees them, by id: shown in place of those everyone sees. */
   private ownBars: Readonly<Record<string, readonly SharedBar[]>> = {};
   private scene: string | null = null;
-  private dragging: { id: string; offsetX: number; offsetY: number; lastSent: number } | null = null;
+  private dragging: { id: string; from: { x: number; y: number }; offsetX: number; offsetY: number; lastSent: number } | null = null;
   private readonly drops: PendingDrops;
   /** Off while the laser or the ruler holds the pointer. */
   private dragsEnabled = true;
+  /** Hears of the player's own drag as the token moves under the pointer, and of its end (null): its ruler is drawn from it. */
+  onOwnDrag: (drag: OwnDrag | null) => void = () => undefined;
 
   constructor(layer: Container, viewport: Viewport, assets: AssetLoader, send: (message: PlayerMessage) => void) {
     this.layer = layer;
@@ -76,6 +85,7 @@ export class TokenLayer {
     this.scene = scene;
     this.mine = new Set();
     this.ownBars = {};
+    if (this.dragging !== null) this.onOwnDrag(null);
     this.dragging = null;
     this.drops.clear();
     this.viewport.plugins.resume('drag');
@@ -119,6 +129,14 @@ export class TokenLayer {
   /** A listed token's size as Atlas stores it (1 is one cell), by which its drag is measured. */
   cellsOf(id: string): number | undefined {
     return this.drawn.get(id)?.token.cells;
+  }
+
+  /**
+   * Whether a live place is the GM's late echo of this player's own drag: of the drag under way, or of a drop
+   * the GM has not ended yet. The page draws that drag itself, token and ruler.
+   */
+  echoes(place: LivePlace): boolean {
+    return this.dragging?.id === place.id || this.drops.echoes(place);
   }
 
   /** Tokens someone is dragging now: drawn where the GM has them, until the list takes over again. */
@@ -195,9 +213,11 @@ export class TokenLayer {
     event.stopPropagation();
     this.drops.forget(id);
     const at = this.viewport.toWorld(event.global);
-    this.dragging = { id, offsetX: drawn.group.x - at.x, offsetY: drawn.group.y - at.y, lastSent: 0 };
+    const from = { x: drawn.group.x, y: drawn.group.y };
+    this.dragging = { id, from, offsetX: from.x - at.x, offsetY: from.y - at.y, lastSent: 0 };
     this.viewport.plugins.pause('drag');
     drawn.group.cursor = 'grabbing';
+    this.onOwnDrag({ id, from, at: from });
   }
 
   private dragTo(event: FederatedPointerEvent): void {
@@ -207,6 +227,7 @@ export class TokenLayer {
     if (drawn === undefined) return;
     const at = this.viewport.toWorld(event.global);
     drawn.group.position.set(at.x + held.offsetX, at.y + held.offsetY);
+    this.onOwnDrag({ id: held.id, from: held.from, at: { x: drawn.group.x, y: drawn.group.y } });
     const now = performance.now();
     if (now - held.lastSent < DRAG_INTERVAL_MS) return;
     held.lastSent = now;
@@ -218,6 +239,7 @@ export class TokenLayer {
     if (held === null) return;
     this.dragging = null;
     this.viewport.plugins.resume('drag');
+    this.onOwnDrag(null);
     const drawn = this.drawn.get(held.id);
     if (drawn === undefined || this.scene === null) return;
     drawn.group.cursor = 'grab';
