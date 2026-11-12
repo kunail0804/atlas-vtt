@@ -3,6 +3,8 @@ import path from 'node:path';
 import { chromium, type Browser, type Page } from 'playwright';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { GmMessage } from '../../src/app/online/protocol/game.ts';
+import type { LivePlace } from '../../src/app/online/protocol/live.ts';
+import type { SharedToken } from '../../src/app/online/protocol/tokens.ts';
 import { TestGm, createTable, startTestRelay, stopTestRelay, storeAsset, until, type TestRelay } from './helpers.ts';
 import { png } from './png.ts';
 
@@ -14,6 +16,27 @@ const MAP_W = 1000;
 const MAP_H = 600;
 const TOKEN = 'a1b2c3d4e5f6a1b2c3d4e5f6';
 const TOKEN_AT = { x: 300, y: 300 };
+const OTHER = 'b1b2c3d4e5f6a1b2c3d4e5f6';
+// Where the map lies on screen: the page frames it with a 5 % margin, centred.
+const SCALE = Math.min(1200 / (MAP_W * 1.05), 800 / (MAP_H * 1.05));
+const screen = (x: number, y: number): { x: number; y: number } => ({ x: 600 + (x - MAP_W / 2) * SCALE, y: 400 + (y - MAP_H / 2) * SCALE });
+const plainToken = (id: string, at: { x: number; y: number }, name: string, claim: SharedToken['claim']): SharedToken => ({
+  id, ...at, size: 70, cells: 1, rotation: 0, art: null, name, ring: null, claim, badge: null, ui: null,
+});
+
+/** The colour on screen at a world point, from a new screenshot of that one pixel. */
+async function colourAt(page: Page, x: number, y: number): Promise<number[]> {
+  const at = screen(x, y);
+  const shot = await page.screenshot({ clip: { x: Math.round(at.x), y: Math.round(at.y), width: 1, height: 1 } });
+  return page.evaluate(async (data) => {
+    const image = new Image();
+    image.src = `data:image/png;base64,${data}`;
+    await image.decode();
+    const canvas = new OffscreenCanvas(1, 1);
+    canvas.getContext('2d')?.drawImage(image, 0, 0);
+    return [...(canvas.getContext('2d')?.getImageData(0, 0, 1, 1).data ?? [])];
+  }, shot.toString('base64'));
+}
 
 describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player\'s own token', () => {
   let test: TestRelay;
@@ -32,6 +55,25 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player\'s own 
     await browser?.close();
     await stopTestRelay(test);
   });
+
+  /** A new table, and this player seated at it on a fresh page, shown scene `s1` over a green map. */
+  const seatOnGreenMap = async (): Promise<{ send: (body: GmMessage, to: string) => void; player: string }> => {
+    const created = await createTable(test.gmOrigin);
+    gm?.connection.stop();
+    gm = new TestGm(test.gmOrigin, created.code, created.secret);
+    await until(() => gm.status === 'online', 'GM online');
+    const mapRef = await storeAsset(test, png(MAP_W, MAP_H, () => [40, 160, 60]), 'image/png');
+    const send = (body: GmMessage, to: string): void => gm.connection.send(body, to);
+    await page.close();
+    page = await browser.newPage({ viewport: { width: 1200, height: 800 } });
+    await page.goto(`http://127.0.0.1:${test.relay.publicPort}/#${created.code}`);
+    await page.fill('.join-input >> nth=0', 'Mira');
+    await page.click('.join-button');
+    await until(() => gm.joined.length === 1, 'player seated', 10_000);
+    const player = gm.joined[0]?.id ?? '';
+    send({ t: 'scene', scene: { id: 's1', map: mapRef, lit: false } }, player);
+    return { send, player };
+  };
 
   it('shows its ring\'s artwork and its owner\'s bars', async () => {
     const created = await createTable(test.gmOrigin);
@@ -55,10 +97,8 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player\'s own 
     await page.waitForFunction(() => (document.querySelector('.status') as HTMLElement | null)?.hidden === true, null, { timeout: 10_000 });
     await page.waitForTimeout(500);
 
-    const scale = Math.min(1200 / (MAP_W * 1.05), 800 / (MAP_H * 1.05));
-    const screen = (x: number, y: number): { x: number; y: number } => ({ x: 600 + (x - MAP_W / 2) * scale, y: 400 + (y - MAP_H / 2) * scale });
     const shot = await page.screenshot();
-    if (process.env.ATLAS_SHOTS) await page.screenshot({ path: path.join(process.env.ATLAS_SHOTS, 'own-token.png'), clip: { x: screen(200, 200).x, y: screen(200, 200).y, width: 200 * scale, height: 220 * scale } });
+    if (process.env.ATLAS_SHOTS) await page.screenshot({ path: path.join(process.env.ATLAS_SHOTS, 'own-token.png'), clip: { x: screen(200, 200).x, y: screen(200, 200).y, width: 200 * SCALE, height: 220 * SCALE } });
     const pixel = async (x: number, y: number): Promise<number[]> => page.evaluate(async ({ data, px, py }) => {
       const image = new Image();
       image.src = `data:image/png;base64,${data}`;
@@ -87,20 +127,7 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player\'s own 
   });
 
   it("draws the GM's ruler of a drag under way, with its distance, until the drag ends", async () => {
-    const created = await createTable(test.gmOrigin);
-    gm.connection.stop();
-    gm = new TestGm(test.gmOrigin, created.code, created.secret);
-    await until(() => gm.status === 'online', 'GM online');
-    const mapRef = await storeAsset(test, png(MAP_W, MAP_H, () => [40, 160, 60]), 'image/png');
-    const send = (body: GmMessage, to: string): void => gm.connection.send(body, to);
-    await page.close();
-    page = await browser.newPage({ viewport: { width: 1200, height: 800 } });
-    await page.goto(`http://127.0.0.1:${test.relay.publicPort}/#${created.code}`);
-    await page.fill('.join-input >> nth=0', 'Mira');
-    await page.click('.join-button');
-    await until(() => gm.joined.length === 1, 'player seated', 10_000);
-    const player = gm.joined[0]?.id ?? '';
-    send({ t: 'scene', scene: { id: 's1', map: mapRef, lit: false } }, player);
+    const { send, player } = await seatOnGreenMap();
     const measurement = { mode: 'metric', unitType: 'feet', unitDistance: 5, ruleDistance: 5, diagonalRule: 'equidistant', rangeBands: [], coneAngle: 53 };
     send({ t: 'rules', scene: 's1', grid: { type: 'square', size: 70, offsetX: 0, offsetY: 0 }, snap: true, measurement, accent: '#7c8cff' } as GmMessage, player);
     const ui = { nameplate: false, downed: false, bars: [], conditions: [] };
@@ -109,8 +136,6 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player\'s own 
     await page.waitForFunction(() => (document.querySelector('.status') as HTMLElement | null)?.hidden === true, null, { timeout: 10_000 });
     await page.waitForTimeout(300);
 
-    const scale = Math.min(1200 / (MAP_W * 1.05), 800 / (MAP_H * 1.05));
-    const screen = (x: number, y: number): { x: number; y: number } => ({ x: 600 + (x - MAP_W / 2) * scale, y: 400 + (y - MAP_H / 2) * scale });
     // Along the ruler, between the start and the token: map green before the drag, the ruler's ink during it.
     const along = screen(385, 315);
     const changed = async (): Promise<number> => {
@@ -147,4 +172,65 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player\'s own 
     send(live(true), player);
     expect(await settles((off) => off === 0)).toBe(0);
   });
+
+  // Issue #91. The GM echoes a player's drag about one round trip late, so places from the middle of the
+  // drag still reach the page after it let go, and the lane's end can overtake the token list that
+  // lands the drop. The GM here holds its echoes back and delivers them after the drop.
+  it('stays where it was dropped while late live places and the lane\'s end arrive', async () => {
+    const start = { x: 200, y: 300 };
+    const { send, player } = await seatOnGreenMap();
+    send({ t: 'tokens', scene: 's1', seq: 1, cell: 70, snap: null, tokens: [plainToken(TOKEN, start, 'Mira', 'taken'), plainToken(OTHER, { x: 150, y: 500 }, 'Gobelin', null)] }, player);
+    send({ t: 'mine', scene: 's1', tokens: [TOKEN] }, player);
+    await page.waitForFunction(() => (document.querySelector('.status') as HTMLElement | null)?.hidden === true, null, { timeout: 10_000 });
+
+    // Whether a token's grey disc covers this world point (the map is green there otherwise).
+    const tokenAt = async (x: number, y: number): Promise<boolean> => ((await colourAt(page, x, y))[1] ?? 0) < 130;
+    const eventually = async (check: () => Promise<boolean>, what: string): Promise<void> => {
+      for (const deadline = Date.now() + 10_000; !(await check());) {
+        if (Date.now() > deadline) throw new Error(`timed out waiting for ${what}`);
+        await page.waitForTimeout(100);
+      }
+    };
+    // The other token moves in the same message: once the page shows it there, the message was taken.
+    const deliver = async (places: readonly LivePlace[], otherTo: { x: number; y: number }): Promise<void> => {
+      send({ t: 'live', scene: 's1', at: Math.round(performance.now()), tokens: [...places, { id: OTHER, ...otherTo }] }, player);
+      await eventually(() => tokenAt(otherTo.x, otherTo.y), 'the other token to move');
+    };
+    await eventually(() => tokenAt(start.x, start.y), 'the own token');
+
+    // The drag: 400 px right in steps the page sends out as drags. The GM echoes none of them yet.
+    const from = screen(start.x, start.y);
+    await page.mouse.move(from.x, from.y);
+    await page.mouse.down();
+    for (let step = 1; step <= 8; step += 1) {
+      const to = screen(start.x + step * 50, start.y);
+      await page.mouse.move(to.x, to.y, { steps: 2 });
+      await page.waitForTimeout(50);
+    }
+    await page.mouse.up();
+    await until(() => gm.messages.some((m) => (m.body as { t?: string }).t === 'move'), 'move sent', 5_000);
+    const drop = gm.messages.find((m) => (m.body as { t?: string }).t === 'move')?.body as { x: number; y: number };
+    const drags = gm.messages.map((m) => m.body as { t?: string; x: number; y: number }).filter((body) => body.t === 'drag');
+    expect(drop.x).toBeGreaterThan(start.x + 350);
+    const middle = drags[Math.floor(drags.length / 2)];
+    if (drags.length < 3 || middle === undefined) throw new Error('too few drags sent');
+    await eventually(() => tokenAt(drop.x, drop.y), 'the token under the pointer');
+
+    // The echo of the middle of the drag arrives after the drop.
+    await deliver([{ id: TOKEN, x: middle.x, y: middle.y }], { x: 300, y: 500 });
+    expect(await tokenAt(drop.x, drop.y)).toBe(true);
+    expect(await tokenAt(middle.x, middle.y)).toBe(false);
+
+    // The lane's end, with the place the GM landed the drop at, overtakes the token list.
+    await deliver([{ id: TOKEN, x: drop.x, y: drop.y, end: true }], { x: 450, y: 500 });
+    expect(await tokenAt(drop.x, drop.y)).toBe(true);
+    expect(await tokenAt(start.x, start.y)).toBe(false);
+
+    // The list lands the drop: nothing moves.
+    const landed = { x: Math.round(drop.x), y: Math.round(drop.y) };
+    send({ t: 'tokens', scene: 's1', seq: 2, cell: 70, snap: null, tokens: [plainToken(TOKEN, landed, 'Mira', 'taken'), plainToken(OTHER, { x: 450, y: 500 }, 'Gobelin', null)] }, player);
+    await page.waitForTimeout(300);
+    expect(await tokenAt(drop.x, drop.y)).toBe(true);
+    expect(await tokenAt(start.x, start.y)).toBe(false);
+  }, 60_000);
 });

@@ -6,6 +6,7 @@ import type { SharedToken } from '../../../src/app/online/protocol/tokens.ts';
 import type { SharedBar } from '../../../src/app/online/protocol/tokenUI.ts';
 import { loadedTokenRingTexture, loadTokenRingTexture } from '../../../src/app/pixi/token-renderer/tokenRingTexture.ts';
 import type { AssetLoader } from './assets.ts';
+import { PendingDrops } from './tokenDrops.ts';
 import { drawTokenUI } from './tokenUI.ts';
 
 /** A token's art is asked for at most this large: tokens are small on screen. */
@@ -23,7 +24,8 @@ interface Drawn {
 /**
  * The tokens the players see, in the GM's drawing order. A player drags only their own tokens:
  * the page sends where the token is while it moves (`drag`) and where it was put down (`move`);
- * the GM checks the move and the next token list says where it stands.
+ * the GM checks the move and the next token list says where it stands, while the token waits at its
+ * drop (`PendingDrops`).
  */
 export class TokenLayer {
   private readonly layer: Container;
@@ -36,6 +38,7 @@ export class TokenLayer {
   private ownBars: Readonly<Record<string, readonly SharedBar[]>> = {};
   private scene: string | null = null;
   private dragging: { id: string; offsetX: number; offsetY: number; lastSent: number } | null = null;
+  private readonly drops: PendingDrops;
   /** Off while the laser or the ruler holds the pointer. */
   private dragsEnabled = true;
 
@@ -44,6 +47,10 @@ export class TokenLayer {
     this.viewport = viewport;
     this.assets = assets;
     this.send = send;
+    this.drops = new PendingDrops((id) => {
+      const drawn = this.drawn.get(id);
+      if (drawn !== undefined && this.dragging?.id !== id) drawn.group.position.set(drawn.token.x, drawn.token.y);
+    });
     // Moves anywhere on the canvas, and a release anywhere in the window, end up here: a token
     // dragged fast leaves its own shape, and a release outside the canvas must still put it down.
     viewport.on('globalpointermove', (event: FederatedPointerEvent) => this.dragTo(event));
@@ -63,6 +70,7 @@ export class TokenLayer {
     this.mine = new Set();
     this.ownBars = {};
     this.dragging = null;
+    this.drops.clear();
     this.viewport.plugins.resume('drag');
     for (const drawn of this.drawn.values()) drawn.group.destroy({ children: true });
     this.drawn.clear();
@@ -94,8 +102,9 @@ export class TokenLayer {
       }
       drawn.token = token;
       this.layer.setChildIndex(drawn.group, Math.min(index, this.layer.children.length - 1));
-      // The token held by this player's pointer stays under the pointer until it is put down.
-      if (this.dragging?.id !== token.id) drawn.group.position.set(token.x, token.y);
+      // The token held by this player's pointer stays under the pointer until it is put down, and
+      // where it was put down until a list lands it there.
+      if (this.dragging?.id !== token.id && !this.drops.keeps(token)) drawn.group.position.set(token.x, token.y);
       this.draw(drawn);
     });
   }
@@ -109,9 +118,9 @@ export class TokenLayer {
   live(places: readonly LivePlace[]): void {
     for (const place of places) {
       const drawn = this.drawn.get(place.id);
-      if (drawn === undefined || this.dragging?.id === place.id) continue;
-      if (place.end === true) drawn.group.position.set(drawn.token.x, drawn.token.y);
-      else drawn.group.position.set(place.x, place.y);
+      if (drawn === undefined || this.dragging?.id === place.id || !this.drops.shows(place)) continue;
+      // An end carries where the drag let go of the token: the list that says so may come after it.
+      drawn.group.position.set(place.x, place.y);
     }
   }
 
@@ -119,6 +128,7 @@ export class TokenLayer {
   refused(id: string, x: number | null, y: number | null): void {
     const drawn = this.drawn.get(id);
     if (drawn === undefined) return;
+    this.drops.forget(id);
     drawn.group.position.set(x ?? drawn.token.x, y ?? drawn.token.y);
   }
 
@@ -198,6 +208,7 @@ export class TokenLayer {
     const drawn = this.drawn.get(id);
     if (drawn === undefined || !this.dragsEnabled || !this.mine.has(id) || this.scene === null || event.button !== 0) return;
     event.stopPropagation();
+    this.drops.forget(id);
     const at = this.viewport.toWorld(event.global);
     this.dragging = { id, offsetX: drawn.group.x - at.x, offsetY: drawn.group.y - at.y, lastSent: 0 };
     this.viewport.plugins.pause('drag');
@@ -226,8 +237,10 @@ export class TokenLayer {
     if (drawn === undefined || this.scene === null) return;
     drawn.group.cursor = 'grab';
     const moved = Math.hypot(drawn.group.x - drawn.token.x, drawn.group.y - drawn.token.y) > 1;
-    if (moved) this.send({ t: 'move', scene: this.scene, id: held.id, x: drawn.group.x, y: drawn.group.y });
-    else this.send({ t: 'drag-cancel', scene: this.scene, id: held.id });
+    if (moved) {
+      this.drops.put(held.id, drawn.group.x, drawn.group.y);
+      this.send({ t: 'move', scene: this.scene, id: held.id, x: drawn.group.x, y: drawn.group.y });
+    } else this.send({ t: 'drag-cancel', scene: this.scene, id: held.id });
   }
 }
 
