@@ -91,6 +91,7 @@ import { preview } from './preview';
 import { recovery } from './recovery';
 import { recoveryEditor } from './recoveryEditor';
 import { rest } from './rest';
+import { worldBackup } from './worldBackup';
 import { review } from './review';
 import { sbCandidate } from './sbCandidate';
 import { sbToken } from './sbToken';
@@ -206,6 +207,7 @@ export const en = {
   ...recovery,
   ...recoveryEditor,
   ...rest,
+  ...worldBackup,
   ...review,
   ...sbCandidate,
   ...sbToken,

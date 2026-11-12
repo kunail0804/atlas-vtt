@@ -23,6 +23,13 @@ export interface OnlinePlay {
   settingsSections(): AtlasSettingSection[];
   /** The table's log for other plugins; null while online play is switched off. */
   chat(): TableChat | null;
+  /** Settles once online play's data file holds what online play keeps in memory. */
+  flush(): Promise<void>;
+  /**
+   * Runs `work` with online play unloaded, so nothing it holds in memory is saved over its data file
+   * meanwhile, then loads it again from the file as `work` left it (a running table comes back).
+   */
+  paused<T>(work: () => Promise<T>): Promise<T>;
 }
 
 /**
@@ -34,7 +41,10 @@ export interface OnlinePlay {
 export function registerOnlinePlay(plugin: Plugin, settings: SettingsService): OnlinePlay {
   let feature: OnlineFeature | null = null;
   let toldTooOld = false;
+  /** True while `paused` runs: online play stays unloaded until its work is done, whatever the settings say meanwhile. */
+  let pausing = false;
   const sync = (): void => {
+    if (pausing) return;
     const wanted = settings.isExperimentalOn('onlinePlay');
     const on = wanted && requireApiVersion(SECRET_STORAGE_VERSION);
     if (wanted && !on && !toldTooOld) {
@@ -65,5 +75,25 @@ export function registerOnlinePlay(plugin: Plugin, settings: SettingsService): O
     setRestGate(null);
   });
   sync();
-  return { settingsSections: () => feature?.settingsSections() ?? [], chat: () => feature?.chat ?? null };
+  const paused = async <T>(work: () => Promise<T>): Promise<T> => {
+    const running = feature;
+    if (running === null) return work();
+    await running.flush();
+    // Unloading closes the table's connection only: the table stays on the server, and the next load comes back to it.
+    plugin.removeChild(running);
+    feature = null;
+    pausing = true;
+    try {
+      return await work();
+    } finally {
+      pausing = false;
+      sync();
+    }
+  };
+  return {
+    settingsSections: () => feature?.settingsSections() ?? [],
+    chat: () => feature?.chat ?? null,
+    flush: () => feature?.flush() ?? Promise.resolve(),
+    paused,
+  };
 }
