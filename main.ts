@@ -84,6 +84,8 @@ import { SoundDirector } from './src/app/soundDirector/SoundDirector';
 import { SceneMoodLinks } from './src/app/soundLibrary/SceneMoodLinks';
 import { soundSettingsSection } from './src/app/settings/soundSettingsSection';
 import { registerOnlinePlay, type OnlinePlay } from './src/app/plugin/onlinePlay';
+import { registerWorldBackups } from './src/app/worldBackups/registerWorldBackups';
+import { worldBackupsSettingsSection } from './src/app/settings/worldBackupsSettingsSection';
 import type { TableChat } from './src/app/online/gm/tableChat';
 import { registerPlayerWindowReloadCleanup } from './src/app/plugin/playerWindowReload';
 import { registerReturnToAtlasOnClose } from './src/app/plugin/returnToAtlasOnClose';
@@ -226,6 +228,7 @@ export default class AtlasVTTPlugin extends Plugin {
 
     const onlinePlay = registerOnlinePlay(this, this.settingsService);
     this.onlinePlay = onlinePlay;
+    const worldBackups = registerWorldBackups(this, onlinePlay);
     this.addSettingTab(new AtlasSettingTab(this.app, this, () => [
       navigationSettingsSection(this.settingsService),
       diceSettingsSection(this.settingsService),
@@ -236,6 +239,7 @@ export default class AtlasVTTPlugin extends Plugin {
       onboardingSettingsSection(this.settingsService),
       changelogSettingsSection(this.settingsService, changelogService, this.manifest.version, updateWatch),
       ...onlinePlay.settingsSections(),
+      worldBackupsSettingsSection(this.app, worldBackups),
       supportSettingsSection(issueReporter),
     ]));
     this.registerEditorSuggest(new HeaderAutocompleteSuggest(this.app));
