@@ -12,6 +12,11 @@ export interface SceneLighting {
   tokenVision?: boolean;
   /** What tokens saw stays shown as explored; unset is on. Off records nothing and shows no memory, but keeps the saved memory. */
   exploredMemory?: boolean;
+  /**
+   * Who fills explored memory: `players` (what their tokens see is recorded) or `gm` (tokens record
+   * nothing; the GM reveals by hand). Unset is `gm`. Read with `exploredRevealerOf`.
+   */
+  exploredBy?: ExploredRevealer;
   /** Tint of remembered areas in the players' view; unset is neutral. */
   exploredColor?: string;
   /** Fill of never-seen areas in the players' view; unset is black. */
@@ -30,6 +35,9 @@ export interface SceneLighting {
   /** Tint of that picture, `#rrggbb`; unset is none. Read with `darkSightTintOf`. */
   darkSightTint?: string;
 }
+
+/** Who fills a scene's explored memory: the players' tokens, or the GM by hand. */
+export type ExploredRevealer = 'players' | 'gm';
 
 /**
  * The look of what is perceived without light and without colour: `system` as each sense of the

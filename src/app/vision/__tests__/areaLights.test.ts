@@ -131,7 +131,7 @@ describe('the rule of an area light', () => {
   it('records the area and its reach as explored where a token sees by light', () => {
     const reaches = reachOf([]);
     const region = { tokenId: 't', sense: NORMAL_SIGHT, origin: { x: 500, y: 900 }, radius: 2000, polygon: [{ x: 0, y: 0 }, { x: 1000, y: 0 }, { x: 1000, y: 1000 }, { x: 0, y: 1000 }], apex: 0, seesInvisible: false };
-    const shapes = exploredShapes({ all: false, regions: [region] }, ambient, reaches)!;
+    const shapes = exploredShapes({ all: false, regions: [region] }, { ...ambient, exploredBy: 'players' }, reaches)!;
     expect(shapes.polygons[0]).toBe(POOL);
     expect(shapes.polygons.length).toBe(1 + reaches[0]!.parts!.length);
   });

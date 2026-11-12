@@ -13,48 +13,15 @@ const gpu = vi.hoisted(() => ({ lost: false, restored: false }));
 
 // The view works its sight out on the CPU and hands the scene to the engine and the explored
 // memory, which draw. Both are left out here: this suite holds what the view says of its sight.
-vi.mock('../../src/app/pixi/lighting/engine/LightingEngine', async () => {
-  const { Container: Layer } = await import('pixi.js');
-  return {
-    LightingEngine: class {
-      readonly layer = new Layer();
-      readonly failed = false;
-      takeRestored(): boolean {
-        const restored = gpu.restored;
-        gpu.restored = false;
-        return restored;
-      }
-      renderFrame<T>(_frame: unknown, render: () => T): T { return render(); }
-      hasWorld(): boolean { return false; }
-      busy(): boolean { return false; }
-      animate(): boolean { return false; }
-      setEnabled(): void {}
-      setCoverage(): void {}
-      setExplored(): void {}
-      setMode(): void {}
-      setView(): void {}
-      setGrid(): void {}
-      update(): void {}
-      flush(): void {}
-      fail(): void {}
-      destroy(): void {}
-    },
-  };
-});
-vi.mock('../../src/app/pixi/lighting/ExploredMemory', () => ({
-  ExploredMemory: class {
-    sync(): void {}
-    record(): void {}
-    stampDue(): boolean { return false; }
-    reload(): void {}
-    reset(): void {}
-    edit(): boolean { return false; }
-    forgetEdits(): void {}
-    holdSaves(): void {}
-    cancelSaves(): void {}
-    beforeMapUnload(): void {}
-    destroy(): void {}
-  },
+vi.mock('../../src/app/pixi/lighting/engine/LightingEngine', async () => ({
+  LightingEngine: (await import('../helpers/lightingRendererStubs')).stubLightingEngine(() => {
+    const restored = gpu.restored;
+    gpu.restored = false;
+    return restored;
+  }),
+}));
+vi.mock('../../src/app/pixi/lighting/ExploredMemory', async () => ({
+  ExploredMemory: (await import('../helpers/lightingRendererStubs')).stubExploredMemory(),
 }));
 
 const MAP: MapBounds = { width: 1000, height: 1000 };
