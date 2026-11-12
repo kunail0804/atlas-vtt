@@ -54,23 +54,14 @@ export class CampaignService {
    * `sources` removes the field.
    */
   update(id: string, changes: CampaignChanges): void {
-    if (changes.description !== undefined && changes.description.length > MAX_CAMPAIGN_DESCRIPTION) throw new Error('The description is too long.');
-    if (changes.sources !== undefined && (changes.sources.length > MAX_CAMPAIGN_SOURCES || !changes.sources.every(isSourceId))) throw new Error('Not a list of compendium sources.');
-    const { system, sources, ...rest } = changes;
-    const before = this.storage.entries().find((entry) => entry.id === id);
-    if (system !== undefined && readCampaignSystem(withSystemChanges(before?.system, system)) === undefined) throw new Error('Not a game system.');
-    this.modify(id, (stored) => {
-      const next: StoredCampaign = { ...stored };
-      for (const [key, value] of Object.entries(rest)) {
-        if (value === undefined || value === '') delete next[key];
-        else next[key] = value;
-      }
-      if (sources !== undefined && sources.length > 0) next.sources = [...sources];
-      else if ('sources' in changes) delete next.sources;
-      if (system !== undefined) next.system = withSystemChanges(stored.system, system);
-      else if ('system' in changes) delete next.system;
-      return next;
-    });
+    this.modify(id, this.changeOf(id, changes));
+  }
+
+  /** `update`, settling once the change is on disk; rejects when it is invalid or could not be written. */
+  async save(id: string, changes: CampaignChanges): Promise<void> {
+    const change = this.changeOf(id, changes);
+    this.assertWritable(id);
+    await this.storage.save(id, change);
   }
 
   /**
@@ -100,11 +91,36 @@ export class CampaignService {
     return this.storage.onChange(listener);
   }
 
+  /** The change `changes` make to a stored campaign; throws when they are invalid. */
+  private changeOf(id: string, changes: CampaignChanges): (stored: StoredCampaign) => StoredCampaign {
+    if (changes.description !== undefined && changes.description.length > MAX_CAMPAIGN_DESCRIPTION) throw new Error('The description is too long.');
+    if (changes.sources !== undefined && (changes.sources.length > MAX_CAMPAIGN_SOURCES || !changes.sources.every(isSourceId))) throw new Error('Not a list of compendium sources.');
+    const { system, sources, ...rest } = changes;
+    const before = this.storage.entries().find((entry) => entry.id === id);
+    if (system !== undefined && readCampaignSystem(withSystemChanges(before?.system, system)) === undefined) throw new Error('Not a game system.');
+    return (stored) => {
+      const next: StoredCampaign = { ...stored };
+      for (const [key, value] of Object.entries(rest)) {
+        if (value === undefined || value === '') delete next[key];
+        else next[key] = value;
+      }
+      if (sources !== undefined && sources.length > 0) next.sources = [...sources];
+      else if ('sources' in changes) delete next.sources;
+      if (system !== undefined) next.system = withSystemChanges(stored.system, system);
+      else if ('system' in changes) delete next.system;
+      return next;
+    };
+  }
+
   private modify(id: string, change: (stored: StoredCampaign) => StoredCampaign): void {
+    this.assertWritable(id);
+    this.storage.update(id, change);
+  }
+
+  private assertWritable(id: string): void {
     const campaign = this.get(id);
     if (campaign === undefined) throw new Error(`No campaign with id ${id}`);
     if (campaign.readOnly === true) throw new Error(t('campaign.newerVersion'));
-    this.storage.update(id, change);
   }
 
   private assertName(name: string, exceptId?: string): void {

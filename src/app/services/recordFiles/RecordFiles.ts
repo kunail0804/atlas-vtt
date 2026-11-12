@@ -86,7 +86,7 @@ export class RecordFiles<Stored extends StoredRecord> {
     this.bump(path);
     this.files.set(path, { text: this.layout.text(record), record });
     this.changed();
-    this.enqueue(() => this.writeNew(record.id));
+    void this.enqueue(() => this.writeNew(record.id));
   }
 
   /**
@@ -99,11 +99,19 @@ export class RecordFiles<Stored extends StoredRecord> {
     this.bump(path);
     this.files.set(path, { text: this.layout.text(record), record });
     this.changed();
-    this.enqueue(() => this.writeAt(path, change));
+    void this.enqueue(() => this.writeAt(path, change));
   }
 
   /** Changes the record; on disk the change is applied to what the file holds then. */
   update(id: string, change: (stored: Stored) => Stored): void {
+    void this.save(id, change);
+  }
+
+  /**
+   * Changes the record as `update` does and settles once the change is on disk; rejects when
+   * writing it failed, for a caller that must tell the user. The failure is logged either way.
+   */
+  save(id: string, change: (stored: Stored) => Stored): Promise<void> {
     const path = this.pathOf(id);
     const record = path ? this.files.get(path)?.record : null;
     if (!path || !record) throw new Error(`No ${this.layout.kind} file holds ${id}`);
@@ -111,7 +119,7 @@ export class RecordFiles<Stored extends StoredRecord> {
     this.bump(path);
     this.files.set(path, { text: this.layout.text(next), record: next });
     this.changed();
-    this.enqueue(() => this.writeChange(id, change));
+    return this.enqueue(() => this.writeChange(id, change));
   }
 
   /** Removes every file (or folder) that holds the record, conflict copies included, so none brings it back. */
@@ -120,7 +128,7 @@ export class RecordFiles<Stored extends StoredRecord> {
     if (paths.length === 0) return;
     for (const path of paths) this.files.delete(path);
     this.changed();
-    this.enqueue(async () => {
+    void this.enqueue(async () => {
       for (const path of paths) {
         const named = this.app.vault.getAbstractFileByPath(this.layout.namedPath(path));
         if (named) await this.app.fileManager.trashFile(named);
@@ -163,10 +171,13 @@ export class RecordFiles<Stored extends StoredRecord> {
     this.listeners.clear();
   }
 
-  private enqueue(write: () => Promise<void>): void {
-    this.writes = this.writes.then(write).catch((error: unknown) => {
+  /** Queues `write` after the writes before it; the promise returned rejects with its failure, while the queue goes on. */
+  private enqueue(write: () => Promise<void>): Promise<void> {
+    const written = this.writes.then(write);
+    this.writes = written.catch((error: unknown) => {
       console.error(`[Atlas] Writing a ${this.layout.kind} file failed:`, error);
     });
+    return written;
   }
 
   private async writeNew(id: string): Promise<void> {
