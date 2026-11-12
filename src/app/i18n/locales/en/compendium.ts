@@ -15,6 +15,7 @@ export const compendium = {
   'compendium.personalBook': 'Personal',
   'compendium.personalIntro': 'Atlas adds a Personal book for each rule set the campaign uses, where your own entries go. The books Atlas publishes stay as published, and an update never mixes with your entries.',
   'compendium.personalFailed': 'Could not make the personal book: {error}',
+  'compendium.saveFailed': 'Could not save the sources of this campaign: {error}',
   'compendium.missing': 'Not in this vault',
   'compendium.missingHint': 'This campaign lists sources this vault does not have. Untick them, or install them from a file.',
   'compendium.installFile': 'Install from a file…',

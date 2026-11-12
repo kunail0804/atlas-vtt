@@ -1,24 +1,27 @@
-import { Circle, Container, Graphics, Sprite, Text, Texture, type FederatedPointerEvent } from 'pixi.js';
+import { Circle, Container, Graphics, Sprite, Text, type FederatedPointerEvent } from 'pixi.js';
 import type { Viewport } from 'pixi-viewport';
 import type { LivePlace } from '../../../src/app/online/protocol/live.ts';
 import type { PlayerMessage } from '../../../src/app/online/protocol/game.ts';
 import type { SharedToken } from '../../../src/app/online/protocol/tokens.ts';
 import type { SharedBar } from '../../../src/app/online/protocol/tokenUI.ts';
 import { loadedTokenRingTexture, loadTokenRingTexture } from '../../../src/app/pixi/token-renderer/tokenRingTexture.ts';
+import { destroyTree } from '../../../src/app/pixi/utils/destroyTree.ts';
 import type { AssetLoader } from './assets.ts';
+import { TokenArt } from './tokenArt.ts';
 import { PendingDrops } from './tokenDrops.ts';
 import { drawTokenUI } from './tokenUI.ts';
 
-/** A token's art is asked for at most this large: tokens are small on screen. */
-const TOKEN_ART_SIDE = 512;
 /** Drags go out at most this often, as the GM's own live messages do (`LIVE_INTERVAL_MS`). */
 const DRAG_INTERVAL_MS = 33;
 
 interface Drawn {
   token: SharedToken;
   readonly group: Container;
-  art: Sprite | null;
-  artHash: string | null;
+  /** Everything drawn around the art (placeholder disc, ring, bars, conditions, name), rebuilt as one. */
+  readonly decor: Container;
+  readonly art: TokenArt;
+  /** What the decor was last drawn from (`lookOf`); null draws it again. */
+  look: string | null;
 }
 
 /**
@@ -59,7 +62,11 @@ export class TokenLayer {
     // Tokens drawn before the ring's artwork arrived show a plain ring until then.
     if (loadedTokenRingTexture() === null) {
       void loadTokenRingTexture().then((texture) => {
-        if (texture !== null) for (const drawn of this.drawn.values()) this.draw(drawn);
+        if (texture === null) return;
+        for (const drawn of this.drawn.values()) {
+          drawn.look = null;
+          this.update(drawn);
+        }
       });
     }
   }
@@ -72,7 +79,7 @@ export class TokenLayer {
     this.dragging = null;
     this.drops.clear();
     this.viewport.plugins.resume('drag');
-    for (const drawn of this.drawn.values()) drawn.group.destroy({ children: true });
+    for (const drawn of this.drawn.values()) destroyTree(drawn.group);
     this.drawn.clear();
   }
 
@@ -83,7 +90,7 @@ export class TokenLayer {
   setMine(ids: readonly string[], bars: Readonly<Record<string, readonly SharedBar[]>> = {}): void {
     this.mine = new Set(ids);
     this.ownBars = bars;
-    for (const drawn of this.drawn.values()) this.draw(drawn);
+    for (const drawn of this.drawn.values()) this.update(drawn);
   }
 
   /** The whole token list: tokens not in it go, the order is the list's. */
@@ -91,7 +98,7 @@ export class TokenLayer {
     const kept = new Set(tokens.map((token) => token.id));
     for (const [id, drawn] of this.drawn) {
       if (kept.has(id)) continue;
-      drawn.group.destroy({ children: true });
+      destroyTree(drawn.group);
       this.drawn.delete(id);
     }
     tokens.forEach((token, index) => {
@@ -105,7 +112,7 @@ export class TokenLayer {
       // The token held by this player's pointer stays under the pointer until it is put down, and
       // where it was put down until a list lands it there.
       if (this.dragging?.id !== token.id && !this.drops.keeps(token)) drawn.group.position.set(token.x, token.y);
-      this.draw(drawn);
+      this.update(drawn);
     });
   }
 
@@ -136,57 +143,35 @@ export class TokenLayer {
     const group = new Container();
     group.eventMode = 'static';
     group.on('pointerdown', (event: FederatedPointerEvent) => this.pick(token.id, event));
+    const decor = new Container();
+    group.addChild(decor);
     this.layer.addChild(group);
-    return { token, group, art: null, artHash: null };
+    return { token, group, decor, art: new TokenArt(group, decor, this.assets, token), look: null };
+  }
+
+  /** Draws a token's decor again only where its look changed: a token that only moved or turned keeps it. */
+  private update(drawn: Drawn): void {
+    const look = lookOf(drawn.token, this.mine.has(drawn.token.id), this.ownBars[drawn.token.id]);
+    drawn.art.show(drawn.token);
+    if (look === drawn.look) return;
+    drawn.look = look;
+    this.draw(drawn);
   }
 
   private draw(drawn: Drawn): void {
-    const { token, group } = drawn;
-    group.angle = 0;
-    if (drawn.art !== null) drawn.art.mask = null;
-    for (const child of [...group.children]) if (child !== drawn.art) child.destroy();
+    const { token, group, decor } = drawn;
+    for (const child of [...decor.children]) destroyTree(child);
     const radius = token.size / 2;
     // The shapes inside are passive: the group itself takes the pointer, over the token's disc.
     group.hitArea = new Circle(0, 0, Math.max(radius, (token.ring?.size ?? 0) / 2));
-    if (token.art === null) {
-      group.addChild(new Graphics().circle(0, 0, radius).fill({ color: 0x5b6270 }));
-    } else if (drawn.artHash !== token.art.hash) {
-      drawn.artHash = token.art.hash;
-      const hash = token.art.hash;
-      this.assets.image(token.art, TOKEN_ART_SIDE).then((image) => {
-        if (drawn.artHash !== hash || group.destroyed) return;
-        drawn.art?.destroy();
-        const sprite = new Sprite(Texture.from(image.bitmap));
-        sprite.anchor.set(0.5);
-        drawn.art = sprite;
-        group.addChild(sprite);
-        this.draw(drawn);
-      }).catch(() => undefined);
-    }
-    if (drawn.art !== null) {
-      const art = drawn.art;
-      const scale = token.size / Math.max(art.texture.width, art.texture.height);
-      art.scale.set(scale);
-      art.angle = token.rotation;
-      if (token.ring !== null) {
-        // A framed token shows its art as a disc inside the ring.
-        const mask = new Graphics().circle(0, 0, radius).fill({ color: 0xffffff });
-        group.addChild(mask);
-        art.mask = mask;
-      } else {
-        art.mask = null;
-      }
-      group.setChildIndex(art, group.children.length - 1);
-      // A downed creature is greyed out, under its skull.
-      art.tint = token.ui?.downed === true ? 0x6b6b6b : 0xffffff;
-    }
-    if (token.ring !== null) group.addChild(ringOf(token.size, token.ring));
+    if (token.art === null) decor.addChild(new Graphics().circle(0, 0, radius).fill({ color: 0x5b6270 }));
+    if (token.ring !== null) decor.addChild(ringOf(token.size, token.ring));
     const outer = token.ring?.size ?? token.size;
     let nameTop = outer / 2 + 4;
     if (token.ui !== null) {
       const own = this.mine.has(token.id) ? this.ownBars[token.id] : undefined;
       const ui = own === undefined ? token.ui : { ...token.ui, bars: own };
-      nameTop = drawTokenUI(group, ui, token.size, outer).nameTop;
+      nameTop = drawTokenUI(decor, ui, token.size, outer).nameTop;
     }
     // A creature shows its name only where the GM's nameplate does; other tokens show the name they are sent.
     const showName = token.name !== null && token.name !== '' && (token.ui === null || token.ui.nameplate);
@@ -194,7 +179,7 @@ export class TokenLayer {
       const label = new Text({ text: token.name ?? '', style: { fontFamily: 'system-ui, sans-serif', fontSize: Math.max(10, radius * 0.35), fill: 0xffffff, stroke: { color: 0x000000, width: 3 } } });
       label.anchor.set(0.5, 0);
       label.position.set(0, nameTop);
-      group.addChild(label);
+      decor.addChild(label);
     }
     this.style(drawn);
   }
@@ -242,6 +227,15 @@ export class TokenLayer {
       this.send({ t: 'move', scene: this.scene, id: held.id, x: drawn.group.x, y: drawn.group.y });
     } else this.send({ t: 'drag-cancel', scene: this.scene, id: held.id });
   }
+}
+
+/**
+ * What a token's decor is drawn from, as one text: everything `draw` reads but its place and turn. Lists arrive
+ * parsed anew, so their tokens are compared by value.
+ */
+function lookOf(token: SharedToken, mine: boolean, ownBars: readonly SharedBar[] | undefined): string {
+  const { size, art, name, ring, ui } = token;
+  return JSON.stringify([size, art?.hash ?? null, name, ring, ui, mine, mine ? ownBars ?? null : null]);
 }
 
 /**

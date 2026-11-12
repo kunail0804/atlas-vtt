@@ -3,6 +3,7 @@ import { counter } from './counter';
 import { recovery } from './recovery';
 import { recoveryEditor } from './recoveryEditor';
 import { rest } from './rest';
+import { worldBackup } from './worldBackup';
 import { statblock } from './statblock';
 import { statblockEditor } from './statblockEditor';
 
@@ -12,6 +13,7 @@ export const fr: Translation = {
   ...recovery,
   ...recoveryEditor,
   ...rest,
+  ...worldBackup,
   ...statblock,
   ...statblockEditor,
 };

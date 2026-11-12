@@ -70,6 +70,8 @@ export class OnlineFeature extends Component {
   /** The running table's log as saved with it; undefined while there is none. */
   private savedLog: unknown = undefined;
   private logSave: number | null = null;
+  /** The last write of the data file, settled whether it worked or not (`flush`). */
+  private writing: Promise<void> = Promise.resolve();
   /** Where the shelf keeps books: the campaign's books file once a table is bound to one, else nowhere (they stay in memory). */
   private readonly bookSource = new BoundBookSource();
   /** The players' books; they outlive tables. */
@@ -288,13 +290,21 @@ export class OnlineFeature extends Component {
   async saveSettings(): Promise<void> {
     if (this.logSave !== null) companionTimers().clearTimer(this.logSave);
     this.logSave = null;
-    await this.data.write({
+    const write = this.data.write({
       ...this.settings,
       table: this.savedTable,
       ...(this.savedLog !== undefined && { tableLog: this.savedLog }),
       ...(Object.keys(this.legacyBooks).length > 0 && { books: this.legacyBooks }),
       ...(this.legacyAssignments !== NO_ASSIGNMENTS && { ownership: this.legacyAssignments }),
     });
+    this.writing = write.catch(() => undefined);
+    await write;
+  }
+
+  /** Settles once this device's data holds everything online play keeps, the log change still waiting included. */
+  async flush(): Promise<void> {
+    if (this.logSave !== null) await this.saveSettings().catch(() => undefined);
+    await this.writing;
   }
 
   /**

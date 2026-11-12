@@ -2,10 +2,10 @@
  * What taking a compendium entry into a 5E character's statblock changes: the patches of its note's
  * fields (`fiveECharacterFields.ts`), and for a weapon or an armour the item that goes into the
  * character's book with the slot it is worn in. Pure: the entry is its name and frontmatter, the note
- * its frontmatter.
+ * its frontmatter, the book what it holds once the item went in.
  */
 
-import type { BookItemDraft } from '../online/protocol/book';
+import type { BookItem, BookItemDraft, PlayerBook } from '../online/protocol/book';
 import type { FieldValue } from '../statblocks/model/templateTypes';
 import type { NotePatch } from '../statblocks/notes/patchTypes';
 import { toFieldValue } from '../statblocks/values/fieldValueOf';
@@ -17,9 +17,10 @@ export interface BookGear {
   readonly slot: 'main-hand' | 'off-hand' | 'armour';
 }
 
-export interface PickResult {
-  readonly patches: readonly NotePatch[];
-  readonly gear: BookGear | null;
+/** What the book wears once a picked item went in: whether that item itself is worn, and the armour class a shield in the off hand adds (null: none). */
+export interface WornGear {
+  readonly equipped: boolean;
+  readonly shield: number | null;
 }
 
 type Frontmatter = Readonly<Record<string, unknown>>;
@@ -70,15 +71,33 @@ export function gearKind(frontmatter: Frontmatter): 'weapon' | 'armor' | null {
 
 const isShield = (frontmatter: Frontmatter): boolean => text(frontmatter['item-type']).toLowerCase() === 'shield' || text(frontmatter['armor-category']).toLowerCase() === 'shield';
 
-/** The armour class an armour gives the character of a note: its base, Dexterity up to its cap, +2 for a shield on what they had. */
-export function armorClassWith(frontmatter: Frontmatter, note: Frontmatter): number | null {
+/** The armour class a shield's book item adds: the one its Armor Class property names, else null (no shield). */
+function shieldBonusOf(item: BookItem): number | null {
+  if (item.type?.trim().toLowerCase() !== 'shield') return null;
+  const value = Number(item.properties.find((property) => property.label === 'Armor Class')?.value);
+  return Number.isFinite(value) ? value : null;
+}
+
+/** What `book` wears of the item `id` and in the off hand, once that item went in. */
+export function wornGear(book: Pick<PlayerBook, 'items' | 'equipped'>, id: string): WornGear {
+  const offHand = book.equipped.find((entry) => entry.slot === 'off-hand');
+  const shield = offHand === undefined ? undefined : book.items.find((item) => item.id === offHand.item);
+  return { equipped: book.equipped.some((entry) => entry.item === id), shield: shield === undefined ? null : shieldBonusOf(shield) };
+}
+
+/**
+ * The armour class an armour or a shield gives the character of a note once worn: an armour its base,
+ * Dexterity up to its cap and the shield worn; a shield its bonus on what the note holds, which counts
+ * no shield since the off hand was free. Null where the item is not worn or gives no armour class.
+ */
+export function armorClassWith(frontmatter: Frontmatter, note: Frontmatter, worn: WornGear): number | null {
   const base = frontmatter['armor-class'];
-  if (typeof base !== 'number' || !Number.isFinite(base)) return null;
-  if (isShield(frontmatter)) return Math.min(50, (typeof note.ac === 'number' ? note.ac : 10) + base);
+  if (!worn.equipped || typeof base !== 'number' || !Number.isFinite(base)) return null;
+  if (isShield(frontmatter)) return Math.max(0, Math.min(50, (typeof note.ac === 'number' ? note.ac : 10) + base));
   const dex = modifierOf(note, 1);
   const cap = frontmatter['max-dex-bonus'];
   const bonus = frontmatter['dex-bonus'] === true ? (typeof cap === 'number' ? Math.min(dex, cap) : dex) : 0;
-  return Math.max(0, Math.min(50, base + bonus));
+  return Math.max(0, Math.min(50, base + bonus + (worn.shield ?? 0)));
 }
 
 /** A weapon's attack for the character of a note, as an entry: Strength, Dexterity for a ranged weapon, the better for a finesse one. */
@@ -114,36 +133,41 @@ export function bookItemOf(name: string, frontmatter: Frontmatter, body: string)
   };
 }
 
+/** The item a weapon or an armour puts into the book, with the slot it is worn in; null for every other kind. */
+export function gearOf(kind: PickKind, name: string, frontmatter: Frontmatter, body: string): BookGear | null {
+  if (kind === 'weapon') return { item: bookItemOf(name, frontmatter, body), slot: 'main-hand' };
+  if (kind === 'armor') return { item: bookItemOf(name, frontmatter, body), slot: isShield(frontmatter) ? 'off-hand' : 'armour' };
+  return null;
+}
+
 /**
  * The note's patches for taking `name` of kind `kind`: a class is added with level 1 and its hit die
  * (once), a subclass, species or background is set, a spell joins the list (once), a weapon an attack
- * (once) and an armour sets the armour class. A weapon and an armour also go into the book.
+ * (once), and an armour sets the armour class where the book wears it (`worn`; null: no book kept).
  */
-export function pickResult(kind: PickKind, name: string, frontmatter: Frontmatter, body: string, note: Frontmatter): PickResult {
+export function pickResult(kind: PickKind, name: string, frontmatter: Frontmatter, note: Frontmatter, worn: WornGear | null): NotePatch[] {
   switch (kind) {
     case 'class': {
       const classes = entriesOf(note, 'classes');
-      if (has(classes, name) || classes.length >= 6) return { patches: [], gear: null };
+      if (has(classes, name) || classes.length >= 6) return [];
       const die = /d(\d+)/i.exec(text(frontmatter['hit-die']))?.[1];
-      return { patches: [appended(note, 'classes', { name: cut(name, 40), level: 1, ...(die !== undefined && { die: `d${die}` }) })], gear: null };
+      return [appended(note, 'classes', { name: cut(name, 40), level: 1, ...(die !== undefined && { die: `d${die}` }) })];
     }
     case 'subclass':
     case 'species':
     case 'background':
-      return { patches: [setField(note, kind, cut(name, 120))], gear: null };
+      return [setField(note, kind, cut(name, 120))];
     case 'spell': {
-      if (has(entriesOf(note, 'spell_list'), name)) return { patches: [], gear: null };
+      if (has(entriesOf(note, 'spell_list'), name)) return [];
       const level = typeof frontmatter.level === 'number' ? Math.max(0, Math.min(9, Math.trunc(frontmatter.level))) : 0;
       const notes = [text(frontmatter['casting-time']), text(frontmatter.range), text(frontmatter.duration)].filter((part) => part !== '').join(' · ');
-      return { patches: [appended(note, 'spell_list', { name: cut(name, 40), ...(notes !== '' && { desc: cut(notes, 120) }), level })], gear: null };
+      return [appended(note, 'spell_list', { name: cut(name, 40), ...(notes !== '' && { desc: cut(notes, 120) }), level })];
     }
-    case 'weapon': {
-      const patches = has(entriesOf(note, 'attacks'), name) ? [] : [appended(note, 'attacks', attackOf(name, frontmatter, note))];
-      return { patches, gear: { item: bookItemOf(name, frontmatter, body), slot: 'main-hand' } };
-    }
+    case 'weapon':
+      return has(entriesOf(note, 'attacks'), name) ? [] : [appended(note, 'attacks', attackOf(name, frontmatter, note))];
     case 'armor': {
-      const ac = armorClassWith(frontmatter, note);
-      return { patches: ac === null ? [] : [setField(note, 'ac', ac)], gear: { item: bookItemOf(name, frontmatter, body), slot: isShield(frontmatter) ? 'off-hand' : 'armour' } };
+      const ac = worn === null ? null : armorClassWith(frontmatter, note, worn);
+      return ac === null ? [] : [setField(note, 'ac', ac)];
     }
   }
 }
