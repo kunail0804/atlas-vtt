@@ -47,6 +47,6 @@ describe('restSummaryText', () => {
     ] as const;
     const skipped = [{ index: 2, ref: 'always:2', rule: long.rules[0]!, label: 'Stress', reason: { kind: 'no-value', key: 'stress' } }] as const;
     expect(restSummaryText('Long rest', changes, [])).toBe('Long rest: HP 4 → 18 (2d8+2) · Wand 0 → 3');
-    expect(restSummaryText('Long rest', [], skipped)).toBe('Long rest: nothing to recover.\nSkipped: Stress (no open scene or played campaign holds it)');
+    expect(restSummaryText('Long rest', [], skipped)).toBe('Long rest: nothing to recover.\nSkipped: Stress (no open scene or played world holds it)');
   });
 });

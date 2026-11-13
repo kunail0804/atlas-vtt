@@ -152,8 +152,8 @@ describe('the table\'s link', () => {
     opened.push(early);
     const loading = new TableSeats(TablePlayers.open(early.app));
     expect(campaignLink(loading)).toBeNull();
-    expect(linkRefusal(loading)).toBe('The campaigns and the table\'s players are still loading. Try again in a moment.');
-    expect(refusalText(loading, 'Noor')).toBe('The campaigns and the table\'s players are still loading. Try again in a moment.');
+    expect(linkRefusal(loading)).toBe('The worlds and the table\'s players are still loading. Try again in a moment.');
+    expect(refusalText(loading, 'Noor')).toBe('The worlds and the table\'s players are still loading. Try again in a moment.');
 
     const { seats: later } = await table({ [TABLE_PLAYERS_PATH]: LATER });
     expect(campaignLink(later)).toBeNull();
