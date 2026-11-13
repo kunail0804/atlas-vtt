@@ -20,7 +20,7 @@ export interface StoredBook {
 /**
  * The books as an older Atlas kept them in the companion's data: by collection id (`NO_COLLECTION`
  * for a scene outside every collection), then by character, which was its token's artwork path.
- * They are carried over into the campaign's books file (`bookMigration.ts`).
+ * They are carried over into the table's books file (`bookMigration.ts`).
  */
 export type BookData = Readonly<Record<string, Readonly<Record<string, StoredBook>>>>;
 

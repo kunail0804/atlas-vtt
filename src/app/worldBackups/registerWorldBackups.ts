@@ -1,7 +1,7 @@
 import type { Plugin } from 'obsidian';
 import { CampaignFiles } from '../campaigns/CampaignFiles';
 import { PartySync } from '../campaigns/partyValues/PartySync';
-import { CampaignBooks } from '../campaigns/players/CampaignBooks';
+import { TableBooks } from '../campaigns/players/TableBooks';
 import { TablePlayers } from '../campaigns/players/TablePlayers';
 import type { OnlinePlay } from '../plugin/onlinePlay';
 import type { WorldBackupControls } from '../settings/worldBackupsSettingsSection';
@@ -30,7 +30,7 @@ export function registerWorldBackups(plugin: Plugin, onlinePlay: OnlinePlay): Wo
         onlinePlay.flush(),
         CampaignFiles.forApp(app)?.flush(),
         TablePlayers.forApp(app)?.flush(),
-        CampaignBooks.forApp(app)?.flush(),
+        TableBooks.forApp(app)?.flush(),
         PartySync.forApp(app)?.flush(),
       ]);
     },

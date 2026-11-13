@@ -8,11 +8,11 @@ import { secretTokenStore } from './account/tokenStore.ts';
 import { activeAtlasLeaf } from './atlasView.ts';
 import { AssetService } from '../../services/AssetService';
 import { openPinNote } from '../../services/noteHeadings';
-import { CampaignBooks } from '../../campaigns/players/CampaignBooks';
+import { TableBooks } from '../../campaigns/players/TableBooks';
 import { TablePlayers } from '../../campaigns/players/TablePlayers';
 import { BookShelf } from './book/BookShelf.ts';
 import { setActiveShelf } from './book/activeShelf.ts';
-import { BoundBookSource, campaignBookSource } from './book/campaignBookSource.ts';
+import { BoundBookSource, tableBookSource } from './book/tableBookSource.ts';
 import { readBooks, type BookData } from './book/bookStore.ts';
 import { carryBooksOver } from './book/legacyBooks.ts';
 import { CompanionDiagnostics } from './companionDiagnostics.ts';
@@ -72,11 +72,11 @@ export class OnlineFeature extends Component {
   private logSave: number | null = null;
   /** The last write of the data file, settled whether it worked or not (`flush`). */
   private writing: Promise<void> = Promise.resolve();
-  /** Where the shelf keeps books: the campaign's books file once a table is bound to one, else nowhere (they stay in memory). */
+  /** Where the shelf keeps books: the table's books file once a table is bound, else nowhere (they stay in memory). */
   private readonly bookSource = new BoundBookSource();
   /** The players' books; they outlive tables. */
   private readonly books = new BookShelf(this.bookSource);
-  /** The books an older Atlas kept in this device's data, until a campaign's file has taken them over. */
+  /** The books an older Atlas kept in this device's data, until the table's books file has taken them over. */
   private legacyBooks: BookData = {};
   /** The token owners and player tokens an older Atlas kept in this device's data, until the table's players file has taken them over. */
   private legacyAssignments: TokenAssignments = NO_ASSIGNMENTS;
@@ -278,7 +278,7 @@ export class OnlineFeature extends Component {
     this.docks = null;
     this.logs?.dispose();
     this.logs = null;
-    // A change of the log that still waits to be saved is saved now, and so are the books still waiting for the campaign's file.
+    // A change of the log that still waits to be saved is saved now, and so are the books still waiting for the table's books file.
     if (this.logSave !== null) void this.saveSettings();
     this.bookSource.flush();
     // Unloading closes the connection only: the table stays on the server and comes back on the next load.
@@ -308,26 +308,28 @@ export class OnlineFeature extends Component {
   }
 
   /**
-   * From now on the players' books are kept in the books file of this campaign, or in memory only for
-   * null; what the shelf held in memory of library tokens' books is forgotten, so it never hides the file's.
+   * From now on the players' books are kept in the table's books file while a table runs on the world
+   * `campaignId`, whatever world it is, or in memory only for null; what the shelf held in memory of
+   * library tokens' books is forgotten, so it never hides the file's.
    */
   bindBooks(campaignId: string | null): void {
-    const books = CampaignBooks.forApp(this.app);
-    this.bookSource.bind(campaignId === null || books === undefined ? null : campaignBookSource(books, campaignId));
+    const books = TableBooks.forApp(this.app);
+    this.bookSource.bind(campaignId === null || books === undefined ? null : tableBookSource(books));
     if (campaignId !== null) this.books.forgetKept();
   }
 
   /**
-   * Carries the books an older Atlas kept in this device's data into the campaign's books file,
-   * once: the data file loses the books it carried over only after the campaign's file was read back with them, and keeps those no library token takes over.
+   * Carries the books an older Atlas kept in this device's data into the table's books file, once:
+   * the data file loses the books it carried over only after the table's file was read back with
+   * them, and keeps those no library token takes over.
    */
-  async migrateBooksInto(campaignId: string): Promise<void> {
-    const books = CampaignBooks.forApp(this.app);
+  async migrateBooksInto(): Promise<void> {
+    const books = TableBooks.forApp(this.app);
     if (books === undefined || Object.keys(this.legacyBooks).length === 0) return;
-    await books.whenLoaded();
+    await books.whenReady();
     const assets = await AssetService.getInstance(this.app).getTokenAssets();
     const tokens = assets.map(({ id, collection, imagePath }) => ({ id, collection, imagePath }));
-    const left = await carryBooksOver(this.legacyBooks, tokens, books, campaignId);
+    const left = await carryBooksOver(this.legacyBooks, tokens, books);
     // Nothing was carried over: the data file stays as it is.
     if (left === null || JSON.stringify(left) === JSON.stringify(this.legacyBooks)) return;
     this.legacyBooks = left;
@@ -350,12 +352,12 @@ export class OnlineFeature extends Component {
 
   /**
    * The campaigns tables run on: what an older Atlas kept in this device's data (books, token owners,
-   * player tokens) is carried into a campaign or the table's players file before a table of it runs (a player's book written
-   * meanwhile would otherwise replace the carried one), and a table binds its campaign's books.
+   * player tokens) is carried into the table's books and players files before a table of it runs (a
+   * player's book written meanwhile would otherwise replace the carried one), and a table binds the table's books.
    */
   private campaigns(): TableCampaigns {
     return appCampaigns(this.app, (campaignId) => this.bindBooks(campaignId), async (campaignId) => {
-      await this.migrateBooksInto(campaignId);
+      await this.migrateBooksInto();
       await this.migrateAssignmentsInto(campaignId);
     });
   }

@@ -11,15 +11,13 @@
 import { MAX_CAMPAIGN_PLAYERS, playerNameKey } from '../../online/protocol/index';
 import { fnv1a32 } from '../../utils/hashing';
 import { isRecord } from '../campaignValues';
+import { byRecency, type WorldFile } from '../tableFileLayout';
 import { linkOf, readPlayers, type StoredPlayers } from './playersFile';
 import { emptyTablePlayers } from './tablePlayersFile';
 import { readTokenAssignments } from './tokenAssignments';
 
 /** A world's players file and when the world was last played (0 for never). */
-export interface WorldPlayers {
-  readonly stored: StoredPlayers;
-  readonly lastPlayed: number;
-}
+export type WorldPlayers = WorldFile<StoredPlayers>;
 
 /** A player as one world's file has them. */
 interface WorldPlayer {
@@ -73,11 +71,6 @@ function derivedCode(seed: string, taken: ReadonlySet<string>): string {
 function addedAtOf(stored: StoredPlayers, id: string): number | undefined {
   const entry = isRecord(stored.players) ? stored.players[id] : undefined;
   return isRecord(entry) && typeof entry.addedAt === 'number' && Number.isFinite(entry.addedAt) ? entry.addedAt : undefined;
-}
-
-/** The worlds, the one played last first, then by id. */
-function byRecency(worlds: readonly WorldPlayers[]): WorldPlayers[] {
-  return [...worlds].sort((a, b) => b.lastPlayed - a.lastPlayed || compareText(a.stored.id, b.stored.id));
 }
 
 /** Every world's players, grouped by name, each group the one added first leading, the groups in that order. */

@@ -3,32 +3,29 @@ import { characterOf, libraryTokenOf, type PlacedTokenSource } from '../../chara
 import type { TokenAsset } from '../../services/AssetService';
 import type { ViewAtlasStore } from '../../storeFactory';
 import { runUntracked } from '../../stores/history';
-import { campaignFolderOf } from '../campaignPaths';
 import type { CampaignPlay } from '../campaignPlay';
 import type { CampaignStorage } from '../CampaignFiles';
 import { parseCampaign } from '../campaignValidation';
 import { onPlayedCampaignChange } from '../playedCampaign';
-import type { CharacterFiles } from './CharacterFiles';
-import { charactersPathIn, emptyCharacters, isWritable, partyValuesOf, withPartyChanges, type StoredCharacters } from './charactersFile';
+import { partyValuesOf } from './charactersFile';
 import { changesBetween, withChanges, type PartyChangeMap } from './partyChanges';
 import { partyKey, type PartyValue, type PartyValues } from './partyKeys';
 import type { PartyContext } from './partyReconcile';
 import { PartyReconciler } from './PartyReconciler';
+import type { TableCharacters } from './TableCharacters';
 
-/** How long values wait after the last change before they are written to the campaign's file. */
+/** How long values wait after the last change before they are written to the table's characters file. */
 export const PARTY_WRITE_MS = 500;
-
-/** What the sync needs of the vault's campaigns: their files, and the file that holds a campaign (null for none). */
-export type PartyCampaigns = CampaignStorage & { pathOf(id: string): string | null };
 
 export interface PartySyncDeps {
   app: App;
-  campaigns: PartyCampaigns;
+  campaigns: CampaignStorage;
   play: CampaignPlay;
-  characters: CharacterFiles;
+  /** The table's characters file, which every world played reads and writes. */
+  characters: TableCharacters;
   /** The library's tokens, read from memory. */
   tokens: () => readonly TokenAsset[];
-  /** Settles once the campaigns and their characters files were read; nothing is kept before. */
+  /** Settles once the campaigns and the table's characters file were read; nothing is kept before. */
   ready: Promise<void>;
 }
 
@@ -39,14 +36,15 @@ interface ViewLink {
 }
 
 /**
- * The played campaign's values of its player characters (`characters.json`), shared by every open
- * view. One per app. It mirrors the campaign's values into every view store (`partyValues`, as
+ * The values of the player characters (the table's `characters.json`, the same whatever world is
+ * played), shared by every open view while a world is played. One per app. It mirrors the values
+ * into every view store, keyed by the played world (`partyKey`), (`partyValues`, as
  * Atlas's own write), where each store's `PartyReconciler` keeps the characters' tokens one with
  * them; a store whose values change otherwise (an edit, an undo) has them written to the file,
  * once its changes have rested `PARTY_WRITE_MS`, and mirrored to the other stores. Changes another
  * device makes to the file arrive through the vault's events. Off while no campaign is played, the
- * campaign cannot be changed (`readOnly`, a characters file of a later format) or the files are not
- * read yet: tokens keep values of their own then.
+ * campaign cannot be changed (`readOnly`), the characters file is of a later format or the files are
+ * not read yet: tokens keep values of their own then.
  */
 export class PartySync {
   private static readonly instances = new WeakMap<App, PartySync>();
@@ -154,13 +152,13 @@ export class PartySync {
       return true;
     }
     if (!this.isWritable(campaignId)) return false;
-    this.write(campaignId, changes);
+    this.write(changes);
     return true;
   }
 
   /** Writes what waits for the file now; settles once it is on disk. */
   flush(): Promise<void> {
-    if (this.campaignId !== null) this.writePending(this.campaignId);
+    this.writePending();
     return this.deps.characters.flush();
   }
 
@@ -183,9 +181,7 @@ export class PartySync {
   private isWritable(campaignId: string): boolean {
     const entry = this.deps.campaigns.entries().find((stored) => stored.id === campaignId);
     const campaign = entry ? parseCampaign(entry) : null;
-    if (!campaign || campaign.readOnly === true) return false;
-    const stored = this.stored(campaignId);
-    return !stored || isWritable(stored);
+    return campaign !== null && campaign.readOnly !== true && this.deps.characters.isWritable();
   }
 
   private update(): void {
@@ -210,23 +206,22 @@ export class PartySync {
   }
 
   private stop(): void {
-    const campaignId = this.campaignId;
-    if (campaignId === null) return;
+    if (this.campaignId === null) return;
     this.campaignId = null;
     this.values = {};
     for (const { reconciler } of this.views.values()) reconciler.setContext(null);
-    this.writePending(campaignId);
+    this.writePending();
     this.changed();
   }
 
-  /** Hands what waits to the campaign's file now. */
-  private writePending(campaignId: string): void {
+  /** Hands what waits to the table's characters file now. */
+  private writePending(): void {
     if (this.timer !== null) window.clearTimeout(this.timer);
     this.timer = null;
     if (this.pending.size === 0) return;
     const changes = new Map(this.pending);
     this.pending.clear();
-    this.write(campaignId, changes);
+    this.write(changes);
   }
 
   /** The file changed (here or on another device): its values reach the views, except where this device has changes waiting. */
@@ -261,25 +256,15 @@ export class PartySync {
     this.timer = window.setTimeout(() => void this.flush(), PARTY_WRITE_MS);
   }
 
-  /** Writes changes into the campaign's characters file, creating it in the campaign's folder. */
-  private write(campaignId: string, changes: PartyChangeMap): void {
-    const change = (stored: StoredCharacters): StoredCharacters => withPartyChanges(stored, changes);
-    if (this.deps.characters.pathOf(campaignId) !== null) {
-      this.deps.characters.update(campaignId, change);
-      return;
-    }
-    const campaignPath = this.deps.campaigns.pathOf(campaignId);
-    if (campaignPath === null) return;
-    this.deps.characters.createAt(charactersPathIn(campaignFolderOf(campaignPath)), change(emptyCharacters(campaignId)), change);
+  /** Writes changes into the table's characters file, creating it when the vault has none. */
+  private write(changes: PartyChangeMap): void {
+    this.deps.characters.write(changes);
   }
 
-  private stored(campaignId: string): StoredCharacters | undefined {
-    return this.deps.characters.entries().find((stored) => stored.id === campaignId);
-  }
-
+  /** The file's values, keyed as the stores following `campaignId` hold them. */
   private fileValues(campaignId: string): PartyValues {
-    const stored = this.stored(campaignId);
-    return stored ? partyValuesOf(stored) : {};
+    const stored = this.deps.characters.stored();
+    return stored ? partyValuesOf(stored, campaignId) : {};
   }
 
   private mirrorInto(store: ViewAtlasStore, values: PartyValues): void {
