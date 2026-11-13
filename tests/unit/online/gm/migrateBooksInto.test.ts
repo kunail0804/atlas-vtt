@@ -4,6 +4,7 @@ import { CampaignFiles } from '../../../../src/app/campaigns/CampaignFiles';
 import { CAMPAIGNS_FOLDER } from '../../../../src/app/campaigns/campaignPaths';
 import { CampaignBooks } from '../../../../src/app/campaigns/players/CampaignBooks';
 import { CampaignPlayers } from '../../../../src/app/campaigns/players/CampaignPlayers';
+import { TablePlayers } from '../../../../src/app/campaigns/players/TablePlayers';
 import type { TableCampaigns } from '../../../../src/app/online/gm/tableCampaigns.ts';
 import { EMPTY_BOOK, type StoredBook } from '../../../../src/app/online/gm/book/bookStore.ts';
 import { OnlineFeature } from '../../../../src/app/online/gm/OnlineFeature.ts';
@@ -38,6 +39,7 @@ async function feature(old: unknown): Promise<{ feature: OnlineFeature; vault: R
 afterEach(() => {
   for (const vault of opened.splice(0)) {
     CampaignBooks.release(vault.app);
+    TablePlayers.release(vault.app);
     CampaignPlayers.release(vault.app);
     CampaignFiles.release(vault.app);
   }
@@ -86,6 +88,7 @@ describe('carrying the old books into a campaign when its table starts', () => {
     assets.tokens = [{ id: 'lib-a', collection: 'Cairn', imagePath: 'art/a.webp' }];
     const { feature: online, vault } = await feature(OLD);
     CampaignPlayers.open(vault.app);
+    TablePlayers.open(vault.app);
     const campaigns = (online as unknown as { campaigns(): TableCampaigns }).campaigns();
     expect(await campaigns.open('c1')).not.toBeNull();
     expect(Object.keys(JSON.parse(vault.files.get(`${FOLDER}/books.json`) ?? '{"books":{}}').books)).toEqual(['lib-a']);

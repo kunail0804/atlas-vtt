@@ -308,7 +308,8 @@ export class RecordFiles<Stored extends StoredRecord> {
     return version;
   }
 
-  private changed(): void {
+  /** Tells the listeners that the records changed. */
+  protected changed(): void {
     this.cache = null;
     for (const listener of [...this.listeners]) listener();
   }

@@ -9,7 +9,7 @@ import { activeAtlasLeaf } from './atlasView.ts';
 import { AssetService } from '../../services/AssetService';
 import { openPinNote } from '../../services/noteHeadings';
 import { CampaignBooks } from '../../campaigns/players/CampaignBooks';
-import { CampaignPlayers } from '../../campaigns/players/CampaignPlayers';
+import { TablePlayers } from '../../campaigns/players/TablePlayers';
 import { BookShelf } from './book/BookShelf.ts';
 import { setActiveShelf } from './book/activeShelf.ts';
 import { BoundBookSource, campaignBookSource } from './book/campaignBookSource.ts';
@@ -78,7 +78,7 @@ export class OnlineFeature extends Component {
   private readonly books = new BookShelf(this.bookSource);
   /** The books an older Atlas kept in this device's data, until a campaign's file has taken them over. */
   private legacyBooks: BookData = {};
-  /** The token owners and player tokens an older Atlas kept in this device's data, until a campaign's players file has taken them over. */
+  /** The token owners and player tokens an older Atlas kept in this device's data, until the table's players file has taken them over. */
   private legacyAssignments: TokenAssignments = NO_ASSIGNMENTS;
   private docks: DockMounts | null = null;
   private logs: LogMounts | null = null;
@@ -180,9 +180,9 @@ export class OnlineFeature extends Component {
     setActiveShelf(this.books);
     // A campaign is played only while its table runs: the saved table's comes back with it.
     playSavedTable(campaigns, this.savedTable);
-    // Player tokens are marked on the played campaign, so it takes over the old ones now.
+    // Player tokens are kept while a campaign is played, so the table's file takes over the old ones now, read by that campaign's player ids.
     const played = campaigns.playing();
-    if (played !== null) void this.migrateAssignmentsInto(played).catch((error: unknown) => console.error('[Atlas] Carrying the player tokens into the campaign failed:', error));
+    if (played !== null) void this.migrateAssignmentsInto(played).catch((error: unknown) => console.error('[Atlas] Carrying the player tokens into the table\'s players file failed:', error));
     this.online = new OnlineControl(this.app, ownership, campaigns, (table) => {
       this.savedTable = table;
       void this.saveSettings();
@@ -336,12 +336,13 @@ export class OnlineFeature extends Component {
 
   /**
    * Carries the token owners and player tokens an older Atlas kept in this device's data into the
-   * campaign's players file, once: the data file loses them only after the campaign's file was read back with them.
+   * table's players file, played on the campaign `campaignId`, once: the data file loses them only
+   * after the table's file was read back with them.
    */
   async migrateAssignmentsInto(campaignId: string): Promise<void> {
-    const players = CampaignPlayers.forApp(this.app);
+    const players = TablePlayers.forApp(this.app);
     if (players === undefined || this.legacyAssignments === NO_ASSIGNMENTS) return;
-    await players.whenLoaded();
+    await players.whenReady();
     if (!(await carryAssignmentsOver(this.legacyAssignments, players, campaignId))) return;
     this.legacyAssignments = NO_ASSIGNMENTS;
     await this.saveSettings();
@@ -349,7 +350,7 @@ export class OnlineFeature extends Component {
 
   /**
    * The campaigns tables run on: what an older Atlas kept in this device's data (books, token owners,
-   * player tokens) is carried into a campaign before a table of it runs (a player's book written
+   * player tokens) is carried into a campaign or the table's players file before a table of it runs (a player's book written
    * meanwhile would otherwise replace the carried one), and a table binds its campaign's books.
    */
   private campaigns(): TableCampaigns {
