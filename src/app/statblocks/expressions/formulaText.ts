@@ -28,6 +28,9 @@ export function formulaText(node: FormulaNode, labelOf?: LabelResolver): string 
     case 'negate': return `-${wrapped(formulaText(node.operand, labelOf), precedence(node.operand) < 3)}`;
     case 'call': return `${node.fn}(${node.args.map((arg) => formulaText(arg, labelOf)).join(', ')})`;
     case 'has': return `has(${labelOf ? nameOf(node.ref, labelOf) : node.ref}, "${node.text}")`;
+    // An entry's parts are no fields: they keep their own names.
+    case 'each': return `${node.mode}(${labelOf ? nameOf(node.ref, labelOf) : node.ref}, ${formulaText(node.body)})`;
+    case 'sides': return `sides(${labelOf ? nameOf(node.ref, labelOf) : node.ref})`;
     case 'binary': {
       const own = precedence(node);
       const left = wrapped(formulaText(node.left, labelOf), precedence(node.left) < own);

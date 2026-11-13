@@ -95,6 +95,28 @@ function levelTable(context: BuildContext, classIndex: string): string {
   return table(header, rows);
 }
 
+/** A level's spell slots, by spell level (index 0 is level 1). */
+function slotsOf(level: Json): number[] {
+  return Array.from({ length: 9 }, (_, index) => num(field(level.spellcasting, `spell_slots_level_${index + 1}`)) ?? 0);
+}
+
+/**
+ * How the class casts, read from its table: `pact` where some level has slots of a spell level and
+ * none of a lower one (Pact Magic's slots all rise together), `full` where its slots reach level 9,
+ * `half` where they reach level 5, `third` where they reach level 4, and nothing for a class without slots.
+ */
+function spellcastingProgression(context: BuildContext, classIndex: string): string {
+  const tables = context.data('Levels')
+    .filter((level) => indexOf(level.class) === classIndex && level.subclass === undefined)
+    .map(slotsOf);
+  const highest = Math.max(0, ...tables.map((slots) => slots.reduce((top, count, index) => (count > 0 ? index + 1 : top), 0)));
+  if (highest === 0) return '';
+  if (tables.some((slots) => slots.some((count, index) => count === 0 && slots.slice(index + 1).some((above) => above > 0)))) return 'pact';
+  if (highest === 9) return 'full';
+  if (highest === 5) return 'half';
+  return highest === 4 ? 'third' : '';
+}
+
 /** Option lists ("Choose two from Arcana, …") as the SRD words them. */
 function choices(value: unknown): string[] {
   return records(value).map((choice) => text(choice.desc)).filter((line) => line !== '');
@@ -132,6 +154,7 @@ export function classNotes(context: BuildContext): Note[] {
       proficiencies: names(entry.proficiencies).filter((name) => !name.startsWith('Saving Throw')),
       'skill-choices': choices(entry.proficiency_choices),
       'spellcasting-ability': nameOf(field(spellcasting, 'spellcasting_ability')),
+      'spellcasting-progression': spellcastingProgression(context, index),
       'multiclass-prerequisites': multiclassing(entry),
       subclasses,
     };

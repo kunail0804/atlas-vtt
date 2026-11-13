@@ -57,11 +57,11 @@ describe('has() in formulas', () => {
 });
 
 describe('the 5E character template', () => {
-  it('works out class, level, proficiency, initiative and hit dice from the classes', () => {
+  it('works out class, level, proficiency, initiative, hit dice and hit points from the classes', () => {
     expect(Object.fromEntries(derivedValues(template, RECORD))).toEqual({
-      class: 'Guerrier / Magicien', level: 5, proficiency: 3, initiative: 4, hit_dice: '3d10 + 2d6',
+      class: 'Guerrier / Magicien', level: 5, proficiency: 3, initiative: 4, hp: 35, hit_dice: '3d10 + 2d6',
     });
-    expect(derivedPatches(template, { ...RECORD, class: 'Guerrier / Magicien', level: 5, proficiency: 3, initiative: 4, hit_dice: '3d10 + 2d6' })).toEqual([]);
+    expect(derivedPatches(template, { ...RECORD, class: 'Guerrier / Magicien', level: 5, proficiency: 3, initiative: 4, hp: 35, hit_dice: '3d10 + 2d6' })).toEqual([]);
   });
 
   it('keeps what was typed where the sheet lists no classes', () => {
