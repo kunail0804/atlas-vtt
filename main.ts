@@ -28,7 +28,7 @@ import { editInStatblockPane } from './src/app/statblocks/editor/create/entryPoi
 import { registerStatblockFileMenu } from './src/app/statblocks/editor/create/statblockCommands';
 import { registerCompendiumFileMenu } from './src/app/compendium/compendiumFileMenu';
 import { registerCompendiumNoteCards } from './src/app/compendium/cards/compendiumNoteCards';
-import { registerPlayerRoster } from './src/app/players/PlayerRoster';
+import { registerPageShares } from './src/app/players/PageShares';
 import { registerStatblockInitiativeMenu } from './src/app/initiative/statblockCombatant';
 import { disposeImageProcessing } from './src/app/imageProcessing/imageProcessing';
 import { disposeSpectralEngine } from './src/app/pixi/spectralEngine/spectralEngineService';
@@ -259,7 +259,7 @@ export default class AtlasVTTPlugin extends Plugin {
     // Every compendium note shows its entry as a statblock card beside it.
     registerCompendiumNoteCards(this);
     // The vault's players and the compendium pages shared with them, which follow notes renamed or deleted.
-    registerPlayerRoster(this);
+    registerPageShares(this);
     registerStatblockInitiativeMenu(this);
 
     this.app.workspace.onLayoutReady(() => {
