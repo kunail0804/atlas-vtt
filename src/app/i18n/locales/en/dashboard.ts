@@ -19,7 +19,7 @@ export const dashboard = {
   'dashboard.continue': 'Continue your adventure',
   'dashboard.resume': 'Resume',
   'dashboard.firstScene': 'Create your first scene',
-  'dashboard.firstSceneMeta': 'Choose a map and start your campaign',
+  'dashboard.firstSceneMeta': 'Choose a map and start playing in your world',
   'dashboard.recent': 'Recent scenes',
   'dashboard.loadingScenes': 'Loading scenes…',
   'dashboard.title': 'Atlas dashboard',

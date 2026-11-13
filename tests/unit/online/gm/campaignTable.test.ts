@@ -147,14 +147,14 @@ describe('a table of the played campaign', () => {
     const { online, leaf } = await gm(playersText(), false);
     expect(await online.start(leaf, null)).toBeNull();
     expect(seen.requests).toEqual([]);
-    expect(seen.notices).toEqual(['Choose a campaign first.']);
+    expect(seen.notices).toEqual(['Choose a world first.']);
   });
 
   it('is not started where the link belongs to another account', async () => {
     const { online, leaf } = await gm();
     seen.created = { status: 409, json: { error: 'link-taken' } };
     expect(await online.start(leaf, 'c1')).toBeNull();
-    expect(seen.notices).toEqual(['This campaign\'s link belongs to another account. Make a new link.']);
+    expect(seen.notices).toEqual(['This world\'s link belongs to another account. Make a new link.']);
   });
 
   it('is not run where the relay opened another link than the campaign\'s, and the table it opened is ended', async () => {
@@ -164,7 +164,7 @@ describe('a table of the played campaign', () => {
     expect(await online.start(leaf, 'c1')).toBeNull();
     expect(online.table).toBeNull();
     expect(bound).toEqual([]);
-    expect(seen.notices).toEqual(['The server could not open this campaign\'s link. Try again later.']);
+    expect(seen.notices).toEqual(['The server could not open this world\'s link. Try again later.']);
     await advance(0);
     const socket = FakeSocket.all.at(-1);
     expect(FakeSocket.all).toHaveLength(1);
@@ -208,7 +208,7 @@ describe('who joins the campaign\'s table', () => {
     socket.relay({ t: 'player-joined', id: NOOR, name: 'Noor' });
     await advance(100);
     expect(frames().at(-1)).toEqual({ v: 1, t: 'kick', id: NOOR });
-    expect(seen.notices).toContain('The campaign has no room for Noor.');
+    expect(seen.notices).toContain('The world has no room for Noor.');
     expect(files.of('c1').players).toHaveLength(MAX_CAMPAIGN_PLAYERS);
     online.stop();
   });
@@ -234,7 +234,7 @@ describe('who joins the campaign\'s table', () => {
     socket.relay({ t: 'player-joined', id: NOOR, name: 'Noor' });
     await advance(100);
     expect(frames().at(-1)).toEqual({ v: 1, t: 'kick', id: NOOR });
-    expect(seen.notices).toContain('This campaign\'s players file is from a newer Atlas.');
+    expect(seen.notices).toContain('This world\'s players file is from a newer Atlas.');
     online.stop();
   });
 });

@@ -44,7 +44,7 @@ describe('saving the compendium sources of a campaign', () => {
     fireEvent.click(saveButton());
 
     const alert = await screen.findByRole('alert');
-    expect(alert.textContent).toBe('Could not save the sources of this campaign: disk full');
+    expect(alert.textContent).toBe('Could not save the sources of this world: disk full');
     expect(onClose).not.toHaveBeenCalled();
   });
 

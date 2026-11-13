@@ -134,7 +134,7 @@ describe('the campaign a table starts on', () => {
     expect(empty.rows).toHaveLength(0);
     empty.layer.querySelector<HTMLButtonElement>('.atlas-online-button')?.click();
     expect(empty.does.openCampaigns).toHaveBeenCalledTimes(1);
-    expect(picker(null).layer.textContent).toContain('Reading your campaigns');
+    expect(picker(null).layer.textContent).toContain('Reading your worlds');
   });
 
   it('names a running table by its campaign', () => {

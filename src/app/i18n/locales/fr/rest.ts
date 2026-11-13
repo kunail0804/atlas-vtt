@@ -25,7 +25,7 @@ export const rest: Translation = {
   'rest.skipped': 'Ignoré : {list}',
   'rest.skipUnknown': "{label} (absent de la collection)",
   'rest.skipStatic': '{label} (une valeur fixe)',
-  'rest.skipNoValue': "{label} (aucune scène ouverte ni campagne jouée ne le contient)",
+  'rest.skipNoValue': "{label} (aucune scène ouverte ni monde joué ne le contient)",
   'rest.skipNoToken': '{label} (aucun token sur une carte ouverte)',
   'rest.skipCounters': '{label} (ses compteurs sont illisibles)',
   'rest.skipMissingField': "{label} (le statblock n'a pas de {field})",
