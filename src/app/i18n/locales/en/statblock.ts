@@ -22,7 +22,7 @@ export const statblock = {
   'statblock.editNamed': 'Edit {name}',
   'statblock.editValue': 'Edit value',
   'statblock.increase': 'Increase {label}',
-  'statblock.trackedNowhere': "{label} is kept with the character's token or its played campaign: place the character on a map or play its campaign",
+  'statblock.trackedNowhere': "{label} is kept with the character's token or its played world: place the character on a map or play its world",
   'statblock.locate': 'Locate {label} on map',
   'statblock.pip': '{label} {n} of {max}',
   'statblock.pipDamage': '{label} damage {n} of {max}',

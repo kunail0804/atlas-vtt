@@ -109,7 +109,7 @@ describe('a newcomer admitted into the campaign', () => {
     expect(seats.players()).toHaveLength(MAX_CAMPAIGN_PLAYERS);
     expect(admitNewcomer(seats, NEW, '999999')).toBeNull();
     expect(seats.players()).toHaveLength(MAX_CAMPAIGN_PLAYERS);
-    expect(refusalText(seats, 'Noor')).toBe('The campaign has no room for Noor.');
+    expect(refusalText(seats, 'Noor')).toBe('The world has no room for Noor.');
   });
 
   it('is refused, and nothing written, where the players file is of a later format', async () => {
@@ -118,7 +118,7 @@ describe('a newcomer admitted into the campaign', () => {
     expect(admitNewcomer(seats, NEW, '999999')).toBeNull();
     await players.flush();
     expect(vault.files.get(`${FOLDER}/players.json`)).toBe(later);
-    expect(refusalText(seats, 'Noor')).toBe('This campaign\'s players file is from a newer Atlas.');
+    expect(refusalText(seats, 'Noor')).toBe('This world\'s players file is from a newer Atlas.');
   });
 });
 
@@ -147,8 +147,8 @@ describe('the campaign\'s link', () => {
     const elsewhere = new TableSeats(CampaignPlayers.forApp(opened[0]?.app) as CampaignPlayers, 'c9');
     expect(none.link()).toBeNull();
     expect(campaignLink(elsewhere)).toBeNull();
-    expect(linkRefusal(elsewhere)).toBe('This campaign has no folder in the vault.');
-    expect(refusalText(elsewhere, 'Noor')).toBe('This campaign has no folder in the vault.');
+    expect(linkRefusal(elsewhere)).toBe('This world has no folder in the vault.');
+    expect(refusalText(elsewhere, 'Noor')).toBe('This world has no folder in the vault.');
 
     const early = createInMemoryApp({ files: { [`${FOLDER}/campaign.json`]: campaignText } });
     opened.push(early);
@@ -156,12 +156,12 @@ describe('the campaign\'s link', () => {
     await players.whenLoaded();
     const loading = new TableSeats(players, 'c1');
     expect(campaignLink(loading)).toBeNull();
-    expect(linkRefusal(loading)).toBe('The campaigns are still loading. Try again in a moment.');
-    expect(refusalText(loading, 'Noor')).toBe('The campaigns are still loading. Try again in a moment.');
+    expect(linkRefusal(loading)).toBe('The worlds are still loading. Try again in a moment.');
+    expect(refusalText(loading, 'Noor')).toBe('The worlds are still loading. Try again in a moment.');
 
     const { seats: later } = await campaign({ [`${FOLDER}/players.json`]: LATER });
     expect(campaignLink(later)).toBeNull();
-    expect(linkRefusal(later)).toBe('This campaign\'s players file is from a newer Atlas.');
+    expect(linkRefusal(later)).toBe('This world\'s players file is from a newer Atlas.');
   });
 });
 
@@ -178,6 +178,6 @@ describe('what the seats write', () => {
   it('tell the GM when a character cannot be given in a players file from a newer Atlas', async () => {
     const { seats } = await campaign({ [`${FOLDER}/players.json`]: LATER });
     seats.setOwner('lib-bear', ANA.id);
-    expect(notices).toEqual(['This campaign\'s players file is from a newer Atlas.']);
+    expect(notices).toEqual(['This world\'s players file is from a newer Atlas.']);
   });
 });

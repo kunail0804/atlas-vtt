@@ -32,7 +32,7 @@ export const statblock: Translation = {
   'statblock.counterRows': 'Строки',
   'statblock.counterUses': 'Использования {name}',
   'statblock.countersNameFirst': 'Сначала назовите счётчики: нажмите на их подпись на карточке.',
-  'statblock.trackedNowhere': '{label} хранится у токена персонажа или в его текущей кампании: поставьте персонажа на карту или запустите его кампанию',
+  'statblock.trackedNowhere': '{label} хранится у токена персонажа или в его текущем мире: поставьте персонажа на карту или запустите его мир',
   'statblock.players': 'Игроки',
   'statblock.playersEdit': 'Можно менять',
   'statblock.playersHidden': 'Скрыто',

@@ -14,7 +14,7 @@ export const dashboard: Translation = {
   'dashboard.assets': '素材库',
   'dashboard.continue': '继续冒险',
   'dashboard.firstScene': '创建你的第一个场景',
-  'dashboard.firstSceneMeta': '选择一张地图，开始你的战役',
+  'dashboard.firstSceneMeta': '选择一张地图，在你的世界中开始游戏',
   'dashboard.recent': '最近的场景',
   'dashboard.loadingScenes': '正在加载场景…',
   'dashboard.title': 'Atlas 仪表盘',
