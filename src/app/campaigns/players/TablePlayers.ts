@@ -1,6 +1,7 @@
 import type { App } from 'obsidian';
 import { RecordFiles } from '../../services/recordFiles/RecordFiles';
 import { CampaignFiles } from '../CampaignFiles';
+import { carryWorldsInto, lastPlayedOf } from '../tableFileLayout';
 import { CampaignPlayers } from './CampaignPlayers';
 import { mergeWorldPlayers } from './playersMigration';
 import { isWritable, linkOf, readPlayers, type CampaignPlayer, type StoredPlayers } from './playersFile';
@@ -122,26 +123,16 @@ export class TablePlayers extends RecordFiles<StoredPlayers> {
     return this.entries().find((entry) => entry.id === TABLE_PLAYERS_ID);
   }
 
-  /**
-   * Writes the worlds' players merged into this file, where the vault has none (not even one that
-   * cannot be read) and some world has players to carry over. The worlds' files stay as they are, for
-   * older versions of Atlas.
-   */
+  /** Writes the worlds' players merged into this file, where the vault has none (`carryWorldsInto`). */
   private async carryWorldsIn(): Promise<void> {
-    const { adapter } = this.app.vault;
     const campaigns = CampaignFiles.forApp(this.app);
     const worlds = CampaignPlayers.forApp(this.app);
-    if (campaigns === undefined || worlds === undefined || await adapter.exists(TABLE_PLAYERS_PATH)) return;
-    await campaigns.load();
-    await worlds.whenLoaded();
-    const lastPlayed = new Map(campaigns.entries().map((campaign) => [campaign.id, campaign.lastPlayed]));
-    const merged = mergeWorldPlayers(worlds.entries().map((stored) => {
-      const played = lastPlayed.get(stored.id);
-      return { stored, lastPlayed: typeof played === 'number' && Number.isFinite(played) ? played : 0 };
-    }));
-    // Another device's file may have arrived while the worlds were read: it is the same, or newer.
-    if (merged === null || this.stored() !== undefined || await adapter.exists(TABLE_PLAYERS_PATH)) return;
-    this.createAt(TABLE_PLAYERS_PATH, merged, (onDisk) => onDisk);
-    await this.flush();
+    if (campaigns === undefined || worlds === undefined) return;
+    await carryWorldsInto(this.app, this, TABLE_PLAYERS_PATH, async () => {
+      await campaigns.load();
+      await worlds.whenLoaded();
+      const lastPlayed = lastPlayedOf(campaigns.entries());
+      return mergeWorldPlayers(worlds.entries().map((stored) => ({ stored, lastPlayed: lastPlayed.get(stored.id) ?? 0 })));
+    });
   }
 }

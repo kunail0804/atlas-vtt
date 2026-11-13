@@ -68,7 +68,7 @@ import { HeaderAutocompleteSuggest } from './src/app/plugin/HeaderAutocompleteSu
 import { registerAtlasLinks } from './src/app/links/registerAtlasLinks';
 import { registerCommands } from './src/app/plugin/registerCommands';
 import { CampaignFiles } from './src/app/campaigns/CampaignFiles';
-import { CampaignBooks } from './src/app/campaigns/players/CampaignBooks';
+import { TableBooks } from './src/app/campaigns/players/TableBooks';
 import { CampaignPlayers } from './src/app/campaigns/players/CampaignPlayers';
 import { TablePlayers } from './src/app/campaigns/players/TablePlayers';
 import { releaseMapPictures } from './src/app/react/components/dashboard/mapPicture';
@@ -170,10 +170,11 @@ export default class AtlasVTTPlugin extends Plugin {
     // vault has none yet, the players files each campaign had are carried into it.
     const campaignPlayers = CampaignPlayers.open(this.app);
     const tablePlayers = TablePlayers.open(this.app);
-    void campaignsRead.then(() => campaignPlayers.whenLoaded()).then(() => tablePlayers.whenReady()).catch((error: unknown) => console.error('[Atlas] Reading the table\'s players failed:', error));
-    // The books of their characters are a campaign file too.
-    const campaignBooks = CampaignBooks.open(this.app);
-    void campaignsRead.then(() => campaignBooks.whenLoaded()).catch((error: unknown) => console.error('[Atlas] Reading the campaigns\' books failed:', error));
+    const playersReady = campaignsRead.then(() => campaignPlayers.whenLoaded()).then(() => tablePlayers.whenReady());
+    void playersReady.catch((error: unknown) => console.error('[Atlas] Reading the table\'s players failed:', error));
+    // So are the books of their characters, carried over once the players' new ids are known.
+    const tableBooks = TableBooks.open(this.app);
+    void playersReady.catch(() => undefined).then(() => tableBooks.whenReady()).catch((error: unknown) => console.error('[Atlas] Reading the table\'s books failed:', error));
     // The campaign this device plays records the scenes its map views open.
     this.register(recordCampaignPlay(this.app, campaignFiles, campaignsRead));
     // And keeps one set of values for each of its player characters, shared by every map view.
@@ -298,7 +299,7 @@ export default class AtlasVTTPlugin extends Plugin {
     void this.settingsService?.saveSettingsNow();
     SystemPresetFiles.release(this.app);
     PlayedRules.release(this.app);
-    CampaignBooks.release(this.app);
+    TableBooks.release(this.app);
     TablePlayers.release(this.app);
     CampaignPlayers.release(this.app);
     CampaignFiles.release(this.app);

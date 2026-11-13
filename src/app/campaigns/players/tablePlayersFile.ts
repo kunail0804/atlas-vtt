@@ -1,23 +1,20 @@
 /**
- * `players.json` directly in the worlds' folder: who plays at the GM's online table, whatever world
- * it plays. It holds what a world's players file held (`playersFile.ts`: the players with their
- * codes and characters, the table's `link`, the tokens it assigns, `tokenAssignments.ts`) and, once
+ * `players.json` directly in the worlds' folder (`tableFileLayout.ts`): who plays at the GM's online
+ * table, whatever world it plays. It holds what a world's players file held (`playersFile.ts`: the
+ * players with their codes and characters, the table's `link`, the tokens it assigns,
+ * `tokenAssignments.ts`) and, once
  * the worlds' files were carried into it, `migratedIds`: `{ <world id>: { <old player id>: <player
- * id> } }`, what each player of each world is called here. It lies in the worlds' folder so world
- * backups hold it, and in no world's folder, since it belongs to none. Fields Atlas does not know are
- * kept; a file of a later format is read and never written.
+ * id> } }`, what each player of each world is called here.
  */
 
 import type { RecordLayout } from '../../services/recordFiles/recordLayout';
-import { CAMPAIGNS_FOLDER } from '../campaignPaths';
 import { isRecord } from '../campaignValues';
+import { TABLE_FILE_ID, tableFileLayout } from '../tableFileLayout';
 import { PLAYER_ID_PATTERN } from '../../online/protocol/index';
 import { PLAYERS_FILE, PLAYERS_FORMAT, type StoredPlayers } from './playersFile';
 
-export const TABLE_PLAYERS_PATH = `${CAMPAIGNS_FOLDER}/${PLAYERS_FILE}`;
-
 /** The id the file's one record goes by in memory; it is not written. */
-export const TABLE_PLAYERS_ID = 'table';
+export const TABLE_PLAYERS_ID = TABLE_FILE_ID;
 
 /**
  * The format this Atlas writes. The file has the shape of a world's players file, whose functions
@@ -31,33 +28,12 @@ export type MigratedIds = Readonly<Record<string, Readonly<Record<string, string
 /** An empty players file of the table. */
 export const emptyTablePlayers = (): StoredPlayers => ({ id: TABLE_PLAYERS_ID, players: {} });
 
-function read(text: string): StoredPlayers | null {
-  try {
-    const parsed: unknown = JSON.parse(text);
-    return isRecord(parsed) ? { ...parsed, id: TABLE_PLAYERS_ID } : null;
-  } catch {
-    return null;
-  }
-}
+const FILE = tableFileLayout({ file: PLAYERS_FILE, format: TABLE_PLAYERS_FORMAT, kind: 'table players' });
 
-function text(record: StoredPlayers): string {
-  const { id: _id, format, ...rest } = record;
-  const kept = typeof format === 'number' && format > TABLE_PLAYERS_FORMAT ? format : TABLE_PLAYERS_FORMAT;
-  return `${JSON.stringify({ format: kept, ...rest }, null, 2)}\n`;
-}
+export const TABLE_PLAYERS_PATH = FILE.path;
 
 /** The table's players file: one file, named after nothing, created at its path (`RecordFiles.createAt`). */
-export const TABLE_PLAYERS_LAYOUT: RecordLayout<StoredPlayers> = {
-  root: CAMPAIGNS_FOLDER,
-  kind: 'table players',
-  isRecordPath: (path) => path === TABLE_PLAYERS_PATH,
-  read,
-  text,
-  namedPath: (path) => path,
-  recordPathIn: (path) => path,
-  freeNamedPath: () => TABLE_PLAYERS_PATH,
-  isNamedAfter: () => true,
-};
+export const TABLE_PLAYERS_LAYOUT: RecordLayout<StoredPlayers> = FILE.layout;
 
 const MAX_WORLD_ID = 200;
 

@@ -1,5 +1,6 @@
 /**
- * What the JSON files that lie beside `campaign.json` share (`characters.json`, `players.json`):
+ * What the JSON files that lie beside `campaign.json` share (`characters.json`, `players.json`,
+ * `books.json`; Atlas now only reads them, to carry them into the table's files, `tableFileLayout.ts`):
  * named by their purpose and never after anything, keyed by their `campaignId`, created in the
  * campaign's folder (`RecordFiles.createAt`), following the folder when it is renamed. Fields
  * Atlas does not know are kept, and a file of a later format is read and never written.
