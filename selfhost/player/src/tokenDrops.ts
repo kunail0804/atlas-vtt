@@ -50,6 +50,15 @@ export class PendingDrops {
     return true;
   }
 
+  /**
+   * Whether a live place is the late echo of the player's own drag, which neither moves the token nor
+   * draws its ruler: the GM has not ended the drag of a drop it has not answered yet.
+   */
+  echoes(place: LivePlace): boolean {
+    const drop = this.drops.get(place.id);
+    return drop !== undefined && !drop.ended && place.end !== true;
+  }
+
   /** Whether the token is drawn at a live place: not the late echo of the player's own drag. */
   shows(place: LivePlace): boolean {
     const drop = this.drops.get(place.id);
@@ -63,7 +72,7 @@ export class PendingDrops {
       drop.ended = true;
       return true;
     }
-    if (!drop.ended) return false;
+    if (this.echoes(place)) return false;
     this.forget(place.id);
     return true;
   }
