@@ -226,6 +226,19 @@ $campaigns-shown: 5;
     }
   }
 
+  // No world: the frame's own fill and a struck-out circle, in the size of a world's d20.
+  .atlas-online-campaign__art--none {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+
+    .svg-icon {
+      width: 22px;
+      height: 22px;
+    }
+  }
+
   .atlas-online-campaign__text {
     display: flex;
     flex: 1;

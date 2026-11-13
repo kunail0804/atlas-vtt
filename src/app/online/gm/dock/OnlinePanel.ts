@@ -8,6 +8,7 @@ import { closingOf, groupsOf, seatsNoteOf, selectionBarOf, statusOf, type Online
 import { renderPlayerList, type ListActions } from './playerList.ts';
 import { addPlayerRow, confirmPrompt, forgetGonePlayerPrompt, linkEntries, namePrompt, openPrompt, renderPlayerPrompt, type AddPlayerActions, type LinkActions } from './prompts.ts';
 import { renderSelectionBar, type SelectionActions } from './selectionBar.ts';
+import { renderWorldRow, type WorldRow, type WorldRowActions } from './worldRow.ts';
 import { t } from '../../../i18n';
 
 /** The panel's width; it never grows wider than the row it hangs from. */
@@ -15,8 +16,10 @@ export const PANEL_WIDTH = 340;
 
 /** What the panel shows. */
 export interface PanelView {
-  /** The name of the table's campaign, else "Online table". */
+  /** The name of the table's world, else "Online table". */
   readonly title: string;
+  /** The world the table plays, and the others it can play. */
+  readonly world: WorldRow;
   readonly status: { readonly text: string; readonly tone: Tone };
   /** Said in the header while the table is full. */
   readonly seatsNote: string | null;
@@ -38,10 +41,10 @@ export interface PanelView {
 }
 
 /** What the panel shows of a snapshot, the map views, the feedback form and whether the QR card is open. */
-export function panelView(snapshot: OnlineSnapshot, scene: SceneFacts, feedback: FeedbackView, qr = false, title = t('online.table')): PanelView {
+export function panelView(snapshot: OnlineSnapshot, scene: SceneFacts, feedback: FeedbackView, world: WorldRow, qr = false, title = t('online.table')): PanelView {
   const groups = groupsOf(snapshot, scene);
   const players = groups.flatMap((group) => (group.player === null ? [] : [group.player]));
-  return { title, status: statusOf(snapshot), seatsNote: seatsNoteOf(snapshot), link: snapshot.link, qr, gate: gateRowsOf(snapshot.gate), imageShown: snapshot.imageShown === true, closing: closingOf(snapshot), updateAfter: snapshot.updateAfter === true, groups, players, bar: selectionBarOf(snapshot, scene), feedback };
+  return { title, world, status: statusOf(snapshot), seatsNote: seatsNoteOf(snapshot), link: snapshot.link, qr, gate: gateRowsOf(snapshot.gate), imageShown: snapshot.imageShown === true, closing: closingOf(snapshot), updateAfter: snapshot.updateAfter === true, groups, players, bar: selectionBarOf(snapshot, scene), feedback };
 }
 
 /** The campaign's players as the panel changes them, once the GM has answered. */
@@ -50,7 +53,7 @@ export interface CampaignActions {
   removeFromCampaign(playerId: string): void;
 }
 
-export interface PanelActions extends Omit<ListActions, 'askRename' | 'askRemoveFromCampaign' | 'playerPrompt'>, CampaignActions, AddPlayerActions, LinkActions, SelectionActions, FeedbackActions, GateRowActions, ImageRowActions, ClosingRowActions {
+export interface PanelActions extends Omit<ListActions, 'askRename' | 'askRemoveFromCampaign' | 'playerPrompt'>, CampaignActions, AddPlayerActions, LinkActions, SelectionActions, FeedbackActions, GateRowActions, ImageRowActions, ClosingRowActions, WorldRowActions {
   close(): void;
   stop(): void;
   copy(): Promise<boolean>;
@@ -97,7 +100,7 @@ function listActions(layer: HTMLElement, actions: PanelActions, redraw: () => vo
 /**
  * The online panel: the working surface while players are at the table. A header with the title, the
  * status as a dot, "…" (Send feedback, the gates' New code and two switches), Stop and
- * Close; the line of a table that closes for want of access; the line of a pause; the line of a shown image; Copy invite link (with
+ * Close; the line of a table that closes for want of access; the line of a pause; the line of a shown image; the world it plays; Copy invite link (with
  * its menu) and the join code; the players with their tokens and Add player, or in its place the question or field the GM is answering
  * (Stop, a new link, a new player's name and code; renaming and removing stand in the player's row); the bar for the selected tokens
  * or to show this map; the feedback form while open. Redrawn whole on every change, keeping focus and the list's scroll position.
@@ -119,6 +122,7 @@ export function renderPanel(layer: HTMLElement, view: PanelView, actions: PanelA
   renderUpdateRow(layer, view.updateAfter, actions);
   renderPausedRow(layer, view.gate, actions);
   renderImageRow(layer, view.imageShown, actions);
+  renderWorldRow(layer, view.world, actions);
   if (view.link !== null) inviteRow(layer, () => actions.copy(), { open: view.qr, toggle: () => actions.toggleQr() }, linkEntries(layer, actions, redraw));
   renderCodeRow(layer, view.gate, actions);
   renderPlayerList(layer, view.groups, view.players, listActions(layer, actions, redraw));

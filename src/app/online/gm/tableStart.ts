@@ -2,7 +2,7 @@ import { showNotice } from '../../ui/notice';
 import type { WorkspaceLeaf } from 'obsidian';
 import { obsidianHttp } from './account/obsidianHttp.ts';
 import { sceneStoreOf } from './atlasView.ts';
-import { CAMPAIGNS_LOADING_TEXT, campaignLink, linkRefusal, NO_CAMPAIGN_TEXT, type TableSeats } from './campaignSeats.ts';
+import { CAMPAIGNS_LOADING_TEXT, campaignLink, linkRefusal, type TableSeats } from './campaignSeats.ts';
 import type { CreatedTable } from './createdTable.ts';
 import { createTable } from './createTable.ts';
 import { RELAY_ORIGIN } from './servers.ts';
@@ -31,14 +31,13 @@ export function refused(text: string): null {
   return null;
 }
 
-/** Why no table can start from the Atlas tab `leaf` for the campaign `campaignId` (null: none is played), or null where one can. */
-export function startBlock(leaf: WorkspaceLeaf | null, campaignId: string | null, account: HostAccount): string | null {
+/** Why no table can start from the Atlas tab `leaf`, or null where one can; a table needs no world. */
+export function startBlock(leaf: WorkspaceLeaf | null, account: HostAccount): string | null {
   if (leaf === null || sceneStoreOf(leaf) === null) return t('online.start.openMap');
-  if (campaignId === null) return NO_CAMPAIGN_TEXT;
   return account.token() === null ? t('online.start.signIn') : null;
 }
 
-/** A table the relay made on a campaign's link, with that campaign's players. */
+/** A table the relay made on the table's link, with the table's players. */
 export interface CampaignTable {
   readonly created: CreatedTable;
   readonly seats: TableSeats;
@@ -48,13 +47,13 @@ export interface CampaignTable {
 export const OTHER_LINK_TEXT = t('online.start.otherLink');
 
 /**
- * Asks the relay for a table on the lasting link of the campaign `campaignId` once its players file
- * was read, making the link first where it has none; null where no table was made, the GM told why
+ * Asks the relay for a table on the table's lasting link once its players file was read (for the
+ * world `campaignId`, or none), making the link first where it has none; null where no table was made, the GM told why
  * (a relay that signed the account out says so on the account instead; one that needs a newer Atlas
  * names its least GM level to `outdated`). A table the relay opened on
  * another link is ended, never run: its players would not find it at the campaign's link.
  */
-export async function createCampaignTable(campaigns: TableCampaigns, campaignId: string, token: string, account: HostAccount, outdated: (minLevel: number) => void = () => undefined): Promise<CampaignTable | null> {
+export async function createCampaignTable(campaigns: TableCampaigns, campaignId: string | null, token: string, account: HostAccount, outdated: (minLevel: number) => void = () => undefined): Promise<CampaignTable | null> {
   const seats = await campaigns.open(campaignId).catch(() => null);
   const link = seats === null ? null : campaignLink(seats);
   if (seats === null || link === null) return refused(seats === null ? CAMPAIGNS_LOADING_TEXT : linkRefusal(seats));

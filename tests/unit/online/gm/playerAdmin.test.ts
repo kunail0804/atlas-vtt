@@ -3,7 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MenuEntry } from '../../../../src/app/online/gm/dock/dockMenu.ts';
 import { renderMenu, type MenuActions } from '../../../../src/app/online/gm/dock/ConnectionMenu.ts';
 import { renderPanel, panelView, type PanelActions } from '../../../../src/app/online/gm/dock/OnlinePanel.ts';
-import { menuModel, type OnlineSnapshot, type SceneFacts } from '../../../../src/app/online/gm/dock/panelModel.ts';
+import { menuModel, NO_CAMPAIGNS, type OnlineSnapshot, type SceneFacts } from '../../../../src/app/online/gm/dock/panelModel.ts';
+import { worldRowOf } from '../../../../src/app/online/gm/dock/worldRow.ts';
+import type { CampaignPick } from '../../../../src/app/online/gm/dock/campaignPicker.ts';
 import { renderKnocks } from '../../../../src/app/online/gm/dock/knockStack.ts';
 
 const menus = vi.hoisted(() => ({ opened: [] as (readonly MenuEntry[])[] }));
@@ -19,7 +21,7 @@ function actions(): PanelActions {
   return {
     selectToken: vi.fn(), assign: vi.fn(), release: vi.fn(), unmark: vi.fn(), mark: vi.fn(), kick: vi.fn(), selected: () => [], imageSrc: (path) => path,
     copyPlayerCode: vi.fn(() => Promise.resolve(true)), newPlayerCode: vi.fn(), renamePlayer: vi.fn(), removeFromCampaign: vi.fn(), addPlayer: vi.fn(() => ({ id: 'd'.repeat(20), name: 'Dora', code: '731904' })), newLink: vi.fn(),
-    start: vi.fn(), choose: vi.fn(), search: vi.fn(), openCampaigns: vi.fn(), stop: vi.fn(), share: vi.fn(), copy: () => Promise.resolve(true), toggleQr: vi.fn(), close: vi.fn(), hideImage: vi.fn(), openAccountPage: vi.fn(),
+    start: vi.fn(), choose: vi.fn(), chooseWorld: vi.fn(), search: vi.fn(), openCampaigns: vi.fn(), stop: vi.fn(), share: vi.fn(), copy: () => Promise.resolve(true), toggleQr: vi.fn(), close: vi.fn(), hideImage: vi.fn(), openAccountPage: vi.fn(),
     newCode: vi.fn(), copyCode: vi.fn(), setRequireCode: vi.fn(), setAskToJoin: vi.fn(),
     toggleFeedback: vi.fn(), feedbackText: () => '', setFeedbackText: vi.fn(), setFeedbackDiagnostics: vi.fn(), sendFeedback: vi.fn(), setErrorReports: vi.fn(),
   } as unknown as PanelActions;
@@ -28,7 +30,7 @@ function actions(): PanelActions {
 function panel(): { layer: HTMLElement; does: PanelActions; redraw(players?: OnlineSnapshot['players']): void } {
   const layer = document.body.createDiv();
   const does = actions();
-  const redraw = (players: OnlineSnapshot['players'] = [ANA]): void => renderPanel(layer, panelView(snapshot({ players }), SCENE, feedback), does);
+  const redraw = (players: OnlineSnapshot['players'] = [ANA]): void => renderPanel(layer, panelView(snapshot({ players }), SCENE, feedback, worldRowOf(null, NO_CAMPAIGNS)), does);
   redraw();
   return { layer, does, redraw };
 }
@@ -231,5 +233,33 @@ describe('stopping the table', () => {
     expect(header(layer)).toEqual(['Stop table']);
     layer.querySelector<HTMLButtonElement>('.atlas-online-header__stop')?.click();
     expect(does.stop).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('the world the table plays', () => {
+  const WORLDS: CampaignPick = { list: [{ id: 'strahd', name: 'Curse of Strahd', activity: '', players: 0, art: null, hue: 0 }, { id: 'caves', name: 'Blue Mouth Caves', activity: '', players: 0, art: null, hue: 0 }], chosen: null, query: '' };
+  const worldRow = (layer: HTMLElement): HTMLButtonElement | null => layer.querySelector('.atlas-online-world');
+
+  it('is named in the panel, and its menu offers No world and every world, the one played ticked', () => {
+    const layer = document.body.createDiv();
+    const does = actions();
+    renderPanel(layer, panelView(snapshot({ campaignId: 'strahd' }), SCENE, feedback, worldRowOf('strahd', WORLDS)), does);
+    expect(worldRow(layer)?.textContent).toBe('World: Curse of Strahd');
+    worldRow(layer)?.click();
+    const entries = menus.opened.at(-1)!;
+    expect(entries.map((entry) => [entry.title, entry.checked])).toEqual([['No world', false], ['Curse of Strahd', true], ['Blue Mouth Caves', false]]);
+    rowOf(entries, 'Blue Mouth Caves').run();
+    expect(does.chooseWorld).toHaveBeenLastCalledWith('caves');
+    rowOf(entries, 'No world').run();
+    expect(does.chooseWorld).toHaveBeenLastCalledWith(null);
+  });
+
+  it('says No world in the menu before anyone joined, while the table plays none', () => {
+    const layer = document.body.createDiv();
+    const does = actions() as unknown as MenuActions;
+    renderMenu(layer, menuModel(snapshot({ players: [] }), SCENE, { kind: 'signed-out' }, false, WORLDS), does);
+    expect(worldRow(layer)?.textContent).toBe('No world');
+    worldRow(layer)?.click();
+    expect(menus.opened.at(-1)!.map((entry) => [entry.title, entry.checked])).toEqual([['No world', true], ['Curse of Strahd', false], ['Blue Mouth Caves', false]]);
   });
 });

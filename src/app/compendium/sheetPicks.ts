@@ -1,6 +1,6 @@
 /**
- * The compendium as a character sheet in Obsidian reaches it: the entries of the campaign played
- * (else of the most recently played one, else of every installed book) to pick from, finding an
+ * The compendium as a character sheet in Obsidian reaches it: the entries of the world played (else
+ * of every installed book) to pick from, finding an
  * entry by name to read, and taking one into a sheet's note and into the character's book.
  */
 
@@ -26,17 +26,13 @@ const frontmatterOf = (app: App, path: string): Frontmatter => {
   return (file === null ? undefined : app.metadataCache.getFileCache(file)?.frontmatter) ?? {};
 };
 
-/** The campaign whose compendium a sheet reads: the one played on this device, else the one played last. */
+/** The world whose compendium a sheet reads: the one played on this device; null while none is. */
 function sheetCampaign(app: App): StoredCampaign | null {
-  const campaigns = CampaignFiles.forApp(app)?.entries() ?? [];
   const playing = CampaignPlay.forApp(app).playing();
-  const played = campaigns.find((campaign) => campaign.id === playing);
-  if (played) return played;
-  const last = (campaign: StoredCampaign): number => (typeof campaign.lastPlayed === 'number' ? campaign.lastPlayed : 0);
-  return [...campaigns].sort((a, b) => last(b) - last(a))[0] ?? null;
+  return playing === null ? null : CampaignFiles.forApp(app)?.entries().find((campaign) => campaign.id === playing) ?? null;
 }
 
-/** The books a sheet picks from: the campaign's, or every installed book where it names none. */
+/** The books a sheet picks from: the played world's, or every installed book where none is played or it names none. */
 export async function sheetBooks(app: App): Promise<CompendiumBook[]> {
   const installed = await CompendiumService.forApp(app).installed();
   const sources = sheetCampaign(app)?.sources;

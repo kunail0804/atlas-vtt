@@ -10,9 +10,6 @@ import { t } from '../../i18n';
 /** What a table needs of its players file: `TablePlayers`, or memory in tests. */
 export type PlayersFiles = Pick<TablePlayers, 'roster' | 'assignments' | 'migratedIds' | 'change' | 'blocked' | 'onChange'>;
 
-/** What the GM reads where a table is started without a campaign. */
-export const NO_CAMPAIGN_TEXT = t('online.seats.noCampaign');
-
 /** What the GM reads where something needs the played campaign, which only a running table plays. */
 export const NO_TABLE_TEXT = t('online.seats.noTable');
 
@@ -158,4 +155,4 @@ export function renewLink(seats: TableSeats): boolean {
 export const campaignLink = (seats: TableSeats): string | null => seats.link() ?? (renewLink(seats) ? seats.link() : null);
 
 /** What the GM reads where the table's link cannot be kept. */
-export const linkRefusal = (seats: TableSeats): string => seats.refusal() ?? NO_CAMPAIGN_TEXT;
+export const linkRefusal = (seats: TableSeats): string => seats.refusal() ?? NEWER_PLAYERS_TEXT;
