@@ -78,5 +78,6 @@ export function earlierIdsOf(ids: MigratedIds, playerId: string): string[] {
   for (const world of Object.values(ids)) {
     for (const [oldId, newId] of Object.entries(world)) if (newId === playerId && oldId !== playerId) earlier.add(oldId);
   }
-  return [...earlier].sort();
+  // Ordered by code units, not by locale, so every device tells the relay the same list.
+  return [...earlier].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
 }
