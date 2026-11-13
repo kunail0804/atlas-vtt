@@ -3,8 +3,7 @@ import path from 'node:path';
 import { chromium, type Browser, type Page } from 'playwright';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { CompendiumShare, type PageRead } from '../../src/app/online/gm/compendium/CompendiumShare.ts';
-import { EMPTY_ROSTER, identifyDevice, setShares, sharesOf, type Roster } from '../../src/app/players/roster.ts';
-import { sha256Hex } from '../../src/app/online/gm/assetServe.ts';
+import { NO_SHARES, setShares, sharesOf, type PageShares } from '../../src/app/players/shares.ts';
 import { TestGm, createTable, startTestRelay, stopTestRelay, until, type TestRelay } from './helpers.ts';
 
 // The compendium pages a GM shares, on the built page, with the plugin's own connection and share code as the GM.
@@ -32,7 +31,7 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the compendium pag
     await stopTestRelay(test);
   });
 
-  it('knows the player from their device, lists their pages, reads them as cards, and writes their change', async () => {
+  it('sends the player the pages of their place, lists them, reads them as cards, and writes their change', async () => {
     const created = await createTable(test.gmOrigin);
     gm = new TestGm(test.gmOrigin, created.code, created.secret);
     await until(() => gm.status === 'online', 'GM online');
@@ -40,8 +39,8 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the compendium pag
       if (SHOTS !== undefined) await page.screenshot({ path: path.join(SHOTS, `${name}.png`) });
     };
 
-    // The vault: its players (none yet) and two notes, the Fireball's level and text changeable.
-    let roster: Roster = EMPTY_ROSTER;
+    // The vault: its shares (none yet) and two notes, the Fireball's level and text changeable.
+    let shares: PageShares = NO_SHARES;
     const fire = { level: '3', text: 'A bright streak flashes.\n\n| Slot | Damage |\n| --- | --- |\n| 3rd | 8d6 |' };
     const read = async (notePath: string): Promise<PageRead | null> => {
       if (notePath === FIRE) {
@@ -57,19 +56,10 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the compendium pag
         fields: [],
       } : null;
     };
-    let ids = 0;
     const share = new CompendiumShare({
       send: (body, to) => gm.connection.send(body, to),
       nameOf: (player) => gm.joined.find((joined) => joined.id === player)?.name ?? null,
-      identify: async (key, name) => {
-        const device = await sha256Hex(new TextEncoder().encode(key) as Uint8Array<ArrayBuffer>);
-        const identified = identifyDevice(roster, device, name, Date.now(), () => `p${(++ids).toString(16).padStart(8, '0')}`);
-        roster = identified.roster;
-        if (Object.keys(roster.shares).length === 0) roster = setShares(roster, [FIRE], { [identified.id]: 'write' });
-        if (!roster.shares[GOBLIN]) roster = setShares(roster, [GOBLIN], { [identified.id]: 'read' });
-        return identified.id;
-      },
-      sharesOf: (id) => sharesOf(roster, id),
+      sharesOf: (id) => sharesOf(shares, id),
       describe: (notePath) => (notePath === FIRE ? { title: 'Fireball', kind: 'spell', source: 'SRD', system: 'X' } : notePath === GOBLIN ? { title: 'Goblin', kind: 'monster', source: 'Personal', system: 'X' } : null),
       read,
       write: async (notePath, edit, allowed) => {
@@ -87,8 +77,10 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the compendium pag
     await page.fill('.join-input >> nth=0', 'Ana');
     await page.click('.join-button');
     await until(() => gm.joined.length === 1, 'player seated', 10_000);
-    await until(() => Object.keys(roster.players).length === 1, 'player known', 5_000);
-    const [anaId] = Object.keys(roster.players);
+    // The GM shares with the player of the place the relay seated her in.
+    const anaId = gm.joined[0]?.id ?? '';
+    shares = setShares(setShares(shares, [FIRE], { [anaId]: 'write' }), [GOBLIN], { [anaId]: 'read' });
+    share.playerJoined(anaId);
 
     // No character, but shared pages: the book opens on them.
     await page.waitForSelector('.atlas-bottom-toolbar-row__end button', { timeout: 5_000 });
@@ -132,19 +124,24 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the compendium pag
     expect(await page.locator('.cpd-row .cpd-value').first().textContent()).toBe('4');
 
     // The GM takes the Fireball back: it leaves the player's list, and the open page closes.
-    roster = setShares(roster, [FIRE], { [anaId ?? '']: null });
+    shares = setShares(shares, [FIRE], { [anaId]: null });
     share.sharesChanged();
     await page.waitForSelector('.cpd-list');
     expect(await page.locator('.cpd-entry').allTextContents()).toEqual(['Goblin']);
 
-    // A reload is the same device: the same player, with the same pages.
-    gm.messages.length = 0;
+    // A reload is the same place: the relay seats her there again, with the same pages, whatever name she types.
     await page.reload();
+    // The table tells the pages a player left, as it does every part of the table.
+    await until(() => gm.left.includes(anaId), 'left', 10_000);
+    share.playerLeft(anaId);
     await page.fill('.join-input >> nth=0', 'Ana (tablette)');
     await page.click('.join-button');
-    await until(() => gm.messages.some((message) => (message.body as { t?: string }).t === 'identify'), 'identified again', 10_000);
-    await page.waitForTimeout(300);
-    expect(Object.keys(roster.players)).toEqual([anaId]);
-    expect(roster.players[anaId ?? '']?.name).toBe('Ana');
+    await until(() => gm.joined.length === 2, 'seated again', 10_000);
+    expect(gm.joined[1]?.id).toBe(anaId);
+    share.playerJoined(anaId);
+    await page.click('.atlas-bottom-toolbar-row__end button');
+    await page.click('.book-tab[data-tab="compendium"]');
+    await page.waitForSelector('.cpd-entry');
+    expect(await page.locator('.cpd-entry').allTextContents()).toEqual(['Goblin']);
   }, 60_000);
 });

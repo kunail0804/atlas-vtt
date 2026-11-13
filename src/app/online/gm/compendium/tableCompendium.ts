@@ -4,8 +4,8 @@ import { cardName } from '../../../compendium/entryCard';
 import { editedValue, pageContentOf, withBody } from '../../../compendium/sharedPage';
 import { COMPENDIUM_ROOT, ENTRY_KIND_KEY, isEntryKind } from '../../../compendium/sourceFormat';
 import { t } from '../../../i18n';
-import { PlayerRoster } from '../../../players/PlayerRoster';
-import { sharesOf } from '../../../players/roster';
+import { PageShares } from '../../../players/PageShares';
+import { sharesOf } from '../../../players/shares';
 import { noteName } from '../../../utils/pathUtils';
 import { companionTimers } from '../companionTimers.ts';
 import { CompendiumShare } from './CompendiumShare.ts';
@@ -34,11 +34,11 @@ export interface TableCompendium {
 }
 
 /**
- * The compendium pages of a running table in Obsidian: the vault's players and their shares
- * (`PlayerRoster`), each note read from the vault and a player's change written into it.
+ * The compendium pages of a running table in Obsidian: the pages shared with the players of the
+ * table (`PageShares`), each note read from the vault and a player's change written into it.
  */
 export function tableCompendium(app: App, send: (body: GmMessage, to: string) => void, nameOf: (player: string) => string | null, statblockOf: (player: string) => string | null = () => null): TableCompendium {
-  const roster = PlayerRoster.forApp(app);
+  const pageShares = PageShares.forApp(app);
   const timers = companionTimers();
   /** The campaign's books as a sheet reads them, read again when sources or the campaign played change. */
   let books: readonly CompendiumBook[] = [];
@@ -80,8 +80,7 @@ export function tableCompendium(app: App, send: (body: GmMessage, to: string) =>
     },
     send,
     nameOf,
-    identify: (key, name) => roster.identify(key, name),
-    sharesOf: (playerId) => sharesOf(roster.current(), playerId),
+    sharesOf: (playerId) => sharesOf(pageShares.current(), playerId),
     describe: (path) => {
       const file = app.vault.getFileByPath(path);
       if (file === null) return null;
@@ -121,17 +120,17 @@ export function tableCompendium(app: App, send: (body: GmMessage, to: string) =>
     share,
     start: () => {
       if (stops.length > 0) return;
-      void roster.load();
+      void pageShares.load();
       readBooks();
       // Sources and the campaign played: the books follow, once the modules are here.
       void loaded().then((read) => {
         if (stops.length === 0) return;
         stops.push(read.CompendiumService.forApp(app).onChange(readBooks), read.CampaignPlay.forApp(app).onChange(readBooks));
       }, () => undefined);
-      // A renamed note keeps its shares through the roster, whose change sends every list again.
+      // A renamed note keeps its shares through `PageShares`, whose change sends every list again.
       const changed: EventRef = app.metadataCache.on('changed', (file: TFile) => share.noteChanged(file.path));
       stops = [
-        roster.onChange(() => share.sharesChanged()),
+        pageShares.onChange(() => share.sharesChanged()),
         () => app.metadataCache.offref(changed),
         () => share.stop(),
       ];

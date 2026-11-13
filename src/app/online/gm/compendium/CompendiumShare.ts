@@ -23,11 +23,9 @@ export interface PageRead {
 
 export interface CompendiumSharePorts {
   send(body: GmMessage, to: string): void;
-  /** The name a player joined the table under. */
+  /** The name of the player of the table seated under this id; null for anyone the table does not seat. */
   nameOf(player: string): string | null;
-  /** The vault's player a device key belongs to (a new one for a device never seen); null for a key refused. */
-  identify(key: string, name: string): Promise<string | null>;
-  /** The pages shared with one of the vault's players now. */
+  /** The pages shared with a player of the table now, by their id. */
   sharesOf(playerId: string): readonly PlayerShare[];
   /** The title, kind and book of a note, from what the vault knows of it now; null for a note that is gone. */
   describe(path: string): { title: string; kind: string; source?: string; system?: string } | null;
@@ -61,15 +59,18 @@ const PAGE_BURST = 20;
 const PAGES_PER_SECOND = 4;
 
 /**
- * The compendium pages the GM shares, for a running table. A player says who they are with their
- * device key (`identify`, after every welcome): from then on they are sent the list of the pages
- * shared with that player of the vault, again whenever it changes, and a page whole when they open
- * it, again when its note changes. A change a player may make arrives in parts and is written into
- * the note once whole; their access is looked at again then, never taken from when they opened it.
+ * The compendium pages the GM shares, for a running table. The relay seats a player under the id of
+ * their place at the table, however they took it (their own code, a key their browser kept, a new
+ * device the GM let in), and the pages shared with that player of the table are theirs: a player
+ * connected is sent their list, again whenever it changes, and a page whole when they open it, again
+ * when its note changes. Someone the table does not seat gets nothing, whatever name they give; the
+ * device key a player's page still sends (`identify`) only asks for the list again. A change a
+ * player may make arrives in parts and is written into the note once whole; their access is looked
+ * at again then, never taken from when they opened it.
  */
 export class CompendiumShare {
-  /** The vault's player each player at the table is, by relay id. */
-  private readonly seats = new Map<string, string>();
+  /** The players connected, by relay id: the id of their place at the table. */
+  private readonly present = new Set<string>();
   /** The pages each was last sent in their list, by page id. */
   private readonly listed = new Map<string, Map<string, PlayerShare>>();
   private readonly sentLists = new Map<string, string>();
@@ -87,7 +88,7 @@ export class CompendiumShare {
   receive(from: string, body: unknown): boolean {
     if (!isRecord(body) || !isPlayerCompendiumType(body.t)) return false;
     const message = parsePlayerMessage(body);
-    if (message?.t === 'identify') void this.identify(from, message.key);
+    if (message?.t === 'identify') this.playerJoined(from);
     else if (message?.t === 'sheet-choices') void this.offer(from, message.kind);
     else if (message?.t === 'sheet-pick') void this.take(from, message.kind, message.id);
     else if (message?.t === 'sheet-view') void this.view(from, message.kind, message.name);
@@ -96,9 +97,21 @@ export class CompendiumShare {
     return true;
   }
 
-  /** The vault's players or their shares changed: every list and open page follows. */
+  /** The relay's welcome: exactly these players are connected, and each is sent their pages. */
+  welcome(players: readonly string[]): void {
+    for (const player of [...this.present]) if (!players.includes(player)) this.playerLeft(player);
+    for (const player of players) this.playerJoined(player);
+  }
+
+  /** A player the relay let in: they are sent the pages of their place, if the table seats them. */
+  playerJoined(player: string): void {
+    this.present.add(player);
+    this.update(player);
+  }
+
+  /** The table's players or the shares changed: every list and open page follows. */
   sharesChanged(): void {
-    for (const player of this.seats.keys()) this.update(player);
+    for (const player of this.present) this.update(player);
   }
 
   /** A note changed: whoever has it in their list is sent the list, and the page if they opened it. */
@@ -118,7 +131,7 @@ export class CompendiumShare {
   }
 
   playerLeft(player: string): void {
-    this.seats.delete(player);
+    this.present.delete(player);
     this.listed.delete(player);
     this.sentLists.delete(player);
     this.opened.delete(player);
@@ -128,27 +141,7 @@ export class CompendiumShare {
   }
 
   stop(): void {
-    for (const player of [...this.seats.keys()]) this.playerLeft(player);
-  }
-
-  /** The vault's player a player at the table is, once they said; undefined before. */
-  playerOf(player: string): string | undefined {
-    return this.seats.get(player);
-  }
-
-  private async identify(from: string, key: string): Promise<void> {
-    const id = await this.ports.identify(key, this.ports.nameOf(from) ?? '').catch((error: unknown) => {
-      console.error('[CompendiumShare] Telling who a player is failed:', error);
-      return null;
-    });
-    if (id === null) return;
-    if (this.seats.get(from) !== id) {
-      this.listed.delete(from);
-      this.sentLists.delete(from);
-      this.opened.delete(from);
-    }
-    this.seats.set(from, id);
-    this.update(from);
+    for (const player of [...this.present]) this.playerLeft(player);
   }
 
   /** The player's list as it is now, and their open pages again where their access changed or they lost one. */
@@ -166,14 +159,19 @@ export class CompendiumShare {
   }
 
   private sendList(player: string): void {
-    const playerId = this.seats.get(player);
-    if (playerId === undefined) return;
+    if (this.ports.nameOf(player) === null) {
+      // No longer seated (taken off the table): what they were sent is taken back.
+      if (this.listed.has(player)) this.ports.send({ t: 'compendium', pages: [] }, player);
+      this.listed.delete(player);
+      this.sentLists.delete(player);
+      return;
+    }
     const pages = new Map<string, PlayerShare>();
     const list: SharedPage[] = [];
     // What their sheet names is theirs to read, unless the GM shares more.
     const sheet = this.ports.sheetOf?.(player) ?? null;
     const linked = sheet === null ? [] : (this.ports.sheetLinks?.(sheet) ?? []);
-    const shares: PlayerShare[] = [...this.ports.sharesOf(playerId)];
+    const shares: PlayerShare[] = [...this.ports.sharesOf(player)];
     for (const path of linked) if (!shares.some((share) => share.path === path)) shares.push({ path, access: 'read' });
     for (const share of shares) {
       const described = this.ports.describe(share.path);
