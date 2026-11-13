@@ -2,7 +2,7 @@ import type { App } from 'obsidian';
 import { CampaignFiles } from '../../campaigns/CampaignFiles';
 import { CampaignService } from '../../campaigns/CampaignService';
 import type { Campaign } from '../../campaigns/campaignTypes';
-import { CampaignPlayers } from '../../campaigns/players/CampaignPlayers';
+import { TablePlayers } from '../../campaigns/players/TablePlayers';
 import { resourceUrl, sceneThumbnailUrl } from '../../react/components/dashboard/libraryPictures';
 import { campaignActivity } from '../../react/components/dashboard/relativeTime';
 import { AssetService } from '../../services/AssetService';
@@ -14,7 +14,7 @@ export interface CampaignChoice {
   readonly name: string;
   /** When it was last played, or made ("Played 3d ago"). */
   readonly activity: string;
-  /** Its lasting players. */
+  /** The table's lasting players, who play whatever campaign it runs on. */
   readonly players: number;
   /** Its world map's thumbnail as a URL; null for none, or while it is looked up. */
   readonly art: string | null;
@@ -38,7 +38,7 @@ async function thumbnailOf(app: App, assetId: string): Promise<string | null> {
 }
 
 /**
- * The vault's campaigns for the start menu: read from the campaigns and players files, with each
+ * The vault's campaigns for the start menu: read from the campaigns and the table's players file, with each
  * world map's thumbnail looked up once (again when the asset index or a scene's thumbnail changes).
  */
 export function appCampaignChoices(app: App): CampaignChoices {
@@ -66,11 +66,11 @@ export function appCampaignChoices(app: App): CampaignChoices {
       });
     return null;
   };
-  const choiceOf = (campaign: Campaign, players: CampaignPlayers | undefined): CampaignChoice => ({
+  const choiceOf = (campaign: Campaign, players: number): CampaignChoice => ({
     id: campaign.id,
     name: campaign.name,
     activity: campaignActivity(campaign),
-    players: players?.of(campaign.id).players.length ?? 0,
+    players,
     art: artOf(campaign.worldMap),
     hue: fnv1a32(campaign.id) % 360,
   });
@@ -78,7 +78,7 @@ export function appCampaignChoices(app: App): CampaignChoices {
     list: () => {
       const files = CampaignFiles.forApp(app);
       if (files === undefined || !files.isLoaded()) return null;
-      const players = CampaignPlayers.forApp(app);
+      const players = TablePlayers.forApp(app)?.roster().players.length ?? 0;
       return new CampaignService(files).list().map((campaign) => choiceOf(campaign, players));
     },
     onChange: (listener) => {
@@ -90,7 +90,7 @@ export function appCampaignChoices(app: App): CampaignChoices {
       const refs = [app.workspace.on('atlas-vtt:refresh-assets', forgetArt), app.workspace.on('atlas-vtt:scene-thumbnail-updated', forgetArt)];
       const stops = [
         CampaignFiles.forApp(app)?.onChange(listener),
-        CampaignPlayers.forApp(app)?.onChange(listener),
+        TablePlayers.forApp(app)?.onChange(listener),
       ];
       return () => {
         listeners.delete(listener);

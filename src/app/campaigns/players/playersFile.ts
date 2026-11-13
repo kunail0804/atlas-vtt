@@ -1,10 +1,11 @@
 /**
- * `players.json` in a campaign's folder: who plays the campaign online. `{ format, campaignId,
- * link?, players: { <player id>: { name, code, characters, addedAt } } }`, where `link` is the
- * campaign's table code, `code` the player's own six digits and `characters` the library tokens
- * they play, and beside them the tokens it assigns (`tokenOwners`, `playerTokens`; see
- * `tokenAssignments.ts`). It lies beside `campaign.json` so a sync conflict over players never costs
- * the campaign itself; fields Atlas does not know are kept.
+ * `players.json` in a campaign's folder: who played the campaign online before the table's players
+ * moved into one file for the vault (`tablePlayersFile.ts`), which has the same shape and is changed
+ * with the functions here. `{ format, campaignId, link?, players: { <player id>: { name, code,
+ * characters, addedAt } } }`, where `link` is the table code, `code` the player's own six digits and
+ * `characters` the library tokens they play, and beside them the tokens it assigns (`tokenOwners`,
+ * `playerTokens`; see `tokenAssignments.ts`). Atlas reads a world's file only to carry it over
+ * (`playersMigration.ts`) and leaves it on disk for older versions; fields Atlas does not know are kept.
  */
 
 import type { RecordLayout, StoredRecord } from '../../services/recordFiles/recordLayout';
@@ -22,10 +23,10 @@ const MAX_CHARACTER_ID = 200;
 /** The most characters one player is read with. */
 const MAX_PLAYER_CHARACTERS = 500;
 
-/** A players file as stored, with its `campaignId` as the record's id. */
+/** A players file as stored: a world's, with its `campaignId` as the record's id, or the table's (`TABLE_PLAYERS_ID`). */
 export type StoredPlayers = StoredRecord;
 
-/** A player of the campaign as Atlas reads one. */
+/** A player of the table as Atlas reads one. */
 export interface CampaignPlayer {
   readonly id: string;
   readonly name: string;
@@ -38,17 +39,11 @@ const FILE = campaignFileLayout({ file: PLAYERS_FILE, format: PLAYERS_FORMAT, ki
 /** Whether `path` is a players file: `players.json` directly in a campaign's folder. */
 export const isPlayersPath = FILE.isPath;
 
-/** The players file of the campaign whose folder is `folder`. */
-export const playersPathIn = FILE.pathIn;
-
 /** A players file lies in its campaign's folder (see `campaignFileLayout`). */
 export const PLAYERS_LAYOUT: RecordLayout<StoredPlayers> = FILE.layout;
 
 /** Whether this Atlas may write the file: one of a later format is only read. */
 export const isWritable: (stored: StoredPlayers) => boolean = FILE.isWritable;
-
-/** An empty players file for a campaign. */
-export const emptyPlayers = (campaignId: string): StoredPlayers => ({ id: campaignId, campaignId, players: {} });
 
 const playerEntries = (stored: StoredPlayers): [string, unknown][] => (isRecord(stored.players) ? Object.entries(stored.players) : []);
 
@@ -123,12 +118,12 @@ export function withCharacterOwner(stored: StoredPlayers, characterId: string, p
   return { ...stored, players };
 }
 
-/** The file with the campaign's table code `link`. */
+/** The file with the table code `link`. */
 export function withLink(stored: StoredPlayers, link: string): StoredPlayers {
   return isWritable(stored) ? { ...stored, link } : stored;
 }
 
-/** A join code no player of the campaign has yet. */
+/** A join code no player of the table has yet. */
 export const newPlayerCode = (taken: ReadonlySet<string>, random?: () => number): string => newJoinCode(random, taken);
 
 const BASE32 = 'abcdefghijklmnopqrstuvwxyz234567';
@@ -155,7 +150,7 @@ function base32(bytes: Uint8Array, length: number): string {
   return text.slice(0, length);
 }
 
-/** A campaign's table code: 128 random bits in base32, 26 characters. */
+/** A table code: 128 random bits in base32, 26 characters. */
 export const newLinkCode = (random: (length: number) => Uint8Array = randomBytes): string => base32(random(16), 26);
 
 /** A player id: 96 random bits in base32, 20 characters. */

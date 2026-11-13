@@ -4,6 +4,8 @@ import { CampaignFiles } from '../../../../src/app/campaigns/CampaignFiles';
 import { CAMPAIGNS_FOLDER } from '../../../../src/app/campaigns/campaignPaths';
 import { CampaignPlayers } from '../../../../src/app/campaigns/players/CampaignPlayers';
 import { withPlayer, type CampaignPlayer } from '../../../../src/app/campaigns/players/playersFile';
+import { TABLE_PLAYERS_PATH } from '../../../../src/app/campaigns/players/tablePlayersFile';
+import { TablePlayers } from '../../../../src/app/campaigns/players/TablePlayers';
 import { MAX_CAMPAIGN_PLAYERS } from '../../../../src/app/online/protocol/index.ts';
 import { admitNewcomer, campaignLink, linkRefusal, refusalText, renewLink, TableSeats } from '../../../../src/app/online/gm/campaignSeats.ts';
 import { createInMemoryApp } from '../../../mocks/inMemoryVault';
@@ -30,70 +32,74 @@ const seatId = (index: number): string => `${String.fromCharCode(97 + Math.floor
 
 const opened: ReturnType<typeof createInMemoryApp>[] = [];
 
-async function campaign(files: Record<string, string> = {}): Promise<{ vault: ReturnType<typeof createInMemoryApp>; players: CampaignPlayers; seats: TableSeats }> {
+/** A vault with one campaign, its table's players file read as the plugin reads it. */
+async function table(files: Record<string, string> = {}): Promise<{ vault: ReturnType<typeof createInMemoryApp>; players: TablePlayers; seats: TableSeats }> {
   const vault = createInMemoryApp({ files: { [`${FOLDER}/campaign.json`]: campaignText, ...files } });
   opened.push(vault);
   await CampaignFiles.open(vault.app).load();
-  const players = CampaignPlayers.open(vault.app);
-  await players.whenLoaded();
-  return { vault, players, seats: new TableSeats(players, 'c1') };
+  await CampaignPlayers.open(vault.app).whenLoaded();
+  const players = TablePlayers.open(vault.app);
+  await players.whenReady();
+  return { vault, players, seats: new TableSeats(players) };
 }
 
-/** What the campaign's players file holds on disk once every write landed. */
-async function onDisk(vault: ReturnType<typeof createInMemoryApp>, players: CampaignPlayers): Promise<{ link?: string; players?: Record<string, { addedAt?: number }> }> {
+/** What the table's players file holds on disk once every write landed. */
+async function onDisk(vault: ReturnType<typeof createInMemoryApp>, players: TablePlayers): Promise<{ link?: string; players?: Record<string, { addedAt?: number }> }> {
   await players.flush();
-  return JSON.parse(vault.files.get(`${FOLDER}/players.json`) ?? '{}') as { link?: string; players?: Record<string, { addedAt?: number }> };
+  return JSON.parse(vault.files.get(TABLE_PLAYERS_PATH) ?? '{}') as { link?: string; players?: Record<string, { addedAt?: number }> };
 }
 
-const LATER = `${JSON.stringify({ format: 2, campaignId: 'c1', players: {} })}\n`;
+const LATER = `${JSON.stringify({ format: 2, players: {} })}\n`;
 
 afterEach(() => {
   notices.length = 0;
   vi.restoreAllMocks();
   for (const vault of opened.splice(0)) {
+    TablePlayers.release(vault.app);
     CampaignPlayers.release(vault.app);
     CampaignFiles.release(vault.app);
   }
 });
 
-describe('the seats of a campaign a table runs on', () => {
+describe('the seats of the table', () => {
   it('are its players file: the players, their codes as the relay is told them, and who plays which character', async () => {
-    const { players, seats } = await campaign();
-    players.change('c1', (stored) => withPlayer(stored, ANA));
+    const { players, seats } = await table();
+    players.change((stored) => withPlayer(stored, ANA));
     expect(seats.players()).toEqual([ANA]);
     expect(seats.seats()).toEqual([{ id: ANA.id, name: 'Ana', code: '000001' }]);
     expect(seats.codeOf(ANA.id)).toBe('000001');
     expect(seats.codeOf(NEW.id)).toBeNull();
     seats.setOwner('lib-bear', ANA.id);
-    expect(players.of('c1').players[0]?.characters).toEqual(['lib-ana', 'lib-bear']);
+    expect(players.roster().players[0]?.characters).toEqual(['lib-ana', 'lib-bear']);
   });
 
-  it('tell their listeners of every change of the campaign\'s file, and of no other campaign\'s', async () => {
-    const other = `${CAMPAIGNS_FOLDER}/Moor`;
-    const { vault, players, seats } = await campaign({ [`${other}/campaign.json`]: `${JSON.stringify({ format: 1, id: 'c2', name: 'Moor', createdAt: 1 })}\n` });
-    await CampaignFiles.forApp(vault.app)?.load();
+  it('tell the relay the ids a player had in the worlds before they were merged', async () => {
+    const merged = { format: 1, players: { [ANA.id]: { name: 'Ana', code: '000001', characters: [] } }, migratedIds: { c1: { [ANA.id]: ANA.id }, c2: { [seatId(1)]: ANA.id, [seatId(0)]: ANA.id } } };
+    const { seats } = await table({ [TABLE_PLAYERS_PATH]: JSON.stringify(merged) });
+    expect(seats.seats()).toEqual([{ id: ANA.id, name: 'Ana', code: '000001', was: [seatId(0), seatId(1)] }]);
+  });
+
+  it('tell their listeners of every change of the file, another device\'s too', async () => {
+    const { vault, players, seats } = await table();
     let heard = 0;
     seats.onChange(() => (heard += 1));
-    players.change('c1', (stored) => withPlayer(stored, ANA));
-    expect(heard).toBe(1);
-    players.change('c2', (stored) => withPlayer(stored, { ...ANA, id: NEW.id }));
+    players.change((stored) => withPlayer(stored, ANA));
     expect(heard).toBe(1);
     // Another device's write arrives as a change of the file.
     await players.flush();
-    const path = `${FOLDER}/players.json`;
-    const file = JSON.parse(vault.files.get(path) ?? '{}') as { players: Record<string, object> };
+    const file = JSON.parse(vault.files.get(TABLE_PLAYERS_PATH) ?? '{}') as { players: Record<string, object> };
     file.players[NEW.id] = { name: 'Noor', code: '000002', characters: [], addedAt: 2 };
-    await vault.app.vault.adapter.write(path, JSON.stringify(file));
-    vault.emit('modify', new TFile(path));
+    await vault.app.vault.adapter.write(TABLE_PLAYERS_PATH, JSON.stringify(file));
+    vault.emit('modify', new TFile(TABLE_PLAYERS_PATH));
     for (let turn = 0; turn < 5; turn += 1) await new Promise((resolve) => setTimeout(resolve, 0));
     expect(heard).toBe(2);
     expect(seats.players().map((player) => player.name)).toEqual(['Ana', 'Noor']);
   });
 });
 
-describe('a newcomer admitted into the campaign', () => {
+describe('a newcomer admitted to the table', () => {
   it('gets a code no other player has and that is not the join code', async () => {
-    const { seats } = await campaign();
+    const { seats } = await table();
     seats.change((stored) => withPlayer(stored, ANA));
     // The first draws are Ana's code and the join code.
     const admitted = admitNewcomer(seats, NEW, '000002', seq(1, 2, 3));
@@ -101,32 +107,31 @@ describe('a newcomer admitted into the campaign', () => {
     expect(seats.players().map((player) => player.code)).toEqual(['000001', '000003']);
   });
 
-  it('is refused once the campaign has as many players as it may', async () => {
-    const { seats } = await campaign();
+  it('is refused once the table has as many players as it may', async () => {
+    const { seats } = await table();
     seats.change((stored) => Array.from({ length: MAX_CAMPAIGN_PLAYERS }, (_, index) => index).reduce(
       (file, index) => withPlayer(file, { id: seatId(index), name: `P${index}`, code: String(index).padStart(6, '0'), characters: [] }), stored,
     ));
     expect(seats.players()).toHaveLength(MAX_CAMPAIGN_PLAYERS);
     expect(admitNewcomer(seats, NEW, '999999')).toBeNull();
     expect(seats.players()).toHaveLength(MAX_CAMPAIGN_PLAYERS);
-    expect(refusalText(seats, 'Noor')).toBe('The campaign has no room for Noor.');
+    expect(refusalText(seats, 'Noor')).toBe('The table has no room for Noor.');
   });
 
   it('is refused, and nothing written, where the players file is of a later format', async () => {
-    const later = `${JSON.stringify({ format: 2, campaignId: 'c1', players: {} })}\n`;
-    const { vault, players, seats } = await campaign({ [`${FOLDER}/players.json`]: later });
+    const { vault, players, seats } = await table({ [TABLE_PLAYERS_PATH]: LATER });
     expect(admitNewcomer(seats, NEW, '999999')).toBeNull();
     await players.flush();
-    expect(vault.files.get(`${FOLDER}/players.json`)).toBe(later);
-    expect(refusalText(seats, 'Noor')).toBe('This campaign\'s players file is from a newer Atlas.');
+    expect(vault.files.get(TABLE_PLAYERS_PATH)).toBe(LATER);
+    expect(refusalText(seats, 'Noor')).toBe('The table\'s players file is from a newer Atlas.');
   });
 });
 
-describe('the campaign\'s link', () => {
-  const withLinkText = `${JSON.stringify({ format: 1, campaignId: 'c1', link: 'k'.repeat(26), players: {} })}\n`;
+describe('the table\'s link', () => {
+  const withLinkText = `${JSON.stringify({ format: 1, link: 'k'.repeat(26), players: {} })}\n`;
 
   it('made anew is the same in memory and on disk', async () => {
-    const { vault, players, seats } = await campaign({ [`${FOLDER}/players.json`]: withLinkText });
+    const { vault, players, seats } = await table({ [TABLE_PLAYERS_PATH]: withLinkText });
     expect(renewLink(seats)).toBe(true);
     const shown = seats.link();
     expect(shown).not.toBe('k'.repeat(26));
@@ -134,40 +139,31 @@ describe('the campaign\'s link', () => {
     expect(seats.link()).toBe(shown);
   });
 
-  it('made for a players file that has none is the one kept on disk', async () => {
-    const { vault, players, seats } = await campaign({ [`${FOLDER}/players.json`]: `${JSON.stringify({ format: 1, campaignId: 'c1', players: {} })}\n` });
+  it('made where the vault has no players file yet is the one kept on disk', async () => {
+    const { vault, players, seats } = await table();
     const link = campaignLink(seats);
     expect(link).toMatch(/^[a-z2-7]{26}$/);
     expect((await onDisk(vault, players)).link).toBe(link);
     expect(seats.link()).toBe(link);
   });
 
-  it('is refused with the reason: a campaign without a folder, campaigns not read yet, a newer file', async () => {
-    const { seats: none } = await campaign();
-    const elsewhere = new TableSeats(CampaignPlayers.forApp(opened[0]?.app) as CampaignPlayers, 'c9');
-    expect(none.link()).toBeNull();
-    expect(campaignLink(elsewhere)).toBeNull();
-    expect(linkRefusal(elsewhere)).toBe('This campaign has no folder in the vault.');
-    expect(refusalText(elsewhere, 'Noor')).toBe('This campaign has no folder in the vault.');
-
+  it('is refused with the reason: the players file not ready yet, a newer file', async () => {
     const early = createInMemoryApp({ files: { [`${FOLDER}/campaign.json`]: campaignText } });
     opened.push(early);
-    const players = CampaignPlayers.open(early.app);
-    await players.whenLoaded();
-    const loading = new TableSeats(players, 'c1');
+    const loading = new TableSeats(TablePlayers.open(early.app));
     expect(campaignLink(loading)).toBeNull();
-    expect(linkRefusal(loading)).toBe('The campaigns are still loading. Try again in a moment.');
-    expect(refusalText(loading, 'Noor')).toBe('The campaigns are still loading. Try again in a moment.');
+    expect(linkRefusal(loading)).toBe('The campaigns and the table\'s players are still loading. Try again in a moment.');
+    expect(refusalText(loading, 'Noor')).toBe('The campaigns and the table\'s players are still loading. Try again in a moment.');
 
-    const { seats: later } = await campaign({ [`${FOLDER}/players.json`]: LATER });
+    const { seats: later } = await table({ [TABLE_PLAYERS_PATH]: LATER });
     expect(campaignLink(later)).toBeNull();
-    expect(linkRefusal(later)).toBe('This campaign\'s players file is from a newer Atlas.');
+    expect(linkRefusal(later)).toBe('The table\'s players file is from a newer Atlas.');
   });
 });
 
 describe('what the seats write', () => {
   it('gives a newcomer the same added time in memory and on disk', async () => {
-    const { vault, players, seats } = await campaign({ [`${FOLDER}/players.json`]: `${JSON.stringify({ format: 1, campaignId: 'c1', players: {} })}\n` });
+    const { vault, players, seats } = await table({ [TABLE_PLAYERS_PATH]: `${JSON.stringify({ format: 1, players: {} })}\n` });
     let clock = 1_000;
     vi.spyOn(Date, 'now').mockImplementation(() => (clock += 1));
     admitNewcomer(seats, NEW, '999999');
@@ -176,8 +172,8 @@ describe('what the seats write', () => {
   });
 
   it('tell the GM when a character cannot be given in a players file from a newer Atlas', async () => {
-    const { seats } = await campaign({ [`${FOLDER}/players.json`]: LATER });
+    const { seats } = await table({ [TABLE_PLAYERS_PATH]: LATER });
     seats.setOwner('lib-bear', ANA.id);
-    expect(notices).toEqual(['This campaign\'s players file is from a newer Atlas.']);
+    expect(notices).toEqual(['The table\'s players file is from a newer Atlas.']);
   });
 });

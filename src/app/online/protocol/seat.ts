@@ -4,11 +4,32 @@ import { isRecord } from './shape.ts';
 /** The most players a campaign's `players` frame lists: its whole roster, whoever is connected. */
 export const MAX_CAMPAIGN_PLAYERS = 64;
 
+/** The most earlier ids one seat names (`CampaignSeat.was`). */
+export const MAX_SEAT_ALIASES = 16;
+
 /** A player of the GM's campaign: the relay's id for them, their name and their own six-digit code. */
 export interface CampaignSeat {
   readonly id: string;
   readonly name: string;
   readonly code: string;
+  /**
+   * Ids the player had before the GM's players were merged into one list: a key the relay gave
+   * under one of them takes this seat (`Table.attachPlayer`). Absent where there are none; a relay
+   * from before it ignores it.
+   */
+  readonly was?: readonly string[];
+}
+
+/** The earlier ids of a seat: undefined where it names none, null for anything but a list of up to `MAX_SEAT_ALIASES` player ids. */
+function readAliases(value: unknown): readonly string[] | null | undefined {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value) || value.length > MAX_SEAT_ALIASES) return null;
+  const ids: string[] = [];
+  for (const id of value) {
+    if (typeof id !== 'string' || !PLAYER_ID_PATTERN.test(id)) return null;
+    ids.push(id);
+  }
+  return ids.length === 0 ? undefined : ids;
 }
 
 /** The roster of a `players` frame: up to `MAX_CAMPAIGN_PLAYERS` seats, none sharing an id or a code; null for anything else. */
@@ -18,8 +39,9 @@ export function parseSeats(value: unknown): CampaignSeat[] | null {
   for (const entry of value) {
     if (!isRecord(entry) || typeof entry.id !== 'string' || !PLAYER_ID_PATTERN.test(entry.id) || typeof entry.code !== 'string' || !JOIN_CODE_PATTERN.test(entry.code)) return null;
     const name = playerName(entry.name);
-    if (name === null || seats.some((seat) => seat.id === entry.id || seat.code === entry.code)) return null;
-    seats.push({ id: entry.id, name, code: entry.code });
+    const was = readAliases(entry.was);
+    if (name === null || was === null || seats.some((seat) => seat.id === entry.id || seat.code === entry.code)) return null;
+    seats.push(was === undefined ? { id: entry.id, name, code: entry.code } : { id: entry.id, name, code: entry.code, was });
   }
   return seats;
 }

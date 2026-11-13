@@ -2,7 +2,7 @@ import type { Plugin } from 'obsidian';
 import { CampaignFiles } from '../campaigns/CampaignFiles';
 import { PartySync } from '../campaigns/partyValues/PartySync';
 import { CampaignBooks } from '../campaigns/players/CampaignBooks';
-import { CampaignPlayers } from '../campaigns/players/CampaignPlayers';
+import { TablePlayers } from '../campaigns/players/TablePlayers';
 import type { OnlinePlay } from '../plugin/onlinePlay';
 import type { WorldBackupControls } from '../settings/worldBackupsSettingsSection';
 import { showNotice } from '../ui/notice';
@@ -29,7 +29,7 @@ export function registerWorldBackups(plugin: Plugin, onlinePlay: OnlinePlay): Wo
       await Promise.all([
         onlinePlay.flush(),
         CampaignFiles.forApp(app)?.flush(),
-        CampaignPlayers.forApp(app)?.flush(),
+        TablePlayers.forApp(app)?.flush(),
         CampaignBooks.forApp(app)?.flush(),
         PartySync.forApp(app)?.flush(),
       ]);

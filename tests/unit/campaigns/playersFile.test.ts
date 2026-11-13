@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  emptyPlayers, isPlayersPath, newLinkCode, newPlayerCode, newPlayerId, PLAYERS_LAYOUT, readPlayers,
+  isPlayersPath, newLinkCode, newPlayerCode, newPlayerId, PLAYERS_LAYOUT, readPlayers,
   withCharacterOwner, withLink, withoutPlayer, withPlayer, withPlayerFields, type StoredPlayers,
 } from '../../../src/app/campaigns/players/playersFile';
 import { CAMPAIGNS_FOLDER } from '../../../src/app/campaigns/campaignPaths';
@@ -11,6 +11,7 @@ const idOf = (n: number): string => `p${letter(Math.floor(n / 26))}${letter(n % 
 const codeOf = (n: number): string => String(n).padStart(6, '0');
 const entry = (n: number, extra: Record<string, unknown> = {}): Record<string, unknown> => ({ name: `Player ${n}`, code: codeOf(n), characters: [], addedAt: 1, ...extra });
 const stored = (players: Record<string, unknown>, extra: Record<string, unknown> = {}): StoredPlayers => ({ id: 'c1', campaignId: 'c1', players, ...extra });
+const WORLD: StoredPlayers = { id: 'c1', campaignId: 'c1', players: {} };
 const seq = (...values: number[]): (() => number) => { const rest = [...values]; return () => rest.shift() ?? 0; };
 
 describe('players paths', () => {
@@ -65,7 +66,7 @@ describe('readPlayers', () => {
   });
 
   it('reads nothing from a file without players', () => {
-    expect(readPlayers(emptyPlayers('c1'))).toEqual([]);
+    expect(readPlayers(WORLD)).toEqual([]);
     expect(readPlayers(stored([] as unknown as Record<string, unknown>))).toEqual([]);
   });
 });
@@ -107,7 +108,7 @@ describe('changing a players file', () => {
   });
 
   it('withLink sets the table code', () => {
-    expect(withLink(emptyPlayers('c1'), 'a'.repeat(26)).link).toBe('a'.repeat(26));
+    expect(withLink(WORLD, 'a'.repeat(26)).link).toBe('a'.repeat(26));
   });
 
   it('keeps unknown top-level and per-player fields through withPlayer', () => {
