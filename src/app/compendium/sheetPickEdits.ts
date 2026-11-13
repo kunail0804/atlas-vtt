@@ -8,6 +8,7 @@
 import type { BookItem, BookItemDraft, PlayerBook } from '../online/protocol/book';
 import type { FieldValue } from '../statblocks/model/templateTypes';
 import type { NotePatch } from '../statblocks/notes/patchTypes';
+import { CASTER_OF_PROGRESSION } from '../statblocks/presets/fiveECharacterRules';
 import { toFieldValue } from '../statblocks/values/fieldValueOf';
 import type { PickKind } from './pickKinds';
 
@@ -141,8 +142,8 @@ export function gearOf(kind: PickKind, name: string, frontmatter: Frontmatter, b
 }
 
 /**
- * The note's patches for taking `name` of kind `kind`: a class is added with level 1 and its hit die
- * (once), a subclass, species or background is set, a spell joins the list (once), a weapon an attack
+ * The note's patches for taking `name` of kind `kind`: a class is added with level 1, its hit die and
+ * how it casts (once), a subclass, species or background is set, a spell joins the list (once), a weapon an attack
  * (once), and an armour sets the armour class where the book wears it (`worn`; null: no book kept).
  */
 export function pickResult(kind: PickKind, name: string, frontmatter: Frontmatter, note: Frontmatter, worn: WornGear | null): NotePatch[] {
@@ -151,7 +152,9 @@ export function pickResult(kind: PickKind, name: string, frontmatter: Frontmatte
       const classes = entriesOf(note, 'classes');
       if (has(classes, name) || classes.length >= 6) return [];
       const die = /d(\d+)/i.exec(text(frontmatter['hit-die']))?.[1];
-      return [appended(note, 'classes', { name: cut(name, 40), level: 1, ...(die !== undefined && { die: `d${die}` }) })];
+      const progression = text(frontmatter['spellcasting-progression']).toLowerCase();
+      const caster = Object.hasOwn(CASTER_OF_PROGRESSION, progression) ? CASTER_OF_PROGRESSION[progression] : undefined;
+      return [appended(note, 'classes', { name: cut(name, 40), level: 1, ...(die !== undefined && { die: `d${die}` }), ...(caster !== undefined && { caster }) })];
     }
     case 'subclass':
     case 'species':

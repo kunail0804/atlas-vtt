@@ -7,7 +7,9 @@ import { isExpressionError } from '../expressions/errors';
 import { parsePatternCached } from '../expressions/patternParse';
 import { renderPattern } from '../expressions/pattern';
 import type { FieldKey, FieldValue, StatblockTemplate, TemplateField } from '../model/templateTypes';
+import { deepEqual } from '../notes/listIdentity';
 import type { NotePatch } from '../notes/patchTypes';
+import { parseDerivedCounters, withDerivedCounters } from './derivedCounters';
 import { toFieldValue } from './fieldValueOf';
 import { readerFor, type FieldRecord } from './fieldValues';
 import { parseNumberText } from './numberText';
@@ -17,8 +19,16 @@ export function derivesFields(template: StatblockTemplate): boolean {
   return template.fields.some((field) => field.derive !== undefined);
 }
 
-/** The pattern's text as the field stores it: a number field a number, where the text is one. */
-function storedValue(field: TemplateField, text: string): FieldValue {
+/**
+ * The pattern's text as the field stores it: a number field a number, where the text is one; a
+ * Counters field its rows with the maxima the text names (`derivedCounters.ts`), null where the text
+ * names none, so the field keeps what it holds.
+ */
+function storedValue(field: TemplateField, text: string, current: unknown): FieldValue | null {
+  if (field.type === 'counters') {
+    const counters = parseDerivedCounters(text);
+    return counters === null ? null : withDerivedCounters(toFieldValue(current), counters);
+  }
   if (field.type !== 'number') return text;
   return parseNumberText(text) ?? text;
 }
@@ -37,7 +47,8 @@ export function derivedValues(template: StatblockTemplate, record: FieldRecord):
     if (isExpressionError(ast)) continue;
     const rendered = renderPattern(ast, readerFor(current, template.fields), { lookups: template.lookups });
     if (rendered.empty || rendered.text === '') continue;
-    const value = storedValue(field, rendered.text);
+    const value = storedValue(field, rendered.text, current[field.key]);
+    if (value === null) continue;
     values.set(field.key, value);
     current = { ...current, [field.key]: value };
   }
@@ -49,7 +60,7 @@ export function derivedPatches(template: StatblockTemplate, frontmatter: FieldRe
   const patches: NotePatch[] = [];
   for (const [key, next] of derivedValues(template, frontmatter)) {
     const base = Object.hasOwn(frontmatter, key) ? toFieldValue(frontmatter[key]) : undefined;
-    if (base !== next) patches.push({ op: 'set', path: [key], base, next });
+    if (!deepEqual(base, next)) patches.push({ op: 'set', path: [key], base, next });
   }
   return patches;
 }

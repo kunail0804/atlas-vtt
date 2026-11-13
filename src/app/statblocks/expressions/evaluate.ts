@@ -5,12 +5,13 @@
 
 import type { FieldValue } from '../model/templateTypes';
 import { isEmptyValue } from '../values/emptyValue';
-import type { ValueReader } from '../values/fieldValues';
+import { isPlainRecord } from '../values/fieldValueOf';
+import { indexInto, splitRef, type ValueReader } from '../values/fieldValues';
 import { listItems } from '../values/listText';
 import { numericValue } from '../values/numberText';
 import { quoted } from '../values/valueText';
 import { nameOf, refError, type ExpressionError, type LabelResolver } from './errors';
-import { SLOT_WORD, type FormulaFunction, type FormulaNode } from './formulaTypes';
+import { SLOT_WORD, type EachMode, type FormulaFunction, type FormulaNode } from './formulaTypes';
 import { t } from '../../i18n';
 
 export interface FormulaContext {
@@ -93,7 +94,50 @@ function evaluateNode(node: FormulaNode, reader: ValueReader, context: FormulaCo
       return call(node.fn, values);
     }
     case 'has': return holds(reader(node.ref), node.text) ? 1 : 0;
+    case 'sides': return sidesOf(reader(node.ref), node.ref, nameOf(node.ref, context.labelOf));
+    case 'each': return each(node.mode, node.ref, node.body, reader, context);
   }
+}
+
+const DIE = /^\s*1?\s*d(\d+)\s*$/i;
+
+/** The sides of a die written `d10` (or `1d10`). */
+function sidesOf(raw: FieldValue | undefined, ref: string, name: string): Step {
+  if (isEmptyValue(raw)) return refError('unbound', ref, t('statblockEditor.expr.emptyDie', { name }));
+  const sides = typeof raw === 'string' ? DIE.exec(raw)?.[1] : undefined;
+  return sides === undefined ? refError('not-a-number', ref, t('statblockEditor.expr.notADie', { name })) : Number(sides);
+}
+
+/** A reader of one entry's parts: `level`, `stats.1` inside a part that is a list. */
+function entryReader(entry: Record<string, FieldValue>): ValueReader {
+  return (ref) => {
+    const { key, index } = splitRef(ref);
+    const part = indexInto(entry, key);
+    return index === null ? part : indexInto(part, index);
+  };
+}
+
+/** `body` worked out for every entry of the list and added up, or for its first entry. */
+function each(mode: EachMode, ref: string, body: FormulaNode, reader: ValueReader, context: FormulaContext): Step {
+  const name = nameOf(ref, context.labelOf);
+  const raw = reader(ref);
+  const list = isEmptyValue(raw) ? [] : raw;
+  if (!Array.isArray(list)) return refError('not-a-number', ref, t('statblockEditor.expr.notAList', { name }));
+  const entries = list.filter((item): item is Record<string, FieldValue> => isPlainRecord(item));
+  if (entries.length < list.length) return refError('not-a-number', ref, t('statblockEditor.expr.notAList', { name }));
+  // The entry's parts are named by their own keys, never by the statblock's labels.
+  const inner: FormulaContext = {};
+  if (mode === 'first') {
+    const [first] = entries;
+    return first === undefined ? refError('unbound', ref, t('statblockEditor.expr.emptyList', { name })) : evaluateNode(body, entryReader(first), inner);
+  }
+  let total = 0;
+  for (const entry of entries) {
+    const value = evaluateNode(body, entryReader(entry), inner);
+    if (failed(value)) return value;
+    total += value;
+  }
+  return total;
 }
 
 /** Whether a list, or a line of picks ("Stealth, Arcana"), holds the text, in any case; an empty field holds nothing. */

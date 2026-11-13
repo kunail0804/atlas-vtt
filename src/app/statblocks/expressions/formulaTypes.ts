@@ -1,8 +1,15 @@
 /**
  * The formula language (§5.6): numbers, field references, `value` (the score
  * of the current Scores slot), + - * /, brackets, unary minus, the functions
- * floor, ceil, round, abs, min and max, and `has(ref, "text")`, 1 where a list
- * or a choice of several holds the text and 0 where it does not.
+ * floor, ceil, round, abs, min and max, `has(ref, "text")`, 1 where a list
+ * or a choice of several holds the text and 0 where it does not, and three that
+ * read a list of entries (a character's classes):
+ * - `sum(ref, formula)`: the formula worked out for each entry and added up, 0
+ *   for an empty list (`sum(classes, ceil(level / 2))`);
+ * - `first(ref, formula)`: the formula worked out for the first entry;
+ * - `sides(ref)`: the number of sides of a die written `d10`.
+ * Inside `sum` and `first` the formula's references name the entry's parts
+ * (`level`, `die`), never the statblock's fields.
  */
 
 export type FormulaFunction = 'floor' | 'ceil' | 'round' | 'abs' | 'min' | 'max';
@@ -17,7 +24,20 @@ export type FormulaNode =
   | { kind: 'binary'; op: BinaryOperator; left: FormulaNode; right: FormulaNode }
   | { kind: 'call'; fn: FormulaFunction; args: FormulaNode[] }
   /** `has(ref, "text")`: whether the field (a list, or a line of picks) holds the text. */
-  | { kind: 'has'; ref: string; text: string };
+  | { kind: 'has'; ref: string; text: string }
+  /** `sum(ref, formula)` / `first(ref, formula)`: `body` read against each entry (or the first) of the list. */
+  | { kind: 'each'; mode: EachMode; ref: string; body: FormulaNode }
+  /** `sides(ref)`: the sides of the die a field (or an entry's part) holds, `d10` is 10. */
+  | { kind: 'sides'; ref: string };
+
+/** How `each` folds its list: `sum` adds the entries' values up, `first` takes the first entry's. */
+export type EachMode = 'sum' | 'first';
+
+/** The functions over a list of entries, by name. */
+export const EACH_FUNCTIONS: Readonly<Record<string, EachMode>> = { sum: 'sum', first: 'first' };
+
+/** The function that reads the sides of a die. */
+export const SIDES_FUNCTION = 'sides';
 
 /** The function that tests a list for a text; its text is the only quoted text a formula holds. */
 export const HAS_FUNCTION = 'has';

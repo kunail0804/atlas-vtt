@@ -6,6 +6,7 @@
  */
 
 import type { TemplateField } from '../model/templateTypes';
+import { CASTER_KINDS, HIT_POINTS_PATTERN, SPELL_SLOTS_PATTERN } from './fiveECharacterRules';
 import { nameField, portraitField } from './presetParts';
 
 /** The six abilities: the label of their column in `stats`, the key a statblock written by name uses, and their name in picks. */
@@ -40,26 +41,33 @@ const choiceOf = (key: string, label: string, options: readonly string[], severa
 const number = (key: string, label: string): TemplateField => ({ key, label, type: 'number' });
 const markdown = (key: string, label: string): TemplateField => ({ key, label, type: 'markdown' });
 
-/** The words the two rule sets name differently. */
+/** The words the two rule sets name differently, and whether the sheet works out its hit points and spell slots (2024 rules). */
 export interface EditionWords {
   readonly species: string;
   readonly inspiration: string;
+  readonly worksOutClasses: boolean;
 }
 
 /**
  * Every field, in the order the statblock pane steps through them. `class`, `level` and `hit_dice` are
  * worked out from the classes where the sheet lists some, `proficiency` from the level and `initiative`
  * from Dexterity and its bonus: written into the note, so Atlas' initiative and anything reading the
- * note find them.
+ * note find them. Under the 2024 rules the hit point maximum and the spell slots are worked out from
+ * the classes too (`fiveECharacterRules.ts`).
  */
 export function characterFields(words: EditionWords): TemplateField[] {
   const skillNames = SKILLS.map(([, name]) => name);
+  const worksOut = (field: TemplateField, pattern: string): TemplateField => (words.worksOutClasses ? derived(field, pattern) : field);
   return [
     nameField(),
     portraitField(),
     {
       key: 'classes', label: 'Classes', type: 'entries', entry: {
-        extras: [{ key: 'level', label: 'Niveau', type: 'number' }, { key: 'die', label: 'Dé de vie', type: 'choice', options: ['d6', 'd8', 'd10', 'd12'] }],
+        extras: [
+          { key: 'level', label: 'Niveau', type: 'number' },
+          { key: 'die', label: 'Dé de vie', type: 'choice', options: ['d6', 'd8', 'd10', 'd12'] },
+          { key: 'caster', label: 'Incantation', type: 'choice', options: [...CASTER_KINDS] },
+        ],
       },
     },
     derived({ key: 'class', label: 'Classe', type: 'text' }, '{classes|pluck:name|join: / }'),
@@ -79,7 +87,7 @@ export function characterFields(words: EditionWords): TemplateField[] {
     choiceOf('skill_expertise', 'Expertises', skillNames, true),
     choiceOf('inspiration', words.inspiration, ['Oui']),
     { ...number('ac', 'CA'), meaning: 'armor' },
-    { ...number('hp', 'PV max'), meaning: 'hit-points' },
+    worksOut({ ...number('hp', 'PV max'), meaning: 'hit-points' }, HIT_POINTS_PATTERN),
     number('hp_temp', 'PV temporaires'),
     { key: 'speed', label: 'Vitesse', type: 'text' },
     number('initiative_bonus', 'Bonus d\'initiative'),
@@ -96,7 +104,7 @@ export function characterFields(words: EditionWords): TemplateField[] {
       },
     },
     choiceOf('spell_ability', 'Caractéristique d\'incantation', SPELL_ABILITIES),
-    { key: 'spell_slots', label: 'Emplacements de sorts', type: 'counters' },
+    worksOut({ key: 'spell_slots', label: 'Emplacements de sorts', type: 'counters' }, SPELL_SLOTS_PATTERN),
     {
       key: 'spell_list', label: 'Sorts', type: 'entries', entry: {
         extras: [{ key: 'level', label: 'Niv.', type: 'number' }, { key: 'prepared', label: 'Préparé', type: 'choice', options: ['Préparé'] }],
