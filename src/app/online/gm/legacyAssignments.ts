@@ -10,20 +10,20 @@ export function readLegacyAssignments(ownership: unknown): TokenAssignments {
   return Object.keys(read.owners).length > 0 || Object.keys(read.playerTokens).length > 0 ? read : NO_ASSIGNMENTS;
 }
 
-/** `carried` with each owner called what the table's players file calls them, by the ids of the world `campaignId`. */
+/** `carried` with each owner called what the table's players file calls them, by the ids `renamed` of the world played. */
 function renamedOwners(carried: TokenAssignments, renamed: Readonly<Record<string, string>>): TokenAssignments {
   const owners = Object.fromEntries(Object.entries(carried.owners).map(([tokenId, owner]) => [tokenId, renamed[owner] ?? owner]));
   return { ...carried, owners };
 }
 
 /**
- * Carries the assignments into the table's players file, played on the world `campaignId`, whose
- * player ids the file may call otherwise since the worlds' players were merged; what the file already
+ * Carries the assignments into the table's players file, played on the world `campaignId` (null:
+ * none, whose ids are the file's own), whose player ids the file may call otherwise since the worlds' players were merged; what the file already
  * assigns stays the file's. Settles once the file is on disk: true when it holds them then, false
  * where it cannot be written or its write failed, and then the data keeps them.
  */
-export async function carryAssignmentsOver(carried: TokenAssignments, players: Pick<TablePlayers, 'change' | 'flush' | 'onDisk' | 'migratedIds'>, campaignId: string): Promise<boolean> {
-  const renamed = renamedOwners(carried, players.migratedIds()[campaignId] ?? {});
+export async function carryAssignmentsOver(carried: TokenAssignments, players: Pick<TablePlayers, 'change' | 'flush' | 'onDisk' | 'migratedIds'>, campaignId: string | null): Promise<boolean> {
+  const renamed = renamedOwners(carried, campaignId === null ? {} : players.migratedIds()[campaignId] ?? {});
   if (!players.change((stored) => withCarriedAssignments(stored, renamed))) return false;
   await players.flush();
   // The queue of writes reports no failure, so the file is read back.

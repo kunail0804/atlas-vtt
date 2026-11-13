@@ -4,7 +4,11 @@ import { TablePlayers } from '../../campaigns/players/TablePlayers';
 import { TableSeats } from './campaignSeats.ts';
 import type { SavedTable } from './savedTable.ts';
 
-/** The campaigns online tables run on, as `OnlineControl` needs them. */
+/**
+ * The worlds an online table may play, and the table's players, as `OnlineControl` needs them. A
+ * table runs with or without a world: the world it plays is the one this device plays, chosen by the
+ * GM at the start and changed during the session.
+ */
 export interface TableCampaigns {
   /** The id of the campaign this device plays, or null. */
   playing(): string | null;
@@ -15,39 +19,40 @@ export interface TableCampaigns {
   /** Calls `listener` whenever another campaign, or none, is played; returns the way to stop. */
   onChange(listener: () => void): () => void;
   /**
-   * The table's players once their file is ready and the campaign `campaignId` is ready for a table
-   * (what an older Atlas kept carried into it); null where there are none to read.
+   * The table's players once their file is ready and what an older Atlas kept is carried into it,
+   * read by the ids of the world `campaignId` the table plays (null: none); null where there are
+   * none to read.
    */
-  open(campaignId: string): Promise<TableSeats | null>;
+  open(campaignId: string | null): Promise<TableSeats | null>;
   /** The table's players as read so far, without waiting; null where none can be read yet. */
-  known(campaignId: string): TableSeats | null;
-  /** A table runs on the campaign `campaignId` from now on, or on none (null) once it ended. */
-  bound(campaignId: string | null): void;
+  known(): TableSeats | null;
+  /** A table runs from now on (`true`), or none runs any more (`false`). */
+  bound(running: boolean): void;
 }
 
-/** The table's players while this device plays a campaign, as read so far; null while none is played or none can be read yet. */
-export function playedSeats(campaigns: TableCampaigns): () => TableSeats | null {
-  return () => {
-    const playing = campaigns.playing();
-    return playing === null ? null : campaigns.known(playing);
-  };
+/** The table's players while a table runs or comes back (`seated`), as read so far; null otherwise, or while none can be read yet. */
+export function tableSeats(campaigns: TableCampaigns, seated: () => boolean): () => TableSeats | null {
+  return () => (seated() ? campaigns.known() : null);
 }
 
 /**
- * What this device plays once online play has read its data: the campaign of the table that comes
- * back after a reload (played until then, so its rules hold while it reconnects), or none. Older
- * Atlas versions let the GM play a campaign without a table; such a play ends here.
+ * What this device plays once online play has read its data: the world of the table that comes back
+ * after a reload (played until then, so its rules hold while it reconnects), or none, also for a
+ * table that comes back without a world. Older Atlas versions let the GM play a campaign without a
+ * table; such a play ends here.
  */
 export function playSavedTable(campaigns: TableCampaigns, saved: SavedTable | null): void {
-  if (saved === null) campaigns.stop();
-  else campaigns.play(saved.campaignId);
+  const world = saved?.campaignId ?? null;
+  if (world === null) campaigns.stop();
+  else campaigns.play(world);
 }
 
 /**
  * The vault's campaigns: the one this device plays, and the table's players file (`TablePlayers`).
- * `prepare` readies a campaign before a table of it runs (its failure is logged, and the table runs).
+ * `prepare` readies the table's files before a table runs, played on a world or none (its failure is
+ * logged, and the table runs).
  */
-export function appCampaigns(app: App, bound: (campaignId: string | null) => void = () => undefined, prepare: (campaignId: string) => Promise<void> = () => Promise.resolve()): TableCampaigns {
+export function appCampaigns(app: App, bound: (running: boolean) => void = () => undefined, prepare: (campaignId: string | null) => Promise<void> = () => Promise.resolve()): TableCampaigns {
   return {
     playing: () => CampaignPlay.forApp(app).playing(),
     play: (campaignId) => CampaignPlay.forApp(app).play(campaignId),
@@ -57,7 +62,7 @@ export function appCampaigns(app: App, bound: (campaignId: string | null) => voi
       const players = TablePlayers.forApp(app);
       if (players === undefined) return null;
       await players.whenReady();
-      await prepare(campaignId).catch((error: unknown) => console.error('[Atlas] Readying the campaign for its table failed:', error));
+      await prepare(campaignId).catch((error: unknown) => console.error('[Atlas] Readying the table\'s files failed:', error));
       return new TableSeats(players);
     },
     known: () => {

@@ -102,6 +102,14 @@
     }
   }
 
+  // The world row's name: one line, cut where it is too long.
+  .atlas-online-world bdi {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .atlas-online-invite__icon {
     display: flex;
     flex: none;

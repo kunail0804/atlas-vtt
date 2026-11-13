@@ -3,7 +3,7 @@ import { showNotice } from '../../ui/notice';
 import { activeAtlasLeaf, activeStore, sceneStoreOf, selectedTokenIds, workScene, type WorkScene } from './atlasView.ts';
 import type { CampaignPlayer } from '../../campaigns/players/playersFile';
 import { BookShelf } from './book/BookShelf.ts';
-import { CAMPAIGNS_LOADING_TEXT, linkRefusal, NO_CAMPAIGN_TEXT, NO_TABLE_TEXT, renewLink, type TableSeats } from './campaignSeats.ts';
+import { CAMPAIGNS_LOADING_TEXT, linkRefusal, NO_TABLE_TEXT, renewLink, type TableSeats } from './campaignSeats.ts';
 import { GM_LEVEL } from '../protocol/index.ts';
 import { isOutdated, rememberMinLevel } from './gmLevel.ts';
 import { freeGate, newGate } from './joinGate.ts';
@@ -22,11 +22,11 @@ import { t } from '../../i18n';
 import type { TableAssets } from './assets/tableAssets.ts';
 
 /**
- * The GM's side of online play, free of any panel: start and stop a table of a campaign, which this
- * device plays exactly while the table runs or comes back after a reload, its link and status, the
- * campaign's players (list, add, rename, new code, kick, remove), and the scene's player tokens
- * (list with owners, mark and unmark, give to a player, take back). Panels and commands call this
- * and redraw on `onChange`.
+ * The GM's side of online play, free of any panel: start and stop a table, with a world or none, and
+ * choose or change its world while it runs (this device plays the table's world exactly while the
+ * table runs or comes back after a reload), its link and status, the table's players (list, add,
+ * rename, new code, kick, remove), and the scene's player tokens (list with owners, mark and unmark,
+ * give to a player, take back). Panels and commands call this and redraw on `onChange`.
  */
 export class OnlineControl {
   private readonly app: App;
@@ -78,7 +78,7 @@ export class OnlineControl {
     return this.current?.link ?? null;
   }
 
-  /** The id of the campaign the running table plays; null while none runs. */
+  /** The id of the world the running table plays; null while it plays none, or none runs. */
   campaignId(): string | null {
     return this.current === null ? null : this.saved?.campaignId ?? null;
   }
@@ -114,19 +114,20 @@ export class OnlineControl {
   }
 
   /**
-   * Starts a table of the campaign `campaignId` from the Atlas tab `leaf`, on the campaign's lasting
-   * link; tells the GM with a notice why it cannot. Once it runs, this device plays that campaign
-   * until the table ends. Players see the scene Atlas presents to its player view.
+   * Starts a table from the Atlas tab `leaf` on the table's lasting link, playing the world
+   * `campaignId` or none (null); tells the GM with a notice why it cannot. Once it runs, this device
+   * plays that world until the GM chooses another or the table ends. Players see the scene Atlas
+   * presents to its player view.
    */
   start(leaf: WorkspaceLeaf | null, campaignId: string | null): Promise<OnlineTable | null> {
     return this.startFor(leaf, campaignId);
   }
 
   /**
-   * Comes back to a table saved before a reload: same link and host secret, the campaign it was
-   * started for and that campaign's players, once its players file was read; players see the scene
-   * Atlas presents again. The campaign stays played while it comes back, and is played no longer
-   * where its players cannot be read.
+   * Comes back to a table saved before a reload: same link and host secret, the world it played (or
+   * none) and the table's players, once their file was read; players see the scene Atlas presents
+   * again. The world stays played while it comes back, and is played no longer where the players
+   * cannot be read.
    */
   async resume(saved: SavedTable): Promise<OnlineTable | null> {
     if (this.current !== null || this.starting) return this.current;
@@ -142,7 +143,19 @@ export class OnlineControl {
     return this.run(saved, seats, this.logs.saved());
   }
 
-  /** Ends the running table for good: the link stops working, the saved table is forgotten and its campaign is played no longer. */
+  /**
+   * The running table plays the world `campaignId` from now on, or none (null): its rules, sources,
+   * world map and quests are what players get, and they stay seated. Nothing happens while no table
+   * runs.
+   */
+  chooseWorld(campaignId: string | null): void {
+    if (this.current === null || this.saved === null || this.saved.campaignId === campaignId) return;
+    this.keep({ ...this.saved, campaignId });
+    this.playWorld(campaignId);
+    this.changed();
+  }
+
+  /** Ends the running table for good: the link stops working, the saved table is forgotten and its world is played no longer. */
   stop(): void {
     this.end();
     this.campaigns.stop();
@@ -173,10 +186,9 @@ export class OnlineControl {
     this.current?.kick(playerId);
   }
 
-  /** A player's own code in the running table's campaign, else in the played one; null for anyone it does not know. */
+  /** A player's own code at the table; null for anyone it does not know, or while its players file is not read. */
   playerCode(playerId: string): string | null {
-    const playing = this.campaigns.playing();
-    const seats = this.current?.roster.seats ?? (playing === null ? null : this.campaigns.known(playing));
+    const seats = this.current?.roster.seats ?? this.campaigns.known();
     return seats?.codeOf(playerId) ?? null;
   }
 
@@ -200,19 +212,19 @@ export class OnlineControl {
   }
 
   /**
-   * Gives the campaign a new link, so the old one stops working; a running table starts again on it.
-   * Where it could not start again (no Atlas tab, signed out) nothing changes and the GM is told why.
+   * Gives the table a new link, so the old one stops working; a running table starts again on it,
+   * with the world it plays. Where it could not start again (no Atlas tab, signed out) nothing
+   * changes and the GM is told why.
    */
   async newLink(): Promise<void> {
-    const campaignId = this.saved?.campaignId ?? this.campaigns.playing();
+    const campaignId = this.current === null ? null : this.saved?.campaignId ?? null;
     const leaf = this.current?.sharedTab ?? activeAtlasLeaf(this.app);
-    const blocked = this.current === null ? null : startBlock(leaf, campaignId, this.account);
+    const blocked = this.current === null ? null : startBlock(leaf, this.account);
     if (blocked !== null) return void showNotice(blocked);
-    if (campaignId === null) return void showNotice(NO_CAMPAIGN_TEXT);
     const seats = await this.campaigns.open(campaignId).catch(() => null);
     if (seats === null || !renewLink(seats)) return void showNotice(seats === null ? CAMPAIGNS_LOADING_TEXT : linkRefusal(seats));
     if (this.current === null) return;
-    // The campaign stays played across the restart, unless no table runs after it.
+    // The world stays played across the restart, unless no table runs after it.
     this.end();
     let restarted: OnlineTable | null = null;
     try {
@@ -247,10 +259,10 @@ export class OnlineControl {
     return selected.length;
   }
 
-  /** Whether player tokens can be kept now; where not, the GM is told why. Player tokens are the campaign's, so none are kept while no table plays one. */
+  /** Whether player tokens can be kept now; where not, the GM is told why. Player tokens are the table's, so none are kept while no table runs. */
   private canMark(): boolean {
     if (this.ownership.canMark()) return true;
-    showNotice(this.campaigns.playing() === null ? NO_TABLE_TEXT : CAMPAIGNS_LOADING_TEXT);
+    showNotice(this.saved === null ? NO_TABLE_TEXT : CAMPAIGNS_LOADING_TEXT);
     return false;
   }
 
@@ -270,9 +282,9 @@ export class OnlineControl {
 
   private async startFor(leaf: WorkspaceLeaf | null, campaignId: string | null): Promise<OnlineTable | null> {
     if (this.current !== null || this.starting) return this.current;
-    const blocked = startBlock(leaf, campaignId, this.account);
+    const blocked = startBlock(leaf, this.account);
     const token = this.account.token();
-    if (blocked !== null || leaf === null || campaignId === null || token === null) return refused(blocked ?? NO_CAMPAIGN_TEXT);
+    if (blocked !== null || leaf === null || token === null) return refused(blocked ?? t('online.start.signIn'));
     this.starting = true;
     this.changed();
     const closings = this.closings;
@@ -287,14 +299,14 @@ export class OnlineControl {
     return this.run({ ...made.created, campaignId, mapPath, gate: newGate(undefined, made.seats.codes()) }, made.seats);
   }
 
-  /** Runs the table on its campaign: its players and books are the campaign's from before anyone can join until it ends. */
+  /** Runs the table, with its world or none: its players and books are the table's from before anyone can join until it ends. */
   private run(given: SavedTable, seats: TableSeats, savedLog?: unknown): OnlineTable {
     // A join code that is now a player's own (made on another device since) is made anew: the page's one field takes both.
     const saved = { ...given, gate: freeGate(given.gate, seats.codes()) };
     this.ended = null;
     this.keep(saved);
     this.ownership.bind(seats);
-    this.campaigns.bound(saved.campaignId);
+    this.campaigns.bound(true);
     const table = new OnlineTable(this.app, RELAY_ORIGIN, saved, saved.mapPath, this.ownership, seats, saved.gate, {
       status: () => {
         // A welcome says what the relay needs now; an older relay names nothing and needs nothing.
@@ -324,11 +336,14 @@ export class OnlineControl {
         if (end === 'no-access') void this.account.refresh(true);
       },
     }, this.shelf, savedLog, this.tableAssets());
-    // The table's campaign is the one played while it runs: its rules, quests and world map are what players get.
-    this.campaigns.play(saved.campaignId);
-    // A campaign deleted while its table runs is played no longer (`recordCampaignPlay`, the campaign page), and takes its table with it.
+    // The table's world is the one played while it runs: its rules, quests and world map are what players get.
+    this.playWorld(saved.campaignId);
+    // A world deleted while the table runs is played no longer (`recordCampaignPlay`, the campaign page): the table goes on without it.
     this.unwatch = this.campaigns.onChange(() => {
-      if (this.current === table && this.campaigns.playing() !== saved.campaignId) this.stop();
+      const playing = this.campaigns.playing();
+      if (this.current !== table || this.saved === null || this.saved.campaignId === playing) return;
+      this.keep({ ...this.saved, campaignId: playing });
+      this.changed();
     });
     this.current = table;
     table.start();
@@ -354,7 +369,13 @@ export class OnlineControl {
     this.unwatch();
     this.unwatch = (): void => undefined;
     this.ownership.bind(null);
-    this.campaigns.bound(null);
+    this.campaigns.bound(false);
+  }
+
+  /** This device plays the world `campaignId`, or none. */
+  private playWorld(campaignId: string | null): void {
+    if (campaignId === null) this.campaigns.stop();
+    else this.campaigns.play(campaignId);
   }
 
   private keep(saved: SavedTable | null): void {

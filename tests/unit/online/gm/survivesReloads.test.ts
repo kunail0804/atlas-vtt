@@ -446,8 +446,11 @@ describe('the online table', () => {
     // A table saved before plans seats as many as any table did.
     expect(readSavedTable({ ...SAVED, maxPlayers: undefined })).toEqual(SAVED);
     expect(readSavedTable({ ...SAVED, maxPlayers: 2 })).toEqual({ ...SAVED, maxPlayers: 2 });
-    // A table saved before tables belonged to a campaign is dropped: the GM starts a new one.
-    for (const broken of [undefined, null, 'x', { ...SAVED, code: 'short' }, { ...SAVED, secret: 'a b' }, { ...SAVED, campaignId: undefined }, { ...SAVED, campaignId: '' }, { ...SAVED, playerOrigin: undefined }]) {
+    // A table saved with the world it was started for comes back with that world chosen; one that names no world plays none.
+    expect(readSavedTable({ ...SAVED, campaignId: null })).toEqual({ ...SAVED, campaignId: null });
+    expect(readSavedTable({ ...SAVED, campaignId: undefined })).toEqual({ ...SAVED, campaignId: null });
+    expect(readSavedTable({ ...SAVED, campaignId: '' })).toEqual({ ...SAVED, campaignId: null });
+    for (const broken of [undefined, null, 'x', { ...SAVED, code: 'short' }, { ...SAVED, secret: 'a b' }, { ...SAVED, playerOrigin: undefined }]) {
       expect(readSavedTable(broken)).toBeNull();
     }
   });
