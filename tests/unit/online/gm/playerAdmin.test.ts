@@ -54,17 +54,17 @@ beforeEach(() => {
   document.body.empty();
 });
 
-describe('removing a player from the campaign', () => {
+describe('removing a player from the table', () => {
   it('asks first, and only the confirmation removes them', () => {
     const { layer, does } = panel();
     layer.querySelector<HTMLButtonElement>('.atlas-online-player__more')?.click();
-    rowOf(menus.opened.at(-1)!, 'Remove from world').run();
+    rowOf(menus.opened.at(-1)!, 'Remove from players').run();
     expect(does.removeFromCampaign).not.toHaveBeenCalled();
-    expect(layer.querySelector('.atlas-online-confirm__text')?.textContent).toBe('Remove Ana from the world?');
+    expect(layer.querySelector('.atlas-online-confirm__text')?.textContent).toBe('Remove Ana from the table\'s players?');
     press(layer, 'Cancel');
     expect(layer.querySelector('.atlas-online-confirm')).toBeNull();
     expect(does.removeFromCampaign).not.toHaveBeenCalled();
-    rowOf(menus.opened.at(-1)!, 'Remove from world').run();
+    rowOf(menus.opened.at(-1)!, 'Remove from players').run();
     press(layer, 'Remove');
     expect(does.removeFromCampaign).toHaveBeenCalledWith(ANA.id);
     expect(layer.querySelector('.atlas-online-confirm')).toBeNull();
@@ -73,7 +73,7 @@ describe('removing a player from the campaign', () => {
   it('keeps the question over a redraw the table causes', () => {
     const { layer, redraw } = panel();
     layer.querySelector<HTMLButtonElement>('.atlas-online-player__more')?.click();
-    rowOf(menus.opened.at(-1)!, 'Remove from world').run();
+    rowOf(menus.opened.at(-1)!, 'Remove from players').run();
     redraw();
     expect(layer.querySelectorAll('.atlas-online-confirm')).toHaveLength(1);
   });
@@ -81,7 +81,7 @@ describe('removing a player from the campaign', () => {
   it('asks in place of the player\'s row, where the GM clicked', () => {
     const { layer } = panel();
     layer.querySelector<HTMLButtonElement>('.atlas-online-player__more')?.click();
-    rowOf(menus.opened.at(-1)!, 'Remove from world').run();
+    rowOf(menus.opened.at(-1)!, 'Remove from players').run();
     const question = layer.querySelector('.atlas-online-confirm');
     expect(question?.closest('.atlas-online-group')).not.toBeNull();
     expect(question?.classList.contains('atlas-online-player-prompt')).toBe(true);
@@ -93,7 +93,7 @@ describe('removing a player from the campaign', () => {
   it('goes with a player who leaves while it is open', () => {
     const { layer, redraw } = panel();
     layer.querySelector<HTMLButtonElement>('.atlas-online-player__more')?.click();
-    rowOf(menus.opened.at(-1)!, 'Remove from world').run();
+    rowOf(menus.opened.at(-1)!, 'Remove from players').run();
     redraw([]);
     expect(layer.querySelector('.atlas-online-confirm')).toBeNull();
     redraw();
