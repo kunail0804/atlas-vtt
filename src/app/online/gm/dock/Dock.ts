@@ -264,7 +264,7 @@ export class Dock {
 
   /** The worlds, and the one the next table would play (none: null). */
   private pick(): CampaignPick {
-    return campaignPick(this.deps.campaigns.list(), this.picked, this.query);
+    return campaignPick(this.deps.campaigns.list(), this.deps.campaigns.players(), this.picked, this.query);
   }
 
   private menuActions(): MenuActions {

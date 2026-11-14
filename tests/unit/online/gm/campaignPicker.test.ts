@@ -4,9 +4,9 @@ import type { CampaignChoice } from '../../../../src/app/online/gm/campaignChoic
 import { campaignPick, matchesQuery, renderCampaignPicker, type CampaignPickerActions } from '../../../../src/app/online/gm/dock/campaignPicker.ts';
 import { tableTitle, type OnlineSnapshot } from '../../../../src/app/online/gm/dock/panelModel.ts';
 
-const choice = (id: string, over: Partial<CampaignChoice> = {}): CampaignChoice => ({ id, name: id.toUpperCase(), activity: 'Played 3d ago', players: 0, art: null, hue: 120, ...over });
-const STRAHD = choice('strahd', { name: 'Curse of Strahd', players: 4 });
-const CAVES = choice('caves', { name: 'Blue Mouth Caves', players: 1 });
+const choice = (id: string, over: Partial<CampaignChoice> = {}): CampaignChoice => ({ id, name: id.toUpperCase(), activity: 'Played 3d ago', art: null, hue: 120, ...over });
+const STRAHD = choice('strahd', { name: 'Curse of Strahd' });
+const CAVES = choice('caves', { name: 'Blue Mouth Caves' });
 const LIST = [STRAHD, CAVES];
 
 function actions(): CampaignPickerActions & { [K in keyof CampaignPickerActions]: ReturnType<typeof vi.fn> } {
@@ -14,10 +14,10 @@ function actions(): CampaignPickerActions & { [K in keyof CampaignPickerActions]
 }
 
 /** The picker with the caves picked, unless a test picks another. */
-function picker(list: readonly CampaignChoice[] | null, picked: string | null = 'caves', query = ''): { layer: HTMLElement; rows: HTMLButtonElement[]; noWorld: HTMLButtonElement | null; field: HTMLInputElement | null; does: ReturnType<typeof actions> } {
+function picker(list: readonly CampaignChoice[] | null, picked: string | null = 'caves', query = '', players = 4): { layer: HTMLElement; rows: HTMLButtonElement[]; noWorld: HTMLButtonElement | null; field: HTMLInputElement | null; does: ReturnType<typeof actions> } {
   const layer = document.body.createDiv();
   const does = actions();
-  renderCampaignPicker(layer, campaignPick(list, picked, query), does);
+  renderCampaignPicker(layer, campaignPick(list, players, picked, query), does);
   return { layer, rows: [...layer.querySelectorAll<HTMLButtonElement>('[role="radio"]:not([data-campaign=""])')], noWorld: layer.querySelector('[role="radio"][data-campaign=""]'), field: layer.querySelector('input'), does };
 }
 
@@ -31,11 +31,11 @@ const key = (target: Element | null | undefined, name: string): void => void tar
 
 describe('the campaign a table starts on', () => {
   it('is the one the GM picked while it is there, else none', () => {
-    expect(campaignPick(LIST, 'caves').chosen).toBe('caves');
-    expect(campaignPick(LIST, 'gone').chosen).toBeNull();
-    expect(campaignPick(LIST, null).chosen).toBeNull();
-    expect(campaignPick([], null).chosen).toBeNull();
-    expect(campaignPick(null, 'strahd').chosen).toBeNull();
+    expect(campaignPick(LIST, 0, 'caves').chosen).toBe('caves');
+    expect(campaignPick(LIST, 0, 'gone').chosen).toBeNull();
+    expect(campaignPick(LIST, 0, null).chosen).toBeNull();
+    expect(campaignPick([], 0, null).chosen).toBeNull();
+    expect(campaignPick(null, 0, 'strahd').chosen).toBeNull();
   });
 
   it('may be none: No world comes first, chosen until a world is picked, and stays whatever the search finds', () => {
@@ -61,13 +61,26 @@ describe('the campaign a table starts on', () => {
     expect(again.rows[0]?.dataset.focusKey).toBe('campaign-none');
   });
 
-  it('shows each campaign with its name, when it was played and its players, the chosen one checked', () => {
-    const { rows } = picker(LIST);
+  it('shows each campaign with its name and when it was played, the chosen one checked', () => {
+    const { rows, noWorld } = picker(LIST);
     expect(rows.map((row) => row.querySelector('.atlas-online-campaign__name bdi')?.textContent)).toEqual(['Curse of Strahd', 'Blue Mouth Caves']);
-    expect(rows.map((row) => row.querySelector('.atlas-online-campaign__meta')?.textContent)).toEqual(['Played 3d ago · 4 players', 'Played 3d ago · 1 player']);
+    expect(rows.map((row) => row.querySelector('.atlas-online-campaign__meta')?.textContent)).toEqual(['Played 3d ago', 'Played 3d ago']);
+    expect(noWorld?.querySelector('.atlas-online-campaign__meta')?.textContent).toBe('Each map follows its collection\'s system');
     expect(rows.map((row) => row.getAttribute('aria-checked'))).toEqual(['false', 'true']);
     // One tab stop, as a radio group has.
     expect(rows.map((row) => row.tabIndex)).toEqual([-1, 0]);
+  });
+
+  it('says once how many players the table has, outside every world\'s row', () => {
+    const playersLine = (layer: HTMLElement): (string | null)[] => [...layer.querySelectorAll('.atlas-online-campaigns__players')].map((line) => line.textContent);
+    const { layer } = picker(LIST, 'caves', '', 4);
+    expect(playersLine(layer)).toEqual(['4 players']);
+    expect(layer.querySelector('[role="radiogroup"] .atlas-online-campaigns__players')).toBeNull();
+    expect(playersLine(picker(LIST, 'caves', '', 1).layer)).toEqual(['1 player']);
+    expect(playersLine(picker(LIST, 'caves', '', 0).layer)).toEqual(['No players yet']);
+    // The table has its players before its worlds are read, and without any world.
+    expect(playersLine(picker(null, null, '', 2).layer)).toEqual(['2 players']);
+    expect(playersLine(picker([], null, '', 2).layer)).toEqual(['2 players']);
   });
 
   it('shows the world map, or the campaign\'s own tint where it has none', () => {
@@ -166,7 +179,7 @@ describe('the campaign a table starts on', () => {
 
   it('names a running table by its campaign', () => {
     const running = { campaignId: 'strahd' } as OnlineSnapshot;
-    expect(tableTitle(running, campaignPick(LIST, null))).toBe('Curse of Strahd');
-    expect(tableTitle({ campaignId: null } as OnlineSnapshot, campaignPick(LIST, null))).toBe('Online table');
+    expect(tableTitle(running, campaignPick(LIST, 0, null))).toBe('Curse of Strahd');
+    expect(tableTitle({ campaignId: null } as OnlineSnapshot, campaignPick(LIST, 0, null))).toBe('Online table');
   });
 });

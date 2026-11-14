@@ -19,9 +19,9 @@ vi.mock('events', async () => import('eventemitter3'));
 const MARA = { id: 'acc_mara', handle: 'mara', name: 'Mara' };
 const SNAPSHOT: OnlineSnapshot = { status: 'idle', link: null, campaignId: null, sharedLeaf: null, sharedName: null, sharedTokens: {}, players: [], playerTokens: [], seats: null, gate: null, rests: [], cardOrder: [] };
 const CHOICES: CampaignChoice[] = [
-  { id: 'a', name: 'Rise of the Blood Olms', activity: 'Played 2d ago', players: 4, art: paintedMap(30, 320, 200), hue: 30, playing: true },
-  { id: 'b', name: 'The Witherwild, a campaign with a very long name indeed', activity: 'Played 9d ago', players: 1, art: paintedMap(140, 320, 200), hue: 140, playing: false },
-  { id: 'c', name: 'Dolmenwood', activity: 'Created 3h ago', players: 0, art: null, hue: 260, playing: false },
+  { id: 'a', name: 'Rise of the Blood Olms', activity: 'Played 2d ago', art: paintedMap(30, 320, 200), hue: 30, playing: true },
+  { id: 'b', name: 'The Witherwild, a campaign with a very long name indeed', activity: 'Played 9d ago', art: paintedMap(140, 320, 200), hue: 140, playing: false },
+  { id: 'c', name: 'Dolmenwood', activity: 'Created 3h ago', art: null, hue: 260, playing: false },
 ];
 
 const actions = (): MenuActions => ({
@@ -31,7 +31,7 @@ const actions = (): MenuActions => ({
 });
 
 const MANY: CampaignChoice[] = [...CHOICES, ...['Tomb of Annihilation', 'Curse of Strahd', 'The Waking of Willowby Hall', 'Sunless Citadel', 'Barrowmaze'].map((name, index) => ({
-  id: `m${index}`, name, activity: `Played ${index + 2}w ago`, players: index, art: index % 2 === 0 ? paintedMap(60 * index, 320, 200) : null, hue: 60 * index, playing: false,
+  id: `m${index}`, name, activity: `Played ${index + 2}w ago`, art: index % 2 === 0 ? paintedMap(60 * index, 320, 200) : null, hue: 60 * index, playing: false,
 }))];
 
 function mount(theme: 'dark' | 'light', list: readonly CampaignChoice[], picked: string | null = null, query = ''): HTMLElement {
@@ -43,7 +43,7 @@ function mount(theme: 'dark' | 'light', list: readonly CampaignChoice[], picked:
   const surface = dock.createDiv({ cls: 'atlas-online-surface' });
   surface.style.cssText = 'position: static; width: 300px;';
   const layer = surface.createDiv({ cls: 'atlas-online-layer', attr: { id: 'surface' } });
-  renderMenu(layer, menuModel(SNAPSHOT, { isShared: true, tokens: {}, selected: [] }, { kind: 'can-host', account: MARA, access: { plan: 'beta', maxPlayers: 12, endsAt: null } }, false, campaignPick(list, picked, query)), actions());
+  renderMenu(layer, menuModel(SNAPSHOT, { isShared: true, tokens: {}, selected: [] }, { kind: 'can-host', account: MARA, access: { plan: 'beta', maxPlayers: 12, endsAt: null } }, false, campaignPick(list, 3, picked, query)), actions());
   return surface;
 }
 
