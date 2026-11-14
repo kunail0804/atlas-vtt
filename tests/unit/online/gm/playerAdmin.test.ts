@@ -237,7 +237,7 @@ describe('stopping the table', () => {
 });
 
 describe('the world the table plays', () => {
-  const WORLDS: CampaignPick = { list: [{ id: 'strahd', name: 'Curse of Strahd', activity: '', players: 0, art: null, hue: 0 }, { id: 'caves', name: 'Blue Mouth Caves', activity: '', players: 0, art: null, hue: 0 }], chosen: null, query: '' };
+  const WORLDS: CampaignPick = { list: [{ id: 'strahd', name: 'Curse of Strahd', activity: '', art: null, hue: 0 }, { id: 'caves', name: 'Blue Mouth Caves', activity: '', art: null, hue: 0 }], players: 0, chosen: null, query: '' };
   const worldRow = (layer: HTMLElement): HTMLButtonElement | null => layer.querySelector('.atlas-online-world');
 
   it('is named in the panel, and its menu offers No world and every world, the one played ticked', () => {

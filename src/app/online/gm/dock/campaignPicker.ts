@@ -5,10 +5,12 @@ import type { CampaignChoice } from '../campaignChoices.ts';
 import { textButton } from './controls.ts';
 import { t } from '../../../i18n';
 
-/** The worlds a table can play, and the one it would play now. */
+/** The worlds a table can play, the one it would play now, and the table's players. */
 export interface CampaignPick {
   /** Null while the worlds are not read yet. */
   readonly list: readonly CampaignChoice[] | null;
+  /** The table's lasting players, who play whichever world it runs; 0 while their file is not read. */
+  readonly players: number;
   /** The chosen world's id; null for none, which a table starts with unless the GM picks one. */
   readonly chosen: string | null;
   /** What the GM typed into the search; only campaigns whose name holds it show. */
@@ -28,9 +30,9 @@ export interface CampaignPickerActions {
 }
 
 /** The world a table would start with: the one the GM picked while it is still there, else none. */
-export function campaignPick(list: readonly CampaignChoice[] | null, picked: string | null, query = ''): CampaignPick {
+export function campaignPick(list: readonly CampaignChoice[] | null, players: number, picked: string | null, query = ''): CampaignPick {
   const chosen = picked !== null && list?.some((campaign) => campaign.id === picked) === true ? picked : null;
-  return { list, chosen, query };
+  return { list, players, chosen, query };
 }
 
 /** The `data-campaign` of the choice of no world: no world id is empty. */
@@ -130,7 +132,7 @@ function row(group: HTMLElement, radio: RadioRow, chosen: boolean, field: HTMLEl
   return button;
 }
 
-const worldRow = (choice: CampaignChoice): RadioRow => ({ id: choice.id, name: choice.name, meta: `${choice.activity} · ${playersText(choice.players)}`, art: (button) => thumbnail(button, choice) });
+const worldRow = (choice: CampaignChoice): RadioRow => ({ id: choice.id, name: choice.name, meta: choice.activity, art: (button) => thumbnail(button, choice) });
 
 const NO_WORLD_ROW: RadioRow = { id: null, name: t('online.noWorld'), meta: t('online.noWorldDetail'), art: noWorldArt };
 
@@ -150,13 +152,14 @@ function searchField(parent: HTMLElement, query: string): { field: HTMLInputElem
 
 /**
  * The step before a table starts: which world it plays, if any. No world comes first and is chosen
- * until the GM picks a world; each world shows its world map, name, when it was played and its
- * players; the chosen one is ringed and ticked. The list has room for five and scrolls past them, and
+ * until the GM picks a world; each world shows its world map, name and when it was played; the
+ * chosen one is ringed and ticked. Above the worlds, the table says once how many players it has. The list has room for five and scrolls past them, and
  * the search above it finds a world by its name (no world always stays). A vault without worlds gets
  * the way to make one.
  */
 export function renderCampaignPicker(parent: HTMLElement, pick: CampaignPick, actions: CampaignPickerActions, disabled = false): void {
   const section = parent.createDiv({ cls: 'atlas-online-campaigns' });
+  section.createDiv({ cls: 'atlas-online-help atlas-online-campaigns__players', text: playersText(pick.players) });
   const label = section.createDiv({ cls: 'atlas-online-campaigns__label', text: t('online.campaignLabel') });
   label.id = `${parent.id || 'atlas-online'}-campaigns`;
   const list = pick.list;
