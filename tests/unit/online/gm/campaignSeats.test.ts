@@ -2,7 +2,6 @@ import { TFile } from 'obsidian';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CampaignFiles } from '../../../../src/app/campaigns/CampaignFiles';
 import { CAMPAIGNS_FOLDER } from '../../../../src/app/campaigns/campaignPaths';
-import { CampaignPlayers } from '../../../../src/app/campaigns/players/CampaignPlayers';
 import { withPlayer, type CampaignPlayer } from '../../../../src/app/campaigns/players/playersFile';
 import { TABLE_PLAYERS_PATH } from '../../../../src/app/campaigns/players/tablePlayersFile';
 import { TablePlayers } from '../../../../src/app/campaigns/players/TablePlayers';
@@ -37,9 +36,8 @@ async function table(files: Record<string, string> = {}): Promise<{ vault: Retur
   const vault = createInMemoryApp({ files: { [`${FOLDER}/campaign.json`]: campaignText, ...files } });
   opened.push(vault);
   await CampaignFiles.open(vault.app).load();
-  await CampaignPlayers.open(vault.app).whenLoaded();
   const players = TablePlayers.open(vault.app);
-  await players.whenReady();
+  await players.load();
   return { vault, players, seats: new TableSeats(players) };
 }
 
@@ -56,7 +54,6 @@ afterEach(() => {
   vi.restoreAllMocks();
   for (const vault of opened.splice(0)) {
     TablePlayers.release(vault.app);
-    CampaignPlayers.release(vault.app);
     CampaignFiles.release(vault.app);
   }
 });
@@ -71,12 +68,6 @@ describe('the seats of the table', () => {
     expect(seats.codeOf(NEW.id)).toBeNull();
     seats.setOwner('lib-bear', ANA.id);
     expect(players.roster().players[0]?.characters).toEqual(['lib-ana', 'lib-bear']);
-  });
-
-  it('tell the relay the ids a player had in the worlds before they were merged', async () => {
-    const merged = { format: 1, players: { [ANA.id]: { name: 'Ana', code: '000001', characters: [] } }, migratedIds: { c1: { [ANA.id]: ANA.id }, c2: { [seatId(1)]: ANA.id, [seatId(0)]: ANA.id } } };
-    const { seats } = await table({ [TABLE_PLAYERS_PATH]: JSON.stringify(merged) });
-    expect(seats.seats()).toEqual([{ id: ANA.id, name: 'Ana', code: '000001', was: [seatId(0), seatId(1)] }]);
   });
 
   it('tell their listeners of every change of the file, another device\'s too', async () => {

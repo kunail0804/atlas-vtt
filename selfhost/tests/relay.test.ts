@@ -217,36 +217,6 @@ describe('the relay with the plugin as GM', () => {
     expect(reload.frame('welcome')?.id).toBe(id);
   });
 
-  it('seats a key given under an id the GM merged into another player under that player\'s id', async () => {
-    const { code, gm, mira, id, key } = await campaignTable();
-    mira.socket.close();
-    await until(() => mira.closeCode !== null, 'old page gone');
-    // The GM's players were merged: Mira is now the player who had another id, and names hers as one she had.
-    const merged = 'm'.repeat(20);
-    gm.connection.setPlayers([{ id: merged, name: 'Mira', code: '271828', was: [id] }]);
-    await new Promise((resolve) => setTimeout(resolve, 4 * BATCH_MS));
-    const back = player(code, { name: 'Mira', key });
-    await until(() => back.frame('welcome') !== undefined, 'Mira seated by her key');
-    expect(back.frame('welcome')).toMatchObject({ id: merged, key });
-    // Her key keeps the merged seat from one page to the next.
-    back.socket.close();
-    await until(() => back.closeCode !== null, 'page gone');
-    const reload = player(code, { name: 'Mira', key });
-    await until(() => reload.frame('welcome') !== undefined, 'seated again');
-    expect(reload.frame('welcome')?.id).toBe(merged);
-  });
-
-  it('leaves a seat where the campaign still names its id, whoever else says they had it', async () => {
-    const { code, gm, mira, id, key } = await campaignTable();
-    mira.socket.close();
-    await until(() => mira.closeCode !== null, 'old page gone');
-    gm.connection.setPlayers([{ id, name: 'Mira', code: '271828' }, { id: 'o'.repeat(20), name: 'Oren', code: '314159', was: [id] }]);
-    await new Promise((resolve) => setTimeout(resolve, 4 * BATCH_MS));
-    const back = player(code, { name: 'Mira', key });
-    await until(() => back.frame('welcome') !== undefined, 'Mira seated by her key');
-    expect(back.frame('welcome')?.id).toBe(id);
-  });
-
   it('never seats two pages on one seat: a key that was not moved loses the seat to the one the GM admitted, and cannot take it back', async () => {
     const { code, gm, mira, id, key } = await campaignTable();
     // Someone else holds her old key and sits in her seat when she asks for it from a new browser.

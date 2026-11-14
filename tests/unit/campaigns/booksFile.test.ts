@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { CampaignFiles } from '../../../src/app/campaigns/CampaignFiles';
 import { CAMPAIGNS_FOLDER } from '../../../src/app/campaigns/campaignPaths';
-import { bookIn, isBooksPath, withBook } from '../../../src/app/campaigns/players/booksFile';
+import { bookIn, withBook } from '../../../src/app/campaigns/players/booksFile';
 import { emptyTableBooks, TABLE_BOOKS_PATH } from '../../../src/app/campaigns/players/tableBooksFile';
 import { TableBooks } from '../../../src/app/campaigns/players/TableBooks';
 import { EMPTY_BOOK, type StoredBook } from '../../../src/app/online/gm/book/bookStore';
@@ -20,7 +20,7 @@ async function device(files: Record<string, string> = { [`${FOLDER}/campaign.jso
   opened.push(vault);
   await CampaignFiles.open(vault.app).load();
   const books = TableBooks.open(vault.app);
-  await books.whenReady();
+  await books.load();
   return { vault, books };
 }
 
@@ -32,12 +32,8 @@ afterEach(() => {
 });
 
 describe('books.json', () => {
-  it('of a world lies directly in its folder; the table\'s lies in the worlds\' folder, in none of them', () => {
-    expect(isBooksPath(`${FOLDER}/books.json`)).toBe(true);
-    expect(isBooksPath(`${FOLDER}/deeper/books.json`)).toBe(false);
-    expect(isBooksPath(`${FOLDER}/players.json`)).toBe(false);
+  it('of the table lies in the worlds\' folder, in none of them', () => {
     expect(TABLE_BOOKS_PATH).toBe(`${CAMPAIGNS_FOLDER}/books.json`);
-    expect(isBooksPath(TABLE_BOOKS_PATH)).toBe(false);
   });
 
   it('sets one character\'s book and leaves every other entry as the file held it', () => {
@@ -72,14 +68,14 @@ describe('books.json', () => {
     expect(books.of('B')).toBeUndefined();
   });
 
-  it('cannot be changed before the worlds\' books were carried into it', async () => {
+  it('cannot be changed before it is read', async () => {
     const vault = createInMemoryApp({ files: { [`${FOLDER}/campaign.json`]: campaignText } });
     opened.push(vault);
     await CampaignFiles.open(vault.app).load();
     const books = TableBooks.open(vault.app);
     expect(books.canChange()).toBe(false);
     expect(books.change((stored) => withBook(stored, 'A', bookWith(1)))).toBe(false);
-    await books.whenReady();
+    await books.load();
     expect(books.canChange()).toBe(true);
   });
 
@@ -97,5 +93,14 @@ describe('books.json', () => {
     expect(written.books.A?.notes.map((note) => note.id)).toEqual([noteId(3)]);
     expect(written.books.B?.notes.map((note) => note.id)).toEqual([noteId(2)]);
     await settle();
+  });
+
+  it('of a vault whose worlds still hold books files from before it starts empty and is written only by a change', async () => {
+    const old = `${JSON.stringify({ format: 1, campaignId: 'c1', books: { A: bookWith(1) } })}\n`;
+    const { vault, books } = await device({ [`${FOLDER}/campaign.json`]: campaignText, [`${FOLDER}/books.json`]: old });
+    await settle();
+    expect(books.of('A')).toBeUndefined();
+    expect(vault.files.has(TABLE_BOOKS_PATH)).toBe(false);
+    expect(vault.files.get(`${FOLDER}/books.json`)).toBe(old);
   });
 });

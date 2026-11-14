@@ -1,9 +1,8 @@
 /**
  * `characters.json` directly in the worlds' folder (`tableFileLayout.ts`): the values the GM's table
  * keeps of its player characters, whatever world it plays. `{ format, characters: { <library token
- * id>: { resources: { <key>: { current, max, maxByHand? } } } } }`, the shape of a world's characters
- * file (`charactersFile.ts`) without its `campaignId`. Where the vault had none, the worlds' files
- * are carried into it (`charactersMigration.ts`).
+ * id>: { resources: { <key>: { current, max, maxByHand? } } } } }`, read and changed with the
+ * functions of `charactersFile.ts`.
  */
 
 import type { RecordLayout } from '../../services/recordFiles/recordLayout';

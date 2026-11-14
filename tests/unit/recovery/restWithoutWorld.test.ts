@@ -43,10 +43,10 @@ describe('a rest without a world played', () => {
     opened.push(vault);
     const campaigns = CampaignFiles.open(vault.app);
     await campaigns.load();
-    const characters = new TableCharacters(vault.app, campaigns);
-    const sync = new PartySync({ characters, tokens: () => [MIRA], ready: characters.whenReady() });
+    const characters = new TableCharacters(vault.app);
+    const sync = new PartySync({ characters, tokens: () => [MIRA], ready: characters.load() });
     PartySync.register(vault.app, sync);
-    await characters.whenReady();
+    await characters.load();
     expect(CampaignPlay.forApp(vault.app).playing()).toBeNull();
 
     const rest = characterRestOf(vault.app, MIRA, { notePath: 'Mira.md', templateId: TEMPLATE.id, template: TEMPLATE, record: {} });

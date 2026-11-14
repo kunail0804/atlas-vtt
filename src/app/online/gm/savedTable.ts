@@ -23,8 +23,7 @@ export interface SavedTable extends CreatedTable {
 
 /**
  * The saved table from the plugin's data, each field checked; null when there is none or it is
- * unreadable. A table plays the world it names (a table saved before the world was a choice named
- * the one it was started for), and none where it names none.
+ * unreadable. A table plays the world it names, and none where it names none.
  */
 export function readSavedTable(data: unknown): SavedTable | null {
   if (typeof data !== 'object' || data === null) return null;

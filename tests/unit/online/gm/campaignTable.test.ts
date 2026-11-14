@@ -3,7 +3,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CampaignFiles } from '../../../../src/app/campaigns/CampaignFiles';
 import { CampaignPlay } from '../../../../src/app/campaigns/campaignPlay';
 import { CAMPAIGNS_FOLDER } from '../../../../src/app/campaigns/campaignPaths';
-import { CampaignPlayers } from '../../../../src/app/campaigns/players/CampaignPlayers';
 import { TABLE_PLAYERS_PATH } from '../../../../src/app/campaigns/players/tablePlayersFile';
 import { TablePlayers } from '../../../../src/app/campaigns/players/TablePlayers';
 import { CLOSE, GM_LEVEL, MAX_CAMPAIGN_PLAYERS } from '../../../../src/app/online/protocol/index.ts';
@@ -75,7 +74,6 @@ async function gm(players: string | null = playersText(), play = true, files: Re
   opened.push(app);
   await CampaignFiles.open(app).load();
   // Opened as the plugin opens it; reading the file is left to whoever waits for it.
-  CampaignPlayers.open(app);
   const table = TablePlayers.open(app);
   if (play) CampaignPlay.forApp(app).play('c1');
   const tab = atlasTab(sceneState({ mapPath: 'Scenes/Cave.atlasmap' }));
@@ -114,7 +112,6 @@ beforeEach(() => {
 afterEach(() => {
   for (const app of opened.splice(0)) {
     TablePlayers.release(app);
-    CampaignPlayers.release(app);
     CampaignFiles.release(app);
   }
   vi.useRealTimers();
@@ -124,10 +121,10 @@ afterEach(() => {
 describe('a table of the played campaign', () => {
   it('waits for the players file, and asks the relay for the campaign\'s own link', async () => {
     const { online, vault, files, leaf, bound } = await gm();
-    expect(files.isReady()).toBe(false);
+    expect(files.isLoaded()).toBe(false);
     const table = await online.start(leaf, 'c1');
     expect(table).not.toBeNull();
-    expect(files.isReady()).toBe(true);
+    expect(files.isLoaded()).toBe(true);
     expect(seen.requests.map((request) => request.body)).toEqual([`{"code":"${LINK}","gmLevel":${GM_LEVEL}}`]);
     await files.flush();
     expect([...vault.files.keys()].filter((path) => path.endsWith('players.json'))).toEqual([PLAYERS]);
@@ -303,49 +300,26 @@ describe('the GM\'s players', () => {
   });
 });
 
-describe('the players of every world, once carried into the table\'s file', () => {
+describe('a vault whose worlds hold players files from before the table\'s file', () => {
   const MOOR = `${CAMPAIGNS_FOLDER}/Moor`;
-  const OLD = 'o'.repeat(20);
-  const CAL = 'c'.repeat(20);
-  /** Ana was accepted in both worlds, first in the Moor; Cal only in the Moor; the Witherwild was played last. */
-  const worlds: Record<string, string> = {
-    [`${FOLDER}/campaign.json`]: `${JSON.stringify({ format: 1, id: 'c1', name: 'Witherwild', createdAt: 1, lastPlayed: 200 })}\n`,
+  const OLD_WORLDS: Record<string, string> = {
     [`${MOOR}/campaign.json`]: `${JSON.stringify({ format: 1, id: 'c2', name: 'Moor', createdAt: 1, lastPlayed: 100 })}\n`,
     [`${FOLDER}/players.json`]: `${JSON.stringify({ format: 1, campaignId: 'c1', link: LINK, players: { [ANA]: { name: 'Ana', code: '000001', characters: [], addedAt: 20 } } })}\n`,
-    [`${MOOR}/players.json`]: `${JSON.stringify({ format: 1, campaignId: 'c2', link: 'm'.repeat(26), players: { [OLD]: { name: 'ana', code: '000009', characters: [], addedAt: 10 }, [CAL]: { name: 'Cal', code: '000003', characters: [], addedAt: 11 } } })}\n`,
+    [`${MOOR}/players.json`]: `${JSON.stringify({ format: 1, campaignId: 'c2', link: 'm'.repeat(26), players: { ['c'.repeat(20)]: { name: 'Cal', code: '000003', characters: [], addedAt: 11 } } })}\n`,
   };
 
-  it('sit at the table of the world played last, on its link, and the relay learns the ids they had', async () => {
-    const { online, leaf, vault, files } = await gm(null, true, worlds);
-    await online.start(leaf, 'c2');
-    await advance(0);
-    expect(seen.requests.map((request) => request.body)).toEqual([`{"code":"${LINK}","gmLevel":${GM_LEVEL}}`]);
-    const socket = FakeSocket.all.at(-1);
-    socket?.relay({ t: 'welcome', role: 'gm', players: [] });
-    await advance(100);
-    const told = (socket?.frames() as Frame[]).filter((frame) => frame.t === 'players').at(-1);
-    expect(told?.players).toEqual([{ id: CAL, name: 'Cal', code: '000003' }, { id: OLD, name: 'ana', code: '000009', was: [ANA] }]);
-    await files.flush();
-    expect(vault.files.has(PLAYERS)).toBe(true);
-    online.stop();
-  });
-
-  it('find their place again with their code, whatever world accepted them', async () => {
-    const { online, leaf } = await gm(null, true, worlds);
+  it('starts a table with none of their players, on a new link of its own', async () => {
+    const { online, leaf, vault, files } = await gm(null, true, OLD_WORLDS);
     await online.start(leaf, 'c1');
     await advance(0);
-    const socket = FakeSocket.all.at(-1);
-    if (socket === undefined) throw new Error('no socket');
-    socket.relay({ t: 'welcome', role: 'gm', players: [] });
-    await advance(100);
-    // The relay seats a player by their own code under the id the GM told it.
-    socket.relay({ t: 'player-joined', id: CAL, name: 'Cal' });
-    socket.relay({ t: 'player-joined', id: OLD, name: 'Ana' });
-    await advance(100);
-    const codes = (socket.frames() as Frame[]).filter((frame) => frame.t === 'send' && frame.body?.t === 'your-code').map((frame) => [frame.to, frame.body]);
-    expect(codes).toEqual([[CAL, { t: 'your-code', code: '000003', first: false }], [OLD, { t: 'your-code', code: '000009', first: false }]]);
-    expect(online.players().map((player) => player.name).sort()).toEqual(['Cal', 'ana']);
-    expect(seen.notices).toEqual([]);
+    const asked = seen.requests.map((request) => JSON.parse(request.body ?? '{}') as { code: string });
+    expect(asked).toHaveLength(1);
+    expect(asked[0]?.code).toMatch(/^[a-z2-7]{26}$/);
+    expect([LINK, 'm'.repeat(26)]).not.toContain(asked[0]?.code);
+    expect(online.players()).toEqual([]);
+    await files.flush();
+    expect(JSON.parse(vault.files.get(PLAYERS)!)).toEqual({ format: 1, link: asked[0]?.code, players: {} });
+    for (const [path, text] of Object.entries(OLD_WORLDS)) expect(vault.files.get(path)).toBe(text);
     online.stop();
   });
 });
@@ -353,7 +327,7 @@ describe('the players of every world, once carried into the table\'s file', () =
 describe('a player\'s code', () => {
   it('is looked up while no table runs, from the played campaign\'s players file', async () => {
     const { online, files } = await gm();
-    await files.whenReady();
+    await files.load();
     expect(online.table).toBeNull();
     expect(online.playerCode(ANA)).toBe('000001');
     expect(online.playerCode(NOOR)).toBeNull();
@@ -560,7 +534,7 @@ describe('the played campaign', () => {
     expect(online.campaignId()).toBeNull();
   });
 
-  it('comes back with a table saved before the world was a choice, and none with a table saved without one', async () => {
+  it('comes back with the world its saved table names, and none with a table saved without one', async () => {
     const { app } = await gm(playersText(), false);
     const online = new OnlineControl(app, new Ownership(), appCampaigns(app), () => undefined, signedIn);
     expect(await online.resume(SAVED)).not.toBeNull();

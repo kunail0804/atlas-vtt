@@ -133,7 +133,7 @@ export class OnlineControl {
     if (this.current !== null || this.starting) return this.current;
     this.starting = true;
     const closings = this.closings;
-    const seats = await this.campaigns.open(saved.campaignId).catch(() => null).finally(() => (this.starting = false));
+    const seats = await this.campaigns.open().catch(() => null).finally(() => (this.starting = false));
     if (closings !== this.closings || this.current !== null) return this.current;
     void this.account.assets?.salt.ensure();
     if (seats === null) {
@@ -221,7 +221,7 @@ export class OnlineControl {
     const leaf = this.current?.sharedTab ?? activeAtlasLeaf(this.app);
     const blocked = this.current === null ? null : startBlock(leaf, this.account);
     if (blocked !== null) return void showNotice(blocked);
-    const seats = await this.campaigns.open(campaignId).catch(() => null);
+    const seats = await this.campaigns.open().catch(() => null);
     if (seats === null || !renewLink(seats)) return void showNotice(seats === null ? CAMPAIGNS_LOADING_TEXT : linkRefusal(seats));
     if (this.current === null) return;
     // The world stays played across the restart, unless no table runs after it.
@@ -290,7 +290,7 @@ export class OnlineControl {
     const closings = this.closings;
     // The salt is asked for beside the table, so the first references already carry their ids.
     void this.account.assets?.salt.ensure();
-    const made = await createCampaignTable(this.campaigns, campaignId, token, this.account, (level) => rememberMinLevel(this.app, level)).finally(() => (this.starting = false));
+    const made = await createCampaignTable(this.campaigns, token, this.account, (level) => rememberMinLevel(this.app, level)).finally(() => (this.starting = false));
     this.changed();
     if (made === null || closings !== this.closings) return null;
     // A new table's log is empty: the last table's goes.

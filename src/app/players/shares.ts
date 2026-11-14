@@ -3,12 +3,9 @@
  * keeps them: by vault path of the note, then the id of a player of the table (`TablePlayers`), the
  * access each has. The players themselves are the table's; this file only says what is shared with
  * whom. Shares outlive tables and campaigns; only the GM, or the note's deletion, ends them.
- *
- * Format 1 kept players of its own, known by the devices they joined from, and shared with them.
- * Such a file is read as `LegacyShares` and carried over once (`migrateLegacyShares`).
  */
 
-import { PLAYER_ID_PATTERN, samePlayerName } from '../online/protocol/index';
+import { PLAYER_ID_PATTERN } from '../online/protocol/index';
 
 export type ShareAccess = 'read' | 'write';
 
@@ -19,19 +16,7 @@ export interface PageShares {
   readonly shares: Shares;
 }
 
-/** What a file of format 1 held: its own players' names and the pages shared with them, by their ids there. */
-export interface LegacyShares {
-  readonly names: Readonly<Record<string, string>>;
-  readonly shares: Shares;
-}
-
-/** A file as read: the shares, or, for a file of format 1, what it held to carry over. */
-export interface SharesFile {
-  readonly shares: PageShares;
-  readonly legacy: LegacyShares | null;
-}
-
-/** A player of the table, as the migration matches them. */
+/** A player of the table, as a note's shares name them. */
 export interface NamedPlayer {
   readonly id: string;
   readonly name: string;
@@ -40,67 +25,33 @@ export interface NamedPlayer {
 export const SHARES_FORMAT = 2;
 export const NO_SHARES: PageShares = { shares: {} };
 
-const LEGACY_PLAYER_ID = /^p[0-9a-f]{8,32}$/;
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
 const isAccess = (value: unknown): value is ShareAccess => value === 'read' || value === 'write';
 
-/** The shares of a record: notes with a path, players whose id passes `isPlayer`, accesses Atlas knows. */
-function readShares(value: unknown, isPlayer: (id: string) => boolean): Shares {
+/** The shares of a record: notes with a path, players of the table by their id, accesses Atlas knows. */
+function readShares(value: unknown): Shares {
   const shares: Record<string, Record<string, ShareAccess>> = {};
   for (const [path, entry] of Object.entries(isRecord(value) ? value : {})) {
     if (path === '' || !isRecord(entry)) continue;
-    const kept = Object.entries(entry).filter((pair): pair is [string, ShareAccess] => isPlayer(pair[0]) && isAccess(pair[1]));
+    const kept = Object.entries(entry).filter((pair): pair is [string, ShareAccess] => PLAYER_ID_PATTERN.test(pair[0]) && isAccess(pair[1]));
     if (kept.length > 0) shares[path] = Object.fromEntries(kept);
   }
   return shares;
 }
 
 /** The shares a file holds; what cannot be read is left out, and a file that cannot be read shares nothing. */
-export function parseShares(text: string | null): SharesFile {
+export function parseShares(text: string | null): PageShares {
   let raw: unknown = null;
   try {
     raw = text === null ? null : JSON.parse(text);
   } catch {
     raw = null;
   }
-  if (!isRecord(raw)) return { shares: NO_SHARES, legacy: null };
-  if (isRecord(raw.players)) {
-    const names: Record<string, string> = {};
-    for (const [id, entry] of Object.entries(raw.players)) {
-      if (LEGACY_PLAYER_ID.test(id) && isRecord(entry) && typeof entry.name === 'string') names[id] = entry.name;
-    }
-    return { shares: NO_SHARES, legacy: { names, shares: readShares(raw.shares, (id) => id in names) } };
-  }
-  return { shares: { shares: readShares(raw.shares, (id) => PLAYER_ID_PATTERN.test(id)) }, legacy: null };
+  return isRecord(raw) ? { shares: readShares(raw.shares) } : NO_SHARES;
 }
 
 export function serializeShares(shares: PageShares): string {
   return `${JSON.stringify({ format: SHARES_FORMAT, shares: shares.shares }, null, 2)}\n`;
-}
-
-/**
- * The shares of a file of format 1 given to the players of the table: each to the one player of the
- * table whose name is the same (`samePlayerName`), the widest access where two of the file's players
- * land on one. A share whose player has no such player, or several, is dropped and counted.
- */
-export function migrateLegacyShares(legacy: LegacyShares, players: readonly NamedPlayer[]): { shares: PageShares; dropped: number } {
-  const target = (oldId: string): string | null => {
-    const name = legacy.names[oldId];
-    const matches = name === undefined ? [] : players.filter((player) => samePlayerName(player.name, name));
-    return matches.length === 1 ? matches[0]?.id ?? null : null;
-  };
-  const shares: Record<string, Record<string, ShareAccess>> = {};
-  let dropped = 0;
-  for (const [path, shared] of Object.entries(legacy.shares)) {
-    const carried: Record<string, ShareAccess> = {};
-    for (const [oldId, access] of Object.entries(shared)) {
-      const id = target(oldId);
-      if (id === null) dropped += 1;
-      else carried[id] = carried[id] === 'write' || access === 'write' ? 'write' : 'read';
-    }
-    if (Object.keys(carried).length > 0) shares[path] = carried;
-  }
-  return { shares: { shares }, dropped };
 }
 
 /** The shares with those of `path` set to `players`; a note shared with nobody leaves the list. */

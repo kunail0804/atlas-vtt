@@ -47,14 +47,14 @@ export interface CampaignTable {
 export const OTHER_LINK_TEXT = t('online.start.otherLink');
 
 /**
- * Asks the relay for a table on the table's lasting link once its players file was read (for the
- * world `campaignId`, or none), making the link first where it has none; null where no table was made, the GM told why
+ * Asks the relay for a table on the table's lasting link once its players file was read, making the
+ * link first where it has none; null where no table was made, the GM told why
  * (a relay that signed the account out says so on the account instead; one that needs a newer Atlas
  * names its least GM level to `outdated`). A table the relay opened on
  * another link is ended, never run: its players would not find it at the campaign's link.
  */
-export async function createCampaignTable(campaigns: TableCampaigns, campaignId: string | null, token: string, account: HostAccount, outdated: (minLevel: number) => void = () => undefined): Promise<CampaignTable | null> {
-  const seats = await campaigns.open(campaignId).catch(() => null);
+export async function createCampaignTable(campaigns: TableCampaigns, token: string, account: HostAccount, outdated: (minLevel: number) => void = () => undefined): Promise<CampaignTable | null> {
+  const seats = await campaigns.open().catch(() => null);
   const link = seats === null ? null : campaignLink(seats);
   if (seats === null || link === null) return refused(seats === null ? CAMPAIGNS_LOADING_TEXT : linkRefusal(seats));
   // Whether this account may host is the relay's answer alone: nothing here looks at what the account was last said to hold.

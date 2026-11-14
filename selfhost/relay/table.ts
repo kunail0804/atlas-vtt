@@ -183,7 +183,7 @@ export class Table {
   attachPlayer(link: Link, hello: PlayerHello): void {
     if (hello.key !== undefined) {
       const seat = this.seatWithKey(hello.key);
-      if (seat !== null) return this.seat(link, this.followMerge(seat), hello.key, hello.name, hello.acks === true);
+      if (seat !== null) return this.seat(link, seat, hello.key, hello.name, hello.acks === true);
     }
     if (hello.wait !== undefined && this.gate.resume(link.socket, hello.wait)) {
       link.onText(() => closeSocket(link.socket, CLOSE.protocol, 'waiting'));
@@ -286,23 +286,6 @@ export class Table {
     // Otherwise a player only ever sends game messages, and they always go to the GM.
     if (frame === null || frame.t !== 'send' || frame.to !== undefined) return closeSocket(link.socket, CLOSE.protocol, 'malformed frame');
     this.toGm({ t: 'game', from: seat.id, body: frame.body });
-  }
-
-  /**
-   * A seat whose id the campaign no longer has, and that exactly one of its players had before the
-   * GM merged their players (`CampaignSeat.was`), takes that player's id and keeps its key, so the
-   * device comes back to the merged player. A seat in use, or whose new id already has a seat, stays.
-   */
-  private followMerge(seat: Seat): Seat {
-    if (seat.link !== null || this.campaign.some((player) => player.id === seat.id)) return seat;
-    const heirs = this.campaign.filter((player) => player.was?.includes(seat.id) === true);
-    const heir = heirs.length === 1 ? heirs[0] : undefined;
-    if (heir === undefined || this.seats.has(heir.id)) return seat;
-    const moved: Seat = { id: heir.id, name: seat.name, keyHash: seat.keyHash, link: null };
-    this.seats.delete(seat.id);
-    this.seats.set(moved.id, moved);
-    this.ports.changed();
-    return moved;
   }
 
   private seatWithKey(key: string): Seat | null {
