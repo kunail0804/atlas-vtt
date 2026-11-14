@@ -16,14 +16,14 @@ const MAX_ROUNDS = 4;
 const seenOf = (state: PartyStoreState): Seen => ({ tokens: state.objects.tokens, partyValues: state.partyValues, loading: state.isMapLoading });
 
 /**
- * Keeps a view store's player-character tokens and its `partyValues` one: while a campaign is
- * followed (`setContext`), a value the GM changes on a character's token goes to the party and to
+ * Keeps a view store's player-character tokens and its `partyValues` one: while the party values
+ * are followed (`setContext`), a value the GM changes on a character's token goes to the party and to
  * the character's other tokens, values that reached the party from elsewhere reach the tokens,
  * and a token placed or a scene loaded takes the party's values (adopting what the party lacks).
  * An undo or redo puts the store back value by value, and the tokens then take the party's
  * values, so undoing a move never undoes a value set since. Its writes are Atlas's own
  * (`runUntracked`): during a GM write they are part of that write's step. Nothing happens while
- * a scene loads, or while no campaign is followed: tokens keep their own values then.
+ * a scene loads, or while the party values are not followed: tokens keep their own values then.
  */
 export class PartyReconciler {
   private context: PartyContext | null = null;
@@ -37,8 +37,8 @@ export class PartyReconciler {
   }
 
   /**
-   * Follows the values of `context`'s campaign, or none. A campaign the store starts to follow
-   * settles every token at once, adopting into the party what the tokens hold and it lacks.
+   * Follows the party values with `context`, or none. Once the store starts to follow them every
+   * token settles at once, adopting into the party what the tokens hold and it lacks.
    */
   setContext(context: PartyContext | null): void {
     this.context = context;

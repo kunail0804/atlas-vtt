@@ -1,6 +1,5 @@
 import type { Plugin } from 'obsidian';
 import type { CampaignFiles } from '../campaigns/CampaignFiles';
-import { CampaignPlay } from '../campaigns/campaignPlay';
 import { PartySync } from '../campaigns/partyValues/PartySync';
 import { TableCharacters } from '../campaigns/partyValues/TableCharacters';
 import { AssetService } from '../services/AssetService';
@@ -15,9 +14,6 @@ export function registerPartySync(plugin: Plugin, campaigns: CampaignFiles, camp
   const characters = new TableCharacters(app, campaigns);
   const assets = AssetService.getInstance(app);
   const sync = new PartySync({
-    app,
-    campaigns,
-    play: CampaignPlay.forApp(app),
     characters,
     tokens: () => assets.loadedTokenAssets(),
     ready: campaignsRead.then(() => characters.whenReady()),

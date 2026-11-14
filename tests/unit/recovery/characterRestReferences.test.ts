@@ -10,7 +10,6 @@ vi.mock('../../../src/app/services/AssetService', () => ({
 }));
 vi.mock('../../../src/app/services/collectionScenes', () => ({ openMapViews: () => [] }));
 vi.mock('../../../src/app/campaigns/partyValues/PartySync', () => ({ PartySync: { forApp: () => null } }));
-vi.mock('../../../src/app/campaigns/campaignPlay', () => ({ CampaignPlay: { forApp: () => ({ playing: () => null }) } }));
 
 const FIELDS: TemplateField[] = [
   { key: 'x', label: 'Secret', type: 'number' },

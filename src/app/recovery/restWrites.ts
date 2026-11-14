@@ -1,6 +1,6 @@
 /**
  * Writing what a rest changed of every character it changed, the way the GM's own edits are written: a resource on the token it
- * was read from (one undo step per map, which `PartyReconciler` carries to the played campaign's
+ * was read from (one undo step per map, which `PartyReconciler` carries to the party's
  * values) or else into those values (no undo step); a condition on every token of the character
  * on an open map; counters into the note through the note writer, one patch per field with the
  * value the rest read as its base. The map's steps and the note's history stay separate.
@@ -52,7 +52,7 @@ interface CharacterWrite {
   readonly changes: CharacterChanges;
 }
 
-/** Writes the rest's resources and conditions on the maps (one undo step per map, every character's together) and into the campaign's values. */
+/** Writes the rest's resources and conditions on the maps (one undo step per map, every character's together) and into the party's values. */
 function writeScene(app: App, parts: readonly CharacterWrite[]): void {
   const byStore = new Map<ViewAtlasStore, StoreWrites>();
   const writesOf = (store: ViewAtlasStore): StoreWrites => {
@@ -65,9 +65,9 @@ function writeScene(app: App, parts: readonly CharacterWrite[]): void {
       const place = rest.resourcePlace(key);
       if (place?.kind === 'party') {
         const sync = PartySync.forApp(app);
-        sync?.setValue(place.campaignId, rest.asset.id, key, { ...sync.value(place.campaignId, rest.asset.id, key), ...value });
+        sync?.setValue(rest.asset.id, key, { ...sync.value(rest.asset.id, key), ...value });
       } else if (place?.kind === 'token') {
-        // Every token of the character on every open map, its forms' too: without a played campaign nothing else carries the value to them
+        // Every token of the character on every open map, its forms' too: while the party's values are not kept nothing else carries the value to them
         for (const { store, tokenIds } of rest.holds) {
           for (const tokenId of tokenIds) {
             const token = store.getState().objects.tokens[tokenId];
@@ -96,7 +96,7 @@ function writeScene(app: App, parts: readonly CharacterWrite[]): void {
 
 /**
  * Sets resources of one character outside a rest (the note panel's − and + on a tracked number):
- * on its token on an open map as one undo step, else in the played campaign's values, as a rest writes them.
+ * on its token on an open map as one undo step, else in the party's values, as a rest writes them.
  */
 export function writeCharacterResources(app: App, rest: CharacterRest, resources: ReadonlyMap<string, ResourceValue>): void {
   writeScene(app, [{ rest, changes: { resources, counters: new Map(), conditions: new Map() } }]);

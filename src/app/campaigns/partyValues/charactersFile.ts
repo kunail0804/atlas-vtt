@@ -37,26 +37,22 @@ export const CHARACTERS_LAYOUT: RecordLayout<StoredCharacters> = FILE.layout;
 /** Whether this Atlas may write the file: one of a later format is only read. */
 export const isWritable: (stored: StoredCharacters) => boolean = FILE.isWritable;
 
-/**
- * The values a characters file holds, as party values of the world `campaignId` follows (the world
- * played, whose stores show them); what cannot be read is left out.
- */
-export function partyValuesOf(stored: StoredCharacters, campaignId: string): PartyValues {
+/** The values a characters file holds, as party values; what cannot be read is left out. */
+export function partyValuesOf(stored: StoredCharacters): PartyValues {
   const values: Record<string, PartyValue> = {};
   const characters = isRecord(stored.characters) ? Object.entries(stored.characters).slice(0, MAX_CHARACTERS) : [];
   for (const [characterId, entry] of characters) {
     if (characterId === '' || characterId.length > MAX_KEY || !isRecord(entry) || !isRecord(entry.resources)) continue;
     for (const [key, raw] of Object.entries(entry.resources).slice(0, MAX_VALUES)) {
       const value = key !== '' && key.length <= MAX_KEY ? readPartyValue(raw) : null;
-      if (value) values[partyKey(campaignId, characterId, key)] = value;
+      if (value) values[partyKey(characterId, key)] = value;
     }
   }
   return values;
 }
 
 /**
- * The file as stored with `changes` made value by value, whatever world their keys follow: every
- * other value and field stays, so another device's values survive; a file of a later format is
+ * The file as stored with `changes` made value by value: every other value and field stays, so another device's values survive; a file of a later format is
  * returned as it is.
  */
 export function withPartyChanges(stored: StoredCharacters, changes: PartyChanges): StoredCharacters {

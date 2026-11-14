@@ -1609,7 +1609,7 @@ export function createViewAtlasStore(app: App, viewId: string, plugin?: AtlasVTT
               exploredMask: readExploredMask(saved.exploredMask),
               // Counted per session: a file never brings one.
               exploredEdits: current.exploredEdits,
-              // The campaign's, never the scene's.
+              // The party's, never the scene's.
               partyValues: current.partyValues,
             };
           },

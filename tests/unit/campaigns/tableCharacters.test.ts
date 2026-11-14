@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CampaignFiles } from '../../../src/app/campaigns/CampaignFiles';
 import { CAMPAIGNS_FOLDER } from '../../../src/app/campaigns/campaignPaths';
 import { CampaignPlay } from '../../../src/app/campaigns/campaignPlay';
@@ -54,9 +54,12 @@ async function device(files: Record<string, string>): Promise<{ vault: ReturnTyp
   return { vault, characters, campaigns };
 }
 
+beforeEach(() => vi.stubGlobal('window', globalThis));
+
 afterEach(() => {
   for (const sync of syncs.splice(0)) sync.destroy();
   for (const vault of opened.splice(0)) CampaignFiles.release(vault.app);
+  vi.unstubAllGlobals();
 });
 
 describe('the table\'s characters file', () => {
@@ -85,30 +88,30 @@ describe('the table\'s characters file', () => {
   });
 
   it('is what the party sync reads and writes, whatever world is played', async () => {
-    const { vault, characters, campaigns } = await device(WORLDS);
+    const { vault, characters } = await device(WORLDS);
     const play = CampaignPlay.forApp(vault.app);
-    const sync = new PartySync({ app: vault.app, campaigns, play, characters, tokens: () => [], ready: characters.whenReady() });
+    const sync = new PartySync({ characters, tokens: () => [], ready: characters.whenReady() });
     syncs.push(sync);
     await characters.whenReady();
-    expect(sync.value('c1', 'tok2', 'hp')).toEqual({ current: 5, max: 10 });
-    expect(sync.value('c2', 'tok1', 'hp')).toEqual({ current: 3, max: 10 });
+    expect(sync.value('tok2', 'hp')).toEqual({ current: 5, max: 10 });
+    expect(sync.value('tok1', 'hp')).toEqual({ current: 3, max: 10 });
 
     play.play('c2');
-    expect(sync.setValue('c1', 'tok1', 'hp', { current: 7, max: 10 })).toBe(true);
+    expect(sync.setValue('tok1', 'hp', { current: 7, max: 10 })).toBe(true);
     await sync.flush();
-    expect(sync.value('c2', 'tok1', 'hp')).toEqual({ current: 7, max: 10 });
+    expect(sync.value('tok1', 'hp')).toEqual({ current: 7, max: 10 });
     expect(JSON.parse(vault.files.get(TABLE_CHARACTERS_PATH)!).characters.tok1).toEqual({ resources: { hp: { current: 7, max: 10 } }, future: 'kept' });
     expect(vault.files.get(`${MOOR}/characters.json`)).toBe(WORLDS[`${MOOR}/characters.json`]);
   });
 
   it('of a later format is read and never written', async () => {
     const later = `${JSON.stringify({ format: 2, characters: { tok1: hp(4) } })}\n`;
-    const { vault, characters, campaigns } = await device({ ...WORLDS, [TABLE_CHARACTERS_PATH]: later });
-    const sync = new PartySync({ app: vault.app, campaigns, play: CampaignPlay.forApp(vault.app), characters, tokens: () => [], ready: characters.whenReady() });
+    const { vault, characters } = await device({ ...WORLDS, [TABLE_CHARACTERS_PATH]: later });
+    const sync = new PartySync({ characters, tokens: () => [], ready: characters.whenReady() });
     syncs.push(sync);
     await characters.whenReady();
-    expect(sync.value('c1', 'tok1', 'hp')).toEqual({ current: 4, max: 10 });
-    expect(sync.setValue('c1', 'tok1', 'hp', hp(1).resources.hp)).toBe(false);
+    expect(sync.value('tok1', 'hp')).toEqual({ current: 4, max: 10 });
+    expect(sync.setValue('tok1', 'hp', hp(1).resources.hp)).toBe(false);
     await sync.flush();
     expect(vault.files.get(TABLE_CHARACTERS_PATH)).toBe(later);
   });

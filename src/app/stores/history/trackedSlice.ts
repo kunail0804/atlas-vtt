@@ -9,7 +9,7 @@ export type HistorySnapshot = {
   widgetValues: unknown;
   /** How many edits of the explored memory led to the state (`ViewAtlasState.exploredEdits`); stores without one leave it out. */
   exploredEdits?: unknown;
-  /** The played campaign's values of its player characters (`ViewAtlasState.partyValues`); stores without them leave it out. */
+  /** The values of the player characters (`ViewAtlasState.partyValues`); stores without them leave it out. */
   partyValues?: unknown;
   /** How each level's image is fitted to the scene's grid (`ViewAtlasState.levelAlignments`); scenes without them leave it out. */
   levelAlignments?: unknown;
