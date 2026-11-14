@@ -103,7 +103,7 @@ export interface ViewState extends ViewUIState {
    */
   exploredEdits: number;
   /**
-   * The values of the played campaign's player characters, one per character and resource
+   * The values of the player characters, one per character and resource, whatever world is played
    * (`campaigns/partyValues/partyKeys.ts`). Mirrored from the table's characters file, undo-tracked
    * value by value, never saved with the scene: a character's tokens show them (`PartyReconciler`).
    */
