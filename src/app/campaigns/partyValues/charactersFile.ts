@@ -1,14 +1,13 @@
 /**
- * `characters.json` in a world's folder: the values the world kept of its player characters, before
- * they moved into one file for the vault (`tableCharactersFile.ts`, which has this shape without
- * `campaignId`; `partyValuesOf` and `withPartyChanges` read and change both). `{ format, campaignId,
- * characters: { <library token id>: { resources: { <key>: { current, max, maxByHand? } } } } }`;
- * fields Atlas does not know are kept. Atlas only reads the worlds' files now, to carry them over.
+ * What the table's characters file holds (`tableCharactersFile.ts`) and the functions that read and
+ * change it: the values the table keeps of its player characters. `{ format, characters: { <library
+ * token id>: { resources: { <key>: { current, max, maxByHand? } } } } }`; fields Atlas does not know
+ * are kept.
  */
 
-import type { RecordLayout, StoredRecord } from '../../services/recordFiles/recordLayout';
-import { campaignFileLayout } from '../campaignFileLayout';
+import type { StoredRecord } from '../../services/recordFiles/recordLayout';
 import { isRecord } from '../campaignValues';
+import { isOfWritableFormat } from '../tableFileLayout';
 import { partyKey, readPartyKey, readPartyValue, type PartyValue, type PartyValues } from './partyKeys';
 
 export const CHARACTERS_FILE = 'characters.json';
@@ -20,22 +19,14 @@ const MAX_CHARACTERS = 500;
 const MAX_VALUES = 200;
 const MAX_KEY = 200;
 
-/** A characters file as stored: a world's, with its `campaignId` as the record's id, or the table's. */
+/** The table's characters file as stored. */
 export type StoredCharacters = StoredRecord;
 
 /** The values to write: by party key, a value or undefined to remove it. */
 export type PartyChanges = ReadonlyMap<string, PartyValue | undefined>;
 
-const FILE = campaignFileLayout({ file: CHARACTERS_FILE, format: CHARACTERS_FORMAT, kind: 'campaign characters' });
-
-/** Whether `path` is a characters file: `characters.json` directly in a campaign's folder. */
-export const isCharactersPath = FILE.isPath;
-
-/** A world's characters file lies in its folder and is never named after anything. */
-export const CHARACTERS_LAYOUT: RecordLayout<StoredCharacters> = FILE.layout;
-
 /** Whether this Atlas may write the file: one of a later format is only read. */
-export const isWritable: (stored: StoredCharacters) => boolean = FILE.isWritable;
+export const isWritable = (stored: StoredCharacters): boolean => isOfWritableFormat(stored, CHARACTERS_FORMAT);
 
 /** The values a characters file holds, as party values; what cannot be read is left out. */
 export function partyValuesOf(stored: StoredCharacters): PartyValues {

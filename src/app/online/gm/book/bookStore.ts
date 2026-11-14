@@ -17,20 +17,10 @@ export interface StoredBook {
   readonly equipped: readonly Equipped[];
 }
 
-/**
- * The books as an older Atlas kept them in the companion's data: by collection id (`NO_COLLECTION`
- * for a scene outside every collection), then by character, which was its token's artwork path.
- * They are carried over into the table's books file (`bookMigration.ts`).
- */
-export type BookData = Readonly<Record<string, Readonly<Record<string, StoredBook>>>>;
-
 /** The collection of a scene that lies in none. */
 export const NO_COLLECTION = '';
 
 export const EMPTY_BOOK: StoredBook = { items: [], notes: [], pins: [], purse: [], slots: DEFAULT_BOOK_SLOTS, equipped: [] };
-
-/** The longest collection id or character key read back. */
-const MAX_KEY = 1000;
 
 interface Entry {
   readonly id: string;
@@ -152,22 +142,4 @@ export function readStoredBook(value: unknown): StoredBook | null {
     slots,
     equipped: settledEquipped(parseEquipped(value.equipped) ?? [], slots, items),
   };
-}
-
-/**
- * The books read from the companion's data, each part through the protocol's own parsers: an entry
- * that is malformed is dropped and the rest of its book kept, a purse that is malformed is empty,
- * slots that are malformed are the defaults, and what was equipped malformed lies in the bag.
- */
-export function readBooks(data: unknown): BookData {
-  const collections: [string, Record<string, StoredBook>][] = [];
-  for (const [collection, characters] of Object.entries(isRecord(data) ? data : {})) {
-    if (collection.length > MAX_KEY || !isRecord(characters)) continue;
-    const books = Object.entries(characters).flatMap(([key, value]): [string, StoredBook][] => {
-      const book = key === '' || key.length > MAX_KEY ? null : readStoredBook(value);
-      return book === null || isEmptyBook(book) ? [] : [[key, book]];
-    });
-    if (books.length > 0) collections.push([collection, Object.fromEntries(books)]);
-  }
-  return Object.fromEntries(collections);
 }

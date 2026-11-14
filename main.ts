@@ -69,7 +69,6 @@ import { registerAtlasLinks } from './src/app/links/registerAtlasLinks';
 import { registerCommands } from './src/app/plugin/registerCommands';
 import { CampaignFiles } from './src/app/campaigns/CampaignFiles';
 import { TableBooks } from './src/app/campaigns/players/TableBooks';
-import { CampaignPlayers } from './src/app/campaigns/players/CampaignPlayers';
 import { TablePlayers } from './src/app/campaigns/players/TablePlayers';
 import { releaseMapPictures } from './src/app/react/components/dashboard/mapPicture';
 import { PlayedRules } from './src/app/campaigns/playedRules';
@@ -166,19 +165,16 @@ export default class AtlasVTTPlugin extends Plugin {
     this.register(nameQuestCampaigns(this.app, campaignFiles, QuestIndex.open(this.app)));
     const campaignsRead = storageReady.catch(() => undefined).then(() => campaignFiles.load());
     void campaignsRead.catch((error: unknown) => console.error('[Atlas] Reading the campaigns failed:', error));
-    // Who plays at the online table is one file for the vault, read once the campaigns are; where the
-    // vault has none yet, the players files each campaign had are carried into it.
-    const campaignPlayers = CampaignPlayers.open(this.app);
+    // Who plays at the online table is one file for the vault, read once the campaigns are.
     const tablePlayers = TablePlayers.open(this.app);
-    const playersReady = campaignsRead.then(() => campaignPlayers.whenLoaded()).then(() => tablePlayers.whenReady());
-    void playersReady.catch((error: unknown) => console.error('[Atlas] Reading the table\'s players failed:', error));
-    // So are the books of their characters, carried over once the players' new ids are known.
+    void campaignsRead.catch(() => undefined).then(() => tablePlayers.load()).catch((error: unknown) => console.error('[Atlas] Reading the table\'s players failed:', error));
+    // So are the books of their characters.
     const tableBooks = TableBooks.open(this.app);
-    void playersReady.catch(() => undefined).then(() => tableBooks.whenReady()).catch((error: unknown) => console.error('[Atlas] Reading the table\'s books failed:', error));
+    void campaignsRead.catch(() => undefined).then(() => tableBooks.load()).catch((error: unknown) => console.error('[Atlas] Reading the table\'s books failed:', error));
     // The campaign this device plays records the scenes its map views open.
     this.register(recordCampaignPlay(this.app, campaignFiles, campaignsRead));
     // And keeps one set of values for each of its player characters, shared by every map view.
-    registerPartySync(this, campaignFiles, campaignsRead);
+    registerPartySync(this, campaignsRead);
     // The vault's dice sets are vault files too; collections and templates pick from them.
     void DiceSetFiles.open(this.app).load().catch((error: unknown) => console.error('[Atlas] Reading the dice sets failed:', error));
     // Settings carried over even when the data file migration failed, so they are not lost to the defaults.
@@ -301,7 +297,6 @@ export default class AtlasVTTPlugin extends Plugin {
     PlayedRules.release(this.app);
     TableBooks.release(this.app);
     TablePlayers.release(this.app);
-    CampaignPlayers.release(this.app);
     CampaignFiles.release(this.app);
     QuestIndex.release(this.app);
     SoundDirector.release(this.app);

@@ -1,9 +1,8 @@
 /**
  * `books.json` directly in the worlds' folder (`tableFileLayout.ts`): what the players of the GM's
  * online table wrote into the books of their characters, whatever world it plays. `{ format, books:
- * { <library token id>: <book>, 'player:<player id>': <book> } }`, the shape of a world's books file
- * (`booksFile.ts`) without its `campaignId`, so `bookIn` and `withBook` read and change both. Where
- * the vault had none, the worlds' books files are carried into it (`booksMigration.ts`).
+ * { <library token id>: <book>, 'player:<player id>': <book> } }`, read and changed with `bookIn`
+ * and `withBook` (`booksFile.ts`).
  */
 
 import type { RecordLayout } from '../../services/recordFiles/recordLayout';

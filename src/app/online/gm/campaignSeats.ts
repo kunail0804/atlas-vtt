@@ -1,14 +1,13 @@
 import type { PlayersBlock, TablePlayers } from '../../campaigns/players/TablePlayers';
 import { newLinkCode, newPlayerCode, withCharacterOwner, withLink, withPlayer, type CampaignPlayer, type StoredPlayers } from '../../campaigns/players/playersFile';
-import { earlierIdsOf } from '../../campaigns/players/tablePlayersFile';
 import { withPlayerTokens, withTokenOwners, type TokenAssignments } from '../../campaigns/players/tokenAssignments';
-import { MAX_CAMPAIGN_PLAYERS, MAX_SEAT_ALIASES, samePlayerName, type CampaignSeat, type PlayerInfo } from '../protocol/index.ts';
+import { MAX_CAMPAIGN_PLAYERS, samePlayerName, type CampaignSeat, type PlayerInfo } from '../protocol/index.ts';
 import { showNotice } from '../../ui/notice';
 import type { CampaignSeats } from './ownership.ts';
 import { t } from '../../i18n';
 
 /** What a table needs of its players file: `TablePlayers`, or memory in tests. */
-export type PlayersFiles = Pick<TablePlayers, 'roster' | 'assignments' | 'migratedIds' | 'change' | 'blocked' | 'onChange'>;
+export type PlayersFiles = Pick<TablePlayers, 'roster' | 'assignments' | 'change' | 'blocked' | 'onChange'>;
 
 /** What the GM reads where something needs the played campaign, which only a running table plays. */
 export const NO_TABLE_TEXT = t('online.seats.noTable');
@@ -48,16 +47,9 @@ export class TableSeats implements CampaignSeats {
     return blocked === null ? null : BLOCKED_TEXTS[blocked];
   }
 
-  /**
-   * The players as the relay is told them: id, name and own code, and the ids a player had in the
-   * worlds before the players were merged, so a key the relay gave under one of them finds the player.
-   */
+  /** The players as the relay is told them: id, name and own code. */
   seats(): CampaignSeat[] {
-    const ids = this.files.migratedIds();
-    return this.players().map(({ id, name, code }) => {
-      const was = earlierIdsOf(ids, id).slice(0, MAX_SEAT_ALIASES);
-      return was.length === 0 ? { id, name, code } : { id, name, code, was };
-    });
+    return this.players().map(({ id, name, code }) => ({ id, name, code }));
   }
 
   /** Whether a player other than `except` goes by this name. */
@@ -105,7 +97,7 @@ export class TableSeats implements CampaignSeats {
 
   /** Calls the listener after every change of the players file; returns the way to stop. */
   onChange(listener: () => void): () => void {
-    const read = (): string => JSON.stringify([this.files.roster(), this.assignments(), this.files.migratedIds()]);
+    const read = (): string => JSON.stringify([this.files.roster(), this.assignments()]);
     let last = read();
     return this.files.onChange(() => {
       const now = read();

@@ -1,11 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { migrateLegacyShares, parseShares, serializeShares, setShares, sharedWith, sharesOf, NO_SHARES } from '../../../src/app/players/shares';
+import { parseShares, serializeShares, setShares, sharedWith, sharesOf, NO_SHARES } from '../../../src/app/players/shares';
 
 const ALICE = 'aaaaaaaaaaaaaaaaaaaa';
 const BOB = 'bbbbbbbbbbbbbbbbbbbb';
-const OTHER_BOB = 'cccccccccccccccccccc';
 
-/** A players.json as Atlas wrote it before the shares followed the table's players. */
+/** A players.json as Atlas wrote it before the shares followed the table's players (format 1). */
 const legacyFile = JSON.stringify({
   format: 1,
   players: {
@@ -26,7 +25,7 @@ describe('page shares', () => {
     const shared = setShares(NO_SHARES, ['Notes/Map.md'], { [ALICE]: 'read' });
     expect(sharesOf(shared, ALICE)).toEqual([{ path: 'Notes/Map.md', access: 'read' }]);
     expect(sharedWith(shared, 'Notes/Map.md', [{ id: ALICE, name: 'Alice' }, { id: BOB, name: 'Bob' }])).toEqual([{ id: ALICE, name: 'Alice', access: 'read' }]);
-    expect(parseShares(serializeShares(shared))).toEqual({ shares: shared, legacy: null });
+    expect(parseShares(serializeShares(shared))).toEqual(shared);
   });
 
   it('keeps no players or devices of its own', () => {
@@ -40,30 +39,8 @@ describe('page shares', () => {
   });
 });
 
-describe('carrying the old shares over', () => {
-  it('reads a file of format 1 as shares to carry over', () => {
-    const { shares, legacy } = parseShares(legacyFile);
-    expect(shares).toBe(NO_SHARES);
-    expect(legacy?.names).toEqual({ p11111111: 'Alice', p22222222: 'alice', p33333333: 'Bob', p44444444: 'Carol' });
-  });
-
-  it('gives each share to the one player of the table of the same name, and drops and counts the others', () => {
-    const { legacy } = parseShares(legacyFile);
-    if (legacy === null) throw new Error('A file of format 1 has shares to carry over.');
-    const { shares, dropped } = migrateLegacyShares(legacy, [
-      { id: ALICE, name: 'ALICE' },
-      { id: BOB, name: 'Bob' },
-      { id: OTHER_BOB, name: 'bob' },
-    ]);
-    // Both Alices of the old list were one person: she keeps the wider access.
-    expect(shares.shares).toEqual({ 'Compendium/Spells/Fireball.md': { [ALICE]: 'write' } });
-    // Carol has no player at the table; Bob has two.
-    expect(dropped).toBe(3);
-  });
-
-  it('drops every share where the table has no players', () => {
-    const { legacy } = parseShares(legacyFile);
-    if (legacy === null) throw new Error('A file of format 1 has shares to carry over.');
-    expect(migrateLegacyShares(legacy, [])).toEqual({ shares: NO_SHARES, dropped: 5 });
+describe('a file from before the shares followed the table\'s players', () => {
+  it('shares nothing: its players are no players of the table', () => {
+    expect(parseShares(legacyFile)).toEqual(NO_SHARES);
   });
 });

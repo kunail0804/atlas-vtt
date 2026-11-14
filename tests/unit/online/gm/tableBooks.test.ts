@@ -5,7 +5,6 @@ import { TABLE_BOOKS_PATH } from '../../../../src/app/campaigns/players/tableBoo
 import { TableBooks } from '../../../../src/app/campaigns/players/TableBooks';
 import { BookShelf } from '../../../../src/app/online/gm/book/BookShelf.ts';
 import { BOOK_WRITE_MS, BoundBookSource, tableBookSource } from '../../../../src/app/online/gm/book/tableBookSource.ts';
-import { carryBooksOver } from '../../../../src/app/online/gm/book/legacyBooks.ts';
 import { EMPTY_BOOK, type StoredBook } from '../../../../src/app/online/gm/book/bookStore.ts';
 import type { Timers } from '../../../../src/app/online/gm/companionTimers.ts';
 import { createInMemoryApp } from '../../../mocks/inMemoryVault';
@@ -45,7 +44,7 @@ async function device(files: Record<string, string> = { [`${FOLDER}/campaign.jso
   opened.push(vault);
   await CampaignFiles.open(vault.app).load();
   const books = TableBooks.open(vault.app);
-  await books.whenReady();
+  await books.load();
   return { vault, books };
 }
 
@@ -109,44 +108,5 @@ describe('the books of the table', () => {
     expect(vault.files.get(PATH)).toBe(later);
     expect(shelf.of('lib-a').notes).toHaveLength(1);
     expect(shelf.of('lib-b').notes).toHaveLength(1);
-  });
-
-  it('carry an older Atlas\'s books over, a book the file holds staying the file\'s, and leave behind what no token takes over', async () => {
-    const { vault, books } = await device({ [`${FOLDER}/campaign.json`]: campaignText, [PATH]: `${JSON.stringify({ format: 1, books: { 'lib-a': bookWith(1) } })}\n` });
-    const tokens = [{ id: 'lib-a', collection: 'Cairn', imagePath: 'art/a.webp' }, { id: 'lib-b', collection: 'Cairn', imagePath: 'art/b.webp' }];
-    const stray = bookWith(4);
-    const old = { Cairn: { 'art/a.webp': bookWith(2), 'art/b.webp': bookWith(3), 'art/gone.webp': stray } };
-    expect(await carryBooksOver(old, tokens, books)).toEqual({ Cairn: { 'art/gone.webp': stray } });
-    const carried = fileBooks(vault);
-    expect(carried['lib-a']?.notes.map((note) => note.id)).toEqual([id(1), id(2)]);
-    expect(carried['lib-b']?.notes.map((note) => note.id)).toEqual([id(3)]);
-    expect(Object.keys(carried).sort()).toEqual(['lib-a', 'lib-b']);
-  });
-
-  it('carry nothing over, and keep everything, while the table\'s file cannot take them yet', async () => {
-    const vault = createInMemoryApp({ files: { [`${FOLDER}/campaign.json`]: campaignText } });
-    opened.push(vault);
-    await CampaignFiles.open(vault.app).load();
-    // The worlds' books are not carried into the file yet.
-    const books = TableBooks.open(vault.app);
-    const tokens = [{ id: 'lib-a', collection: 'Cairn', imagePath: 'art/a.webp' }];
-    const old = { Cairn: { 'art/a.webp': bookWith(2) } };
-    expect(await carryBooksOver(old, tokens, books)).toBeNull();
-    expect(await carryBooksOver({}, tokens, books)).toEqual({});
-  });
-
-  it('keep everything when the write fails or the file is of a later format', async () => {
-    const tokens = [{ id: 'lib-a', collection: 'Cairn', imagePath: 'art/a.webp' }];
-    const old = { Cairn: { 'art/a.webp': bookWith(2) } };
-    const failing = await device();
-    vi.spyOn(failing.vault.app.vault, 'create').mockRejectedValue(new Error('disk full'));
-    vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    expect(await carryBooksOver(old, tokens, failing.books)).toBeNull();
-    expect(failing.vault.files.has(PATH)).toBe(false);
-
-    const later = `${JSON.stringify({ format: 2, books: {} })}\n`;
-    const locked = await device({ [`${FOLDER}/campaign.json`]: campaignText, [PATH]: later });
-    expect(await carryBooksOver(old, tokens, locked.books)).toBeNull();
-    expect(locked.vault.files.get(PATH)).toBe(later);
   });
 });

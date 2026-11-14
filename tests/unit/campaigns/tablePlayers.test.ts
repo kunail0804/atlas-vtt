@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { CampaignFiles } from '../../../src/app/campaigns/CampaignFiles';
 import { CAMPAIGNS_FOLDER } from '../../../src/app/campaigns/campaignPaths';
-import { CampaignPlayers } from '../../../src/app/campaigns/players/CampaignPlayers';
 import { withLink, withPlayer } from '../../../src/app/campaigns/players/playersFile';
 import { TABLE_PLAYERS_PATH } from '../../../src/app/campaigns/players/tablePlayersFile';
 import { TablePlayers } from '../../../src/app/campaigns/players/TablePlayers';
@@ -13,8 +12,8 @@ const campaignText = (id: string, name: string, lastPlayed?: number): string => 
 const ID = 'abcdefghijklmnopqrst';
 const MIRA = { id: ID, name: 'Mira', code: '123456', characters: ['tok1'] };
 
-/** Two worlds that both had Mira (added first in the Moor, under another id) and the Witherwild played last. */
-const WORLDS: Record<string, string> = {
+/** Two worlds whose folders still hold the players files Atlas wrote before the table had one file for the vault. */
+const OLD_WORLDS: Record<string, string> = {
   [`${WITHERWILD}/campaign.json`]: campaignText('c1', 'Witherwild', 200),
   [`${MOOR}/campaign.json`]: campaignText('c2', 'Moor', 100),
   [`${WITHERWILD}/players.json`]: `${JSON.stringify({ format: 1, campaignId: 'c1', link: 'w'.repeat(26), players: { [ID]: { name: 'Mira', code: '123456', characters: ['tok1'], addedAt: 20 } }, tokenOwners: { 'gm-1': ID } }, null, 2)}\n`,
@@ -23,14 +22,13 @@ const WORLDS: Record<string, string> = {
 
 const opened: ReturnType<typeof createInMemoryApp>[] = [];
 
-/** A device as the plugin starts it: campaigns, then their players files, then the table's. */
+/** A device as the plugin starts it: campaigns, then the table's players file. */
 async function device(files: Record<string, string> = { [`${WITHERWILD}/campaign.json`]: campaignText('c1', 'Witherwild') }): Promise<{ vault: ReturnType<typeof createInMemoryApp>; players: TablePlayers }> {
   const vault = createInMemoryApp({ files });
   opened.push(vault);
   await CampaignFiles.open(vault.app).load();
-  await CampaignPlayers.open(vault.app).whenLoaded();
   const players = TablePlayers.open(vault.app);
-  await players.whenReady();
+  await players.load();
   await players.flush();
   return { vault, players };
 }
@@ -38,7 +36,6 @@ async function device(files: Record<string, string> = { [`${WITHERWILD}/campaign
 afterEach(() => {
   for (const vault of opened.splice(0)) {
     TablePlayers.release(vault.app);
-    CampaignPlayers.release(vault.app);
     CampaignFiles.release(vault.app);
   }
 });
@@ -81,7 +78,7 @@ describe('the table\'s players file', () => {
     expect(vault.files.get(TABLE_PLAYERS_PATH)).toBe(later);
   });
 
-  it('cannot be changed before it is ready', () => {
+  it('cannot be changed before it is read', () => {
     const vault = createInMemoryApp({ files: {} });
     opened.push(vault);
     const players = TablePlayers.open(vault.app);
@@ -90,36 +87,16 @@ describe('the table\'s players file', () => {
   });
 });
 
-describe('carrying the worlds\' players into the table\'s file', () => {
-  it('merges them once, leaving the worlds\' files as they were', async () => {
-    const { vault, players } = await device(WORLDS);
-    // Mira of the Moor was added first: her id and code stay, and she plays both worlds' characters.
-    const mira = 'm'.repeat(20);
-    expect(players.roster()).toEqual({ link: 'w'.repeat(26), players: [{ id: mira, name: 'mira', code: '654321', characters: ['tok1', 'tok2'] }], writable: true });
-    expect(players.migratedIds()).toEqual({ c1: { [ID]: mira }, c2: { [mira]: mira } });
-    expect(players.assignments().owners).toEqual({ 'gm-1': mira });
-    expect(vault.files.get(`${WITHERWILD}/players.json`)).toBe(WORLDS[`${WITHERWILD}/players.json`]);
-    expect(vault.files.get(`${MOOR}/players.json`)).toBe(WORLDS[`${MOOR}/players.json`]);
-  });
-
-  it('writes the same file on two devices that migrate at once', async () => {
-    const first = await device(WORLDS);
-    const second = await device(WORLDS);
-    expect(first.vault.files.get(TABLE_PLAYERS_PATH)).toBeDefined();
-    expect(second.vault.files.get(TABLE_PLAYERS_PATH)).toBe(first.vault.files.get(TABLE_PLAYERS_PATH));
-  });
-
-  it('leaves a table file the vault already has as it is, even one that cannot be read', async () => {
-    const kept = `${JSON.stringify({ format: 1, players: {} })}\n`;
-    const { vault, players } = await device({ ...WORLDS, [TABLE_PLAYERS_PATH]: kept });
-    expect(vault.files.get(TABLE_PLAYERS_PATH)).toBe(kept);
-    expect(players.roster().players).toEqual([]);
-    const broken = await device({ ...WORLDS, [TABLE_PLAYERS_PATH]: '{ not json' });
-    expect(broken.vault.files.get(TABLE_PLAYERS_PATH)).toBe('{ not json');
-  });
-
-  it('writes nothing where no world had players', async () => {
-    const { vault } = await device();
+describe('a vault with players files from before the table\'s file', () => {
+  it('starts with an empty table, reads none of them and writes nothing until a change', async () => {
+    const { vault, players } = await device(OLD_WORLDS);
+    expect(players.roster()).toEqual({ link: null, players: [], writable: true });
+    expect(players.assignments().owners).toEqual({});
+    expect(players.blocked()).toBeNull();
     expect(vault.files.has(TABLE_PLAYERS_PATH)).toBe(false);
+    expect(vault.files.get(`${WITHERWILD}/players.json`)).toBe(OLD_WORLDS[`${WITHERWILD}/players.json`]);
+    expect(players.change((stored) => withPlayer(stored, MIRA, 5))).toBe(true);
+    await players.flush();
+    expect(JSON.parse(vault.files.get(TABLE_PLAYERS_PATH)!)).toEqual({ format: 1, players: { [ID]: { name: 'Mira', code: '123456', characters: ['tok1'], addedAt: 5 } } });
   });
 });

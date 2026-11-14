@@ -1,9 +1,9 @@
 /**
- * The tokens a campaign's players file (`playersFile.ts`) assigns beside its players:
+ * The tokens the table's players file (`playersFile.ts`) assigns beside its players:
  * `tokenOwners` (`{ <token id>: <player id> }`, for tokens placed from no library token; a
  * character's owner is the player whose `characters` list it) and `playerTokens`
  * (`{ <map path>: { <token id>: boolean } }`, true for a token the GM made a player token, false for
- * the GM's own). They are the campaign's, so every device that syncs the vault reads them.
+ * the GM's own). They are the table's, so every device that syncs the vault reads them.
  */
 
 import { PLAYER_ID_PATTERN } from '../../online/protocol/index';
@@ -27,7 +27,7 @@ const MAX_TOKEN_ID = 200;
 const MAX_MAP_PATH = 1000;
 
 /** Assignments read from stored fields: owners with a valid player id, and marks; what cannot be read is left out. */
-export function assignmentsFrom(owners: unknown, marks: unknown): TokenAssignments {
+function assignmentsFrom(owners: unknown, marks: unknown): TokenAssignments {
   const playerTokens: Record<string, Record<string, boolean>> = {};
   for (const [mapPath, scene] of Object.entries(isRecord(marks) ? marks : {})) {
     if (mapPath.length > MAX_MAP_PATH || !isRecord(scene)) continue;
@@ -81,20 +81,4 @@ export function withPlayerTokens(stored: StoredPlayers, mapPath: string, tokenId
   if (marked.length === 0) return stored;
   const scene = { ...current.playerTokens[mapPath], ...Object.fromEntries(marked.map((tokenId) => [tokenId, player])) };
   return withAssignments(stored, { ...current, playerTokens: { ...current.playerTokens, [mapPath]: scene } });
-}
-
-/** The file with `carried` added where it assigns nothing yet: what the file already assigns stays the file's. */
-export function withCarriedAssignments(stored: StoredPlayers, carried: TokenAssignments): StoredPlayers {
-  if (!isWritable(stored)) return stored;
-  const current = readTokenAssignments(stored);
-  const playerTokens: Record<string, Readonly<Record<string, boolean>>> = { ...current.playerTokens };
-  for (const [mapPath, marks] of Object.entries(carried.playerTokens)) playerTokens[mapPath] = { ...marks, ...playerTokens[mapPath] };
-  return withAssignments(stored, { owners: { ...carried.owners, ...current.owners }, playerTokens });
-}
-
-/** Whether `stored` assigns everything `carried` does, as `withCarriedAssignments` leaves it (a value the file had stays). */
-export function holdsAssignments(stored: StoredPlayers, carried: TokenAssignments): boolean {
-  const { owners, playerTokens } = readTokenAssignments(stored);
-  return Object.keys(carried.owners).every((tokenId) => tokenId in owners)
-    && Object.entries(carried.playerTokens).every(([mapPath, marks]) => Object.keys(marks).every((tokenId) => playerTokens[mapPath]?.[tokenId] !== undefined));
 }

@@ -18,12 +18,8 @@ export interface TableCampaigns {
   stop(): void;
   /** Calls `listener` whenever another campaign, or none, is played; returns the way to stop. */
   onChange(listener: () => void): () => void;
-  /**
-   * The table's players once their file is ready and what an older Atlas kept is carried into it,
-   * read by the ids of the world `campaignId` the table plays (null: none); null where there are
-   * none to read.
-   */
-  open(campaignId: string | null): Promise<TableSeats | null>;
+  /** The table's players once their file was read; null where there are none to read. */
+  open(): Promise<TableSeats | null>;
   /** The table's players as read so far, without waiting; null where none can be read yet. */
   known(): TableSeats | null;
   /** A table runs from now on (`true`), or none runs any more (`false`). */
@@ -47,27 +43,22 @@ export function playSavedTable(campaigns: TableCampaigns, saved: SavedTable | nu
   else campaigns.play(world);
 }
 
-/**
- * The vault's campaigns: the one this device plays, and the table's players file (`TablePlayers`).
- * `prepare` readies the table's files before a table runs, played on a world or none (its failure is
- * logged, and the table runs).
- */
-export function appCampaigns(app: App, bound: (running: boolean) => void = () => undefined, prepare: (campaignId: string | null) => Promise<void> = () => Promise.resolve()): TableCampaigns {
+/** The vault's campaigns: the one this device plays, and the table's players file (`TablePlayers`). */
+export function appCampaigns(app: App, bound: (running: boolean) => void = () => undefined): TableCampaigns {
   return {
     playing: () => CampaignPlay.forApp(app).playing(),
     play: (campaignId) => CampaignPlay.forApp(app).play(campaignId),
     stop: () => CampaignPlay.forApp(app).stop(),
     onChange: (listener) => CampaignPlay.forApp(app).onChange(listener),
-    open: async (campaignId) => {
+    open: async () => {
       const players = TablePlayers.forApp(app);
       if (players === undefined) return null;
-      await players.whenReady();
-      await prepare(campaignId).catch((error: unknown) => console.error('[Atlas] Readying the table\'s files failed:', error));
+      await players.load();
       return new TableSeats(players);
     },
     known: () => {
       const players = TablePlayers.forApp(app);
-      return players === undefined || !players.isReady() ? null : new TableSeats(players);
+      return players === undefined || !players.isLoaded() ? null : new TableSeats(players);
     },
     bound,
   };

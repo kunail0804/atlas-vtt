@@ -1,11 +1,7 @@
 import type { App, EventRef, Plugin, TAbstractFile } from 'obsidian';
-import { TablePlayers } from '../campaigns/players/TablePlayers';
 import { ensureFolder } from '../plugin/vaultFolders';
 import { ATLAS_VTT_DIR } from '../services/assetPaths';
-import {
-  NO_SHARES, dropPath, migrateLegacyShares, movePath, parseShares, serializeShares, setShares,
-  type NamedPlayer, type PageShares as Shares, type ShareAccess, type SharesFile,
-} from './shares';
+import { NO_SHARES, dropPath, movePath, parseShares, serializeShares, setShares, type PageShares as Shares, type ShareAccess } from './shares';
 
 /** Where the vault keeps the compendium pages shared with the players of the table, beside the campaigns. */
 export const SHARES_PATH = `${ATLAS_VTT_DIR}/players.json`;
@@ -14,8 +10,7 @@ export const SHARES_PATH = `${ATLAS_VTT_DIR}/players.json`;
  * The compendium pages shared with the players of the table, one per app. Read once from
  * `atlas-vtt/players.json`, then kept in memory and written after every change; a change of the file
  * from elsewhere (another device's sync) is read again. Notes renamed or deleted take their shares
- * along. A file of format 1 is carried over to the players of the table (`migrateLegacyShares`) once
- * they are read, and written back in the current format.
+ * along.
  */
 export class PageShares {
   private static readonly instances = new WeakMap<App, PageShares>();
@@ -78,7 +73,7 @@ export class PageShares {
 
   private async read(): Promise<void> {
     const text = await this.readFile();
-    await this.take(parseShares(text));
+    this.take(parseShares(text));
   }
 
   /** The file changed: read again unless the change is the one written here. */
@@ -86,7 +81,7 @@ export class PageShares {
     await this.writing;
     const text = await this.readFile();
     if (text === null || text === this.written) return;
-    await this.take(parseShares(text));
+    this.take(parseShares(text));
   }
 
   private async readFile(): Promise<string | null> {
@@ -94,30 +89,14 @@ export class PageShares {
     return file === null ? null : this.app.vault.read(file);
   }
 
-  /** Takes what a file holds; a file of format 1 is carried over to the table's players and written. */
-  private async take(file: SharesFile): Promise<void> {
-    if (file.legacy === null) {
-      this.held = file.shares;
-      this.notify();
-      return;
-    }
-    const players = await this.tablePlayers();
-    // Without the table's players nothing can be carried over: the file stays as it is for later.
-    if (players === null) return;
-    const { shares, dropped } = migrateLegacyShares(file.legacy, players);
-    if (dropped > 0) console.warn(`[PageShares] ${dropped} compendium share(s) matched no single player of the table by name and were dropped.`);
-    this.change(shares, true);
+  /** Takes what a file holds. */
+  private take(shares: Shares): void {
+    this.held = shares;
+    this.notify();
   }
 
-  private async tablePlayers(): Promise<readonly NamedPlayer[] | null> {
-    const players = TablePlayers.forApp(this.app);
-    if (players === undefined) return null;
-    await players.whenReady();
-    return players.roster().players;
-  }
-
-  private change(next: Shares, force = false): void {
-    if (next === this.held && !force) return;
+  private change(next: Shares): void {
+    if (next === this.held) return;
     this.held = next;
     this.notify();
     const text = serializeShares(next);

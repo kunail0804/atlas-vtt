@@ -1,13 +1,7 @@
 import type { App } from 'obsidian';
 import { RecordFiles } from '../../services/recordFiles/RecordFiles';
-import { CampaignFiles } from '../CampaignFiles';
-import { carryWorldsInto, lastPlayedOf } from '../tableFileLayout';
-import { CampaignPlayers } from './CampaignPlayers';
-import { mergeWorldPlayers } from './playersMigration';
 import { isWritable, linkOf, readPlayers, type CampaignPlayer, type StoredPlayers } from './playersFile';
-import {
-  emptyTablePlayers, readMigratedIds, TABLE_PLAYERS_ID, TABLE_PLAYERS_LAYOUT, TABLE_PLAYERS_PATH, type MigratedIds,
-} from './tablePlayersFile';
+import { emptyTablePlayers, TABLE_PLAYERS_ID, TABLE_PLAYERS_LAYOUT, TABLE_PLAYERS_PATH } from './tablePlayersFile';
 import { NO_ASSIGNMENTS, readTokenAssignments, type TokenAssignments } from './tokenAssignments';
 
 /** Why the table's players file cannot be changed: it is not read yet, or it is of a later format. */
@@ -22,17 +16,12 @@ export interface PlayersRoster {
   readonly writable: boolean;
 }
 
-const NO_IDS: MigratedIds = {};
-
 /**
  * The players of the GM's online table (`tablePlayersFile.ts`): one file for the vault, whatever world
- * the table plays. One per app, opened by the plugin and released when it unloads. Before it is ready
- * the worlds' own players files are carried into it where the vault has none yet (`whenReady`).
+ * the table plays. One per app, opened by the plugin and released when it unloads; read with `load`.
  */
 export class TablePlayers extends RecordFiles<StoredPlayers> {
   private static readonly instances = new WeakMap<App, TablePlayers>();
-  private readying: Promise<void> | null = null;
-  private ready = false;
 
   static open(app: App): TablePlayers {
     let files = TablePlayers.instances.get(app);
@@ -57,26 +46,6 @@ export class TablePlayers extends RecordFiles<StoredPlayers> {
     super(app, TABLE_PLAYERS_LAYOUT);
   }
 
-  /**
-   * Settles once the file was read and, where the vault had none, the worlds' players files were
-   * carried into it (`mergeWorldPlayers`). A failed migration is logged and leaves the file as it is.
-   */
-  whenReady(): Promise<void> {
-    return (this.readying ??= this.load()
-      .then(() => this.carryWorldsIn())
-      .catch((error: unknown) => console.error('[Atlas] Carrying the worlds\' players into the table\'s players file failed:', error))
-      .finally(() => {
-        this.ready = true;
-        // Listeners that waited for the migration read the file now.
-        this.changed();
-      }));
-  }
-
-  /** Whether `whenReady` settled, so what the file holds is what the vault does. */
-  isReady(): boolean {
-    return this.ready;
-  }
-
   /** The table's link and players; none while it has no file. */
   roster(): PlayersRoster {
     const stored = this.stored();
@@ -89,19 +58,9 @@ export class TablePlayers extends RecordFiles<StoredPlayers> {
     return stored ? readTokenAssignments(stored) : NO_ASSIGNMENTS;
   }
 
-  /**
-   * What each player of each world is called in this file, by world id and the id the player had
-   * there; empty where nothing was carried over. Whatever else the worlds keep by player id (books,
-   * compendium shares) is carried over through it.
-   */
-  migratedIds(): MigratedIds {
-    const stored = this.stored();
-    return stored ? readMigratedIds(stored) : NO_IDS;
-  }
-
   /** Why the file cannot be changed now, or null where it can. */
   blocked(): PlayersBlock | null {
-    if (!this.ready) return 'loading';
+    if (!this.isLoaded()) return 'loading';
     const stored = this.stored();
     return stored !== undefined && !isWritable(stored) ? 'newer' : null;
   }
@@ -121,18 +80,5 @@ export class TablePlayers extends RecordFiles<StoredPlayers> {
 
   private stored(): StoredPlayers | undefined {
     return this.entries().find((entry) => entry.id === TABLE_PLAYERS_ID);
-  }
-
-  /** Writes the worlds' players merged into this file, where the vault has none (`carryWorldsInto`). */
-  private async carryWorldsIn(): Promise<void> {
-    const campaigns = CampaignFiles.forApp(this.app);
-    const worlds = CampaignPlayers.forApp(this.app);
-    if (campaigns === undefined || worlds === undefined) return;
-    await carryWorldsInto(this.app, this, TABLE_PLAYERS_PATH, async () => {
-      await campaigns.load();
-      await worlds.whenLoaded();
-      const lastPlayed = lastPlayedOf(campaigns.entries());
-      return mergeWorldPlayers(worlds.entries().map((stored) => ({ stored, lastPlayed: lastPlayed.get(stored.id) ?? 0 })));
-    });
   }
 }

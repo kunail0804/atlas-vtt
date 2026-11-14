@@ -39,10 +39,10 @@ async function open(files: Record<string, string> = FILES): Promise<{ vault: Ret
   opened.push(vault);
   const campaigns = CampaignFiles.open(vault.app);
   await campaigns.load();
-  const characters = new TableCharacters(vault.app, campaigns);
-  const sync = new PartySync({ characters, tokens: () => [MIRA], ready: characters.whenReady() });
+  const characters = new TableCharacters(vault.app);
+  const sync = new PartySync({ characters, tokens: () => [MIRA], ready: characters.load() });
   syncs.push(sync);
-  await characters.whenReady();
+  await characters.load();
   return { vault, sync, play: CampaignPlay.forApp(vault.app) };
 }
 

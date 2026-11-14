@@ -1,18 +1,16 @@
 /**
- * `players.json` in a campaign's folder: who played the campaign online before the table's players
- * moved into one file for the vault (`tablePlayersFile.ts`), which has the same shape and is changed
- * with the functions here. `{ format, campaignId, link?, players: { <player id>: { name, code,
- * characters, addedAt } } }`, where `link` is the table code, `code` the player's own six digits and
- * `characters` the library tokens they play, and beside them the tokens it assigns (`tokenOwners`,
- * `playerTokens`; see `tokenAssignments.ts`). Atlas reads a world's file only to carry it over
- * (`playersMigration.ts`) and leaves it on disk for older versions; fields Atlas does not know are kept.
+ * What the table's players file holds (`tablePlayersFile.ts`) and the functions that read and change
+ * it: `{ format, link?, players: { <player id>: { name, code, characters, addedAt } } }`, where
+ * `link` is the table code, `code` the player's own six digits and `characters` the library tokens
+ * they play, and beside them the tokens it assigns (`tokenOwners`, `playerTokens`; see
+ * `tokenAssignments.ts`). Fields Atlas does not know are kept.
  */
 
-import type { RecordLayout, StoredRecord } from '../../services/recordFiles/recordLayout';
+import type { StoredRecord } from '../../services/recordFiles/recordLayout';
 import { JOIN_CODE_PATTERN, MAX_CAMPAIGN_PLAYERS, PLAYER_ID_PATTERN, playerName, TABLE_CODE_PATTERN } from '../../online/protocol/index';
 import { newJoinCode } from '../../utils/joinCode';
-import { campaignFileLayout } from '../campaignFileLayout';
 import { isRecord } from '../campaignValues';
+import { isOfWritableFormat } from '../tableFileLayout';
 
 export const PLAYERS_FILE = 'players.json';
 /** The format this Atlas writes; a file of a later one is read and never written. */
@@ -23,7 +21,7 @@ const MAX_CHARACTER_ID = 200;
 /** The most characters one player is read with. */
 const MAX_PLAYER_CHARACTERS = 500;
 
-/** A players file as stored: a world's, with its `campaignId` as the record's id, or the table's (`TABLE_PLAYERS_ID`). */
+/** The table's players file as stored, under the id `TABLE_PLAYERS_ID`. */
 export type StoredPlayers = StoredRecord;
 
 /** A player of the table as Atlas reads one. */
@@ -34,16 +32,8 @@ export interface CampaignPlayer {
   readonly characters: readonly string[];
 }
 
-const FILE = campaignFileLayout({ file: PLAYERS_FILE, format: PLAYERS_FORMAT, kind: 'campaign players' });
-
-/** Whether `path` is a players file: `players.json` directly in a campaign's folder. */
-export const isPlayersPath = FILE.isPath;
-
-/** A players file lies in its campaign's folder (see `campaignFileLayout`). */
-export const PLAYERS_LAYOUT: RecordLayout<StoredPlayers> = FILE.layout;
-
 /** Whether this Atlas may write the file: one of a later format is only read. */
-export const isWritable: (stored: StoredPlayers) => boolean = FILE.isWritable;
+export const isWritable = (stored: StoredPlayers): boolean => isOfWritableFormat(stored, PLAYERS_FORMAT);
 
 const playerEntries = (stored: StoredPlayers): [string, unknown][] => (isRecord(stored.players) ? Object.entries(stored.players) : []);
 
