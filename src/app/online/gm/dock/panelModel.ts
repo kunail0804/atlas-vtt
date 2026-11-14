@@ -283,7 +283,7 @@ export type MenuModel =
   | { readonly kind: 'waiting'; readonly title: string; readonly link: string | null; readonly status: { readonly text: string; readonly tone: Tone }; readonly isShared: boolean; readonly world: WorldRow; readonly gate: GateRows | null; readonly qr: boolean; readonly imageShown: boolean; readonly closing: string | null; readonly updateAfter: boolean };
 
 /** No campaigns read yet. */
-export const NO_CAMPAIGNS: CampaignPick = { list: null, chosen: null, query: '' };
+export const NO_CAMPAIGNS: CampaignPick = { list: null, players: 0, chosen: null, query: '' };
 
 /** What a running table's surface is titled: the name of the world it plays, where it plays one and it is known. */
 export function tableTitle(snapshot: OnlineSnapshot, campaigns: CampaignPick): string {
