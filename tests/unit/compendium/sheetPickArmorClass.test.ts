@@ -67,6 +67,12 @@ describe('armour class of an armour or a shield taken from the compendium', () =
     expect(armorClassWith(CHAIN_SHIRT, note(16), { equipped: false, shield: null })).toBeNull();
   });
 
+  it('puts a shield on 10 plus Dexterity where the sheet has no armour class yet', () => {
+    const shield = bookItem('s', 'Shield', SHIELD);
+    // Dexterity 18: 10 + 4, then the shield's 2.
+    expect(acWritten(pickResult('armor', 'Shield', SHIELD, note(), wornGear(book([['off-hand', shield]]), 's')))).toBe(16);
+  });
+
   it('reads a shield in the off hand from its book item only', () => {
     const shield = bookItem('s', 'Shield', SHIELD);
     expect(wornGear(book([['off-hand', shield]]), 's')).toEqual({ equipped: true, shield: 2 });
