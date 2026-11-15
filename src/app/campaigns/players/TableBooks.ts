@@ -1,6 +1,6 @@
 import type { App } from 'obsidian';
 import type { StoredBook } from '../../online/gm/book/bookStore';
-import { RecordFiles } from '../../services/recordFiles/RecordFiles';
+import { TableFile } from '../TableFile';
 import { TABLE_FILE_ID } from '../tableFileLayout';
 import { bookIn, isWritable, type StoredBooks } from './booksFile';
 import { emptyTableBooks, TABLE_BOOKS_LAYOUT, TABLE_BOOKS_PATH } from './tableBooksFile';
@@ -9,7 +9,7 @@ import { emptyTableBooks, TABLE_BOOKS_LAYOUT, TABLE_BOOKS_PATH } from './tableBo
  * The books of the GM's online table (`tableBooksFile.ts`): one file for the vault, whatever world
  * the table plays. One per app, opened by the plugin and released when it unloads; read with `load`.
  */
-export class TableBooks extends RecordFiles<StoredBooks> {
+export class TableBooks extends TableFile<StoredBooks> {
   private static readonly instances = new WeakMap<App, TableBooks>();
 
   static open(app: App): TableBooks {
@@ -32,7 +32,7 @@ export class TableBooks extends RecordFiles<StoredBooks> {
   }
 
   private constructor(app: App) {
-    super(app, TABLE_BOOKS_LAYOUT);
+    super(app, { path: TABLE_BOOKS_PATH, layout: TABLE_BOOKS_LAYOUT, isWritable, empty: emptyTableBooks });
   }
 
   /** A character's book, or a player's own (`ownBookOf`); undefined for none. */
@@ -41,31 +41,13 @@ export class TableBooks extends RecordFiles<StoredBooks> {
     return stored ? bookIn(stored, characterId) : undefined;
   }
 
-  /** Whether `change` can be made: the file was read and, where it exists, is of a format this Atlas writes. */
+  /** Whether `change` can be made now (`blocked`). */
   canChange(): boolean {
-    const stored = this.stored();
-    return this.isLoaded() && (stored === undefined || isWritable(stored));
-  }
-
-  /**
-   * Changes the file, creating it when the vault has none. False where it cannot be changed
-   * (`canChange`). `change` must be a pure function of the file it is given: it runs more than once,
-   * on the copy in memory now and on what the disk holds once the write lands, so anything random or
-   * timed is drawn before and passed in.
-   */
-  change(change: (stored: StoredBooks) => StoredBooks): boolean {
-    if (!this.canChange()) return false;
-    if (this.stored() !== undefined) this.update(TABLE_FILE_ID, change);
-    else this.createAt(TABLE_BOOKS_PATH, change(emptyTableBooks()), change);
-    return true;
+    return this.blocked() === null;
   }
 
   /** What the disk holds of the file now; null for none. */
   onDiskBooks(): Promise<StoredBooks | null> {
     return this.onDisk(TABLE_FILE_ID);
-  }
-
-  private stored(): StoredBooks | undefined {
-    return this.entries().find((entry) => entry.id === TABLE_FILE_ID);
   }
 }

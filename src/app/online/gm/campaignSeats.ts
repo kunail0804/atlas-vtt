@@ -1,4 +1,6 @@
 import type { PlayersBlock, TablePlayers } from '../../campaigns/players/TablePlayers';
+import { TABLE_PLAYERS_PATH } from '../../campaigns/players/tablePlayersFile';
+import { unreadableText } from '../../campaigns/tableFileWarning';
 import { newLinkCode, newPlayerCode, withCharacterOwner, withLink, withPlayer, type CampaignPlayer, type StoredPlayers } from '../../campaigns/players/playersFile';
 import { withPlayerTokens, withTokenOwners, type TokenAssignments } from '../../campaigns/players/tokenAssignments';
 import { MAX_CAMPAIGN_PLAYERS, samePlayerName, type CampaignSeat, type PlayerInfo } from '../protocol/index.ts';
@@ -21,6 +23,7 @@ export const CAMPAIGNS_LOADING_TEXT = t('online.seats.loading');
 /** What the GM reads, by why the table's players file cannot be changed. */
 const BLOCKED_TEXTS: Readonly<Record<PlayersBlock, string>> = {
   loading: CAMPAIGNS_LOADING_TEXT,
+  unreadable: unreadableText(TABLE_PLAYERS_PATH),
   newer: NEWER_PLAYERS_TEXT,
 };
 
@@ -45,6 +48,11 @@ export class TableSeats implements CampaignSeats {
   refusal(): string | null {
     const blocked = this.files.blocked();
     return blocked === null ? null : BLOCKED_TEXTS[blocked];
+  }
+
+  /** Whether the players file cannot be read now: the players are those read last, and the relay is told nothing new. */
+  unreadable(): boolean {
+    return this.files.blocked() === 'unreadable';
   }
 
   /** The players as the relay is told them: id, name and own code. */

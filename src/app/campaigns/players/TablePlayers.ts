@@ -1,11 +1,11 @@
 import type { App } from 'obsidian';
-import { RecordFiles } from '../../services/recordFiles/RecordFiles';
+import { TableFile, type TableFileBlock } from '../TableFile';
 import { isWritable, linkOf, readPlayers, type CampaignPlayer, type StoredPlayers } from './playersFile';
-import { emptyTablePlayers, TABLE_PLAYERS_ID, TABLE_PLAYERS_LAYOUT, TABLE_PLAYERS_PATH } from './tablePlayersFile';
+import { emptyTablePlayers, TABLE_PLAYERS_LAYOUT, TABLE_PLAYERS_PATH } from './tablePlayersFile';
 import { NO_ASSIGNMENTS, readTokenAssignments, type TokenAssignments } from './tokenAssignments';
 
-/** Why the table's players file cannot be changed: it is not read yet, or it is of a later format. */
-export type PlayersBlock = 'loading' | 'newer';
+/** Why the table's players file cannot be changed: it is not read yet, cannot be read, or is of a later format. */
+export type PlayersBlock = TableFileBlock;
 
 /** What the table's players file holds, as Atlas reads it. */
 export interface PlayersRoster {
@@ -20,7 +20,7 @@ export interface PlayersRoster {
  * The players of the GM's online table (`tablePlayersFile.ts`): one file for the vault, whatever world
  * the table plays. One per app, opened by the plugin and released when it unloads; read with `load`.
  */
-export class TablePlayers extends RecordFiles<StoredPlayers> {
+export class TablePlayers extends TableFile<StoredPlayers> {
   private static readonly instances = new WeakMap<App, TablePlayers>();
 
   static open(app: App): TablePlayers {
@@ -43,7 +43,7 @@ export class TablePlayers extends RecordFiles<StoredPlayers> {
   }
 
   private constructor(app: App) {
-    super(app, TABLE_PLAYERS_LAYOUT);
+    super(app, { path: TABLE_PLAYERS_PATH, layout: TABLE_PLAYERS_LAYOUT, isWritable, empty: emptyTablePlayers });
   }
 
   /** The table's link and players; none while it has no file. */
@@ -56,29 +56,5 @@ export class TablePlayers extends RecordFiles<StoredPlayers> {
   assignments(): TokenAssignments {
     const stored = this.stored();
     return stored ? readTokenAssignments(stored) : NO_ASSIGNMENTS;
-  }
-
-  /** Why the file cannot be changed now, or null where it can. */
-  blocked(): PlayersBlock | null {
-    if (!this.isLoaded()) return 'loading';
-    const stored = this.stored();
-    return stored !== undefined && !isWritable(stored) ? 'newer' : null;
-  }
-
-  /**
-   * Changes the file, creating it when the vault has none. False where it cannot be changed
-   * (`blocked`). `change` must be a pure function of the file it is given: it runs more than once,
-   * on the copy in memory now and on what the disk holds once the write lands, so anything random or
-   * timed is drawn before and passed in.
-   */
-  change(change: (stored: StoredPlayers) => StoredPlayers): boolean {
-    if (this.blocked() !== null) return false;
-    if (this.stored() !== undefined) this.update(TABLE_PLAYERS_ID, change);
-    else this.createAt(TABLE_PLAYERS_PATH, change(emptyTablePlayers()), change);
-    return true;
-  }
-
-  private stored(): StoredPlayers | undefined {
-    return this.entries().find((entry) => entry.id === TABLE_PLAYERS_ID);
   }
 }

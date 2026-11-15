@@ -9,10 +9,11 @@
 
 import { isEmptyBook, readStoredBook, type StoredBook } from '../../online/gm/book/bookStore';
 import type { StoredRecord } from '../../services/recordFiles/recordLayout';
+import { TABLE_FILE_NAMES } from '../campaignPaths';
 import { isAssetId, isRecord } from '../campaignValues';
 import { isOfWritableFormat } from '../tableFileLayout';
 
-export const BOOKS_FILE = 'books.json';
+export const BOOKS_FILE = TABLE_FILE_NAMES.books;
 /** The format this Atlas writes; a file of a later one is read and never written. */
 export const BOOKS_FORMAT = 1;
 

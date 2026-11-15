@@ -25,7 +25,7 @@ export interface RosterPorts {
 
 /**
  * The campaign's players at a running table. The relay is told them on every change of the players
- * file; a player of the campaign who joins is told their own code, and a newcomer the relay let in
+ * file, never while it cannot be read; a player of the campaign who joins is told their own code, and a newcomer the relay let in
  * becomes a player of the campaign with a code of their own, or is turned away where it has no room.
  * The GM adds, renames, removes them and gives them new codes here. A player taken off the table
  * or the campaign while it runs (here or on another device) is never let back in as a newcomer: a
@@ -43,12 +43,14 @@ export class TableRoster {
   start(): void {
     this.stopSeats();
     this.known = this.ids();
-    this.link.setPlayers(this.seats.seats());
+    this.tell();
     this.stopSeats = this.seats.onChange(() => {
+      // An unreadable file says nothing of who left: the relay keeps the players it was told.
+      if (this.seats.unreadable()) return;
       const now = this.ids();
       for (const id of this.known) if (!now.has(id)) this.gone.add(id);
       this.known = now;
-      this.link.setPlayers(this.seats.seats());
+      this.tell();
     });
   }
 
@@ -80,7 +82,7 @@ export class TableRoster {
       return false;
     }
     // The relay knows the new code before the player is told it.
-    this.link.setPlayers(this.seats.seats());
+    this.tell();
     this.link.sendCode({ t: 'your-code', code: admitted.code, first: true }, player.id);
     return true;
   }
@@ -114,6 +116,11 @@ export class TableRoster {
   /** Removes a player from the campaign: the relay forgets them, then they are taken off the table. */
   remove(playerId: string): void {
     if (this.seats.codeOf(playerId) !== null && this.write((stored) => withoutPlayer(stored, playerId))) this.ports.kick(playerId);
+  }
+
+  /** Tells the relay the players, unless the players file cannot be read: then it keeps those it has. */
+  private tell(): void {
+    if (!this.seats.unreadable()) this.link.setPlayers(this.seats.seats());
   }
 
   private ids(): Set<string> {
