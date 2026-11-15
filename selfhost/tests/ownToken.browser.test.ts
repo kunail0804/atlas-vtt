@@ -107,6 +107,19 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player\'s own 
     return { send, player };
   };
 
+  /**
+   * Seats the player on a green map with their own token at `start` and another token below it; `deliver`
+   * sends live places the way `deliverLive` does.
+   */
+  const ownTokenAt = async (start: { x: number; y: number }): Promise<{ send: (body: GmMessage, to: string) => void; player: string; deliver: (places: readonly LivePlace[], otherTo: { x: number; y: number }) => Promise<void> }> => {
+    const { send, player } = await seatOnGreenMap();
+    send({ t: 'tokens', scene: 's1', seq: 1, cell: 70, snap: null, tokens: [plainToken(TOKEN, start, 'Mira', 'taken'), plainToken(OTHER, { x: 150, y: 500 }, 'Gobelin', null)] }, player);
+    send({ t: 'mine', scene: 's1', tokens: [TOKEN] }, player);
+    await page.waitForFunction(() => (document.querySelector('.status') as HTMLElement | null)?.hidden === true, null, { timeout: 10_000 });
+    await eventually(() => tokenAt(start.x, start.y), 'the own token');
+    return { send, player, deliver: (places, otherTo) => deliverLive(send, player, places, otherTo) };
+  };
+
   it('shows its ring\'s artwork and its owner\'s bars', async () => {
     const created = await createTable(test.gmOrigin);
     gm = new TestGm(test.gmOrigin, created.code, created.secret);
@@ -195,13 +208,7 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player\'s own 
   // lands the drop. The GM here holds its echoes back and delivers them after the drop.
   it('stays where it was dropped while late live places and the lane\'s end arrive', async () => {
     const start = { x: 200, y: 300 };
-    const { send, player } = await seatOnGreenMap();
-    send({ t: 'tokens', scene: 's1', seq: 1, cell: 70, snap: null, tokens: [plainToken(TOKEN, start, 'Mira', 'taken'), plainToken(OTHER, { x: 150, y: 500 }, 'Gobelin', null)] }, player);
-    send({ t: 'mine', scene: 's1', tokens: [TOKEN] }, player);
-    await page.waitForFunction(() => (document.querySelector('.status') as HTMLElement | null)?.hidden === true, null, { timeout: 10_000 });
-
-    const deliver = (places: readonly LivePlace[], otherTo: { x: number; y: number }): Promise<void> => deliverLive(send, player, places, otherTo);
-    await eventually(() => tokenAt(start.x, start.y), 'the own token');
+    const { send, player, deliver } = await ownTokenAt(start);
 
     // The drag: 400 px right in steps the page sends out as drags. The GM echoes none of them yet.
     const from = screen(start.x, start.y);
@@ -298,12 +305,7 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player\'s own 
   // round trip behind, must not carry the token off; a GM's drag of the token meanwhile still moves it.
   it('stays where it was taken from when a drag is let go of there, whatever the GM echoes late', async () => {
     const start = { x: 200, y: 300 };
-    const { send, player } = await seatOnGreenMap();
-    send({ t: 'tokens', scene: 's1', seq: 1, cell: 70, snap: null, tokens: [plainToken(TOKEN, start, 'Mira', 'taken'), plainToken(OTHER, { x: 150, y: 500 }, 'Gobelin', null)] }, player);
-    send({ t: 'mine', scene: 's1', tokens: [TOKEN] }, player);
-    await page.waitForFunction(() => (document.querySelector('.status') as HTMLElement | null)?.hidden === true, null, { timeout: 10_000 });
-    const deliver = (places: readonly LivePlace[], otherTo: { x: number; y: number }): Promise<void> => deliverLive(send, player, places, otherTo);
-    await eventually(() => tokenAt(start.x, start.y), 'the own token');
+    const { deliver } = await ownTokenAt(start);
 
     // Out 150 px and back to where it was taken: the page sends drags, then a cancel.
     const from = screen(start.x, start.y);
