@@ -20,7 +20,7 @@ const assets = { image: async (): Promise<LoadedImage> => ({ bitmap: new Texture
 /** The layer, its token groups by id, once the artwork of the first list has arrived. */
 async function shownLayer(tokens: readonly SharedToken[]): Promise<{ tokens: TokenLayer; layer: Container }> {
   const layer = new Container();
-  const layerOfTokens = new TokenLayer(layer, viewport, assets, () => undefined);
+  const layerOfTokens = new TokenLayer(layer, viewport, assets, () => undefined, () => null);
   layerOfTokens.show(tokens);
   await new Promise((resolve) => setTimeout(resolve, 0));
   return { tokens: layerOfTokens, layer };

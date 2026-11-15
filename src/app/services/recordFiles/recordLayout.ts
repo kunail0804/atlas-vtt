@@ -28,6 +28,11 @@ export interface RecordLayout<Stored extends StoredRecord> {
    * holds it, before the lower path. Unset, the lower path alone decides.
    */
   readonly namedHolds?: boolean;
+  /**
+   * Whether a file that turns unreadable (broken JSON, a sync that wrote half of it) keeps the
+   * record it held when last read, instead of holding none. Unset, it holds none.
+   */
+  readonly keepsLastRead?: boolean;
 }
 
 /** The file text for a record: its format first (a later one keeps its own number), then the record as stored. */

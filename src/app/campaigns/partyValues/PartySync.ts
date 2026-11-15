@@ -36,8 +36,9 @@ interface ViewLink {
  * `PartyReconciler` keeps the characters' tokens one with them; a store whose values change
  * otherwise (an edit, an undo) has them written to the file, once its changes have rested
  * `PARTY_WRITE_MS`, and mirrored to the other stores. Changes another device makes to the file
- * arrive through the vault's events. Off while the characters file is of a later format or the
- * files are not read yet: tokens keep values of their own then.
+ * arrive through the vault's events. Off while the characters file is of a later format, cannot be
+ * read (a sync that wrote half of it) or the files are not read yet: tokens keep values of their own
+ * then, and changes the file could not take wait until it can.
  */
 export class PartySync {
   private static readonly instances = new WeakMap<App, PartySync>();
@@ -164,7 +165,7 @@ export class PartySync {
 
   /** Whether the values should be kept now: once read, while the characters file can be changed. */
   private shouldKeep(): boolean {
-    return this.loaded && !this.destroyed && this.deps.characters.isWritable();
+    return this.loaded && !this.destroyed && this.deps.characters.blocked() === null;
   }
 
   private update(): void {
@@ -179,7 +180,9 @@ export class PartySync {
 
   private start(): void {
     this.keeping = true;
-    this.values = this.fileValues();
+    // Changes the file could not take while it could not be changed are the party's still.
+    this.values = withChanges(this.fileValues(), this.pending);
+    if (this.pending.size > 0) this.schedule();
     const context = this.context();
     for (const { store, reconciler } of this.views.values()) {
       this.mirrorInto(store, this.values);
@@ -197,14 +200,14 @@ export class PartySync {
     this.changed();
   }
 
-  /** Hands what waits to the table's characters file now. */
+  /** Hands what waits to the table's characters file now; where it cannot take them, they wait on. */
   private writePending(): void {
     if (this.timer !== null) window.clearTimeout(this.timer);
     this.timer = null;
     if (this.pending.size === 0) return;
     const changes = new Map(this.pending);
     this.pending.clear();
-    this.write(changes);
+    if (!this.write(changes)) for (const [key, value] of changes) this.pending.set(key, value);
   }
 
   /** The file changed (here or on another device): its values reach the views, except where this device has changes waiting. */
@@ -238,9 +241,9 @@ export class PartySync {
     this.timer = window.setTimeout(() => void this.flush(), PARTY_WRITE_MS);
   }
 
-  /** Writes changes into the table's characters file, creating it when the vault has none. */
-  private write(changes: PartyChangeMap): void {
-    this.deps.characters.write(changes);
+  /** Writes changes into the table's characters file, creating it when the vault has none; false where it cannot be changed. */
+  private write(changes: PartyChangeMap): boolean {
+    return this.deps.characters.write(changes);
   }
 
   /** The file's values, keyed as the stores hold them. */

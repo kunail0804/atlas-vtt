@@ -69,6 +69,7 @@ import { registerAtlasLinks } from './src/app/links/registerAtlasLinks';
 import { registerCommands } from './src/app/plugin/registerCommands';
 import { CampaignFiles } from './src/app/campaigns/CampaignFiles';
 import { TableBooks } from './src/app/campaigns/players/TableBooks';
+import { warnWhenUnreadable } from './src/app/campaigns/tableFileWarning';
 import { TablePlayers } from './src/app/campaigns/players/TablePlayers';
 import { releaseMapPictures } from './src/app/react/components/dashboard/mapPicture';
 import { PlayedRules } from './src/app/campaigns/playedRules';
@@ -170,6 +171,9 @@ export default class AtlasVTTPlugin extends Plugin {
     void campaignsRead.catch(() => undefined).then(() => tablePlayers.load()).catch((error: unknown) => console.error('[Atlas] Reading the table\'s players failed:', error));
     // So are the books of their characters.
     const tableBooks = TableBooks.open(this.app);
+    // The GM is told where either cannot be read: they keep what was read last and are not written.
+    this.register(warnWhenUnreadable(tablePlayers));
+    this.register(warnWhenUnreadable(tableBooks));
     void campaignsRead.catch(() => undefined).then(() => tableBooks.load()).catch((error: unknown) => console.error('[Atlas] Reading the table\'s books failed:', error));
     // The campaign this device plays records the scenes its map views open.
     this.register(recordCampaignPlay(this.app, campaignFiles, campaignsRead));

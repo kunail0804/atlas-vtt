@@ -139,6 +139,8 @@ export const online = {
   'online.seats.loading': 'The worlds and the table\'s players are still loading. Try again in a moment.',
   'online.seats.newer': 'The table\'s players file is from a newer Atlas.',
   'online.seats.noTable': 'Start an online table first.',
+  'online.seats.unreadable': 'Atlas cannot read {file}. It keeps what it read last and changes nothing in the file until it can read it again.',
+  'online.seats.tableFileName': 'The online table keeps a file by this name in the worlds\' folder.',
   'online.selectTokensFirst': 'Select tokens on the map first.',
   'online.selected': '{count} selected',
   'online.server.badAnswer': 'The server answered with something that is no table.',

@@ -68,7 +68,8 @@ async function main(): Promise<void> {
   let connection: PlayerConnection | null = null;
   const send = (body: Parameters<PlayerConnection['send']>[0]): void => connection?.send(body);
   const assets = new AssetLoader(new AssetCache());
-  const tokens = new TokenLayer(stage.tokens, stage.viewport, assets, send);
+  let playerId: string | null = null;
+  const tokens = new TokenLayer(stage.tokens, stage.viewport, assets, send, () => playerId);
   let notice: SceneNotice = 'no-scene';
   let gmOnline = false;
   const refresh = (): void => {
@@ -79,7 +80,6 @@ async function main(): Promise<void> {
     notice = next;
     refresh();
   });
-  let playerId: string | null = null;
   const settings = new ToolSettingsStore();
   const marks = new MarksView(stage.viewport, stage.app.canvas, send, () => playerId, () => scene.sceneId, settings);
   tokens.onOwnDrag = (drag) => marks.ownDrag(drag, drag === null ? 1 : tokens.cellsOf(drag.id) ?? 1);

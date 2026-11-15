@@ -22,13 +22,17 @@ export interface PlayerDragPorts {
   clearTimer(timer: number): void;
 }
 
-/** A player's drag the GM follows: whose, which token (by GM id and by the id the player knows), and where it was taken from. */
+/**
+ * A player's drag the GM follows: whose, which token (by GM id and by the id the player knows), where it
+ * was taken from, and the number the player's page gave it (none from an older page).
+ */
 interface LiveDrag {
   readonly from: string;
   readonly alias: string;
   readonly tokenId: string;
   readonly start: { readonly x: number; readonly y: number };
   lastAt: number;
+  number: number | undefined;
 }
 
 const key = (from: string, tokenId: string): string => `${from}\n${tokenId}`;
@@ -82,6 +86,11 @@ export class PlayerDrags {
     return this.live.get(tokenId)?.from;
   }
 
+  /** The number the player's page gave the drag that holds a token (by GM token id), or undefined for none. */
+  dragNumberOf(tokenId: string): number | undefined {
+    return this.live.get(tokenId)?.number;
+  }
+
   /** A drag message: starts or moves the player's drag, or ends it when the token may no longer be theirs. */
   receive(from: string, drag: PlayerDrag): void {
     const state = this.store.getState();
@@ -95,10 +104,11 @@ export class PlayerDrags {
     }
     if (this.taken.has(key(from, verdict.tokenId))) return;
     const token = mapTokens(state.objects)[verdict.tokenId];
-    if (live === undefined && token !== undefined) this.begin({ from, alias: drag.id, tokenId: verdict.tokenId, start: { x: token.x, y: token.y }, lastAt: 0 });
+    if (live === undefined && token !== undefined) this.begin({ from, alias: drag.id, tokenId: verdict.tokenId, start: { x: token.x, y: token.y }, lastAt: 0, number: drag.drag });
     const current = this.live.get(verdict.tokenId);
     if (current === undefined || token === undefined) return;
     current.lastAt = this.ports.now();
+    current.number = drag.drag;
     // From where the last message left it, up to the first wall in the way.
     const at = landing(context, state, verdict.tokenId, token, verdict);
     this.write((draft) => {
