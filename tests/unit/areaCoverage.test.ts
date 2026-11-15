@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { cellsCoveredBy, type AreaShape } from '../../src/app/grid/areaCoverage';
+import { cellsCoveredBy, examinedCellCount, type AreaShape } from '../../src/app/grid/areaCoverage';
 import type { GridGeometry } from '../../src/app/grid/gridDistance';
 import { axialToPixel, createHexLayout, pixelToAxial, type HexGridType, type Point } from '../../src/app/grid/hexGeometry';
 import { axialKey } from '../../src/app/grid/hexLattice';
@@ -165,5 +165,26 @@ describe('the covered cells against a count of sample points (seeded)', () => {
         if (share < 0.45) expect(covered, `${type} trial ${trial} cell ${key} share ${share}`).not.toContain(key);
       }
     }
+  });
+});
+
+describe('how many cells working out a shape looks at', () => {
+  it('is the cells of the bounding box of its disc on a square grid', () => {
+    // Columns and rows -3 to 2: the disc reaches from -25 to 25 on both axes.
+    expect(examinedCellCount(circle({ x: 0, y: 0 }, 25), SQUARE)).toBe(36);
+    expect(examinedCellCount(cone({ x: 0, y: 0 }, { x: 25, y: 0 }, 10), SQUARE)).toBe(36);
+  });
+
+  it('is at least the cells the shape covers, on every grid', () => {
+    for (const grid of [SQUARE, ...HEX_TYPES.map((type): GridGeometry => ({ type, size: 10, offsetX: 3, offsetY: 7 }))]) {
+      for (const area of [circle({ x: 4, y: -2 }, 57), cone({ x: 1, y: 1 }, { x: -40, y: 33 }, 300)]) {
+        expect(examinedCellCount(area, grid)).toBeGreaterThanOrEqual(cellsCoveredBy(area, grid).length);
+      }
+    }
+  });
+
+  it('is none for a shape of no size or a grid without cells', () => {
+    expect(examinedCellCount(circle({ x: 0, y: 0 }, 0), SQUARE)).toBe(0);
+    expect(examinedCellCount(circle({ x: 0, y: 0 }, 20), { ...SQUARE, size: 0 })).toBe(0);
   });
 });

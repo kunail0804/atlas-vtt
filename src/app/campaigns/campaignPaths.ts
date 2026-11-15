@@ -1,7 +1,8 @@
 /**
  * The files of campaigns: a visible folder per campaign under `atlas-vtt/campaigns/`, named after
- * it, holding `campaign.json` and, later, what the campaign keeps (its party, sessions, log). The
- * id inside `campaign.json` is the campaign's identity, never the folder's name.
+ * it, holding `campaign.json` and the quest notes made from the campaign's page (`quests/`). The
+ * table's files lie beside these folders, in none of them (`tableFileLayout.ts`). The id inside
+ * `campaign.json` is the campaign's identity, never the folder's name.
  */
 
 import { ATLAS_VTT_DIR } from '../services/assetPaths';

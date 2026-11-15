@@ -124,8 +124,9 @@ The line must say « compte validé ».
    ./atlas campaign create <name>
    ```
 
-   A name has 1 to 30 lowercase letters, digits, or hyphens. An account holds 5 campaigns at most. The
-   launcher prints the players' address, `https://<name>-vtt.kunlab.cc`.
+   A name has 1 to 30 lowercase letters, digits, or hyphens, and does not start or end with a hyphen. An
+   account holds 5 campaigns at most. The launcher prints the players' address,
+   `https://<name>-vtt.kunlab.cc`.
 
 2. Start it:
 
@@ -157,8 +158,14 @@ plugins on in `.obsidian/community-plugins.json`.
 2. If Obsidian shows community plugins as disabled, open **Settings → Community plugins** and turn off
    **Restricted mode**.
 3. Open the command palette, go to the **Experimental features** page, and turn on **Online play**.
-4. Sign in from the online control at the bottom left of the map.
-5. Run **Start online table** from the command palette. Obsidian shows the full invitation link.
+4. Open a scene. **Start online table** is in the command palette only while an Atlas map tab is active.
+5. Sign in from the online control at the bottom left of the map.
+6. Run **Start online table** from the command palette. The online control opens its start menu.
+7. Under **World**, choose the world the table plays, or keep **No world**.
+8. Click **Start online table** at the bottom of the menu.
+
+To invite the players, open the online control and click **Copy invite link**. Atlas copies the link to
+your clipboard and does not show it.
 
 ## Check that everything works
 
