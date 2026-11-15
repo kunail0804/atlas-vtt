@@ -285,11 +285,6 @@ export type MenuModel =
 /** No campaigns read yet. */
 export const NO_CAMPAIGNS: CampaignPick = { list: null, players: 0, chosen: null, query: '' };
 
-/** What a running table's surface is titled: the name of the world it plays, where it plays one and it is known. */
-export function tableTitle(snapshot: OnlineSnapshot, campaigns: CampaignPick): string {
-  return campaigns.list?.find((campaign) => campaign.id === snapshot.campaignId)?.name ?? t('online.table');
-}
-
 /**
  * The connection menu: sign in, choose a world or none and start a table (after one the server ended: how
  * it ended), or the running table's link while players are awaited (`qr`: its QR card is open).
@@ -298,7 +293,7 @@ export function menuModel(snapshot: OnlineSnapshot, scene: SceneFacts, account: 
   if (!isRunning(snapshot.status) || snapshot.status === 'starting') {
     return { kind: 'start', account, starting: snapshot.status === 'starting', lost: snapshot.status === 'refused' ? snapshot.lost ?? 'refused' : null, outdated: snapshot.outdated === true, campaigns };
   }
-  return { kind: 'waiting', title: tableTitle(snapshot, campaigns), link: snapshot.link, status: statusOf(snapshot), isShared: scene.isShared, world: worldRowOf(snapshot.campaignId, campaigns), gate: gateRowsOf(snapshot.gate), qr, imageShown: snapshot.imageShown === true, closing: closingOf(snapshot), updateAfter: snapshot.updateAfter === true };
+  return { kind: 'waiting', title: t('online.table'), link: snapshot.link, status: statusOf(snapshot), isShared: scene.isShared, world: worldRowOf(snapshot.campaignId, campaigns), gate: gateRowsOf(snapshot.gate), qr, imageShown: snapshot.imageShown === true, closing: closingOf(snapshot), updateAfter: snapshot.updateAfter === true };
 }
 
 export interface GroupPlayer extends OnlinePlayer {

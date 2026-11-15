@@ -84,7 +84,7 @@ export const compendium = {
   'compendium.share.titleMany': { one: 'Share {count} page', other: 'Share {count} pages' },
   'compendium.share.close': 'Close without sharing',
   'compendium.share.hint': 'A player reads what you share in their book, at every table, until you take it back. Read and write lets them change the page too.',
-  'compendium.share.noPlayers': 'No player at your table yet. A player appears here once you accept them at the table, or add them to its players, even before they join.',
+  'compendium.share.noPlayers': 'No player at your table yet. A player appears here once you accept them at the table, or add them to its players during a session.',
   'compendium.share.accessOf': 'What {name} gets',
   'compendium.share.mixed': 'As each page is',
   'compendium.share.none': 'Not shared',

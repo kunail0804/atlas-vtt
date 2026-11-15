@@ -66,7 +66,11 @@ export class Table {
     this.maxPlayers = saved.maxPlayers;
     this.ports = ports;
     for (const player of saved.players) this.seats.set(player.id, { id: player.id, name: player.name, keyHash: player.keyHash, link: null });
-    this.gate = new JoinGate(saved.gate, { toGm: (frame) => this.toGm(frame), changed: () => ports.changed() });
+    this.gate = new JoinGate(saved.gate, {
+      toGm: (frame) => this.toGm(frame),
+      changed: () => ports.changed(),
+      seatConnected: (seat) => (this.seats.get(seat)?.link ?? null) !== null,
+    });
   }
 
   saved(): SavedTable {

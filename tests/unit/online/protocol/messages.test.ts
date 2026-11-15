@@ -69,6 +69,10 @@ describe('the join gates\' frames', () => {
   it('read a knock that asks for the seat of a player of the campaign, alone and in the waiting list, and nothing else as one', () => {
     expect(parseRelayFrame(`{"v":1,"t":"knock","id":"${id}","name":"Mira","reclaim":true}`)).toEqual({ v: 1, t: 'knock', id, name: 'Mira', reclaim: true });
     expect(parseRelayFrame(`{"v":1,"t":"knock","id":"${id}","name":"Mira","reclaim":"yes"}`)).toEqual({ v: 1, t: 'knock', id, name: 'Mira' });
+    expect(parseRelayFrame(`{"v":1,"t":"knock","id":"${id}","name":"Mira","reclaim":true,"seatConnected":true}`)).toEqual({ v: 1, t: 'knock', id, name: 'Mira', reclaim: true, seatConnected: true });
+    // Only a seat asked back can be connected, and only `true` says so.
+    expect(parseRelayFrame(`{"v":1,"t":"knock","id":"${id}","name":"Mira","seatConnected":true}`)).toEqual({ v: 1, t: 'knock', id, name: 'Mira' });
+    expect(parseRelayFrame(`{"v":1,"t":"knock","id":"${id}","name":"Mira","reclaim":true,"seatConnected":1}`)).toEqual({ v: 1, t: 'knock', id, name: 'Mira', reclaim: true });
     expect(parseRelayFrame(`{"v":1,"t":"welcome","role":"gm","players":[],"waiting":[{"id":"${id}","name":"Mira","reclaim":true}]}`))
       .toEqual({ v: 1, t: 'welcome', role: 'gm', players: [], waiting: [{ id, name: 'Mira', reclaim: true }] });
     // The players at the table never carry it.

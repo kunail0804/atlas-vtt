@@ -301,7 +301,7 @@ export class TableConnection {
       this.events.access(null);
       this.gate?.welcomed(frame.waiting ?? []);
       this.events.welcome(frame.players);
-    } else if (frame.t === 'knock') this.gate?.knocked({ id: frame.id, name: frame.name, ...(frame.reclaim === true && { reclaim: true as const }) });
+    } else if (frame.t === 'knock') this.gate?.knocked({ id: frame.id, name: frame.name, ...(frame.reclaim === true && { reclaim: true as const }), ...(frame.seatConnected === true && { seatConnected: true as const }) });
     else if (frame.t === 'knock-gone') this.gate?.gone(frame.id, frame.full === true);
     else if (frame.t === 'gate-paused') this.gate?.paused(frame.until);
     else if (frame.t === 'access') this.events.access(frame.closesAt);

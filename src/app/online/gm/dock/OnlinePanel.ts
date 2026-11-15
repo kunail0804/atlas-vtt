@@ -16,7 +16,7 @@ export const PANEL_WIDTH = 340;
 
 /** What the panel shows. */
 export interface PanelView {
-  /** The name of the table's world, else "Online table". */
+  /** The panel's fixed title, "Table": the world is said on its own row. */
   readonly title: string;
   /** The world the table plays, and the others it can play. */
   readonly world: WorldRow;
@@ -41,10 +41,10 @@ export interface PanelView {
 }
 
 /** What the panel shows of a snapshot, the map views, the feedback form and whether the QR card is open. */
-export function panelView(snapshot: OnlineSnapshot, scene: SceneFacts, feedback: FeedbackView, world: WorldRow, qr = false, title = t('online.table')): PanelView {
+export function panelView(snapshot: OnlineSnapshot, scene: SceneFacts, feedback: FeedbackView, world: WorldRow, qr = false): PanelView {
   const groups = groupsOf(snapshot, scene);
   const players = groups.flatMap((group) => (group.player === null ? [] : [group.player]));
-  return { title, world, status: statusOf(snapshot), seatsNote: seatsNoteOf(snapshot), link: snapshot.link, qr, gate: gateRowsOf(snapshot.gate), imageShown: snapshot.imageShown === true, closing: closingOf(snapshot), updateAfter: snapshot.updateAfter === true, groups, players, bar: selectionBarOf(snapshot, scene), feedback };
+  return { title: t('online.table'), world, status: statusOf(snapshot), seatsNote: seatsNoteOf(snapshot), link: snapshot.link, qr, gate: gateRowsOf(snapshot.gate), imageShown: snapshot.imageShown === true, closing: closingOf(snapshot), updateAfter: snapshot.updateAfter === true, groups, players, bar: selectionBarOf(snapshot, scene), feedback };
 }
 
 /** The campaign's players as the panel changes them, once the GM has answered. */

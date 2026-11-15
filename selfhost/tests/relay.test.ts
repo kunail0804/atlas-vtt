@@ -197,6 +197,8 @@ describe('the relay with the plugin as GM', () => {
     // The GM is asked even though the table lets newcomers in without asking, and is told it is a seat taken back.
     await until(() => gm.knocks.length === 1, 'GM asked');
     expect(gm.knocks[0]).toMatchObject({ name: 'Mira', reclaim: true });
+    // Her old page is gone, so the knock does not say her seat is connected.
+    expect(gm.knocks[0]?.seatConnected).toBeUndefined();
 
     gm.connection.answer(gm.knocks[0]?.id ?? '', true);
     await until(() => back.frame('welcome') !== undefined, 'Mira seated again');
@@ -228,6 +230,8 @@ describe('the relay with the plugin as GM', () => {
     const other = player(code, { name: 'MIRA' });
     await until(() => gm.knocks.length === 2, 'GM asked twice');
     expect(gm.knocks.every((knock) => knock.reclaim === true)).toBe(true);
+    // A page sits in her seat, so both knocks say it is connected.
+    expect(gm.knocks.every((knock) => knock.seatConnected === true)).toBe(true);
 
     const leftBefore = gm.left.length;
     gm.connection.answer(gm.knocks[0]?.id ?? '', true);

@@ -33,6 +33,8 @@ export interface GatePorts {
   toGm(frame: Readonly<Record<string, unknown>>): void;
   /** The gate's settings changed and must be saved. */
   changed(): void;
+  /** The seat `seat` has a page connected right now. */
+  seatConnected(seat: string): boolean;
 }
 
 /**
@@ -93,7 +95,7 @@ export class JoinGate {
 
   /** The newcomers waiting for an answer, for the GM's welcome. */
   waiting(): KnockInfo[] {
-    return [...this.knocks.values()].map(knockInfo);
+    return [...this.knocks.values()].map((knock) => this.infoOf(knock));
   }
 
   socketCount(): number {
@@ -117,7 +119,7 @@ export class JoinGate {
     this.knocks.set(id, knock);
     this.watch(knock, socket);
     sendFrame(socket, wait === null ? { t: 'waiting' } : { t: 'waiting', wait });
-    this.ports.toGm({ t: 'knock', ...knockInfo(knock) });
+    this.ports.toGm({ t: 'knock', ...this.infoOf(knock) });
   }
 
   /** A newcomer back with their wait token: the same wait goes on with the new socket. False when no wait has that token. */
@@ -170,13 +172,18 @@ export class JoinGate {
     closeSocket(knock.socket, CLOSE.noAnswer, 'no answer');
   }
 
+  /**
+   * A knock as the GM is told it: the seat asked for is said, not named, since the GM's admission alone
+   * decides it, and so is whether a page is on that seat now, since admitting closes it.
+   */
+  private infoOf(knock: Knock): KnockInfo {
+    if (knock.seat === null) return { id: knock.id, name: knock.name };
+    if (this.ports.seatConnected(knock.seat)) return { id: knock.id, name: knock.name, reclaim: true, seatConnected: true };
+    return { id: knock.id, name: knock.name, reclaim: true };
+  }
+
   private forget(knock: Knock): void {
     clearTimeout(knock.timer);
     this.knocks.delete(knock.id);
   }
-}
-
-/** A knock as the GM is told it: the seat asked for is said, not named, since the GM's admission alone decides it. */
-function knockInfo(knock: Knock): KnockInfo {
-  return knock.seat === null ? { id: knock.id, name: knock.name } : { id: knock.id, name: knock.name, reclaim: true };
 }
