@@ -4,7 +4,7 @@ import { nativeFolderPicker } from '../services/electronRemote';
 import { nodeFilesOf } from '../soundLibrary/nodeFiles';
 import { showNotice } from '../ui/notice';
 import { BACKUPS_FOLDER } from '../worldBackups/backupFolder';
-import { loadBackupFolderPath, saveBackupFolderPath } from '../worldBackups/backupLocation';
+import { isInAtlasFolder, loadBackupFolderPath, saveBackupFolderPath, vaultBaseOf } from '../worldBackups/backupLocation';
 import { BACKUP_INTERVALS, loadBackupInterval, saveBackupInterval, type BackupInterval } from '../worldBackups/backupSchedule';
 import { backupDate, folderProblemText, restoreBackupFlow } from '../worldBackups/restoreBackupFlow';
 import type { WorldBackups } from '../worldBackups/WorldBackups';
@@ -91,7 +91,10 @@ function renderFolderRow(app: App, setting: Setting, pick: (title: string) => Pr
     button.setButtonText(t('worldBackup.chooseFolder')).onClick(async () => {
       try {
         const path = await pick(t('worldBackup.chooseFolderTitle'));
-        if (path !== null) choose(path);
+        if (path === null) return;
+        const sep = nodeFilesOf(window)?.sep ?? '/';
+        if (isInAtlasFolder(path, vaultBaseOf(app), sep)) showNotice(t('worldBackup.folderInAtlasRefused'));
+        else choose(path);
       } catch (error) {
         console.error('[Atlas] Choosing the backup folder failed:', error);
       }
