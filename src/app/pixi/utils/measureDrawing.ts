@@ -4,7 +4,7 @@
  * (`MeasureInk`); the distance goes on a `MeasureLabel`.
  */
 
-import { cellsCoveredBy, type AreaShape } from '../../grid/areaCoverage';
+import { cellsCoveredBy, examinedCellCount, type AreaShape } from '../../grid/areaCoverage';
 import type { GridGeometry } from '../../grid/gridDistance';
 import type { Point } from '../../grid/hexGeometry';
 import { MEASURE_DOT, type LabelTarget } from './measureLabelLayout';
@@ -96,6 +96,14 @@ export function measureArea({ shape, start, end }: MeasureRecord, coneAngle: num
   }
 }
 
+/**
+ * The most cells a measurement's highlight may look at (`examinedCellCount`). Its cells are worked out
+ * again at every move of the pointer, and their cost grows with this number: up to it, working them out
+ * and drawing them holds within a frame at 60 fps (`tests/unit/measureCellBudget.test.ts` measures it).
+ * A larger shape is drawn without its cells.
+ */
+export const MAX_EXAMINED_CELLS = 2000;
+
 /** The cells last worked out for a measurement, so a redraw at another zoom does not work them out again. */
 interface CoveredOutlines {
   readonly grid: GridGeometry;
@@ -108,12 +116,12 @@ const coveredByRecord = new WeakMap<MeasureRecord, CoveredOutlines>();
 const sameGrid = (a: GridGeometry, b: GridGeometry): boolean =>
   a.type === b.type && a.size === b.size && (a.offsetX ?? 0) === (b.offsetX ?? 0) && (a.offsetY ?? 0) === (b.offsetY ?? 0);
 
-/** The outlines of the cells `measurement` covers on `grid` (`cellsCoveredBy`). */
+/** The outlines of the cells `measurement` covers on `grid` (`cellsCoveredBy`); none for a shape that would look at more than `MAX_EXAMINED_CELLS`. */
 export function coveredCellOutlines(measurement: MeasureRecord, coneAngle: number, grid: GridGeometry): readonly (readonly Point[])[] {
   const known = coveredByRecord.get(measurement);
   if (known && known.coneAngle === coneAngle && sameGrid(known.grid, grid)) return known.outlines;
   const area = measureArea(measurement, coneAngle);
-  const outlines = area ? cellsCoveredBy(area, grid).map((cell) => cell.corners) : [];
+  const outlines = area && examinedCellCount(area, grid) <= MAX_EXAMINED_CELLS ? cellsCoveredBy(area, grid).map((cell) => cell.corners) : [];
   coveredByRecord.set(measurement, { grid: { ...grid }, coneAngle, outlines });
   return outlines;
 }

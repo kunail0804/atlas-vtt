@@ -8,6 +8,8 @@ import { MeasureLabel } from '../../src/app/pixi/utils/measureLabel';
 import { RemoteMeasures } from '../../src/app/online/marks/RemoteMeasures';
 import { resolveMeasurementSettings } from '../../src/app/grid/measurementFormat';
 import { squareCellCentre } from '../../src/app/grid/squareLattice';
+import { examinedCellCount } from '../../src/app/grid/areaCoverage';
+import { MAX_EXAMINED_CELLS } from '../../src/app/pixi/utils/measureDrawing';
 import type { Point } from '../../src/app/grid/hexGeometry';
 
 const GRID = { type: 'square' as const, size: 10, offsetX: 0, offsetY: 0 };
@@ -26,6 +28,11 @@ function measuring(tool: 'measure' | 'measure-circle' | 'measure-cone'): { rende
   for (const listener of listeners) listener(state);
   return { renderer, viewport };
 }
+
+/** Circles around the origin on `GRID`: the largest that still looks at no more cells than the highlight may, and the next that looks at more. */
+const HIGHLIGHTED_RADIUS = 210;
+const UNHIGHLIGHTED_RADIUS = 220;
+const examined = (radius: number): number => examinedCellCount({ kind: 'circle', center: { x: 0, y: 0 }, radius }, GRID);
 
 const defaultSettings = { mode: 'grid', unitType: 'ft', unitDistance: 5, ruleDistance: 5, diagonalRule: 'chebyshev', rangeBands: [] } as never;
 
@@ -80,6 +87,23 @@ describe('the cells a measurement highlights', () => {
     renderer.destroy();
   });
 
+  it('are none for a shape that looks at more cells than a frame holds, which is still drawn', () => {
+    expect(examined(HIGHLIGHTED_RADIUS)).toBeLessThanOrEqual(MAX_EXAMINED_CELLS);
+    expect(examined(UNHIGHLIGHTED_RADIUS)).toBeGreaterThan(MAX_EXAMINED_CELLS);
+    const cells = vi.spyOn(MeasureInk.prototype, 'cells');
+    const wash = vi.spyOn(MeasureInk.prototype, 'fill');
+    const { renderer, viewport } = measuring('measure-circle');
+    viewport.emit('pointerdown', pointer('pointerdown', 0, 0));
+    viewport.emit('pointermove', pointer('pointermove', HIGHLIGHTED_RADIUS, 0));
+    expect(lastCells(cells).length).toBeGreaterThan(1000);
+
+    wash.mockClear();
+    viewport.emit('pointermove', pointer('pointermove', UNHIGHLIGHTED_RADIUS, 0));
+    expect(lastCells(cells)).toEqual([]);
+    expect(wash).toHaveBeenCalled();
+    renderer.destroy();
+  });
+
   it('are none for a line', () => {
     const cells = vi.spyOn(MeasureInk.prototype, 'cells');
     const { renderer, viewport } = measuring('measure');
@@ -99,6 +123,17 @@ describe('the cells another person\'s measurement highlights (the player page, a
 
     measures.update([{ who: 'ana', color: '#ff0000', live: null, kept: [{ shape: 'circle', a: [100, 100], b: [110, 100] }] }], 1);
     expect(lastCells(cells)).toEqual(['105,105', '105,95', '95,105', '95,95']);
+    measures.destroy();
+  });
+
+  it('are none for a shape that looks at more cells than a frame holds', () => {
+    const cells = vi.spyOn(MeasureInk.prototype, 'cells');
+    const measures = new RemoteMeasures(() => 1, () => ({ grid: GRID, measurement: resolveMeasurementSettings(undefined, null) }), 50);
+    measures.update([{ who: 'ana', color: '#ff0000', live: null, kept: [{ shape: 'circle', a: [0, 0], b: [HIGHLIGHTED_RADIUS, 0] }] }], 0);
+    expect(lastCells(cells).length).toBeGreaterThan(1000);
+
+    measures.update([{ who: 'ana', color: '#ff0000', live: null, kept: [{ shape: 'circle', a: [0, 0], b: [UNHIGHLIGHTED_RADIUS, 0] }] }], 1);
+    expect(lastCells(cells)).toEqual([]);
     measures.destroy();
   });
 });

@@ -7,7 +7,7 @@
  */
 
 import type { GridGeometry } from './gridDistance';
-import { axialToPixel, createHexLayout, hexCircumradius, hexVertices, isHexGridType, pixelToFractionalAxial, type HexLayout, type Point } from './hexGeometry';
+import { axialToPixel, createHexLayout, hexCircumradius, hexVertices, isHexGridType, pixelToFractionalAxial, type HexGridType, type HexLayout, type Point } from './hexGeometry';
 import { axialKey } from './hexLattice';
 
 /** An area of effect in world pixels: a circle around its centre, or a cone from its apex towards a point as far as that point. */
@@ -145,20 +145,65 @@ function triangleInDisc(a: Point, b: Point, radius: number): number {
   return sector(a, b);
 }
 
-/** Every cell that may meet the disc: those whose centre lies within the disc's radius plus the cell's own. */
-function candidateCells(disc: Disc, grid: GridGeometry): CoveredCell[] {
-  if (isHexGridType(grid.type)) return hexCandidates(disc, createHexLayout(grid.type, grid.size, grid.offsetX ?? 0, grid.offsetY ?? 0));
-  return squareCandidates(disc, grid.size, grid.offsetX ?? 0, grid.offsetY ?? 0);
+/** The columns and rows (squares) or axial `q` and `r` (hexes) a disc's candidates are looked for in, both ends included. */
+interface CandidateRange {
+  readonly first: { readonly a: number; readonly b: number };
+  readonly last: { readonly a: number; readonly b: number };
 }
 
-function squareCandidates({ center, radius }: Disc, size: number, offsetX: number, offsetY: number): CoveredCell[] {
+function squareRange({ center, radius }: Disc, size: number, offsetX: number, offsetY: number): CandidateRange {
+  return {
+    first: { a: Math.floor((center.x - radius - offsetX) / size), b: Math.floor((center.y - radius - offsetY) / size) },
+    last: { a: Math.floor((center.x + radius - offsetX) / size), b: Math.floor((center.y + radius - offsetY) / size) },
+  };
+}
+
+function hexRange({ center, radius }: Disc, layout: HexLayout): CandidateRange {
+  // The disc's bounding box maps to a parallelogram of axial coordinates, whose extremes lie at its corners.
+  const corners = [
+    { x: center.x - radius, y: center.y - radius }, { x: center.x + radius, y: center.y - radius },
+    { x: center.x - radius, y: center.y + radius }, { x: center.x + radius, y: center.y + radius },
+  ].map((point) => pixelToFractionalAxial(layout, point));
+  const qs = corners.map((c) => c.q);
+  const rs = corners.map((c) => c.r);
+  return {
+    first: { a: Math.floor(Math.min(...qs)) - 1, b: Math.floor(Math.min(...rs)) - 1 },
+    last: { a: Math.ceil(Math.max(...qs)) + 1, b: Math.ceil(Math.max(...rs)) + 1 },
+  };
+}
+
+const layoutOf = (type: HexGridType, grid: GridGeometry): HexLayout => createHexLayout(type, grid.size, grid.offsetX ?? 0, grid.offsetY ?? 0);
+
+function candidateRange(disc: Disc, grid: GridGeometry): CandidateRange {
+  if (isHexGridType(grid.type)) return hexRange(disc, layoutOf(grid.type, grid));
+  return squareRange(disc, grid.size, grid.offsetX ?? 0, grid.offsetY ?? 0);
+}
+
+/**
+ * How many cells `cellsCoveredBy` looks at for `area` on `grid`, worked out without looking at them:
+ * its cost grows with this number, whatever share of them the shape covers.
+ */
+export function examinedCellCount(area: AreaShape, grid: GridGeometry): number {
+  const disc = discOf(area);
+  if (!(disc.radius > 0) || !(grid.size > 0)) return 0;
+  const { first, last } = candidateRange(disc, grid);
+  return (last.a - first.a + 1) * (last.b - first.b + 1);
+}
+
+/** Every cell that may meet the disc: those whose centre lies within the disc's radius plus the cell's own. */
+function candidateCells(disc: Disc, grid: GridGeometry): CoveredCell[] {
+  if (isHexGridType(grid.type)) {
+    const layout = layoutOf(grid.type, grid);
+    return hexCandidates(disc, layout, hexRange(disc, layout));
+  }
+  const [offsetX, offsetY] = [grid.offsetX ?? 0, grid.offsetY ?? 0];
+  return squareCandidates(grid.size, offsetX, offsetY, squareRange(disc, grid.size, offsetX, offsetY));
+}
+
+function squareCandidates(size: number, offsetX: number, offsetY: number, { first, last }: CandidateRange): CoveredCell[] {
   const cells: CoveredCell[] = [];
-  const firstCol = Math.floor((center.x - radius - offsetX) / size);
-  const lastCol = Math.floor((center.x + radius - offsetX) / size);
-  const firstRow = Math.floor((center.y - radius - offsetY) / size);
-  const lastRow = Math.floor((center.y + radius - offsetY) / size);
-  for (let row = firstRow; row <= lastRow; row++) {
-    for (let col = firstCol; col <= lastCol; col++) {
+  for (let row = first.b; row <= last.b; row++) {
+    for (let col = first.a; col <= last.a; col++) {
       const x = offsetX + col * size;
       const y = offsetY + row * size;
       cells.push({ key: `${col},${row}`, corners: [{ x, y }, { x: x + size, y }, { x: x + size, y: y + size }, { x, y: y + size }] });
@@ -167,18 +212,11 @@ function squareCandidates({ center, radius }: Disc, size: number, offsetX: numbe
   return cells;
 }
 
-function hexCandidates({ center, radius }: Disc, layout: HexLayout): CoveredCell[] {
-  // The disc's bounding box maps to a parallelogram of axial coordinates, whose extremes lie at its corners.
-  const corners = [
-    { x: center.x - radius, y: center.y - radius }, { x: center.x + radius, y: center.y - radius },
-    { x: center.x - radius, y: center.y + radius }, { x: center.x + radius, y: center.y + radius },
-  ].map((point) => pixelToFractionalAxial(layout, point));
-  const qs = corners.map((c) => c.q);
-  const rs = corners.map((c) => c.r);
+function hexCandidates({ center, radius }: Disc, layout: HexLayout, { first, last }: CandidateRange): CoveredCell[] {
   const reach = radius + hexCircumradius(layout.size);
   const cells: CoveredCell[] = [];
-  for (let q = Math.floor(Math.min(...qs)) - 1; q <= Math.ceil(Math.max(...qs)) + 1; q++) {
-    for (let r = Math.floor(Math.min(...rs)) - 1; r <= Math.ceil(Math.max(...rs)) + 1; r++) {
+  for (let q = first.a; q <= last.a; q++) {
+    for (let r = first.b; r <= last.b; r++) {
       const middle = axialToPixel(layout, { q, r });
       if (Math.hypot(middle.x - center.x, middle.y - center.y) > reach) continue;
       cells.push({ key: axialKey({ q, r }), corners: hexVertices(layout, middle) });
