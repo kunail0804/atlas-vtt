@@ -77,6 +77,11 @@ export interface PlayerInfo {
  */
 export interface KnockInfo extends PlayerInfo {
   readonly reclaim?: true;
+  /**
+   * With `reclaim`: that player's seat had a page connected when the knock came. Admitted, the newcomer
+   * closes that page. A relay from before the field never sends it; a GM from before it ignores it.
+   */
+  readonly seatConnected?: true;
 }
 
 /**
@@ -240,7 +245,8 @@ function joinCode(value: unknown): string | undefined {
 function knockInfo(value: unknown): KnockInfo | null {
   const player = playerInfo(value);
   if (player === null || !isRecord(value)) return null;
-  return value.reclaim === true ? { ...player, reclaim: true } : player;
+  if (value.reclaim !== true) return player;
+  return value.seatConnected === true ? { ...player, reclaim: true, seatConnected: true } : { ...player, reclaim: true };
 }
 
 /** A list of players as a relay sent it; null when one of them is malformed. A relay from before the list had none. */

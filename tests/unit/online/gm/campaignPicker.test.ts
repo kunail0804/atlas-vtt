@@ -2,7 +2,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { CampaignChoice } from '../../../../src/app/online/gm/campaignChoices.ts';
 import { campaignPick, matchesQuery, renderCampaignPicker, type CampaignPickerActions } from '../../../../src/app/online/gm/dock/campaignPicker.ts';
-import { tableTitle, type OnlineSnapshot } from '../../../../src/app/online/gm/dock/panelModel.ts';
 
 const choice = (id: string, over: Partial<CampaignChoice> = {}): CampaignChoice => ({ id, name: id.toUpperCase(), activity: 'Played 3d ago', art: null, hue: 120, ...over });
 const STRAHD = choice('strahd', { name: 'Curse of Strahd' });
@@ -175,11 +174,5 @@ describe('the campaign a table starts on', () => {
     empty.layer.querySelector<HTMLButtonElement>('.atlas-online-button')?.click();
     expect(empty.does.openCampaigns).toHaveBeenCalledTimes(1);
     expect(picker(null).layer.textContent).toContain('Reading your worlds');
-  });
-
-  it('names a running table by its campaign', () => {
-    const running = { campaignId: 'strahd' } as OnlineSnapshot;
-    expect(tableTitle(running, campaignPick(LIST, 0, null))).toBe('Curse of Strahd');
-    expect(tableTitle({ campaignId: null } as OnlineSnapshot, campaignPick(LIST, 0, null))).toBe('Online table');
   });
 });

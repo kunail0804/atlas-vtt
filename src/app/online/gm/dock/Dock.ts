@@ -16,7 +16,7 @@ import { KNOCK_ROOM, knockCards, KnockStack, restCards, stackCards } from './kno
 import { DockSurface } from './dockSurface.ts';
 import { playerCodeCopier } from './playerCodes.ts';
 import { PANEL_WIDTH, panelView, renderPanel, type PanelActions } from './OnlinePanel.ts';
-import { badgeOf, isRunning, menuModel, tableTitle, tooltipOf, type OnlineSnapshot, type SceneFacts } from './panelModel.ts';
+import { badgeOf, isRunning, menuModel, tooltipOf, type OnlineSnapshot, type SceneFacts } from './panelModel.ts';
 import { worldRowOf } from './worldRow.ts';
 import { t } from '../../../i18n';
 
@@ -236,8 +236,7 @@ export class Dock {
   }
 
   private drawPanel(layer: HTMLElement, snapshot: OnlineSnapshot, scene: SceneFacts, fresh: boolean): string {
-    const pick = this.pick();
-    const view = panelView(snapshot, scene, this.feedback.view(), worldRowOf(snapshot.campaignId, pick), this.qr.isOpen, tableTitle(snapshot, pick));
+    const view = panelView(snapshot, scene, this.feedback.view(), worldRowOf(snapshot.campaignId, this.pick()), this.qr.isOpen);
     const key = JSON.stringify(view);
     if (fresh || key !== this.shownKey) renderPanel(layer, view, this.panelActions(scene));
     return key;

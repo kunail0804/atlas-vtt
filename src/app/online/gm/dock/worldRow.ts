@@ -15,6 +15,8 @@ export interface WorldRow {
   readonly chosen: string | null;
   /** The world's name; null while it plays none, or its world is not read yet. */
   readonly name: string | null;
+  /** The worlds are read: until then a chosen world has no name yet, and the row shows `WORLD_LOADING`. */
+  readonly read: boolean;
   /** Every world, the most recently played first; empty while the worlds are not read yet. */
   readonly choices: readonly WorldChoice[];
 }
@@ -27,7 +29,17 @@ export interface WorldRowActions {
 /** The world row of a table that plays `campaignId` (null: none), with the worlds of `campaigns`. */
 export function worldRowOf(campaignId: string | null, campaigns: CampaignPick): WorldRow {
   const choices = (campaigns.list ?? []).map(({ id, name }) => ({ id, name }));
-  return { chosen: campaignId, name: choices.find((choice) => choice.id === campaignId)?.name ?? null, choices };
+  return { chosen: campaignId, name: choices.find((choice) => choice.id === campaignId)?.name ?? null, read: campaigns.list !== null, choices };
+}
+
+/** What the row shows of a chosen world while the worlds are not read yet. */
+export const WORLD_LOADING = '…';
+
+/** What the row says: the world played, `WORLD_LOADING` while its name is not read yet, else No world. */
+export function worldRowText(row: WorldRow): string {
+  if (row.chosen === null) return t('online.noWorld');
+  if (row.name !== null) return t('online.worldNamed', { name: row.name });
+  return row.read ? t('online.noWorld') : WORLD_LOADING;
 }
 
 /** No world, then every world, the one played ticked. */
@@ -48,7 +60,7 @@ export function renderWorldRow(layer: HTMLElement, row: WorldRow, actions: World
     attr: { type: 'button', 'aria-haspopup': 'menu', 'aria-label': t('online.chooseWorld'), 'data-focus-key': 'world' },
   });
   setIcon(button.createSpan({ cls: 'atlas-online-invite__icon', attr: { 'aria-hidden': 'true' } }), 'globe');
-  button.createEl('bdi', { text: row.chosen === null || row.name === null ? t('online.noWorld') : t('online.worldNamed', { name: row.name }) });
+  button.createEl('bdi', { text: worldRowText(row) });
   button.addEventListener('click', () => openMenuBelow(worldEntries(row, actions), button));
   return button;
 }

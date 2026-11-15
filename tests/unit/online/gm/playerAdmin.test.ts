@@ -254,6 +254,28 @@ describe('the world the table plays', () => {
     expect(does.chooseWorld).toHaveBeenLastCalledWith(null);
   });
 
+  it('titles the panel and the menu Table, whichever world is played: the world is said on its row alone', () => {
+    const layer = document.body.createDiv();
+    renderPanel(layer, panelView(snapshot({ campaignId: 'strahd' }), SCENE, feedback, worldRowOf('strahd', WORLDS)), actions());
+    expect(layer.querySelector('.atlas-online-title')?.textContent).toBe('Table');
+    const menu = document.body.createDiv();
+    renderMenu(menu, menuModel(snapshot({ players: [], campaignId: 'strahd' }), SCENE, { kind: 'signed-out' }, false, WORLDS), actions() as unknown as MenuActions);
+    expect(menu.querySelector('.atlas-online-title')?.textContent).toBe('Table');
+    expect(worldRow(menu)?.textContent).toBe('World: Curse of Strahd');
+  });
+
+  it('shows … for a world played while the worlds are not read yet, never No world', () => {
+    const layer = document.body.createDiv();
+    renderPanel(layer, panelView(snapshot({ campaignId: 'strahd' }), SCENE, feedback, worldRowOf('strahd', NO_CAMPAIGNS)), actions());
+    expect(worldRow(layer)?.textContent).toBe('…');
+    const menu = document.body.createDiv();
+    renderMenu(menu, menuModel(snapshot({ players: [], campaignId: 'strahd' }), SCENE, { kind: 'signed-out' }, false, NO_CAMPAIGNS), actions() as unknown as MenuActions);
+    expect(worldRow(menu)?.textContent).toBe('…');
+    // A table that plays none says so whether the worlds are read or not.
+    renderPanel(layer, panelView(snapshot(), SCENE, feedback, worldRowOf(null, NO_CAMPAIGNS)), actions());
+    expect(worldRow(layer)?.textContent).toBe('No world');
+  });
+
   it('says No world in the menu before anyone joined, while the table plays none', () => {
     const layer = document.body.createDiv();
     const does = actions() as unknown as MenuActions;

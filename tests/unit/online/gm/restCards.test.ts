@@ -129,6 +129,15 @@ describe('the cards over the online control', () => {
     expect(gate.admit).toHaveBeenCalledWith(MIRA.id);
   });
 
+  it('say when the seat a newcomer asks for has a page connected right now', () => {
+    const parent = document.body.createDiv();
+    renderCards(parent, knockCards([{ ...MIRA, reclaim: true, seatConnected: true, answered: false, full: false, armed: true }], { admit: vi.fn(), decline: vi.fn() }));
+    const row = parent.querySelector<HTMLElement>('.atlas-online-knock');
+    expect(row?.getAttribute('aria-label')).toBe('Mira is connected right now: a new device asks for their seat');
+    expect(row?.querySelector('.atlas-online-knock__name')?.textContent).toBe('Mira');
+    expect(row?.querySelector('.atlas-online-knock__text')?.textContent).toBe('Mira is connected right now: a new device asks for their seat');
+  });
+
   it('take no answer before they are armed, nor twice', () => {
     const timers = clock();
     const { rests } = requests(timers, new ArmedCards(timers));
