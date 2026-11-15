@@ -1,10 +1,11 @@
 import { base64ToArrayBuffer, TFile, type App } from 'obsidian';
 import { CAMPAIGNS_FOLDER } from '../campaigns/campaignPaths';
 import { ONLINE_DATA_PATH } from '../online/gm/onlineData';
+import { SHARES_PATH } from '../players/shares';
 import { toBase64 } from '../online/gm/assetServe';
 import { ensureAdapterFolder } from '../plugin/vaultFolders';
 
-/** What world backups need of the vault: the world data's files. */
+/** What world backups need of the vault: the world data's files (online play's data, the compendium's shares, the worlds' folder). */
 export interface WorldVault {
   /** Every file of the world data now: vault path → bytes as base64. */
   readWorld(): Promise<Record<string, string>>;
@@ -18,8 +19,9 @@ const parentOf = (path: string): string => path.slice(0, Math.max(0, path.lastIn
 
 /**
  * The world data in an Obsidian vault. Files in visible folders are written and removed through the
- * vault, so the worlds' files Atlas holds open (`RecordFiles`) hear of the change; online play's data
- * lies in a hidden folder the vault does not index, and goes through the adapter.
+ * vault, so the worlds' files Atlas holds open (`RecordFiles`) and the shares (`PageShares`) hear of
+ * the change; online play's data lies in a hidden folder the vault does not index, and goes through
+ * the adapter: removing it deletes it, where a visible file goes to the trash.
  */
 export function obsidianWorldVault(app: App): WorldVault {
   const { vault } = app;
@@ -42,6 +44,7 @@ export function obsidianWorldVault(app: App): WorldVault {
     async readWorld() {
       const paths: string[] = [];
       if (await adapter.exists(ONLINE_DATA_PATH)) paths.push(ONLINE_DATA_PATH);
+      if (await adapter.exists(SHARES_PATH)) paths.push(SHARES_PATH);
       await listFiles(CAMPAIGNS_FOLDER, paths);
       const files: Record<string, string> = {};
       for (const path of paths) files[path] = toBase64(new Uint8Array(await adapter.readBinary(path)));

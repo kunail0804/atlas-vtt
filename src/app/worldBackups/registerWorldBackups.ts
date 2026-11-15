@@ -3,6 +3,7 @@ import { CampaignFiles } from '../campaigns/CampaignFiles';
 import { PartySync } from '../campaigns/partyValues/PartySync';
 import { TableBooks } from '../campaigns/players/TableBooks';
 import { TablePlayers } from '../campaigns/players/TablePlayers';
+import { PageShares } from '../players/PageShares';
 import type { OnlinePlay } from '../plugin/onlinePlay';
 import type { WorldBackupControls } from '../settings/worldBackupsSettingsSection';
 import { showNotice } from '../ui/notice';
@@ -21,8 +22,10 @@ const CHECK_MS = 10 * 60_000;
  */
 export function registerWorldBackups(plugin: Plugin, onlinePlay: OnlinePlay): WorldBackupControls {
   const { app } = plugin;
+  const shares = PageShares.forApp(app);
   const backups = new WorldBackups({
     vault: obsidianWorldVault(app),
+    vaultId: app.appId,
     folder: () => backupFolderOf(app),
     now: () => Date.now(),
     settle: async () => {
@@ -32,9 +35,11 @@ export function registerWorldBackups(plugin: Plugin, onlinePlay: OnlinePlay): Wo
         TablePlayers.forApp(app)?.flush(),
         TableBooks.forApp(app)?.flush(),
         PartySync.forApp(app)?.flush(),
+        shares.flush(),
       ]);
     },
     quiet: (work) => onlinePlay.paused(work),
+    reload: () => shares.reload(),
   });
 
   /** When the last backup was made or found; undefined until the backups were listed once. */
