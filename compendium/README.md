@@ -112,14 +112,15 @@ preview's **Share…** shares the entry shown. For each player the GM chooses **
 **Read and write**, and changes or takes it back the same way. The preview says who has the entry, and a
 row shared with anyone shows a mark.
 
-A player is one person for the whole vault, in every campaign and at every table
-(`src/app/players/`). The player's page keeps a key of its own in the browser and sends it after joining.
-Atlas keeps only its SHA-256, in `atlas-vtt/players.json`, with the players' names and the shares. A device
-never seen makes a new player of the name given. A player the GM made under **Players** with **New player…**
-takes the first device that joins under that name. **Rename or merge** says that two players are the same
-person, who joined from two devices: one keeps both players' devices and pages. Shares outlive a table and a
-campaign. Removing a player under **Players** ends them, and so does deleting the note. A renamed or moved
-note keeps its shares.
+Pages are shared with the players of the table: the GM's one online table for the vault, whatever campaign it
+plays. The share dialog lists them. A player appears there once the GM accepts them at the table or adds them
+to its players, even before they join. `atlas-vtt/players.json` keeps the shares (`src/app/players/`): for
+each note, the id of each player it is shared with and their access. A player gets the pages of the place the
+table seats them in, from any device: with their own code, with the key their browser kept, or as a new device
+the GM admits. Someone the table does not seat gets no page, whatever name they give. Shares stay when the
+table stops or plays another campaign. **Remove from players**, in a player's menu in the online panel, takes
+their pages back, and deleting the note ends its shares. A renamed or moved note keeps its shares. Under
+**Players**, the compendium tab shows the pages shared with one player.
 
 The player reads the shared pages in the **Compendium** tab of their book: a list by kind, and each page as
 a card of its lines, its named entries (a monster's actions) and its text. Where the GM gave **Read and
