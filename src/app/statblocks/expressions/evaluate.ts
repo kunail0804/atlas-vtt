@@ -11,7 +11,7 @@ import { listItems } from '../values/listText';
 import { numericValue } from '../values/numberText';
 import { quoted } from '../values/valueText';
 import { nameOf, refError, type ExpressionError, type LabelResolver } from './errors';
-import { SLOT_WORD, type EachMode, type FormulaFunction, type FormulaNode } from './formulaTypes';
+import { SLOT_WORD, type FormulaFunction, type FormulaNode } from './formulaTypes';
 import { t } from '../../i18n';
 
 export interface FormulaContext {
@@ -95,7 +95,11 @@ function evaluateNode(node: FormulaNode, reader: ValueReader, context: FormulaCo
     }
     case 'has': return holds(reader(node.ref), node.text) ? 1 : 0;
     case 'sides': return sidesOf(reader(node.ref), node.ref, nameOf(node.ref, context.labelOf));
-    case 'each': return each(node.mode, node.ref, node.body, reader, context);
+    case 'each': return each(node, reader, context);
+    case 'fallback': {
+      const value = evaluateNode(node.value, reader, context);
+      return failed(value) && value.kind === 'unbound' ? evaluateNode(node.fallback, reader, context) : value;
+    }
   }
 }
 
@@ -117,8 +121,21 @@ function entryReader(entry: Record<string, FieldValue>): ValueReader {
   };
 }
 
-/** `body` worked out for every entry of the list and added up, or for its first entry. */
-function each(mode: EachMode, ref: string, body: FormulaNode, reader: ValueReader, context: FormulaContext): Step {
+/** The entries `when` keeps (all where there is none), or the first error working it out. */
+function kept(entries: readonly Record<string, FieldValue>[], when: FormulaNode | undefined, context: FormulaContext): Record<string, FieldValue>[] | ExpressionError {
+  if (when === undefined) return [...entries];
+  const chosen: Record<string, FieldValue>[] = [];
+  for (const entry of entries) {
+    const value = evaluateNode(when, entryReader(entry), context);
+    if (failed(value)) return value;
+    if (value !== 0) chosen.push(entry);
+  }
+  return chosen;
+}
+
+/** `body` worked out for every entry of the list that `when` keeps and added up, or for the first of them. */
+function each(node: Extract<FormulaNode, { kind: 'each' }>, reader: ValueReader, context: FormulaContext): Step {
+  const { mode, ref, body } = node;
   const name = nameOf(ref, context.labelOf);
   const raw = reader(ref);
   const list = isEmptyValue(raw) ? [] : raw;
@@ -127,12 +144,14 @@ function each(mode: EachMode, ref: string, body: FormulaNode, reader: ValueReade
   if (entries.length < list.length) return refError('not-a-number', ref, t('statblockEditor.expr.notAList', { name }));
   // The entry's parts are named by their own keys, never by the statblock's labels.
   const inner: FormulaContext = {};
+  const chosen = kept(entries, node.when, inner);
+  if (!Array.isArray(chosen)) return chosen;
   if (mode === 'first') {
-    const [first] = entries;
+    const [first] = chosen;
     return first === undefined ? refError('unbound', ref, t('statblockEditor.expr.emptyList', { name })) : evaluateNode(body, entryReader(first), inner);
   }
   let total = 0;
-  for (const entry of entries) {
+  for (const entry of chosen) {
     const value = evaluateNode(body, entryReader(entry), inner);
     if (failed(value)) return value;
     total += value;

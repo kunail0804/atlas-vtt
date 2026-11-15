@@ -11,8 +11,8 @@ vi.mock('../../../src/app/compendium/CompendiumService', () => ({ CompendiumServ
 
 const { sheetBooks } = await import('../../../src/app/compendium/sheetPicks');
 
-const source = (id: string): InstalledSource => ({
-  manifest: { id, system: { id: 'dnd5e', name: 'D&D 5e' }, book: { name: id.toUpperCase() }, root: `Compendium/${id}` } as InstalledSource['manifest'],
+const source = (id: string, system = 'dnd5e'): InstalledSource => ({
+  manifest: { id, system: { id: system, name: system }, book: { name: id.toUpperCase() }, root: `Compendium/${id}` } as InstalledSource['manifest'],
   installedAt: 0,
   files: {},
 });
@@ -42,5 +42,33 @@ describe('the books a character sheet picks from', () => {
     expect(await ids()).toEqual(['srd/phb', 'srd/mm', 'homebrew/dragons']);
     vault.playing = 'deleted';
     expect(await ids()).toEqual(['srd/phb', 'srd/mm', 'homebrew/dragons']);
+  });
+});
+
+describe('the books a character sheet picks from while no world is played', () => {
+  const sheetOf = (template: string): Record<string, unknown> => ({ statblock: true, 'atlas-template': template, name: 'Lia' });
+  const idsFor = async (sheet: Record<string, unknown> | null): Promise<string[]> => (await sheetBooks(app, sheet)).map((book) => book.id);
+
+  beforeEach(() => {
+    vault.installed = [
+      source('dnd5e-2014/srd-5.1', 'dnd5e-2014'), source('dnd5e-2024/srd-5.2.1', 'dnd5e-2024'),
+      source('dnd5e-2024/personal', 'dnd5e-2024'), source('dnd5e-2014/personal', 'dnd5e-2014'),
+    ];
+  });
+
+  it("are the installed books of the sheet's rules only", async () => {
+    expect(await idsFor(sheetOf('builtin:5e-2024-character'))).toEqual(['dnd5e-2024/srd-5.2.1', 'dnd5e-2024/personal']);
+    expect(await idsFor(sheetOf('builtin:5e-2014-character'))).toEqual(['dnd5e-2014/srd-5.1', 'dnd5e-2014/personal']);
+  });
+
+  it('are every installed book for a note that is no character sheet', async () => {
+    expect(await idsFor(null)).toHaveLength(4);
+    expect(await idsFor({ name: 'Notes' })).toHaveLength(4);
+  });
+
+  it("are the played world's books whatever the sheet's rules", async () => {
+    vault.campaigns = [world('mixed', ['dnd5e-2014/srd-5.1'], 1)];
+    vault.playing = 'mixed';
+    expect(await idsFor(sheetOf('builtin:5e-2024-character'))).toEqual(['dnd5e-2014/srd-5.1']);
   });
 });

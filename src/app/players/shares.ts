@@ -6,6 +6,10 @@
  */
 
 import { PLAYER_ID_PATTERN } from '../online/protocol/index';
+import { ATLAS_VTT_DIR } from '../services/assetPaths';
+
+/** Where the vault keeps the compendium pages shared with the players of the table, beside the campaigns. */
+export const SHARES_PATH = `${ATLAS_VTT_DIR}/players.json`;
 
 export type ShareAccess = 'read' | 'write';
 
@@ -14,6 +18,8 @@ export type Shares = Readonly<Record<string, Readonly<Record<string, ShareAccess
 
 export interface PageShares {
   readonly shares: Shares;
+  /** The file was written by a newer Atlas: what it shares is read, and the file is never written over. */
+  readonly newer?: true;
 }
 
 /** A player of the table, as a note's shares name them. */
@@ -39,7 +45,10 @@ function readShares(value: unknown): Shares {
   return shares;
 }
 
-/** The shares a file holds; what cannot be read is left out, and a file that cannot be read shares nothing. */
+/**
+ * The shares a file holds; what cannot be read is left out, and a file that cannot be read shares
+ * nothing. A file of a newer format is marked, since writing it in this format would lose what it adds.
+ */
 export function parseShares(text: string | null): PageShares {
   let raw: unknown = null;
   try {
@@ -47,7 +56,10 @@ export function parseShares(text: string | null): PageShares {
   } catch {
     raw = null;
   }
-  return isRecord(raw) ? { shares: readShares(raw.shares) } : NO_SHARES;
+  if (!isRecord(raw)) return NO_SHARES;
+  const shares = readShares(raw.shares);
+  const newer = typeof raw.format === 'number' && raw.format > SHARES_FORMAT;
+  return newer ? { shares, newer: true } : { shares };
 }
 
 export function serializeShares(shares: PageShares): string {

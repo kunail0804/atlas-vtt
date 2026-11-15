@@ -426,6 +426,8 @@ jobs:
             echo "- **Windows:** download \`atlas.exe\` and double-click it."
             echo "- **Linux:** download \`atlas\`, run \`chmod +x atlas\`, then \`./atlas\`."
             echo
+            echo "The installation guides take you from a machine without Atlas to a campaign your players can join: [Windows](https://github.com/$GITHUB_REPOSITORY/blob/$GITHUB_SHA/docs/install/windows.md) and [Linux](https://github.com/$GITHUB_REPOSITORY/blob/$GITHUB_SHA/docs/install/linux.md)."
+            echo
             echo "You need Docker (Docker Desktop on Windows) and Obsidian. \`atlas man\` lists every command. \`SHA256SUMS\` holds the fingerprints of both files."
             echo
             if [ "$GITHUB_REF_NAME" != main ]; then

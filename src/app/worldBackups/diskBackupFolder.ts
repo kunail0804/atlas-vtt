@@ -1,5 +1,6 @@
 import type { NodeFsModule } from '../soundLibrary/nodeFiles';
 import { BackupFolderError, type BackupFolder, type BackupFolderProblem } from './backupFolder';
+import { isBackupFileName } from './worldBackupArchive';
 
 /** What a backup folder on disk needs of Node's `fs`. */
 export type BackupFs = Pick<NodeFsModule['promises'], 'readdir' | 'stat' | 'readFile' | 'writeFile' | 'unlink'>;
@@ -42,7 +43,7 @@ export function diskBackupFolder(fs: BackupFs, folder: string, sep: string): Bac
     async names() {
       await ensureFolder();
       const entries = await inFolder(() => fs.readdir(folder, { withFileTypes: true }));
-      return entries.filter((entry) => entry.isFile() && entry.name.endsWith('.json')).map((entry) => entry.name);
+      return entries.filter((entry) => entry.isFile() && isBackupFileName(entry.name)).map((entry) => entry.name);
     },
     read: (name) => inFolder(() => fs.readFile(pathOf(name), 'utf8')),
     async write(name, text) {

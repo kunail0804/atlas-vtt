@@ -68,3 +68,40 @@ describe('formulas over a list of entries', () => {
     expect(isExpressionError(parseFormula('sides(1)'))).toBe(true);
   });
 });
+
+describe('a third formula keeps the entries for which it is not 0', () => {
+  const zeroFirst: Record<string, FieldValue> = { classes: [{ name: 'Guerrier', level: 0, die: 'd10' }, { name: 'Magicien', level: 2, die: 'd6' }] };
+
+  it('first takes the first entry it keeps, and none is no entry', () => {
+    expect(value('first(classes, sides(die))', zeroFirst)).toBe(10);
+    expect(value('first(classes, sides(die), level)', zeroFirst)).toBe(6);
+    expect(value('first(classes, sides(die), level - 2)', { classes: [{ level: 2, die: 'd6' }] })).toMatch(/no entry/);
+  });
+
+  it('sum adds up only the entries it keeps', () => {
+    expect(value('sum(classes, sides(die), has(caster, "Complet"))')).toBe(6);
+  });
+
+  it('writes back to what parses to the same tree', () => {
+    const source = 'first(classes, sides(die), level) + sum(classes, level, has(caster, "Complet"))';
+    expect(parsed(formulaText(parsed(source)))).toEqual(parsed(source));
+  });
+});
+
+describe('default', () => {
+  it('reads the fallback where the formula reads an empty field, and only then', () => {
+    expect(value('default(bonus, 0) + 1', {})).toBe(1);
+    expect(value('default(bonus, 0) + 1', { bonus: 3 })).toBe(4);
+    expect(value('default(bonus, 0)', { bonus: 'many' })).toMatch(/isn't a number/);
+  });
+
+  it('reads the fields of both formulas and writes back to the same tree', () => {
+    expect(patternRefs('{=default(bonus, extra)}')).toEqual(['bonus', 'extra']);
+    expect(parsed(formulaText(parsed('default(bonus + 1, 0)')))).toEqual(parsed('default(bonus + 1, 0)'));
+  });
+
+  it('takes exactly two formulas', () => {
+    expect(isExpressionError(parseFormula('default(bonus)'))).toBe(true);
+    expect(isExpressionError(parseFormula('default(bonus, 0, 1)'))).toBe(true);
+  });
+});
