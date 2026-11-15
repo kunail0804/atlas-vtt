@@ -117,4 +117,29 @@ describe('hit point maximum from the classes (2024 rules)', () => {
     const down = sheet([FIGHTER(1), WIZARD(1)]);
     expect(syncedResources(token, { ...down, hp: derivedValues(template, down).get('hp') }, [hp], meanings).hp).toEqual({ current: 18, max: 18 });
   });
+
+  it('adds the bonus the player writes, which the formula never writes over (a dwarf fighter 3, Constitution 14)', () => {
+    // 10 + 2, then 2 × (6 + 2), then Dwarven Toughness.
+    const dwarf = sheet([FIGHTER(3)], { hp_bonus: 3, hp: 31 });
+    expect(derivedValues(template, dwarf).get('hp')).toBe(31);
+    expect(derivedPatches(template, dwarf).filter((patch) => patch.path[0] === 'hp')).toEqual([]);
+    expect(derivedValues(template, sheet([FIGHTER(3)])).get('hp')).toBe(28);
+  });
+
+  it('gives every level at least 1 hit point (a wizard 20 with Constitution 1)', () => {
+    expect(derivedValues(template, sheet([WIZARD(20)], { stats: [10, 10, 1, 10, 10, 10] })).get('hp')).toBe(20);
+    // A fighter 1 / wizard 2 with Constitution 3 (−4): 10 − 4 = 6 for the first level, 4 − 4 → 1 for each wizard level.
+    expect(derivedValues(template, sheet([FIGHTER(1), WIZARD(2)], { stats: [10, 10, 3, 10, 10, 10] })).get('hp')).toBe(8);
+  });
+
+  it('a class of level 0 first in the list is not the first class', () => {
+    expect(derivedValues(template, sheet([FIGHTER(0), WIZARD(3)])).get('hp')).toBe(6 + 2 + 2 * (4 + 2));
+  });
+});
+
+describe('the hit point bonus field', () => {
+  it('is on the 2024 sheet only', () => {
+    expect(template.fields.some((field) => field.key === 'hp_bonus')).toBe(true);
+    expect(FIVE_E_2014_CHARACTER.template.fields.some((field) => field.key === 'hp_bonus')).toBe(false);
+  });
 });

@@ -89,13 +89,14 @@ export function wornGear(book: Pick<PlayerBook, 'items' | 'equipped'>, id: strin
 /**
  * The armour class an armour or a shield gives the character of a note once worn: an armour its base,
  * Dexterity up to its cap and the shield worn; a shield its bonus on what the note holds, which counts
- * no shield since the off hand was free. Null where the item is not worn or gives no armour class.
+ * no shield since the off hand was free, else on 10 plus Dexterity, the armour class without armour.
+ * Null where the item is not worn or gives no armour class.
  */
 export function armorClassWith(frontmatter: Frontmatter, note: Frontmatter, worn: WornGear): number | null {
   const base = frontmatter['armor-class'];
   if (!worn.equipped || typeof base !== 'number' || !Number.isFinite(base)) return null;
-  if (isShield(frontmatter)) return Math.max(0, Math.min(50, (typeof note.ac === 'number' ? note.ac : 10) + base));
   const dex = modifierOf(note, 1);
+  if (isShield(frontmatter)) return Math.max(0, Math.min(50, (typeof note.ac === 'number' ? note.ac : 10 + dex) + base));
   const cap = frontmatter['max-dex-bonus'];
   const bonus = frontmatter['dex-bonus'] === true ? (typeof cap === 'number' ? Math.min(dex, cap) : dex) : 0;
   return Math.max(0, Math.min(50, base + bonus + (worn.shield ?? 0)));

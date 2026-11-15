@@ -53,7 +53,7 @@ export interface EditionWords {
  * worked out from the classes where the sheet lists some, `proficiency` from the level and `initiative`
  * from Dexterity and its bonus: written into the note, so Atlas' initiative and anything reading the
  * note find them. Under the 2024 rules the hit point maximum and the spell slots are worked out from
- * the classes too (`fiveECharacterRules.ts`).
+ * the classes too (`fiveECharacterRules.ts`), with a bonus the player writes added to the hit points.
  */
 export function characterFields(words: EditionWords): TemplateField[] {
   const skillNames = SKILLS.map(([, name]) => name);
@@ -88,6 +88,7 @@ export function characterFields(words: EditionWords): TemplateField[] {
     choiceOf('inspiration', words.inspiration, ['Oui']),
     { ...number('ac', 'CA'), meaning: 'armor' },
     worksOut({ ...number('hp', 'PV max'), meaning: 'hit-points' }, HIT_POINTS_PATTERN),
+    ...(words.worksOutClasses ? [number('hp_bonus', 'Bonus de PV max')] : []),
     number('hp_temp', 'PV temporaires'),
     { key: 'speed', label: 'Vitesse', type: 'text' },
     number('initiative_bonus', 'Bonus d\'initiative'),

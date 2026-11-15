@@ -3,8 +3,9 @@
 /**
  * The 5E player character, 2024 and 2014 rules: the fork's character sheet as a built-in template, in
  * French. Both editions hold the same fields; only a few words differ, and the 2024 rules also work
- * out the hit point maximum and the spell slots from the classes, so a sheet switched from one to the
- * other keeps everything (`switchEdition`).
+ * out the hit point maximum and the spell slots from the classes, with one field of their own, the hit
+ * point bonus. A sheet switched from one to the other keeps everything (`switchEdition`): the note
+ * keeps that bonus under the 2014 rules.
  */
 
 import { D20_DICE_SET_ID } from '../../gameSystems/builtInDiceSets';
@@ -100,7 +101,8 @@ const LAYOUT: TemplateLayout = {
 
 function character(id: typeof FIVE_E_2024_CHARACTER_ID | typeof FIVE_E_2014_CHARACTER_ID, name: string, words: EditionWords): BuiltInTemplate {
   // Revision 2: the 2024 rules work out the hit point maximum and the spell slots; classes say how they cast.
-  return builtIn(id, name, 2, {
+  // Revision 3: the 2024 rules add a hit point bonus, give every level at least 1 hit point and skip classes of level 0.
+  return builtIn(id, name, 3, {
     description: 'La fiche d\'un personnage joueur : ses caractéristiques, ses maîtrises, ses classes, ses sorts et son histoire.',
     suits: ['Personnage joueur'],
     diceSetId: D20_DICE_SET_ID,
