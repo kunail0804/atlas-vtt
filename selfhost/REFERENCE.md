@@ -177,12 +177,16 @@ Compendium tab (`src/app/packages/components/asset-manager/compendium/`) lists a
 the selected one, and makes, opens, deletes, exports and shares; `compendium/README.md` describes it. The
 character sheet does not read the compendium yet.
 
-The GM shares compendium pages with the vault's players (`src/app/players/`, kept in `atlas-vtt/players.json`).
-After every welcome, and when the GM comes back, the player's page sends `identify` with its device key
-(`deviceKey.ts`, kept in the browser for every table). The GM's `CompendiumShare`
-(`src/app/online/gm/compendium/`) finds the player by the key's SHA-256, a new player for a device never
-seen, and sends `compendium`, the list of their pages, by an id that is never the note's path. It sends it
-again when the shares or a note change. `compendium-open` asks for a page whole (`compendium-entry`). A change
+The GM shares compendium pages with the players of the table (`TablePlayers`). `atlas-vtt/players.json`
+keeps the shares (`src/app/players/`): for each note, the id of each player it is shared with and their
+access. The relay seats a player under the id of their place, however they took it: their own code, the key
+their browser kept, or a new device the GM admitted. The GM's `CompendiumShare`
+(`src/app/online/gm/compendium/`) sends each connected player `compendium`, the list of the pages of their
+place, by an id that is never the note's path. Someone the table does not seat gets nothing, whatever name
+they give, and a player taken off the table is sent an empty list. The GM sends the list again when the
+shares, the table's players or a note change. After every welcome, and when the GM comes back, the
+player's page sends `identify` with its device key (`deviceKey.ts`). The GM takes it only as a request for
+the list. `compendium-open` asks for a page whole (`compendium-entry`). A change
 of a page the player may write goes as `compendium-edit` in parts of 1,000 characters at most, since a
 player's frame holds 4 KiB. The GM checks the access once the change is whole, writes the note, and answers
 `compendium-saved`. The book's **Compendium** tab (`bookCompendium.ts`) lists the pages by kind and draws a page
