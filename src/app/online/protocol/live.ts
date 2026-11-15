@@ -1,5 +1,6 @@
 import { PLAYER_ID_PATTERN } from './identity.ts';
 import { GM_MARKS, type MarkPoint } from './marks.ts';
+import { isDragNumber } from './moves.ts';
 import { isRecord } from './shape.ts';
 import { MAX_COORDINATE, TOKEN_ID_PATTERN } from './tokens.ts';
 
@@ -19,7 +20,9 @@ const MAX_LIVE_TIME = 2 ** 40;
  * pixels). It comes only for a drag the players saw from its start; an older page reads none.
  * `by` is whose pointer holds it (`GM_MARKS` or a player's relay id), only while everyone sees
  * cursors, on the place that ends the drag too: a receiver draws the token as far behind its messages
- * as that cursor, so the two move as one. Without it the token keeps its own pace.
+ * as that cursor, so the two move as one. Without it the token keeps its own pace. `drag` is the number
+ * the player's page gave the drag (`PlayerDrag.drag`), on its end too, while a player drags it and their
+ * page numbers its drags; never on the GM's own drag. An older page reads neither field.
  */
 export interface LivePlace {
   readonly id: string;
@@ -28,6 +31,7 @@ export interface LivePlace {
   readonly end?: true;
   readonly path?: readonly MarkPoint[];
   readonly by?: string;
+  readonly drag?: number;
 }
 
 /**
@@ -72,8 +76,9 @@ export function parseLive(value: Record<string, unknown>, scene: string): LiveMe
     const path = token.path === undefined ? undefined : parsePath(token.path);
     // A holder this version cannot name is left out, never the whole message: a later GM may name others.
     const by = isHolder(token.by) ? token.by : undefined;
+    const drag = isDragNumber(token.drag) ? token.drag : undefined;
     if (path === null) return null;
-    places.push({ id: token.id, x: token.x, y: token.y, ...(token.end === true && { end: true as const }), ...(path !== undefined && { path }), ...(by !== undefined && { by }) });
+    places.push({ id: token.id, x: token.x, y: token.y, ...(token.end === true && { end: true as const }), ...(path !== undefined && { path }), ...(by !== undefined && { by }), ...(drag !== undefined && { drag }) });
   }
   return { t: 'live', scene, at, tokens: places };
 }

@@ -47,19 +47,23 @@ export class TokenLayer {
   /** The bars of the player's own tokens as their owner sees them, by id: shown in place of those everyone sees. */
   private ownBars: Readonly<Record<string, readonly SharedBar[]>> = {};
   private scene: string | null = null;
-  private dragging: { id: string; from: { x: number; y: number }; offsetX: number; offsetY: number; lastSent: number } | null = null;
+  /** The drag under way; `drag` is its number, sent with each of its messages, and `lastSent` 0 until one went. */
+  private dragging: { id: string; drag: number; from: { x: number; y: number }; offsetX: number; offsetY: number; lastSent: number } | null = null;
+  /** The number of the last drag: each drag takes the next, so the GM's word of an earlier one is told apart. */
+  private drags = 0;
   private readonly drops: PendingDrops;
   /** Off while the laser or the ruler holds the pointer. */
   private dragsEnabled = true;
   /** Hears of the player's own drag as the token moves under the pointer, and of its end (null): its ruler is drawn from it. */
   onOwnDrag: (drag: OwnDrag | null) => void = () => undefined;
 
-  constructor(layer: Container, viewport: Viewport, assets: AssetLoader, send: (message: PlayerMessage) => void) {
+  /** `self` is this player's relay id, null until the table welcomed them. */
+  constructor(layer: Container, viewport: Viewport, assets: AssetLoader, send: (message: PlayerMessage) => void, self: () => string | null) {
     this.layer = layer;
     this.viewport = viewport;
     this.assets = assets;
     this.send = send;
-    this.drops = new PendingDrops((id) => {
+    this.drops = new PendingDrops(self, (id) => {
       const drawn = this.drawn.get(id);
       if (drawn !== undefined && this.dragging?.id !== id) drawn.group.position.set(drawn.token.x, drawn.token.y);
     });
@@ -214,7 +218,8 @@ export class TokenLayer {
     this.drops.forget(id);
     const at = this.viewport.toWorld(event.global);
     const from = { x: drawn.group.x, y: drawn.group.y };
-    this.dragging = { id, from, offsetX: from.x - at.x, offsetY: from.y - at.y, lastSent: 0 };
+    this.drags += 1;
+    this.dragging = { id, drag: this.drags, from, offsetX: from.x - at.x, offsetY: from.y - at.y, lastSent: 0 };
     this.viewport.plugins.pause('drag');
     drawn.group.cursor = 'grabbing';
     this.onOwnDrag({ id, from, at: from });
@@ -231,7 +236,7 @@ export class TokenLayer {
     const now = performance.now();
     if (now - held.lastSent < DRAG_INTERVAL_MS) return;
     held.lastSent = now;
-    this.send({ t: 'drag', scene: this.scene, id: held.id, x: drawn.group.x, y: drawn.group.y });
+    this.send({ t: 'drag', scene: this.scene, id: held.id, x: drawn.group.x, y: drawn.group.y, drag: held.drag });
   }
 
   private drop(): void {
@@ -243,11 +248,17 @@ export class TokenLayer {
     const drawn = this.drawn.get(held.id);
     if (drawn === undefined || this.scene === null) return;
     drawn.group.cursor = 'grab';
-    const moved = Math.hypot(drawn.group.x - drawn.token.x, drawn.group.y - drawn.token.y) > 1;
+    const moved = Math.hypot(drawn.group.x - held.from.x, drawn.group.y - held.from.y) > 1;
     if (moved) {
-      this.drops.put(held.id, drawn.group.x, drawn.group.y);
-      this.send({ t: 'move', scene: this.scene, id: held.id, x: drawn.group.x, y: drawn.group.y });
-    } else this.send({ t: 'drag-cancel', scene: this.scene, id: held.id });
+      this.drops.put(held.id, drawn.group.x, drawn.group.y, held.drag);
+      this.send({ t: 'move', scene: this.scene, id: held.id, x: drawn.group.x, y: drawn.group.y, drag: held.drag });
+      return;
+    }
+    // Put down where it was taken: the GM puts it back there. Once the GM heard of the drag, its late
+    // echoes wait behind a drop at that place like those of any drop.
+    drawn.group.position.set(held.from.x, held.from.y);
+    if (held.lastSent > 0) this.drops.put(held.id, held.from.x, held.from.y, held.drag);
+    this.send({ t: 'drag-cancel', scene: this.scene, id: held.id });
   }
 }
 
