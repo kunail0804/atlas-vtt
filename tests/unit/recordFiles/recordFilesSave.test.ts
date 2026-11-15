@@ -43,4 +43,28 @@ describe('RecordFiles.save', () => {
     await expect(files.flush()).resolves.toBeUndefined();
     expect(logged).toHaveBeenCalledOnce();
   });
+
+  it('puts the record back as it was in memory when the write fails', async () => {
+    const { vault, files } = await campaigns();
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    vi.mocked(vault.app.vault.process).mockRejectedValueOnce(new Error('disk full'));
+    const before = files.entries()[0];
+
+    await expect(files.save('c1', (stored) => ({ ...stored, sources: ['dnd5e-2024/srd-5.2.1'] }))).rejects.toThrow('disk full');
+    expect(files.entries()[0]).toBe(before);
+    expect(files.entries()[0]).not.toHaveProperty('sources');
+  });
+
+  it('leaves a later change in memory when an earlier write fails', async () => {
+    const { vault, files } = await campaigns();
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    vi.mocked(vault.app.vault.process).mockRejectedValueOnce(new Error('disk full'));
+
+    const failed = files.save('c1', (stored) => ({ ...stored, description: 'lost' }));
+    const kept = files.save('c1', (stored) => ({ ...stored, name: 'Moor' }));
+    await expect(failed).rejects.toThrow('disk full');
+    await kept;
+    expect(files.entries()[0]).toMatchObject({ name: 'Moor' });
+    expect(JSON.parse(vault.files.get(`${CAMPAIGNS_FOLDER}/Moor/campaign.json`)!)).not.toHaveProperty('description');
+  });
 });

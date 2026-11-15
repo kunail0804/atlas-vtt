@@ -5,7 +5,7 @@ import { withScenePlayed } from './campaignUsage';
 import { campaignName, MAX_CAMPAIGN_DESCRIPTION, MAX_CAMPAIGN_SOURCES, parseCampaign } from './campaignValidation';
 import { isSourceId } from '../compendium/sourceFormat';
 import { isAssetId } from './campaignValues';
-import { campaignFolderOf } from './campaignPaths';
+import { campaignFolderOf, isTableFileName } from './campaignPaths';
 import { readCampaignSystem, withSystemChanges } from './campaignSystem';
 
 /** The most recently played first, then the newest. */
@@ -32,6 +32,7 @@ export class CampaignService {
   nameError(name: string, exceptId?: string): string | null {
     const kept = campaignName(name);
     if (kept === null) return name.trim() === '' ? t('names.enter') : t('campaign.nameTooLong');
+    if (isTableFileName(kept)) return t('online.seats.tableFileName');
     const key = kept.toLowerCase();
     return this.list().some((campaign) => campaign.id !== exceptId && campaign.name.toLowerCase() === key) ? t('campaign.nameTaken') : null;
   }

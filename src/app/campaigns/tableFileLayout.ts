@@ -4,7 +4,9 @@
  * named by its purpose. They lie in the worlds' folder so world backups hold them, and in no world's
  * folder, since they belong to none. Each is held as one record whose id (`TABLE_FILE_ID`) is not
  * written. A vault without one starts with an empty table; the file is created by its first write.
- * Fields Atlas does not know are kept, and a file of a later format is read and never written.
+ * Fields Atlas does not know are kept, and a file of a later format is read and never written. A
+ * file that cannot be read (a sync that wrote half of it) keeps what was read last and is not
+ * written until it can be read again (`TableFile`).
  */
 
 import type { RecordLayout, StoredRecord } from '../services/recordFiles/recordLayout';
@@ -66,6 +68,7 @@ export function tableFileLayout(spec: TableFileSpec): TableFileLayout {
       recordPathIn: (candidate) => candidate,
       freeNamedPath: () => path,
       isNamedAfter: () => true,
+      keepsLastRead: true,
     },
   };
 }

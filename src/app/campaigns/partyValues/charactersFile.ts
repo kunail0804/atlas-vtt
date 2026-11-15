@@ -6,15 +6,16 @@
  */
 
 import type { StoredRecord } from '../../services/recordFiles/recordLayout';
+import { TABLE_FILE_NAMES } from '../campaignPaths';
 import { isRecord } from '../campaignValues';
 import { isOfWritableFormat } from '../tableFileLayout';
 import { partyKey, readPartyKey, readPartyValue, type PartyValue, type PartyValues } from './partyKeys';
 
-export const CHARACTERS_FILE = 'characters.json';
+export const CHARACTERS_FILE = TABLE_FILE_NAMES.characters;
 /** The format this Atlas writes; a file of a later one is read and never written. */
 export const CHARACTERS_FORMAT = 1;
 
-/** What one file holds at most: characters, values per character, characters in a key or id. */
+/** What one file holds at most, read or written: characters, values per character, characters in a key or id. */
 const MAX_CHARACTERS = 500;
 const MAX_VALUES = 200;
 const MAX_KEY = 200;
@@ -28,14 +29,16 @@ export type PartyChanges = ReadonlyMap<string, PartyValue | undefined>;
 /** Whether this Atlas may write the file: one of a later format is only read. */
 export const isWritable = (stored: StoredCharacters): boolean => isOfWritableFormat(stored, CHARACTERS_FORMAT);
 
+const isReadableKey = (key: string): boolean => key !== '' && key.length <= MAX_KEY;
+
 /** The values a characters file holds, as party values; what cannot be read is left out. */
 export function partyValuesOf(stored: StoredCharacters): PartyValues {
   const values: Record<string, PartyValue> = {};
   const characters = isRecord(stored.characters) ? Object.entries(stored.characters).slice(0, MAX_CHARACTERS) : [];
   for (const [characterId, entry] of characters) {
-    if (characterId === '' || characterId.length > MAX_KEY || !isRecord(entry) || !isRecord(entry.resources)) continue;
+    if (!isReadableKey(characterId) || !isRecord(entry) || !isRecord(entry.resources)) continue;
     for (const [key, raw] of Object.entries(entry.resources).slice(0, MAX_VALUES)) {
-      const value = key !== '' && key.length <= MAX_KEY ? readPartyValue(raw) : null;
+      const value = isReadableKey(key) ? readPartyValue(raw) : null;
       if (value) values[partyKey(characterId, key)] = value;
     }
   }
@@ -44,18 +47,22 @@ export function partyValuesOf(stored: StoredCharacters): PartyValues {
 
 /**
  * The file as stored with `changes` made value by value: every other value and field stays, so another device's values survive; a file of a later format is
- * returned as it is.
+ * returned as it is. A value the file could not be read back with is not written: a key that is
+ * empty or too long, a character beyond `MAX_CHARACTERS` or a value beyond `MAX_VALUES`.
  */
 export function withPartyChanges(stored: StoredCharacters, changes: PartyChanges): StoredCharacters {
   if (!isWritable(stored)) return stored;
   const characters: Record<string, unknown> = isRecord(stored.characters) ? { ...stored.characters } : {};
   for (const [key, value] of changes) {
     const parts = readPartyKey(key);
-    if (parts === null) continue;
+    if (parts === null || !isReadableKey(parts.characterId) || !isReadableKey(parts.resourceKey)) continue;
+    if (!(parts.characterId in characters) && (!value || Object.keys(characters).length >= MAX_CHARACTERS)) continue;
     const entry = isRecord(characters[parts.characterId]) ? characters[parts.characterId] as Record<string, unknown> : {};
     const resources: Record<string, unknown> = isRecord(entry.resources) ? { ...entry.resources } : {};
-    if (value) resources[parts.resourceKey] = { current: value.current, max: value.max, ...(value.maxByHand && { maxByHand: true }) };
-    else delete resources[parts.resourceKey];
+    if (value) {
+      if (!(parts.resourceKey in resources) && Object.keys(resources).length >= MAX_VALUES) continue;
+      resources[parts.resourceKey] = { current: value.current, max: value.max, ...(value.maxByHand && { maxByHand: true }) };
+    } else delete resources[parts.resourceKey];
     characters[parts.characterId] = { ...entry, resources };
   }
   return { ...stored, characters };

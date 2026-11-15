@@ -9,10 +9,11 @@
 import type { StoredRecord } from '../../services/recordFiles/recordLayout';
 import { JOIN_CODE_PATTERN, MAX_CAMPAIGN_PLAYERS, PLAYER_ID_PATTERN, playerName, TABLE_CODE_PATTERN } from '../../online/protocol/index';
 import { newJoinCode } from '../../utils/joinCode';
+import { TABLE_FILE_NAMES } from '../campaignPaths';
 import { isRecord } from '../campaignValues';
 import { isOfWritableFormat } from '../tableFileLayout';
 
-export const PLAYERS_FILE = 'players.json';
+export const PLAYERS_FILE = TABLE_FILE_NAMES.players;
 /** The format this Atlas writes; a file of a later one is read and never written. */
 export const PLAYERS_FORMAT = 1;
 
