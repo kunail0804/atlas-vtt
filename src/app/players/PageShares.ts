@@ -1,10 +1,14 @@
 import type { App, EventRef, Plugin, TAbstractFile } from 'obsidian';
 import { ensureFolder } from '../plugin/vaultFolders';
 import { ATLAS_VTT_DIR } from '../services/assetPaths';
-import { NO_SHARES, dropPath, movePath, parseShares, serializeShares, setShares, type PageShares as Shares, type ShareAccess } from './shares';
+import { NO_SHARES, SHARES_PATH, dropPath, movePath, parseShares, serializeShares, setShares, type PageShares as Shares, type ShareAccess } from './shares';
 
-/** Where the vault keeps the compendium pages shared with the players of the table, beside the campaigns. */
-export const SHARES_PATH = `${ATLAS_VTT_DIR}/players.json`;
+/** The shares file was written by a newer Atlas, so this one changes nothing in it. */
+export class NewerSharesError extends Error {
+  constructor() {
+    super('The shared pages were saved by a newer version of Atlas VTT. Update Atlas VTT to change them.');
+  }
+}
 
 /**
  * The compendium pages shared with the players of the table, one per app. Read once from
@@ -50,7 +54,20 @@ export class PageShares {
 
   async share(paths: readonly string[], changes: Readonly<Record<string, ShareAccess | null>>): Promise<void> {
     await this.load();
+    if (this.held.newer === true) throw new NewerSharesError();
     this.change(setShares(this.held, paths, changes));
+  }
+
+  /** Settles once every change made here is written. */
+  flush(): Promise<void> {
+    return this.writing;
+  }
+
+  /** Reads the file again, whatever it holds (a restore wrote it, or took it away). */
+  async reload(): Promise<void> {
+    await this.writing;
+    this.loaded = this.read();
+    await this.loaded;
   }
 
   /** Follows the vault: a renamed note keeps its shares, a deleted one loses them, another device's changes are read. */
@@ -97,6 +114,10 @@ export class PageShares {
 
   private change(next: Shares): void {
     if (next === this.held) return;
+    if (this.held.newer === true) {
+      console.warn('[PageShares] The shares file is of a newer format; it is left as it is.');
+      return;
+    }
     this.held = next;
     this.notify();
     const text = serializeShares(next);

@@ -3,7 +3,8 @@ import { ChoiceModal } from '../plugin/ChoiceModal';
 import { ATLAS_NATIVE_MODAL_CLASSES } from '../ui/nativeModal';
 import { showNotice } from '../ui/notice';
 import { formatList, getLocale, t, type MessageKey } from '../i18n';
-import { BackupFolderError } from './backupFolder';
+import { BackupFolderError, type BackupFolderProblem } from './backupFolder';
+import { ONLINE_DATA_PATH } from '../online/gm/onlineData';
 import type { RestorePlan } from './worldBackupArchive';
 import { changesNothing } from './worldBackupArchive';
 import { UnreadableBackupError, type BackupSummary, type WorldBackups } from './WorldBackups';
@@ -11,10 +12,16 @@ import { UnreadableBackupError, type BackupSummary, type WorldBackups } from './
 /** A backup's date as the GM reads it. */
 export const backupDate = (createdAt: number): string => new Date(createdAt).toLocaleString(getLocale(), { dateStyle: 'medium', timeStyle: 'short' });
 
+const PROBLEM_KEYS: Readonly<Record<BackupFolderProblem, MessageKey>> = {
+  missing: 'worldBackup.folderMissing',
+  unwritable: 'worldBackup.folderUnwritable',
+  'in-atlas-folder': 'worldBackup.folderInAtlas',
+};
+
 /** What the GM is told when the backup folder cannot be used; null for any other failure. */
 export function folderProblemText(error: unknown): string | null {
   if (!(error instanceof BackupFolderError)) return null;
-  return t(error.problem === 'missing' ? 'worldBackup.folderMissing' : 'worldBackup.folderUnwritable', { folder: error.folder });
+  return t(PROBLEM_KEYS[error.problem], { folder: error.folder });
 }
 
 const REASON_KEYS: Readonly<Record<BackupSummary['reason'], MessageKey>> = {
@@ -56,19 +63,24 @@ class BackupPicker extends SuggestModal<BackupSummary> {
   }
 }
 
-/** One paragraph per kind of change; none for a kind the restore does not make. */
+/**
+ * One paragraph per kind of change; none for a kind the restore does not make. Online play's data
+ * lies in a folder Obsidian does not index, so it is deleted where the visible files go to the trash.
+ */
 function planParagraphs(plan: RestorePlan): string[] {
   const lines: Array<[MessageKey, readonly string[]]> = [
     ['worldBackup.previewReplaced', plan.replaced],
     ['worldBackup.previewAdded', plan.added],
-    ['worldBackup.previewRemoved', plan.removed],
+    ['worldBackup.previewRemoved', plan.removed.filter((path) => path !== ONLINE_DATA_PATH)],
+    ['worldBackup.previewDeleted', plan.removed.filter((path) => path === ONLINE_DATA_PATH)],
   ];
   return lines.filter(([, paths]) => paths.length > 0).map(([key, paths]) => t(key, { count: paths.length, paths: formatList(paths) }));
 }
 
 /**
- * Restores a backup without a command line: the GM picks one, sees which files it replaces, brings
- * back and moves to the trash, and confirms; the current data is saved as a backup before the restore.
+ * Restores a backup without a command line: the GM picks one, confirms once more when it comes from
+ * another vault, sees which files it replaces, brings back and removes, and confirms; the current
+ * data is saved as a backup before the restore.
  */
 export async function restoreBackupFlow(app: App, backups: WorldBackups): Promise<void> {
   let list: BackupSummary[];
@@ -86,10 +98,18 @@ export async function restoreBackupFlow(app: App, backups: WorldBackups): Promis
   const picked = await new Promise<BackupSummary | null>((resolve) => new BackupPicker(app, list, resolve).open());
   if (picked === null) return;
   try {
-    const plan = await backups.preview(picked.name);
+    const { plan, otherVault } = await backups.preview(picked.name);
     if (changesNothing(plan)) {
       showNotice(t('worldBackup.unchanged'));
       return;
+    }
+    if (otherVault) {
+      const goOn = await new ChoiceModal<true>(app, {
+        title: t('worldBackup.otherVaultTitle'),
+        message: [t('worldBackup.otherVault')],
+        buttons: [{ text: t('worldBackup.otherVaultConfirm'), value: true, variant: 'warning' }],
+      }).prompt();
+      if (goOn !== true) return;
     }
     const confirmed = await new ChoiceModal<true>(app, {
       title: t('worldBackup.previewTitle', { date: backupDate(picked.createdAt) }),

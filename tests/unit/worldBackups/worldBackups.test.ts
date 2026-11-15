@@ -23,7 +23,7 @@ function setup(files: Record<string, string> = ORIGINAL, disk: DiskFiles | null 
   let now = Date.UTC(2026, 10, 12, 20, 0, 0);
   const settle = vi.fn(async () => undefined);
   const quiet = vi.fn(<T>(work: () => Promise<T>): Promise<T> => work());
-  const backups = new WorldBackups({ vault: obsidianWorldVault(memory.app), folder: () => backupFolderOf(memory.app, disk?.node ?? null), now: () => now, settle, quiet });
+  const backups = new WorldBackups({ vault: obsidianWorldVault(memory.app), vaultId: 'vault-a', folder: () => backupFolderOf(memory.app, disk?.node ?? null, null), now: () => now, settle, quiet, reload: async () => undefined });
   return { files: memory.files, app: memory.app, backups, quiet, settle, tick: (ms = 1000) => void (now += ms) };
 }
 
@@ -86,7 +86,7 @@ describe('world backups', () => {
     files.delete(`${CAMPAIGN}/players.json`);
     files.set(`${CAMPAIGN}/stray.json`, '{}');
 
-    const plan = await backups.preview(made?.name ?? '');
+    const { plan } = await backups.preview(made?.name ?? '');
     expect([...plan.replaced].sort()).toEqual([ONLINE_DATA_PATH, `${CAMPAIGN}/campaign.json`].sort());
     expect(plan.added).toEqual([`${CAMPAIGN}/players.json`]);
     expect(plan.removed).toEqual([`${CAMPAIGN}/stray.json`]);
