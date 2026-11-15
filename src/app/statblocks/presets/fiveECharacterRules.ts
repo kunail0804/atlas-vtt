@@ -53,8 +53,31 @@ export const CASTER_LEVEL = [
 /** The spell slots' pattern: the caster level's row of the `spell_slots` table. */
 export const SPELL_SLOTS_PATTERN = `{=${CASTER_LEVEL}|lookup:spell_slots}`;
 
+/** The Constitution modifier. Inside `sum(classes, …)` names read a class's parts, so it is only read outside one. */
+const CONSTITUTION = 'floor((stats.2 - 10) / 2)';
+/** The hit die of the first class with a level: the one the character took its first level in. */
+const FIRST_DIE = 'first(classes, sides(die), level)';
+/** The hit dice a class may have. */
+const HIT_DIE_SIDES = [4, 6, 8, 10, 12] as const;
+
+/**
+ * What every level adds where its die's fixed value and the Constitution modifier come to less than 1:
+ * the difference, so that level gives 1 (SRD 5.2.1). Levels are counted by die, since the Constitution
+ * modifier cannot be read inside `sum(classes, …)`.
+ */
+const MINIMUM_PER_LEVEL = HIT_DIE_SIDES.map((sides) =>
+  `sum(classes, level * max(0, 1 - abs(sides(die) - ${sides}))) * max(0, ${-sides / 2} - ${CONSTITUTION})`).join(' + ');
+
 /**
  * The hit point maximum: the first class's hit die at its highest for the first level, the die's fixed
- * value (half its sides plus one) for every other level, and the Constitution modifier for every level.
+ * value (half its sides plus one) for every other level, and the Constitution modifier for every level,
+ * each level giving at least 1; then the bonus the player writes (`hp_bonus`: Dwarven Toughness, the
+ * Tough feat, hit points rolled above the fixed value), 0 where the sheet has none.
  */
-export const HIT_POINTS_PATTERN = '{=sum(classes, level * (sides(die) / 2 + 1)) + first(classes, sides(die) / 2 - 1) + level * floor((stats.2 - 10) / 2)}';
+export const HIT_POINTS_PATTERN = `{=${[
+  'sum(classes, level * (sides(die) / 2 + 1))',
+  `level * ${CONSTITUTION}`,
+  MINIMUM_PER_LEVEL,
+  `max(1, ${FIRST_DIE} + ${CONSTITUTION}) - max(1, ${FIRST_DIE} / 2 + 1 + ${CONSTITUTION})`,
+  'default(hp_bonus, 0)',
+].join(' + ')}}`;

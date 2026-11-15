@@ -14,6 +14,10 @@ function formulaRefs(node: FormulaNode, keys: Set<FieldKey>): void {
       formulaRefs(node.right, keys);
       return;
     case 'call': node.args.forEach((arg) => formulaRefs(arg, keys)); return;
+    case 'fallback':
+      formulaRefs(node.value, keys);
+      formulaRefs(node.fallback, keys);
+      return;
     case 'has': case 'sides': case 'each': keys.add(splitRef(node.ref).key); return;
     case 'number': case 'slot': return;
   }

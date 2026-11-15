@@ -81,8 +81,8 @@ describe('the 5E character template', () => {
     expect(shown(patterns.get('DD des sorts') ?? '', record)).toBe('13');
   });
 
-  it('is the same sheet under both rule sets but for its words', () => {
-    expect(FIVE_E_2014_CHARACTER.template.fields.map((field) => field.key)).toEqual(template.fields.map((field) => field.key));
+  it('is the same sheet under both rule sets but for its words and the hit point bonus the 2024 rules add', () => {
+    expect(FIVE_E_2014_CHARACTER.template.fields.map((field) => field.key)).toEqual(template.fields.map((field) => field.key).filter((key) => key !== 'hp_bonus'));
     expect(FIVE_E_2014_CHARACTER.template.fields.find((field) => field.key === 'species')?.label).toBe('Race');
   });
 });

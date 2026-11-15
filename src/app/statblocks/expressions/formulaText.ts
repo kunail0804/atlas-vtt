@@ -29,7 +29,8 @@ export function formulaText(node: FormulaNode, labelOf?: LabelResolver): string 
     case 'call': return `${node.fn}(${node.args.map((arg) => formulaText(arg, labelOf)).join(', ')})`;
     case 'has': return `has(${labelOf ? nameOf(node.ref, labelOf) : node.ref}, "${node.text}")`;
     // An entry's parts are no fields: they keep their own names.
-    case 'each': return `${node.mode}(${labelOf ? nameOf(node.ref, labelOf) : node.ref}, ${formulaText(node.body)})`;
+    case 'each': return `${node.mode}(${labelOf ? nameOf(node.ref, labelOf) : node.ref}, ${formulaText(node.body)}${node.when === undefined ? '' : `, ${formulaText(node.when)}`})`;
+    case 'fallback': return `default(${formulaText(node.value, labelOf)}, ${formulaText(node.fallback, labelOf)})`;
     case 'sides': return `sides(${labelOf ? nameOf(node.ref, labelOf) : node.ref})`;
     case 'binary': {
       const own = precedence(node);
