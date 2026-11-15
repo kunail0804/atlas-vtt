@@ -83,7 +83,7 @@ export class FloorShare {
     const cursorsShown = (): boolean => ports.atlasSettings().showCursors;
     // A held token no player drags is held by the GM's own pointer
     const holder = (tokenId: string): string | undefined => (cursorsShown() ? this.moves.draggerOf(tokenId) ?? GM_MARKS : undefined);
-    this.live = ports.sendLive === undefined ? null : new LiveShare(store, { ...ports, sendLive: (body, key) => ports.sendLive?.(body, key), rulers, holder }, () => ({
+    this.live = ports.sendLive === undefined ? null : new LiveShare(store, { ...ports, sendLive: (body, key) => ports.sendLive?.(body, key), rulers, holder, dragNumber: (tokenId) => this.moves.dragNumberOf(tokenId) }, () => ({
       scene: this.tokens.listedScene,
       alias: (tokenId) => this.tokens.listedAlias(tokenId),
     }));

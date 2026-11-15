@@ -13,18 +13,28 @@ export interface SnapGrid {
   readonly offsetY: number;
 }
 
-/** A player puts one of their tokens down: its centre in world pixels. */
+/** The largest drag number a message may carry. */
+export const MAX_DRAG_NUMBER = 2 ** 31;
+
+/**
+ * A player puts one of their tokens down: its centre in world pixels. `drag` is the number of the drag
+ * it ends, as its `drag` messages carried it; absent from older pages.
+ */
 export interface PlayerMove {
   readonly t: 'move';
   readonly scene: string;
   readonly id: string;
   readonly x: number;
   readonly y: number;
+  readonly drag?: number;
 }
 
 /**
  * A player is dragging one of their tokens: its centre under the pointer now, in world pixels, not
- * snapped. Sent while the drag lasts (the latest wins); the drop follows as a `move`.
+ * snapped. Sent while the drag lasts (the latest wins); the drop follows as a `move`. `drag` numbers
+ * the drag (each drag of a page has a greater one than the last), and the GM repeats it in the drag's
+ * live places, so the page tells the late word of an earlier drag from the drag it waits on. Absent
+ * from older pages.
  */
 export interface PlayerDrag {
   readonly t: 'drag';
@@ -32,6 +42,7 @@ export interface PlayerDrag {
   readonly id: string;
   readonly x: number;
   readonly y: number;
+  readonly drag?: number;
 }
 
 /**
@@ -63,6 +74,8 @@ const GRID_TYPES: readonly string[] = ['square', 'hex-horizontal', 'hex-vertical
 const isCoordinate = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value) && Math.abs(value) <= MAX_COORDINATE;
 const isSceneId = (value: unknown): value is string => typeof value === 'string' && value.length > 0 && value.length <= MAX_SCENE_ID;
 const isTokenId = (value: unknown): value is string => typeof value === 'string' && TOKEN_ID_PATTERN.test(value);
+/** A drag number: a whole number from 1 to `MAX_DRAG_NUMBER`. */
+export const isDragNumber = (value: unknown): value is number => typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= MAX_DRAG_NUMBER;
 
 /** A snap grid, null for none, or undefined for anything malformed. */
 export function parseSnapGrid(value: unknown): SnapGrid | null | undefined {
@@ -74,9 +87,11 @@ export function parseSnapGrid(value: unknown): SnapGrid | null | undefined {
 }
 
 /** A player's move or drag as the GM reads it, or null for anything malformed. */
-export function parsePlayerMove<T extends 'move' | 'drag'>(value: Record<string, unknown>, t: T): { readonly t: T; readonly scene: string; readonly id: string; readonly x: number; readonly y: number } | null {
+export function parsePlayerMove<T extends 'move' | 'drag'>(value: Record<string, unknown>, t: T): { readonly t: T; readonly scene: string; readonly id: string; readonly x: number; readonly y: number; readonly drag?: number } | null {
   const { scene, id, x, y } = value;
-  return isSceneId(scene) && isTokenId(id) && isCoordinate(x) && isCoordinate(y) ? { t, scene, id, x, y } : null;
+  if (!isSceneId(scene) || !isTokenId(id) || !isCoordinate(x) || !isCoordinate(y)) return null;
+  // A number this version cannot read is left out, never the whole message.
+  return { t, scene, id, x, y, ...(isDragNumber(value.drag) && { drag: value.drag }) };
 }
 
 /** A drag cancel as the GM reads it, or null for anything malformed. */

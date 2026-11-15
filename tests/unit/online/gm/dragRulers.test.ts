@@ -174,6 +174,42 @@ describe('whose pointer holds a drag, as players get it', () => {
   });
 });
 
+describe('the number of a player\'s drag, as players get it', () => {
+  const seats: SeatSource = { onlinePlayers: () => [ANA], ownerOf: (id) => (id === 'a' ? ANA : undefined), claimOf: () => 'taken' };
+
+  it('repeats the page\'s number on every place of the drag and on its end, and puts none on the GM\'s own drag', async () => {
+    const table = await started([token('a', { x: 35, y: 35 })], seats);
+    const alias = aliasOf(table, 35) ?? '';
+    const before = places(table).length;
+    for (const x of [100, 160]) {
+      table.share.receive(ANA, { t: 'drag', scene: sceneId(table), id: alias, x, y: 40, drag: 7 });
+      await table.advance(STEP_MS);
+    }
+    table.share.receive(ANA, { t: 'move', scene: sceneId(table), id: alias, x: 175, y: 35, drag: 7 });
+    await table.advance(STEP_MS);
+    const player = places(table).slice(before);
+    expect(player.length).toBeGreaterThan(1);
+    expect(player.every((place) => place.drag === 7)).toBe(true);
+    expect(player.at(-1)).toMatchObject({ id: alias, end: true, drag: 7 });
+    const gmBefore = places(table).length;
+    await gmDrag(table, { steps: 2 });
+    const gm = places(table).slice(gmBefore);
+    expect(gm.length).toBeGreaterThan(0);
+    expect(gm.every((place) => place.drag === undefined)).toBe(true);
+  });
+
+  it('sends no number for a page that numbers no drags', async () => {
+    const table = await started([token('a', { x: 35, y: 35 })], seats);
+    const alias = aliasOf(table, 35) ?? '';
+    table.share.receive(ANA, { t: 'drag', scene: sceneId(table), id: alias, x: 100, y: 40 });
+    await table.advance(STEP_MS);
+    table.share.receive(ANA, { t: 'move', scene: sceneId(table), id: alias, x: 105, y: 35 });
+    await table.advance(STEP_MS);
+    expect(places(table).length).toBeGreaterThan(1);
+    expect(places(table).every((place) => place.drag === undefined)).toBe(true);
+  });
+});
+
 describe('dragRulerPaths', () => {
   const state = scene([token('a', { x: 300, y: 40, size: 1.5 }), token('b', { x: 105, y: 105 })]);
 
