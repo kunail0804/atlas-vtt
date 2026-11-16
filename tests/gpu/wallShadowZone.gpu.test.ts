@@ -1,7 +1,6 @@
 import '../setup/obsidianDom';
 import { Application, RenderTexture, Sprite, Texture, Ticker, WebGLRenderer } from 'pixi.js';
 import { Viewport } from 'pixi-viewport';
-import { commands } from 'vitest/browser';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createInMemoryApp } from '../mocks/inMemoryVault';
 import { createViewAtlasStore, type ViewAtlasState } from '../../src/app/storeFactory';
@@ -12,6 +11,7 @@ import type { MeasurementSettings } from '../../src/app/grid/measurementFormat';
 import { LightingRenderer } from '../../src/app/pixi/lighting/LightingRenderer';
 import { readRgba } from '../../src/app/pixi/lighting/engine/__tests__/gpuTestUtils';
 import { lightLevelAt } from '../../src/app/vision/lightLevels';
+import { savePng } from './dungeonRenderHarness';
 
 vi.mock('events', async () => import('eventemitter3'));
 
@@ -46,13 +46,10 @@ async function wholeMapMask(): Promise<string> {
   });
 }
 
-async function savePng(pixels: Uint8ClampedArray, name: string): Promise<void> {
+async function savePicture(pixels: Uint8ClampedArray, name: string): Promise<void> {
   const canvas = new OffscreenCanvas(W, H);
   canvas.getContext('2d')!.putImageData(new ImageData(new Uint8ClampedArray(pixels), W, H), 0, 0);
-  const bytes = new Uint8Array(await (await canvas.convertToBlob({ type: 'image/png' })).arrayBuffer());
-  let binary = '';
-  for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  await commands.writeFile(`out/wall-shadow-zone/${name}.png`, btoa(binary), 'base64');
+  await savePng(canvas, name, 'out/wall-shadow-zone');
 }
 
 /**
@@ -120,7 +117,7 @@ describe('the rim of a light over explored memory (#139)', () => {
     const shown = await picture(LIGHTS, { exploredBy: 'gm' });
     const light = await picture(LIGHTS, { tokenVision: false });
     const memory = await picture({}, { exploredBy: 'gm' });
-    await savePng(shown.pixels, 'test-players');
+    await savePicture(shown.pixels, 'test-players');
     const reaches = shown.view.lightReaches();
     const ambient = shown.view.ambientLight();
     const rim: string[] = [];
