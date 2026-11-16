@@ -140,4 +140,25 @@ describe('the books of the table', () => {
     expect(fileBooks(vault)['lib-a']?.notes.map((note) => note.id)).toEqual([id(1)]);
     expect(error).not.toHaveBeenCalled();
   });
+
+  it('asked for while the file cannot be read, wait in the same way and are written once it is read again', async () => {
+    const readable = `${JSON.stringify({ format: 1, books: { other: bookWith(9) } })}\n`;
+    const { vault, books } = await device({ [`${FOLDER}/campaign.json`]: campaignText, [PATH]: readable });
+    const timers = fakeTimers();
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const source = tableBookSource(books, timers);
+    // A sync tool has written half of the file before the note is asked for.
+    await synced(vault, readable.slice(0, 20));
+    expect(source.write('lib-a', bookWith(1))).toBe(true);
+    expect(source.read('lib-a')).toEqual(bookWith(1));
+    source.flush();
+    await books.flush();
+    expect(vault.files.get(PATH)).toBe(readable.slice(0, 20));
+    expect(source.read('lib-a')).toEqual(bookWith(1));
+    await synced(vault, readable);
+    await books.flush();
+    expect(Object.keys(fileBooks(vault)).sort()).toEqual(['lib-a', 'other']);
+    expect(fileBooks(vault)['lib-a']?.notes.map((note) => note.id)).toEqual([id(1)]);
+    expect(error).not.toHaveBeenCalled();
+  });
 });
