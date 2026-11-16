@@ -42,8 +42,12 @@ export function worldRowText(row: WorldRow): string {
   return row.read ? t('online.noWorld') : WORLD_LOADING;
 }
 
-/** No world, then every world, the one played ticked. */
+/**
+ * No world, then every world, the one played ticked. While the worlds are not read yet, a single
+ * switched-off row says so: No world alone would take the world off the table.
+ */
 export function worldEntries(row: WorldRow, actions: WorldRowActions): MenuEntry[] {
+  if (!row.read) return [{ title: t('online.readingCampaigns'), disabled: true, run: () => undefined }];
   return [
     { title: t('online.noWorld'), checked: row.chosen === null, run: () => actions.chooseWorld(null) },
     ...row.choices.map((choice, index): MenuEntry => ({ title: choice.name, checked: choice.id === row.chosen, apart: index === 0, run: () => actions.chooseWorld(choice.id) })),

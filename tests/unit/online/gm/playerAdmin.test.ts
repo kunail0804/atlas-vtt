@@ -276,6 +276,19 @@ describe('the world the table plays', () => {
     expect(worldRow(layer)?.textContent).toBe('No world');
   });
 
+  it('offers no world to choose while the worlds are not read yet, only a switched-off row that says they load', () => {
+    const layer = document.body.createDiv();
+    const does = actions();
+    for (const campaignId of ['strahd', null]) {
+      renderPanel(layer, panelView(snapshot({ campaignId }), SCENE, feedback, worldRowOf(campaignId, NO_CAMPAIGNS)), does);
+      worldRow(layer)?.click();
+      const entries = menus.opened.at(-1)!;
+      expect(entries.map((entry) => [entry.title, entry.disabled])).toEqual([['Reading your worlds…', true]]);
+      entries[0]!.run();
+    }
+    expect(does.chooseWorld).not.toHaveBeenCalled();
+  });
+
   it('says No world in the menu before anyone joined, while the table plays none', () => {
     const layer = document.body.createDiv();
     const does = actions() as unknown as MenuActions;
