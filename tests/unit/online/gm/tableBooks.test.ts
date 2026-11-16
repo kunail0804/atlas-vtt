@@ -120,37 +120,20 @@ describe('the books of the table', () => {
     expect(shelf.of('lib-b').notes).toHaveLength(1);
   });
 
-  it('wait while the file cannot be read when their write comes due, and are written once it is read again', async () => {
+  it.each([
+    ['when their write comes due', false],
+    ['when they are asked for', true],
+  ])('wait while the file cannot be read %s, and are written once it is read again', async (_when, unreadableFirst) => {
     const readable = `${JSON.stringify({ format: 1, books: { other: bookWith(9) } })}\n`;
     const { vault, books } = await device({ [`${FOLDER}/campaign.json`]: campaignText, [PATH]: readable });
     const timers = fakeTimers();
     const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const source = tableBookSource(books, timers);
-    source.write('lib-a', bookWith(1));
-    // A sync tool has written half of the file when the write comes due.
-    await synced(vault, readable.slice(0, 20));
-    timers.advance(BOOK_WRITE_MS);
-    source.flush();
-    await books.flush();
-    expect(vault.files.get(PATH)).toBe(readable.slice(0, 20));
-    expect(source.read('lib-a')).toEqual(bookWith(1));
-    await synced(vault, readable);
-    await books.flush();
-    expect(Object.keys(fileBooks(vault)).sort()).toEqual(['lib-a', 'other']);
-    expect(fileBooks(vault)['lib-a']?.notes.map((note) => note.id)).toEqual([id(1)]);
-    expect(error).not.toHaveBeenCalled();
-  });
-
-  it('asked for while the file cannot be read, wait in the same way and are written once it is read again', async () => {
-    const readable = `${JSON.stringify({ format: 1, books: { other: bookWith(9) } })}\n`;
-    const { vault, books } = await device({ [`${FOLDER}/campaign.json`]: campaignText, [PATH]: readable });
-    const timers = fakeTimers();
-    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    const source = tableBookSource(books, timers);
-    // A sync tool has written half of the file before the note is asked for.
-    await synced(vault, readable.slice(0, 20));
+    // A sync tool has written half of the file, before the note is asked for or before its write comes due.
+    if (unreadableFirst) await synced(vault, readable.slice(0, 20));
     expect(source.write('lib-a', bookWith(1))).toBe(true);
-    expect(source.read('lib-a')).toEqual(bookWith(1));
+    if (!unreadableFirst) await synced(vault, readable.slice(0, 20));
+    timers.advance(BOOK_WRITE_MS);
     source.flush();
     await books.flush();
     expect(vault.files.get(PATH)).toBe(readable.slice(0, 20));
