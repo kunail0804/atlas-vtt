@@ -39,8 +39,8 @@ export interface CompendiumSharePorts {
   sheetChoices?(kind: PickKind, sheet: string): Promise<readonly { path: string; name: string; detail?: string }[]>;
   /** Takes an entry into a sheet (and its book); false where it was refused. */
   pick?(sheet: string, kind: PickKind, entry: string): Promise<boolean>;
-  /** The entry of that kind and name in the campaign's books, by vault path; null for none. */
-  findEntry?(kind: PickKind, name: string): Promise<string | null>;
+  /** The entry of that kind and name in the books of the sheet at `sheet` (its vault path), by vault path; null for none. */
+  findEntry?(kind: PickKind, name: string, sheet: string): Promise<string | null>;
   /** The entries a sheet names (its spells, its weapons): its player reads them in their list. */
   sheetLinks?(sheet: string): readonly string[];
 }
@@ -256,8 +256,9 @@ export class CompendiumShare {
 
   /** Opens to the player the entry their sheet names, for as long as they sit at the table. */
   private async view(from: string, kind: PickKind, name: string): Promise<void> {
-    if (this.ports.sheetOf?.(from) == null || this.ports.findEntry === undefined || !this.rate.take(from, this.ports.now())) return;
-    const path = await this.ports.findEntry(kind, name).catch(() => null);
+    const sheet = this.ports.sheetOf?.(from) ?? null;
+    if (sheet === null || this.ports.findEntry === undefined || !this.rate.take(from, this.ports.now())) return;
+    const path = await this.ports.findEntry(kind, name, sheet).catch(() => null);
     if (path === null) {
       this.ports.send({ t: 'compendium-missing', name }, from);
       return;
