@@ -16,7 +16,7 @@ export interface FlushableBookSource extends BookSource {
 /**
  * The books of the table, kept in its books file whatever world it plays. A change is taken in at once for reading and
  * written `BOOK_WRITE_MS` after the first change of its character, touching that character's
- * entry only, so the books another device wrote stay. A change the file refuses because it cannot
+ * entry only, so the books another device wrote stay. A change made or due while the file cannot
  * be read (a sync that wrote half of it) waits until the file is read again, as the party's values
  * do (`PartySync`).
  */
@@ -35,8 +35,14 @@ export class TableBookSource implements FlushableBookSource {
   }
 
   write(characterId: string, book: StoredBook): boolean {
-    if (!isBookKey(characterId) || !this.books.canChange()) return false;
+    if (!isBookKey(characterId)) return false;
     const waiting = this.pending.get(characterId);
+    if (this.books.blocked() === 'unreadable') {
+      if (waiting !== undefined && waiting.timer !== null) this.timers.clearTimer(waiting.timer);
+      this.waitForFile(characterId, book);
+      return true;
+    }
+    if (!this.books.canChange()) return false;
     this.pending.set(characterId, { book, timer: waiting?.timer ?? this.timers.setTimer(() => this.writeNow(characterId), BOOK_WRITE_MS) });
     return true;
   }
