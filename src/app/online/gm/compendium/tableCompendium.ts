@@ -61,7 +61,7 @@ export function tableCompendium(app: App, send: (body: GmMessage, to: string) =>
       return (await read.sheetChoices(app, kind, sheetValues(sheet))).map(({ id, name, detail }) => ({ path: id, name, ...(detail !== undefined && { detail }) }));
     },
     pick: async (sheet, kind, entry) => (await (await loaded()).applySheetPick(app, sheet, kind, entry)).sheet,
-    findEntry: async (kind, name) => (await (await loaded()).findSheetEntry(app, kind, name))?.path ?? null,
+    findEntry: async (kind, name, sheet) => (await (await loaded()).findSheetEntry(app, kind, name, sheetValues(sheet)))?.path ?? null,
     sheetLinks: (sheet) => {
       const values = sheetValues(sheet);
       const names = (key: string): string[] => (Array.isArray(values[key]) ? (values[key] as unknown[]).map((row) => {
