@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { TFile } from 'obsidian';
 import { CampaignFiles } from '../../../../src/app/campaigns/CampaignFiles';
 import { CAMPAIGNS_FOLDER } from '../../../../src/app/campaigns/campaignPaths';
 import { TABLE_BOOKS_PATH } from '../../../../src/app/campaigns/players/tableBooksFile';
@@ -46,6 +47,15 @@ async function device(files: Record<string, string> = { [`${FOLDER}/campaign.jso
   const books = TableBooks.open(vault.app);
   await books.load();
   return { vault, books };
+}
+
+const ticks = async (): Promise<void> => { for (let i = 0; i < 5; i += 1) await Promise.resolve(); };
+
+/** Writes `text` into the file as a sync tool would, the vault told. */
+async function synced(vault: ReturnType<typeof createInMemoryApp>, text: string): Promise<void> {
+  vault.files.set(PATH, text);
+  vault.emit('modify', new TFile(PATH));
+  await ticks();
 }
 
 const fileBooks = (vault: ReturnType<typeof createInMemoryApp>): Record<string, { notes: { id: string }[] }> => (JSON.parse(vault.files.get(PATH) ?? '{"books":{}}') as { books: Record<string, { notes: { id: string }[] }> }).books;
@@ -108,5 +118,26 @@ describe('the books of the table', () => {
     expect(vault.files.get(PATH)).toBe(later);
     expect(shelf.of('lib-a').notes).toHaveLength(1);
     expect(shelf.of('lib-b').notes).toHaveLength(1);
+  });
+
+  it('wait while the file cannot be read when their write comes due, and are written once it is read again', async () => {
+    const readable = `${JSON.stringify({ format: 1, books: { other: bookWith(9) } })}\n`;
+    const { vault, books } = await device({ [`${FOLDER}/campaign.json`]: campaignText, [PATH]: readable });
+    const timers = fakeTimers();
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const source = tableBookSource(books, timers);
+    source.write('lib-a', bookWith(1));
+    // A sync tool has written half of the file when the write comes due.
+    await synced(vault, readable.slice(0, 20));
+    timers.advance(BOOK_WRITE_MS);
+    source.flush();
+    await books.flush();
+    expect(vault.files.get(PATH)).toBe(readable.slice(0, 20));
+    expect(source.read('lib-a')).toEqual(bookWith(1));
+    await synced(vault, readable);
+    await books.flush();
+    expect(Object.keys(fileBooks(vault)).sort()).toEqual(['lib-a', 'other']);
+    expect(fileBooks(vault)['lib-a']?.notes.map((note) => note.id)).toEqual([id(1)]);
+    expect(error).not.toHaveBeenCalled();
   });
 });
