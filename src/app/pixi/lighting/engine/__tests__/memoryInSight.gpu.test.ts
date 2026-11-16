@@ -1,5 +1,6 @@
 import { Graphics, RenderTexture, type WebGLRenderer } from 'pixi.js';
 import { afterEach, describe, expect, it } from 'vitest';
+import { RIM_DIP } from '../../../../lighting/lightingConstants';
 import type { WallSegment } from '../../../../types/wallTypes';
 import { computeSight } from '../../../../vision/sight';
 import type { Polygon } from '../../../../vision/visibility';
@@ -78,13 +79,14 @@ describe('explored memory inside line of sight', () => {
     const plain = await render([LEFT_HALF], { exploredMemory: false, unexploredColor: '#000000' });
     expect(at(LIT)).toEqual(plain(LIT));
     expect(sum(at(LIT))).toBeGreaterThan(300);
-    // From the torch outwards the picture only ever darkens, down to the memory: no dip to black between light and memory.
+    // From the torch outwards the picture darkens to the memory, dipping below it in the rim by
+    // RIM_DIP at most (#139): no dip to black between light and memory, and no step on the way.
     const memory = sum(at({ x: 300, y: 760 }));
     expect(memory).toBeGreaterThan(40);
-    let last = Infinity;
-    for (let y = 520; y <= 760; y += 2) {
+    let last = sum(at({ x: 300, y: 520 }));
+    for (let y = 522; y <= 760; y += 2) {
       const now = sum(at({ x: 300, y }));
-      expect([y, now <= last + 3, now >= memory - 3]).toEqual([y, true, true]);
+      expect([y, now >= memory * (1 - RIM_DIP) - 3, Math.abs(now - last) <= 8]).toEqual([y, true, true]);
       last = now;
     }
   });
