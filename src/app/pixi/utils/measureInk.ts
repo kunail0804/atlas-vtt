@@ -1,4 +1,4 @@
-import { AlphaFilter, Container, Graphics } from 'pixi.js';
+import { AlphaFilter, BufferImageSource, Container, Graphics, Texture } from 'pixi.js';
 import type { Point } from '../../grid/hexGeometry';
 import { CANVAS_INK, INK_SHADE, type InkBand } from './canvasInk';
 import { destroyTree } from './destroyTree';
@@ -7,8 +7,37 @@ import type { HideableLayer } from '../playerSafeFrame';
 /** Opacity of a measured area's fill: present, never hiding the map. */
 const AREA_ALPHA = 0.14;
 
-/** Opacity of the cells an area covers, beneath its wash: the cells read darker than the rest of the area. */
-const CELL_ALPHA = 0.22;
+/** Opacity of the hatching over the cells an area covers: the stripes stand out from the area's even wash. */
+const CELL_HATCH_ALPHA = 0.8;
+
+/** Side of the hatching's tile, in screen pixels: its stripes lie `HATCH_TILE / √2` apart. */
+const HATCH_TILE = 8;
+
+/** Width of a stripe across the tile's diagonal, in screen pixels. */
+const HATCH_STRIPE = 2;
+
+let hatchTexture: Texture | null = null;
+
+/**
+ * Diagonal stripes in white, tinted by the fill's colour: the cells an area covers are hatched, so
+ * they read apart from the area's wash and its outline in any colour, on light maps and dark ones.
+ * One tile, repeated in the drawing's own space (screen pixels), shared by every measurement and never
+ * destroyed (`destroyTree` leaves fill textures). A texture fill, not a `FillPattern`: PIXI draws a
+ * pattern in white whatever colour the fill names.
+ */
+export function cellHatching(): Texture {
+  if (hatchTexture) return hatchTexture;
+  const texels = new Uint8Array(HATCH_TILE * HATCH_TILE * 4);
+  for (let y = 0; y < HATCH_TILE; y++) {
+    for (let x = 0; x < HATCH_TILE; x++) {
+      if ((x + y) % HATCH_TILE >= HATCH_STRIPE) continue;
+      texels.fill(255, (y * HATCH_TILE + x) * 4, (y * HATCH_TILE + x + 1) * 4);
+    }
+  }
+  const source = new BufferImageSource({ resource: texels, width: HATCH_TILE, height: HATCH_TILE, format: 'rgba8unorm', addressMode: 'repeat' });
+  hatchTexture = new Texture({ source });
+  return hatchTexture;
+}
 
 /** The middle of a ring dot: white, as the handles of a selected token. */
 const HOLLOW_MIDDLE = 0xffffff;
@@ -132,11 +161,14 @@ export class MeasureInk {
     this.area.fill({ color, alpha: AREA_ALPHA });
   }
 
-  /** Fills the cells `outlines` (world points) with a wash of `color`, as one shape: cells side by side never add up. */
+  /**
+   * Hatches the cells `outlines` (world points) in `color`, as one shape: cells side by side never add
+   * up, and the stripes run on from one cell into the next, at one spacing on screen at any zoom.
+   */
   cells(outlines: readonly (readonly Point[])[], color: number): void {
     if (outlines.length === 0) return;
     for (const corners of outlines) this.area.poly(corners.flatMap((corner) => { const { x, y } = this.screen(corner); return [x, y]; }));
-    this.area.fill({ color, alpha: CELL_ALPHA });
+    this.area.fill({ texture: cellHatching(), textureSpace: 'global', color, alpha: CELL_HATCH_ALPHA });
   }
 
   /** Takes the measurement off its layer. */
