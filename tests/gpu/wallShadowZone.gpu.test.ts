@@ -56,7 +56,7 @@ async function savePicture(pixels: Uint8ClampedArray, name: string): Promise<voi
  * A party token under the wall, next to the lower torch, on a map it remembers whole. The rim of
  * the torch's light, where its fade is dimmer than the memory, used to show the memory's grey, so
  * floor the rules count lit looked remembered (#139). It keeps the torch's colour now, turning grey
- * only at its very end, never brighter than the memory, and past the dim radius nothing changed.
+ * only at its very end, never brighter than the memory, and past the dim radius no brighter than the memory either.
  * Pictures in `out/wall-shadow-zone/`.
  */
 describe('the rim of a light over explored memory (#139)', () => {
@@ -133,21 +133,25 @@ describe('the rim of a light over explored memory (#139)', () => {
         const remembered = memory.at(x, y);
         const where = `${angle}° ${d} px: players ${players.join(' ')}, light ${lit.join(' ')}, memory ${remembered.join(' ')}`;
         if (d > DIM + 3) {
-          // Past the dim radius: the memory, as it was.
+          // Past the dim radius: never brighter than the memory. The torch's bounce goes on past it and
+          // the rim keeps its colour there (53 46 43 over a memory of 51 51 51, 52 51 50 before #154),
+          // so the picture may take the light's colour, never more than the light has there.
           expect(lightLevelAt({ x, y }, ambient, reaches), where).toBe('dark');
-          if (sum(players) > sum(remembered) + 3 || tint(players) > tint(remembered) + 0.02) rim.push(`brighter or more coloured past the radius, ${where}`);
+          if (sum(players) > sum(remembered) + 3 || tint(players) > Math.max(tint(remembered) + 0.02, tint(lit))) rim.push(`brighter or more coloured past the radius, ${where}`);
           continue;
         }
-        expect(lightLevelAt({ x, y }, ambient, reaches), where).not.toBe('dark');
+        // On the dim radius itself the rule counts no light (`lightLevelAt`), and the reach polygon's chord falls inside the circle.
+        if (d < DIM - 3) expect(lightLevelAt({ x, y }, ambient, reaches), where).not.toBe('dark');
         if (sum(lit) >= sum(remembered)) {
           // As bright as the memory or more: the light exactly, as before.
           if (players.some((channel, i) => Math.abs(channel - lit[i]!) > 3)) rim.push(`not the light, ${where}`);
           continue;
         }
-        // The rim: never brighter than the memory, never darker than the light, and in the torch's colour but for its last 30 px.
+        // The rim: never brighter than the memory, never darker than the light, and in the torch's colour but for its last 40 px.
+        // The colour gives way over RIM_HUE_WIDTH of what the eye sees of the light, which is the last 30 to 40 px of this torch.
         if (sum(players) > sum(remembered) + 3) rim.push(`brighter than the memory, ${where}`);
         if (sum(players) < sum(lit) - 3) rim.push(`darker than the light, ${where}`);
-        if (d < DIM - 30 && tint(players) < 0.3) rim.push(`grey, ${where}`);
+        if (d < DIM - 40 && tint(players) < 0.3) rim.push(`grey, ${where}`);
       }
     }
     expect(rim).toEqual([]);
