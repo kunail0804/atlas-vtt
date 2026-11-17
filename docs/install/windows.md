@@ -81,9 +81,9 @@ If the values differ, delete `atlas.exe` and download it again. Do not run a fil
 GitHub also records a SHA-256 for each file of a release. With the GitHub CLI, `gh release view <tag> -R
 kunail0804/atlas-vtt --json assets` prints it as `digest`.
 
-What the check proves: the file you have is the file published in the release. `SHA256SUMS` comes from the same
-release, so the check does not protect you if someone replaced the release itself. The launcher is not
-signed.
+What the check proves: the file you have is the file published in the release. `SHA256SUMS` comes from the
+same release, so the check does not protect you if someone replaced the release itself. The launcher is
+not signed.
 
 ## Start the launcher
 
