@@ -10,8 +10,11 @@ import { t } from '../../../i18n';
 
 /** The cards' width; never wider than the row the control hangs from. */
 const KNOCK_WIDTH = 300;
-/** The room the open control always leaves above itself: one card and the gap under it. */
-export const KNOCK_ROOM = 64;
+/**
+ * The room the open control always leaves above itself: one card and the gap under it, a card whose
+ * words stand over its answers (two lines of words) included.
+ */
+export const KNOCK_ROOM = 100;
 
 /** One of a card's answers: its words, its look, and what it does. */
 export interface StackAction {
@@ -121,15 +124,20 @@ function answerButton(row: HTMLElement, card: StackCard, index: number, action: 
 }
 
 /**
- * The cards, one line each: the name with the words around it, the answers. The name is someone's own
- * text: one line in a box of its own, cut with an ellipsis, its direction kept to itself, so it can
- * neither reorder the card's words nor move its buttons. A card with more behind its line makes the
- * line a focusable part of its own that shows it as a tooltip (`about`). Returns the tooltips made.
+ * The cards, one line each where their words fit beside the answers: the name with the words around
+ * it, the answers. The name is someone's own text: one line in a box of its own, cut with an ellipsis,
+ * its direction kept to itself, so it can neither reorder the card's words nor move its buttons. A card
+ * whose own words do not fit beside the answers even with the name cut away (a seat asked for from a
+ * new device) shows them whole over the card's width and its answers under them (`wrapLongCards`). A
+ * card with more behind its line makes the line a focusable part of its own that shows it as a tooltip
+ * (`about`). Returns the tooltips made.
  */
 export function renderCards(parent: HTMLElement, cards: readonly StackCard[], tooltipParent: HTMLElement = parent): DockTooltip[] {
   const tooltips: DockTooltip[] = [];
+  const rows: HTMLElement[] = [];
   for (const card of cards) {
     const row = parent.createDiv({ cls: 'atlas-online-knock', attr: { role: 'group', 'aria-label': card.label } });
+    rows.push(row);
     const text = row.createSpan({ cls: 'atlas-online-knock__text' });
     if (card.before !== '') text.createSpan({ cls: 'atlas-online-knock__rest', text: card.before });
     text.createEl('bdi', { cls: 'atlas-online-knock__name', text: card.name });
@@ -144,7 +152,21 @@ export function renderCards(parent: HTMLElement, cards: readonly StackCard[], to
     }
     card.actions.forEach((action, index) => answerButton(row, card, index, action));
   }
+  wrapLongCards(rows);
   return tooltips;
+}
+
+/**
+ * Puts the words of a card over its answers where they run past its line: the name gives way first
+ * (it shrinks to nothing), so only the card's own words overflowing it means the line cannot hold them.
+ * Every card is measured before any changes, so the layout is worked out once.
+ */
+function wrapLongCards(rows: readonly HTMLElement[]): void {
+  const long = rows.filter((row) => {
+    const text = row.querySelector<HTMLElement>('.atlas-online-knock__text');
+    return text !== null && text.scrollWidth > text.clientWidth;
+  });
+  for (const row of long) row.addClass('atlas-online-knock--wrap');
 }
 
 /** A card per newcomer who waits for the GM: the name, Decline and Admit. One the GM admitted into a table that had filled meanwhile says so for a moment. */

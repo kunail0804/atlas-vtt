@@ -4,6 +4,7 @@ import { BATCH_MS } from '../../src/app/online/gm/sendQueue.ts';
 import { CLOSE } from '../../src/app/online/protocol/relay.ts';
 import { PLAYER_ORIGIN, TestGm, TestPlayer, createTable, startTestRelay, stopTestRelay, until, type TestRelay } from './helpers.ts';
 
+const ANA_ID = 'anaplayeranaplayer23';
 const SCENE = { t: 'scene', scene: null } as const;
 
 describe('the relay with the plugin as GM', () => {
@@ -151,28 +152,90 @@ describe('the relay with the plugin as GM', () => {
     await until(() => back.frame('waiting') !== undefined, 'kicked key is a newcomer again');
   });
 
-  it('seats a player of the campaign by their own code past the gate, on any device, and leaves a newcomer who takes their name to the GM', async () => {
+  it('seats a player the GM added by their own code past the gate on their first visit, and leaves a newcomer who takes their name to the GM', async () => {
     const { code, gm } = await table({ code: '483912', ask: true });
-    const ana = player(code, { name: 'Ana', code: '483912' });
-    await until(() => gm.knocks.length === 1, 'Ana knocks');
-    gm.connection.answer(gm.knocks[0]?.id ?? '', true);
-    await until(() => ana.frame('welcome') !== undefined, 'Ana seated');
-    const id = String(ana.frame('welcome')?.id);
-    gm.connection.setPlayers([{ id, name: 'Ana', code: '271828' }]);
+    // The GM added Ana: the campaign has her, the table has never seated her.
+    gm.connection.setPlayers([{ id: ANA_ID, name: 'Ana', code: '271828' }]);
     await new Promise((resolve) => setTimeout(resolve, 4 * BATCH_MS));
-    // Another device, without a key: her own code seats her as herself, without the GM's answer.
-    const again = player(code, { name: 'Ana', code: '271828' });
-    await until(() => again.frame('welcome') !== undefined, 'Ana seated by her own code');
-    expect(again.frame('welcome')?.id).toBe(id);
-    expect(gm.knocks).toHaveLength(1);
+    const ana = player(code, { name: 'Ana', code: '271828' });
+    await until(() => ana.frame('welcome') !== undefined, 'Ana seated by her own code');
+    expect(ana.frame('welcome')?.id).toBe(ANA_ID);
+    expect(gm.knocks).toHaveLength(0);
+    // Her name alone, with the join code, is a request for her seat, which the GM answers.
     const impostor = player(code, { name: 'ana', code: '483912' });
-    await until(() => gm.knocks.length === 2, 'the GM is asked for her seat');
-    expect(gm.knocks[1]).toMatchObject({ name: 'ana', reclaim: true });
+    await until(() => gm.knocks.length === 1, 'the GM is asked for her seat');
+    expect(gm.knocks[0]).toMatchObject({ name: 'ana', reclaim: true, seatConnected: true });
     expect(impostor.frame('welcome')).toBeUndefined();
-    gm.connection.answer(gm.knocks[1]?.id ?? '', false);
+    gm.connection.answer(gm.knocks[0]?.id ?? '', false);
     await until(() => impostor.closeCode !== null, 'declined');
     expect(impostor.closeCode).toBe(CLOSE.declined);
-    expect(again.closeCode).toBeNull();
+    expect(ana.closeCode).toBeNull();
+  });
+
+  /** Ana, a player of the campaign, seated on her first browser at a table with a join code that lets newcomers in. */
+  async function seatedAna(): Promise<{ code: string; gm: TestGm; ana: TestPlayer; id: string; key: string }> {
+    const { code, gm } = await table({ code: '483912', ask: false });
+    gm.connection.setPlayers([{ id: ANA_ID, name: 'Ana', code: '271828' }]);
+    await new Promise((resolve) => setTimeout(resolve, 4 * BATCH_MS));
+    const ana = player(code, { name: 'Ana', code: '271828' });
+    await until(() => ana.frame('welcome') !== undefined, 'Ana seated');
+    const { id, key } = ana.frame('welcome') as { id: string; key: string };
+    return { code, gm, ana, id, key };
+  }
+
+  it('holds a seated player who opens the table in another browser with their own code until the GM admits them, then moves the seat to the new key', async () => {
+    const { code, gm, ana, id, key } = await seatedAna();
+    const other = player(code, { name: 'Ana', code: '271828' });
+    await until(() => gm.knocks.length === 1 || other.frame('welcome') !== undefined, 'GM asked or seat taken');
+    expect(other.frame('welcome')).toBeUndefined();
+    expect(other.frame('waiting')).toBeDefined();
+    expect(gm.knocks[0]).toMatchObject({ name: 'Ana', reclaim: true, seatConnected: true });
+    // Until the GM admits, the first browser keeps the seat.
+    ana.send({ t: 'still-here' });
+    await until(() => gm.messages.some((message) => message.from === id), 'the first page still reaches the GM');
+    expect(ana.closeCode).toBeNull();
+
+    gm.connection.answer(gm.knocks[0]?.id ?? '', true);
+    await until(() => other.frame('welcome') !== undefined, 'new browser seated');
+    const welcome = other.frame('welcome') as { id: string; key: string };
+    expect(welcome.id).toBe(id);
+    expect(welcome.key).not.toBe(key);
+    await until(() => ana.closeCode !== null, 'first page replaced');
+    expect(ana.closeCode).toBe(CLOSE.replaced);
+    // The key of the first browser seats nobody now.
+    const stale = player(code, { name: 'Ana', key });
+    await until(() => stale.frame('waiting') !== undefined || stale.frame('welcome') !== undefined || stale.closeCode !== null, 'old key answered');
+    expect(stale.frame('welcome')).toBeUndefined();
+    expect(other.closeCode).toBeNull();
+  });
+
+  it('leaves the seat on its key when the GM declines a seated player who came from another browser with their own code', async () => {
+    const { code, gm, ana, key } = await seatedAna();
+    const other = player(code, { name: 'Ana', code: '271828' });
+    await until(() => gm.knocks.length === 1 || other.frame('welcome') !== undefined, 'GM asked or seat taken');
+    expect(other.frame('welcome')).toBeUndefined();
+    gm.connection.answer(gm.knocks[0]?.id ?? '', false);
+    await until(() => other.closeCode !== null, 'declined');
+    expect(other.closeCode).toBe(CLOSE.declined);
+    expect(ana.closeCode).toBeNull();
+    ana.socket.close();
+    await until(() => ana.closeCode !== null, 'first page gone');
+    const back = player(code, { name: 'Ana', key });
+    await until(() => back.frame('welcome') !== undefined, 'her key still seats her');
+  });
+
+  it('asks the GM for a seat whose page is gone when its player comes back with their own code from another browser', async () => {
+    const { code, gm, ana, id } = await seatedAna();
+    ana.socket.close();
+    await until(() => ana.closeCode !== null, 'first page gone');
+    const other = player(code, { name: 'Ana', code: '271828' });
+    await until(() => gm.knocks.length === 1 || other.frame('welcome') !== undefined, 'GM asked or seat taken');
+    expect(other.frame('welcome')).toBeUndefined();
+    expect(gm.knocks[0]).toMatchObject({ name: 'Ana', reclaim: true });
+    expect(gm.knocks[0]?.seatConnected).toBeUndefined();
+    gm.connection.answer(gm.knocks[0]?.id ?? '', true);
+    await until(() => other.frame('welcome') !== undefined, 'seated once admitted');
+    expect(other.frame('welcome')?.id).toBe(id);
   });
 
   /** Mira at a table that asks for no code and lets newcomers in without the GM, then made a player of the campaign. */

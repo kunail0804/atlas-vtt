@@ -49,7 +49,8 @@ export class Table {
   private readonly seats = new Map<string, Seat>();
   /**
    * The players of the GM's campaign, each with a code of their own (`players`): one who comes with
-   * their code takes their seat on any device. The GM sends it after every welcome, so it is not saved.
+   * their code passes the gate, and takes their seat from a new device once the GM admits them. The GM
+   * sends it after every welcome, so it is not saved.
    */
   private campaign: readonly CampaignSeat[] = [];
   private gm: Link | null = null;
@@ -195,9 +196,14 @@ export class Table {
       this.linksByKnockSocket.set(link.socket, { link, acks: hello.acks === true });
       return;
     }
-    // A player of the campaign comes back with their own code: their seat, whatever the gate says.
+    // A player of the campaign with their own code passes the gate, whatever it says. A seat this table never
+    // gave a key (a player the GM added, on their first visit) is theirs at once; a seat that has a key moves
+    // to this page only once the GM admits it, since the page on that key (another browser) loses it.
     const own = hello.code === undefined ? undefined : this.campaign.find((player) => player.code === hello.code);
-    if (own !== undefined) return this.seatCampaignPlayer(link, own, hello.acks === true);
+    if (own !== undefined) {
+      if (!this.seats.has(own.id)) return this.seatCampaignPlayer(link, own, hello.acks === true);
+      return this.knock(link, hello, own.id);
+    }
     // A newcomer under the name of a player of the campaign, without that player's key or code (a cleared
     // browser, another device), asks for that player's seat: past the gate like any newcomer, then always
     // the GM's answer, whatever the gate says, since an admission moves the seat away from the key it had.
@@ -205,14 +211,16 @@ export class Table {
     const check = this.gate.check(hello.code);
     if (check === 'paused') return closeSocket(link.socket, CLOSE.paused, 'joins paused');
     if (check === 'wrong') return closeSocket(link.socket, CLOSE.wrongCode, 'wrong code');
-    if (claimed !== undefined || this.gate.asksTheGm()) {
-      // A waiting newcomer only sends keep-alives until the GM answers.
-      link.onText(() => closeSocket(link.socket, CLOSE.protocol, 'waiting'));
-      this.gate.knock(link.socket, hello.name, claimed?.id ?? null, hello.waits === true, link.source);
-      this.linksByKnockSocket.set(link.socket, { link, acks: hello.acks === true });
-      return;
-    }
+    if (claimed !== undefined || this.gate.asksTheGm()) return this.knock(link, hello, claimed?.id ?? null);
     this.seatNewcomer(link, newPlayerId(), hello.name, hello.acks === true);
+  }
+
+  /** Holds a page at the gate until the GM answers. `seat`: the campaign player whose seat it asks for, or null. */
+  private knock(link: Link, hello: PlayerHello, seat: string | null): void {
+    // A waiting newcomer only sends keep-alives until the GM answers.
+    link.onText(() => closeSocket(link.socket, CLOSE.protocol, 'waiting'));
+    this.gate.knock(link.socket, hello.name, seat, hello.waits === true, link.source);
+    this.linksByKnockSocket.set(link.socket, { link, acks: hello.acks === true });
   }
 
   /**
