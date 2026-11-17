@@ -226,7 +226,7 @@ export async function fuzzArt({ seed, trials, case: kind, map = 2048, quality, r
         mapLoaded: true, isMapLoading: false, background: paths.cellar, levels: seesNothing, levelAlignments: fitted, viewedLevel: 'upper',
         exploredMask: null, exploredMasks: undefined, objects: { ...objects, levelSurfaces: {} },
       });
-      store.getState().setSceneLighting({ enabled: true, ambient });
+      store.getState().setSceneLighting({ enabled: true, ambient, exploredBy: 'players' });
       await view.settle();
       const scale = (0.25 + rand() * 1.25) / mapScale;
       const [fx, fy] = kind === 'tower' || rand() < 0.5 ? room.upper.lights[0]! : room.upper.centre;

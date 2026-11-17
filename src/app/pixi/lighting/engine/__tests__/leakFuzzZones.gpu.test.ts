@@ -146,7 +146,7 @@ async function fuzz({ seed, trials, gap = 0, bounds = { width: 2048, height: 204
       if (watched) report.watched++;
       // The room as a token in its middle saw it by day, and no one looking now.
       memory.clear();
-      const recorded = exploredShapes(computeSight([{ tokenId: 'm', origin: { x: room.lights[0]![0], y: room.lights[0]![1] }, range: 4000, senses: [] }], walls), { ambient: 1 }, []);
+      const recorded = exploredShapes(computeSight([{ tokenId: 'm', origin: { x: room.lights[0]![0], y: room.lights[0]![1] }, range: 4000, senses: [] }], walls), { ambient: 1, exploredBy: 'players' }, []);
       if (recorded) memory.add(recorded);
       engine.setExplored(memory.texture);
       const remembered = shoot({ ambient: 0, zones: [], sight: NO_SIGHT });

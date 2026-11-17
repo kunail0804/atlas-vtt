@@ -159,7 +159,7 @@ async function fuzz({ seed, trials, open = false, bounds = { width: 2048, height
       const day = shoot({ lights, ambient: 1 });
       const darkened = shoot({ lights: [...lights, darkness], ambient: 1 });
       memory.clear();
-      const recorded = exploredShapes(computeSight([sources[0]!], shown), { ambient: 1 }, []);
+      const recorded = exploredShapes(computeSight([sources[0]!], shown), { ambient: 1, exploredBy: 'players' }, []);
       if (recorded) memory.add(recorded);
       engine.setExplored(memory.texture);
       const remembered = shoot({ sight: NO_SIGHT });

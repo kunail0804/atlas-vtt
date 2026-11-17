@@ -208,7 +208,7 @@ async function fuzz({ seed, trials, map = 2048, resolution = 1, quality, belowRe
         tokens, walls: { ...wallsOn(room, 'v', 'upper'), ...wallsOn(lower, 'b', 'ground') }, lights, lightZones: zones,
       };
       store.setState({ mapLoaded: true, isMapLoading: false, levels: LEVELS, viewedLevel: 'upper', exploredMask: null, exploredMasks: undefined, objects: { ...objects, levelSurfaces: {} } });
-      store.getState().setSceneLighting({ enabled: true, ambient });
+      store.getState().setSceneLighting({ enabled: true, ambient, exploredBy: 'players' });
       await view.settle();
       const scale = 0.25 + rand() * 1.25;
       const x = PANE / 2 - ox * scale + (rand() - 0.5) * 120;
