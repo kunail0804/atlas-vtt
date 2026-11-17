@@ -100,12 +100,12 @@ export function personalBooksFor(tree: readonly SystemChoice[], chosen: Readonly
   return tree.filter((system) => system.books.some((book) => chosen.has(book.id))).map(({ id, name }) => ({ id, name }));
 }
 
-/** The chosen books the vault must download first: not installed, or older than Atlas' version. */
-export function downloadsFor(tree: readonly SystemChoice[], chosen: ReadonlySet<string>): OfficialSource[] {
-  const downloads: OfficialSource[] = [];
-  for (const book of tree.flatMap((system) => system.books)) {
-    if (!chosen.has(book.id)) continue;
-    if (book.state.kind === 'available' || book.state.kind === 'outdated') downloads.push(book.state.official);
-  }
-  return downloads;
+/**
+ * The books a world chooses from: the installed ones only, an outdated book included. Installing,
+ * updating and removing are the vault's (the compendium sources dialog), never a world's.
+ */
+export function installedTree(tree: readonly SystemChoice[]): SystemChoice[] {
+  return tree
+    .map((system) => ({ ...system, books: system.books.filter((book) => book.state.kind !== 'available') }))
+    .filter((system) => system.books.length > 0);
 }

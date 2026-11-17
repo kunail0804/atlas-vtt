@@ -7,6 +7,7 @@ export const command = {
   'command.displayImageOnPlayerView': 'Display image on player view',
   'command.exportCompendiumSource': 'Export a compendium book as a source',
   'command.importStatblockTokens': 'Import tokens from Fantasy Statblocks',
+  'command.manageCompendiumSources': 'Manage compendium sources',
   'command.openDashboard': 'Open dashboard',
   'command.generateDungeon': 'Generate dungeon',
   'command.openPlayerWindow': 'Open player window',

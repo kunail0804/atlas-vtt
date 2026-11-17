@@ -15,6 +15,7 @@ export const dashboard = {
   'dashboard.daysAgo': '{count}d ago',
   'dashboard.createScene': 'New scene',
   'dashboard.assets': 'Asset manager',
+  'dashboard.compendiumSources': 'Compendium sources',
   'dashboard.begin': 'Begin',
   'dashboard.continue': 'Continue your adventure',
   'dashboard.resume': 'Resume',

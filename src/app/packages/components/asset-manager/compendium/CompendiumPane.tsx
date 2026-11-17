@@ -11,6 +11,7 @@ import { booksOf, entryMatches, groupCounts, type CompendiumBook, type Compendiu
 import { OFFICIAL_SOURCES } from '../../../../compendium/officialSources';
 import { PERSONAL_BOOK_ID, isPersonalBookId } from '../../../../compendium/sourceTree';
 import { ENTRY_KINDS, isEntryKind, type EntryKind } from '../../../../compendium/sourceFormat';
+import { CompendiumLibraryDialog } from '../../../../react/components/dashboard/compendium/CompendiumLibraryDialog';
 import { CompendiumSourcesDialog } from '../../../../react/components/dashboard/compendium/CompendiumSourcesDialog';
 import { useInstalledSources } from '../../../../react/components/dashboard/compendium/useInstalledSources';
 import { useSourceInstalls } from '../../../../react/components/dashboard/compendium/useSourceInstalls';
@@ -32,7 +33,7 @@ import { useCompendiumEntries } from './useCompendiumEntries';
 const WHOLE_VAULT = '';
 const GROUPS: readonly EntryGroup[] = [...ENTRY_KINDS, 'other'];
 
-type OpenDialog = 'sources' | 'entry' | 'book' | 'share' | 'copy' | null;
+type OpenDialog = 'sources' | 'library' | 'entry' | 'book' | 'share' | 'copy' | null;
 
 interface CompendiumPaneProps {
   app: App;
@@ -287,6 +288,13 @@ export function CompendiumPane({ app, tabs, onClose, onDialogChange }: Compendiu
               {canChooseSources && (
                 <LabelTooltip label={t('compendium.browser.sources')}>
                   <Button variant="ghost" size="icon" className="atlas-collection-header-btn" aria-label={t('compendium.browser.sources')} onClick={() => setDialog('sources')}>
+                    <Settings />
+                  </Button>
+                </LabelTooltip>
+              )}
+              {campaign === null && (
+                <LabelTooltip label={t('compendium.manage')}>
+                  <Button variant="ghost" size="icon" className="atlas-collection-header-btn" aria-label={t('compendium.manage')} onClick={() => setDialog('library')}>
                     <Settings />
                   </Button>
                 </LabelTooltip>
@@ -551,6 +559,7 @@ export function CompendiumPane({ app, tabs, onClose, onDialogChange }: Compendiu
         {dialog === 'sources' && campaign && campaignService && (
           <CompendiumSourcesDialog key="sources" app={app} campaign={campaign} service={campaignService} onClose={() => setDialog(null)} />
         )}
+        {dialog === 'library' && <CompendiumLibraryDialog key="library" app={app} onClose={() => setDialog(null)} />}
         {dialog === 'entry' && (
           <NewEntryDialog
             key="entry"
