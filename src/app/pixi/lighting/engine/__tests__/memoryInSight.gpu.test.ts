@@ -80,14 +80,18 @@ describe('explored memory inside line of sight', () => {
     expect(at(LIT)).toEqual(plain(LIT));
     expect(sum(at(LIT))).toBeGreaterThan(300);
     // From the torch outwards the picture darkens to the memory, dipping below it in the rim by
-    // RIM_DIP at most (#139): no dip to black between light and memory, and no step on the way.
+    // RIM_DIP at most (#139): no dip to black between light and memory, and no step on the way
+    // steeper than the light's own fall, which the picture without memory shows.
     const memory = sum(at({ x: 300, y: 760 }));
     expect(memory).toBeGreaterThan(40);
     let last = sum(at({ x: 300, y: 520 }));
+    let lastPlain = sum(plain({ x: 300, y: 520 }));
     for (let y = 522; y <= 760; y += 2) {
       const now = sum(at({ x: 300, y }));
-      expect([y, now >= memory * (1 - RIM_DIP) - 3, Math.abs(now - last) <= 8]).toEqual([y, true, true]);
+      const nowPlain = sum(plain({ x: 300, y }));
+      expect([y, now >= memory * (1 - RIM_DIP) - 3, Math.abs(now - last) <= Math.max(8, Math.abs(nowPlain - lastPlain) + 3)]).toEqual([y, true, true]);
       last = now;
+      lastPlain = nowPlain;
     }
   });
 
