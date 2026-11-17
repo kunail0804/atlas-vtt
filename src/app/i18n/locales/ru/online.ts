@@ -107,7 +107,7 @@ export const online: Translation = {
   'online.newLinkAsk': 'Старая ссылка перестанет работать. Игрокам нужна новая.',
   'online.newPlayerCode': 'Код нового игрока',
   'online.noCampaignMatch': 'Мира с таким названием нет',
-  'online.noCampaigns': 'У вас пока нет мира. Стол играет и без него, или создайте мир на главной Atlas.',
+  'online.noCampaigns': 'Стол запускается без мира. Если хотите, мир можно создать на главной Atlas.',
   'online.noPlayers': 'Игроков пока нет',
   'online.notAssigned': 'Не назначены',
   'online.notPlayerToken': 'Не токен игрока',

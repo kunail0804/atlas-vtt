@@ -109,7 +109,7 @@ export const online = {
   'online.newLinkAsk': 'The old link stops working. Players need the new one.',
   'online.newPlayerCode': 'Code of the new player',
   'online.noCampaignMatch': 'No world by that name',
-  'online.noCampaigns': 'You have no world yet. The table plays without one, or make one in the Atlas dashboard.',
+  'online.noCampaigns': 'The table starts without a world. If you want one, you can make it in the Atlas dashboard.',
   'online.noPlayers': 'No players yet',
   'online.notAssigned': 'Not assigned',
   'online.notPlayerToken': 'Not a player token',

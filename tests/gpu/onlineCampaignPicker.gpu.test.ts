@@ -104,10 +104,11 @@ describe('the start menu\'s campaign step', () => {
     await page.screenshot({ path: '__screenshots__/atlas-online-campaign-picker-none.png', element: none });
   });
 
-  it('offers the dashboard where the vault has no campaigns', async () => {
+  it('starts without a world where the vault has none, and offers the dashboard', async () => {
     const surface = mount('dark', []);
+    expect(surface.querySelector('.atlas-online-campaigns__note')?.textContent).toMatch(/^The table starts without a world\./);
     expect(surface.querySelector('.atlas-online-campaigns .atlas-online-button')?.textContent).toBe('Open dashboard');
-    expect(surface.querySelector<HTMLButtonElement>('[data-focus-key="start"]')?.disabled).toBe(true);
+    expect(surface.querySelector<HTMLButtonElement>('[data-focus-key="start"]')?.disabled).toBe(false);
     await page.screenshot({ path: '__screenshots__/atlas-online-campaign-picker-empty.png', element: surface });
   });
 });
