@@ -133,7 +133,7 @@ async function fuzz({ seed, trials, gap = false, bounds = { width: 2048, height:
       const sensed = shoot({ sight: computeSight(sources.map((source) => ({ ...source, senses: [darkvision(4000)] })), walls) });
       const spotted = shoot({ lights, ambient: 1, sight: NO_SIGHT, spots: footprints(room, outline, walls, rand) });
       memory.clear();
-      const recorded = exploredShapes(computeSight([sources[0]!], walls), { ambient: 1 }, []);
+      const recorded = exploredShapes(computeSight([sources[0]!], walls), { ambient: 1, exploredBy: 'players' }, []);
       if (recorded) memory.add(recorded);
       engine.setExplored(memory.texture);
       const remembered = shoot({ sight: NO_SIGHT });

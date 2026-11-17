@@ -123,7 +123,7 @@ async function fuzz(name: ShapeName, seed: number, trials: number, lie = false):
       };
       const seen = shoot({ ambient: 1, sight });
       memory.clear();
-      const recorded = exploredShapes(computeSight([sources[0]!], walls), { ambient: 1 }, []);
+      const recorded = exploredShapes(computeSight([sources[0]!], walls), { ambient: 1, exploredBy: 'players' }, []);
       if (recorded) memory.add(recorded);
       engine.setExplored(memory.texture);
       const remembered = shoot({ sight: NO_SIGHT });
