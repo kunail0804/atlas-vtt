@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { App } from 'obsidian';
+import { AnimatePresence } from 'framer-motion';
 import type { Campaign } from '../../../campaigns/campaignTypes';
 import type { CampaignService } from '../../../campaigns/CampaignService';
 import { Button } from '../../../packages/components/primitives/button';
@@ -7,6 +8,7 @@ import type { SystemPreset } from '../../../types/systemPresetTypes';
 import { t } from '../../../i18n';
 import atlasIconUrl from '../../../assets/brand/atlas-icon.webp';
 import { CampaignsSection } from './CampaignsSection';
+import { CompendiumLibraryDialog } from './compendium/CompendiumLibraryDialog';
 import { ContinueHero } from './ContinueHero';
 import { useSceneArtwork, type WorldMapChoice } from './libraryPictures';
 import { MapArt } from './MapArt';
@@ -44,6 +46,7 @@ export function HomePage(props: HomePageProps): React.JSX.Element {
   const { app, scenes, scenesLoading, onOpenScene, onCreateMap, onOpenAssetManager } = props;
   const last = scenes[0] ?? null;
   const artwork = useSceneArtwork(app, last?.id ?? null, last?.thumbnailUrl ?? null);
+  const [compendiumOpen, setCompendiumOpen] = useState(false);
 
   return (
     <>
@@ -62,6 +65,10 @@ export function HomePage(props: HomePageProps): React.JSX.Element {
             <Button variant="ghost" className="dashboard-topbar__action" onClick={onOpenAssetManager}>
               <GameIcon path={DASHBOARD_ICON_PATHS['open-chest']} />
               <span>{t('dashboard.assets')}</span>
+            </Button>
+            <Button variant="ghost" className="dashboard-topbar__action" onClick={() => setCompendiumOpen(true)}>
+              <GameIcon path={DASHBOARD_ICON_PATHS['rule-book']} />
+              <span>{t('dashboard.compendiumSources')}</span>
             </Button>
             <Button variant="ghost" className="dashboard-topbar__action" onClick={onCreateMap}>
               <GameIcon path={DASHBOARD_ICON_PATHS['quill-ink']} />
@@ -89,6 +96,9 @@ export function HomePage(props: HomePageProps): React.JSX.Element {
 
         <RecentScenes scenes={scenes.slice(1)} isLoading={scenesLoading} onOpenScene={onOpenScene} />
       </main>
+      <AnimatePresence>
+        {compendiumOpen && <CompendiumLibraryDialog key="compendium" app={app} onClose={() => setCompendiumOpen(false)} />}
+      </AnimatePresence>
     </>
   );
 }
