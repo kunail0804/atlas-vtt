@@ -9,8 +9,8 @@ For Windows, see [Install Atlas VTT on Windows](windows.md).
 ## Check what you need
 
 - A 64-bit x86 Linux machine (`x86_64`) with glibc. The launcher is built for `x86_64-unknown-linux-gnu`
-  (`selfhost/launcher/deno.json`). No ARM build exists.
-- Obsidian 1.8.7 or later, desktop version (`minAppVersion` in `manifest.json`).
+  No ARM build exists.
+- Obsidian 1.8.7 or later, desktop version.
 - Docker Engine. Each campaign runs in a container of the `kunail0804/atlas-relay` image.
 - A Discord account. The launcher signs you in through Discord.
 - An internet connection. The launcher talks to `https://campaigns.kunlab.cc` and downloads the image from
@@ -33,7 +33,7 @@ For Windows, see [Install Atlas VTT on Windows](windows.md).
    ```
 
    The command prints a version number. The launcher runs `docker` as your user, without `sudo`, and checks
-   the engine with this same command (`selfhost/launcher/docker.ts`).
+   the engine with this same command.
 
 If step 3 prints a permission error, your user cannot reach the Docker engine yet. Follow Docker's
 [post-installation steps](https://docs.docker.com/engine/install/linux-postinstall/) to give it access, then
@@ -46,7 +46,7 @@ run step 3 again. Without this, the launcher stops with « Le service Docker ne 
 3. Open the vault in Obsidian at least once.
 
 The launcher accepts only a folder that contains a `.obsidian` folder, which Obsidian creates the first time
-it opens a vault (`selfhost/launcher/vault.ts`).
+it opens a vault.
 
 You do not install the Atlas VTT plugin yourself. The launcher copies the plugin from the image into the vault
 on every start.
@@ -62,8 +62,8 @@ on every start.
 
 ## Check the download
 
-`SHA256SUMS` holds the SHA-256 fingerprints of `atlas` and `atlas.exe`. CI writes it in the same job that
-builds both files (`.github/workflows/ci.yml`, job `launcher-release`).
+`SHA256SUMS` holds the SHA-256 fingerprints of `atlas` and `atlas.exe`. It is built together with both files
+and published in the same release.
 
 1. Open a terminal in the folder that holds both files.
 2. Run:
@@ -80,9 +80,9 @@ If the command prints `FAILED`, delete `atlas` and download it again. Do not run
 GitHub also records a SHA-256 for each file of a release. With the GitHub CLI, `gh release view <tag> -R
 kunail0804/atlas-vtt --json assets` prints it as `digest`. It must equal the line for `atlas` in `SHA256SUMS`.
 
-What the check proves: the file you have is the file CI put in the release. `SHA256SUMS` comes from the same
+What the check proves: the file you have is the file published in the release. `SHA256SUMS` comes from the same
 release, so the check does not protect you if someone replaced the release itself. The launcher is not
-signed: the release job builds and uploads it without a signing step.
+signed.
 
 ## Start the launcher
 
@@ -157,12 +157,16 @@ plugins on in `.obsidian/community-plugins.json`.
 1. If Obsidian was open on the vault, close it and open it again. The plugins changed while it ran.
 2. If Obsidian shows community plugins as disabled, open **Settings → Community plugins** and turn off
    **Restricted mode**.
-3. Open the command palette, go to the **Experimental features** page, and turn on **Online play**.
-4. Open a scene. **Start online table** is in the command palette only while an Atlas map tab is active.
-5. Sign in from the online control at the bottom left of the map.
-6. Run **Start online table** from the command palette. The online control opens its start menu.
-7. Under **World**, choose the world the table plays, or keep **No world**.
-8. Click **Start online table** at the bottom of the menu.
+3. Open the Atlas dashboard: press **Ctrl+P** to open Obsidian's command palette, type `Atlas`, and run
+   **Atlas VTT: Open dashboard**. The dashboard opens in a new tab.
+4. From the dashboard, create a scene or resume a recent one. The scene opens in an Atlas map tab.
+5. In the map, open the Atlas command palette (**Space**, or its button on the toolbar), go to the
+   **Experimental features** page, and turn on **Online play**.
+6. Sign in from the online control at the bottom left of the map.
+7. Run **Start online table** from the Atlas command palette. It is there only while an Atlas map tab is
+   active. The online control opens its start menu.
+8. Under **World**, choose the world the table plays, or keep **No world**.
+9. Click **Start online table** at the bottom of the menu.
 
 To invite the players, open the online control and click **Copy invite link**. Atlas copies the link to
 your clipboard and does not show it.
@@ -172,9 +176,8 @@ your clipboard and does not show it.
 - `./atlas status` prints « Campagne en cours : <name>. »
 - `docker ps --filter name=atlas-campaign-` lists one container, `atlas-campaign-<name>`.
 - Open `http://127.0.0.1:8787/api/me` in a browser on the same machine. The relay answers
-  `{"error":"signed-out"}`, because the browser is not Obsidian (`selfhost/relay/account.ts`). That answer
-  shows that the relay runs. The launcher waits for this address before it reports the start
-  (`waitForRelay` in `selfhost/launcher/docker.ts`).
+  `{"error":"signed-out"}`, because the browser is not Obsidian. That answer shows that the relay runs. The
+  launcher waits for this address before it reports the start.
 - A player opens the invitation link from another network and joins the table.
 
 The relay listens on `127.0.0.1:8787` only. The players reach the campaign through a Cloudflare tunnel that
