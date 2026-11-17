@@ -4,8 +4,7 @@ import { MARKS_INTERVAL_MS, MAX_KEPT, MAX_MARK_LASER_NUMBERS, type MarkPoint, ty
 import type { RulesMessage } from '../../../src/app/online/protocol/rules.ts';
 import type { LivePlace } from '../../../src/app/online/protocol/live.ts';
 import { CursorOverlay, CursorTap, MarkOverlay, PointerTap, type MeasureRules, type RemoteDrag, type RemoteLaser, type RemoteMeasure } from '../../../src/app/online/marks/index.ts';
-import { cellToWorld, formationGridFromOptions, worldToCell } from '../../../src/app/encounters/encounterFormation.ts';
-import { snapTokenCenter } from '../../../src/app/grid/gridPlacement.ts';
+import { formationGridFromOptions, snapTokenToGrid } from '../../../src/app/encounters/encounterFormation.ts';
 import type { OwnDrag } from './tokenLayer.ts';
 import type { PlayerTool, ToolSettingsStore } from './toolSettings.ts';
 
@@ -166,7 +165,7 @@ export class MarksView {
     const grid = this.snaps ? formationGridFromOptions(this.measureRules?.grid) : null;
     const snap = (point: { readonly x: number; readonly y: number }): { x: number; y: number } => (grid === null
       ? { x: point.x, y: point.y }
-      : snapTokenCenter(point, cells, grid.type, grid.size, (at) => cellToWorld(grid, worldToCell(grid, at))));
+      : snapTokenToGrid(grid, point, cells));
     return { key: drag.id, path: [snap(drag.from), snap(drag.at)], cells, snaps: this.snaps };
   }
 
