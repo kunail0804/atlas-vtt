@@ -61,7 +61,7 @@ export class SceneView {
       case 'scene':
         return this.showScene(message.scene);
       case 'tokens':
-        if (this.visible(message.scene)) this.tokens.show(message.tokens);
+        if (this.visible(message.scene)) this.tokens.show(message.tokens, message.snap);
         return;
       case 'mine':
         if (message.scene === this.sceneId) this.tokens.setMine(message.tokens, message.bars ?? {});

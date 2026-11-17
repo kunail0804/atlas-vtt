@@ -1,5 +1,5 @@
 import { axialToPixel, createHexLayout, pixelToAxial, type HexLayout } from '../grid/hexGeometry';
-import { tokenCenterShift } from '../grid/gridPlacement';
+import { snapTokenCenter, tokenCenterShift } from '../grid/gridPlacement';
 
 export type FormationGridType = 'square' | 'hex-horizontal' | 'hex-vertical';
 
@@ -113,6 +113,14 @@ export function cellToWorld(grid: FormationGrid, cell: CellCoord): Point {
     x: cell.q * grid.size + grid.offsetX + grid.size / 2,
     y: cell.r * grid.size + grid.offsetY + grid.size / 2,
   };
+}
+
+/**
+ * Where the centre of a token of `tokenSize` (1 is one cell) lands on the grid, as Atlas's drop snaps it:
+ * the centre of its cell, or for an even footprint the point where its cells meet.
+ */
+export function snapTokenToGrid(grid: FormationGrid, point: Point, tokenSize: number): Point {
+  return snapTokenCenter(point, tokenSize, grid.type, grid.size, (at) => cellToWorld(grid, worldToCell(grid, at)));
 }
 
 /** Centre of the cell a token's position is recorded by: the cell under its centre, or for an even footprint (centred where cells meet) the cell its footprint starts from. */

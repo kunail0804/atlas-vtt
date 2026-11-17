@@ -3,6 +3,8 @@ import type { Viewport } from 'pixi-viewport';
 import type { LivePlace } from '../../../src/app/online/protocol/live.ts';
 import type { PlayerMessage } from '../../../src/app/online/protocol/game.ts';
 import type { SharedToken } from '../../../src/app/online/protocol/tokens.ts';
+import type { SnapGrid } from '../../../src/app/online/protocol/moves.ts';
+import { snapTokenToGrid } from '../../../src/app/encounters/encounterFormation.ts';
 import type { SharedBar } from '../../../src/app/online/protocol/tokenUI.ts';
 import { loadedTokenRingTexture, loadTokenRingTexture } from '../../../src/app/pixi/token-renderer/tokenRingTexture.ts';
 import { destroyTree } from '../../../src/app/pixi/utils/destroyTree.ts';
@@ -47,6 +49,8 @@ export class TokenLayer {
   /** The bars of the player's own tokens as their owner sees them, by id: shown in place of those everyone sees. */
   private ownBars: Readonly<Record<string, readonly SharedBar[]>> = {};
   private scene: string | null = null;
+  /** The grid a drop snaps to, as the last list gave it (`snap`); null where tokens do not snap. */
+  private snap: SnapGrid | null = null;
   /** The drag under way; `drag` is its number, sent with each of its messages, and `lastSent` 0 until one went. */
   private dragging: { id: string; drag: number; from: { x: number; y: number }; offsetX: number; offsetY: number; lastSent: number } | null = null;
   /** The number of the last drag: each drag takes the next, so the GM's word of an earlier one is told apart. */
@@ -87,6 +91,7 @@ export class TokenLayer {
   /** A new scene: every token goes. */
   reset(scene: string | null): void {
     this.scene = scene;
+    this.snap = null;
     this.mine = new Set();
     this.ownBars = {};
     if (this.dragging !== null) this.onOwnDrag(null);
@@ -107,8 +112,9 @@ export class TokenLayer {
     for (const drawn of this.drawn.values()) this.update(drawn);
   }
 
-  /** The whole token list: tokens not in it go, the order is the list's. */
-  show(tokens: readonly SharedToken[]): void {
+  /** The whole token list: tokens not in it go, the order is the list's. `snap` is the grid a drop snaps to. */
+  show(tokens: readonly SharedToken[], snap: SnapGrid | null = null): void {
+    this.snap = snap;
     const kept = new Set(tokens.map((token) => token.id));
     for (const [id, drawn] of this.drawn) {
       if (kept.has(id)) continue;
@@ -248,6 +254,11 @@ export class TokenLayer {
     const drawn = this.drawn.get(held.id);
     if (drawn === undefined || this.scene === null) return;
     drawn.group.cursor = 'grab';
+    // The token lands as the GM's drop lands it: in the cell under it, or where its cells meet.
+    if (this.snap !== null) {
+      const landing = snapTokenToGrid(this.snap, { x: drawn.group.x, y: drawn.group.y }, drawn.token.cells);
+      drawn.group.position.set(landing.x, landing.y);
+    }
     const moved = Math.hypot(drawn.group.x - held.from.x, drawn.group.y - held.from.y) > 1;
     if (moved) {
       this.drops.put(held.id, drawn.group.x, drawn.group.y, held.drag);

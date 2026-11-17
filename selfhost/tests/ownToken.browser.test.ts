@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { GmMessage } from '../../src/app/online/protocol/game.ts';
 import type { LivePlace } from '../../src/app/online/protocol/live.ts';
 import type { SharedToken } from '../../src/app/online/protocol/tokens.ts';
+import type { SnapGrid } from '../../src/app/online/protocol/moves.ts';
 import { TestGm, createTable, startTestRelay, stopTestRelay, storeAsset, until, type TestRelay } from './helpers.ts';
 import { png } from './png.ts';
 
@@ -111,9 +112,9 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player\'s own 
    * Seats the player on a green map with their own token at `start` and another token below it; `deliver`
    * sends live places the way `deliverLive` does.
    */
-  const ownTokenAt = async (start: { x: number; y: number }): Promise<{ send: (body: GmMessage, to: string) => void; player: string; deliver: (places: readonly LivePlace[], otherTo: { x: number; y: number }) => Promise<void> }> => {
+  const ownTokenAt = async (start: { x: number; y: number }, snap: SnapGrid | null = null): Promise<{ send: (body: GmMessage, to: string) => void; player: string; deliver: (places: readonly LivePlace[], otherTo: { x: number; y: number }) => Promise<void> }> => {
     const { send, player } = await seatOnGreenMap();
-    send({ t: 'tokens', scene: 's1', seq: 1, cell: 70, snap: null, tokens: [plainToken(TOKEN, start, 'Mira', 'taken'), plainToken(OTHER, { x: 150, y: 500 }, 'Gobelin', null)] }, player);
+    send({ t: 'tokens', scene: 's1', seq: 1, cell: 70, snap, tokens: [plainToken(TOKEN, start, 'Mira', 'taken'), plainToken(OTHER, { x: 150, y: 500 }, 'Gobelin', null)] }, player);
     send({ t: 'mine', scene: 's1', tokens: [TOKEN] }, player);
     await page.waitForFunction(() => (document.querySelector('.status') as HTMLElement | null)?.hidden === true, null, { timeout: 10_000 });
     await eventually(() => tokenAt(start.x, start.y), 'the own token');
@@ -202,6 +203,26 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player\'s own 
     send(live(true), player);
     expect(await settles((off) => off === 0)).toBe(0);
   });
+
+  // Issue #168. On a map whose tokens snap, the token the player lets go of lands in the centre of the
+  // square under it, as the GM's drop lands it, and the move the page sends says so.
+  it('lands in the centre of the square under it on a grid', async () => {
+    const start = { x: 175, y: 315 };
+    await ownTokenAt(start, { type: 'square', size: 70, offsetX: 0, offsetY: 0 });
+    const from = screen(start.x, start.y);
+    const to = screen(345, 290);
+    await page.mouse.move(from.x, from.y);
+    await page.mouse.down();
+    await page.mouse.move(to.x, to.y, { steps: 8 });
+    await page.mouse.up();
+    await until(() => gm.messages.some((m) => (m.body as { t?: string }).t === 'move'), 'move sent', 5_000);
+    const drop = gm.messages.find((m) => (m.body as { t?: string }).t === 'move')?.body as { x: number; y: number };
+    expect(drop).toMatchObject({ x: 315, y: 315 });
+    await eventually(() => tokenAt(315, 315), 'the token in its square');
+    // Where the pointer let go, outside the square's token, the map shows.
+    expect(await tokenAt(365, 285)).toBe(false);
+    expect(await tokenAt(start.x, start.y)).toBe(false);
+  }, 60_000);
 
   // Issue #91. The GM echoes a player's drag about one round trip late, so places from the middle of the
   // drag still reach the page after it let go, and the lane's end can overtake the token list that
