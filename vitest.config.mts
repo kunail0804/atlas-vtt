@@ -107,7 +107,15 @@ export default defineConfig({
           browser: {
             enabled: true,
             headless: true,
-            provider: playwright({ launchOptions: { channel: 'chromium', ignoreDefaultArgs: ['--hide-scrollbars'] } }),
+            // Headless Chromium on Linux renders WebGL in SwiftShader, on the CPU. `REAL_GPU=1` asks it for the GPU
+            // (`--enable-gpu`, ANGLE on OpenGL ES). Opt-in: tests that compare pixel hashes were recorded on SwiftShader.
+            provider: playwright({
+              launchOptions: {
+                channel: 'chromium',
+                args: process.env.REAL_GPU ? ['--enable-gpu'] : [],
+                ignoreDefaultArgs: ['--hide-scrollbars'],
+              },
+            }),
             instances: [{ browser: 'chromium' }],
           },
         },
