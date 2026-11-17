@@ -4,12 +4,14 @@ import type { SharedLightingScene, SharedSight } from '../../../src/app/online/p
 import type { MeasurementSettings } from '../../../src/app/grid/measurementFormat.ts';
 import { LIGHTING_Z_INDEX, LightingRenderer, type LightingState } from '../../../src/app/pixi/lighting/LightingRenderer.ts';
 import type { SightRules } from '../../../src/app/vision/sightRules.ts';
-import { litScene } from './litScene.ts';
+import { LitSceneBuilder } from './litScene.ts';
 import type { Stage } from './stage.ts';
 
 /** Above the lighting layer, its door badges and sensed outlines: what covers the map while the players' picture cannot be trusted. */
 const CURTAIN_Z = LIGHTING_Z_INDEX + 9;
 const CURTAIN_MARGIN = 100_000;
+/** The players' picture holds no fog of its own: the page draws the GM's fog above it. */
+const NO_FOG = {};
 
 function measurementOf(unitDistance: number): MeasurementSettings {
   return { mode: 'metric', unitType: 'units', unitDistance, ruleDistance: unitDistance, diagonalRule: 'equidistant', rangeBands: [], coneAngle: 53 };
@@ -25,6 +27,7 @@ export class PlayerLighting {
   private readonly stage: Stage;
   private readonly store: StoreApi<LightingState>;
   private readonly curtain: Graphics;
+  private readonly built = new LitSceneBuilder();
   private readonly unavailable: () => void;
   private renderer: LightingRenderer | null = null;
   private scene: SharedLightingScene | null = null;
@@ -44,8 +47,7 @@ export class PlayerLighting {
     this.curtain.eventMode = 'none';
     stage.viewport.addChild(this.curtain);
     this.store = createStore<LightingState>(() => ({
-      // The players' picture holds no fog of its own: the page draws the GM's fog above it.
-      objects: { tokens: {}, walls: {}, lights: {}, lightZones: {}, fog: {} },
+      objects: { tokens: {}, walls: {}, lights: {}, lightZones: {}, fog: NO_FOG },
       lighting: { enabled: true, ambient: 0 },
       grid: null,
       heldTokens: {},
@@ -93,10 +95,10 @@ export class PlayerLighting {
 
   private update(): void {
     if (this.failed || this.scene === null || this.sight === null || this.bounds === null) return;
-    const built = litScene(this.scene, this.sight);
+    const built = this.built.build(this.scene, this.sight);
     this.rules = built.rules;
     this.unitDistance = built.unitDistance;
-    this.store.setState({ ...built.state, objects: { ...built.state.objects, fog: {} }, isMapLoading: false });
+    this.store.setState({ ...built.state, objects: { ...built.state.objects, fog: NO_FOG }, isMapLoading: false });
     if (this.renderer === null) {
       this.renderer = new LightingRenderer({
         viewport: this.stage.viewport, app: this.stage.app, store: this.store,
