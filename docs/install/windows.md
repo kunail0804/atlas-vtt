@@ -6,15 +6,11 @@ campaign. The launcher speaks French, so this guide quotes its menus in French.
 
 For Linux, see [Install Atlas VTT on Linux](linux.md).
 
-Nobody has yet followed this guide on their own Windows machine. The GM path was run once in a fresh
-Windows 11 VM (build 26100, issue #29). The test on testers' own machines is issue #46. The steps marked
-**To check** describe what is not known yet: note what you see.
-
 ## Check what you need
 
 - A 64-bit x86 Windows machine. The launcher is built for `x86_64-pc-windows-msvc`
-  (`selfhost/launcher/deno.json`). No ARM build exists.
-- Obsidian 1.8.7 or later, desktop version (`minAppVersion` in `manifest.json`).
+  No ARM build exists.
+- Obsidian 1.8.7 or later, desktop version.
 - Docker Desktop. Each campaign runs in a container of the `kunail0804/atlas-relay` image.
 - A Discord account. The launcher signs you in through Discord.
 - An internet connection. The launcher talks to `https://campaigns.kunlab.cc` and downloads the image from
@@ -26,15 +22,13 @@ Windows 11 VM (build 26100, issue #29). The test on testers' own machines is iss
    <https://docs.docker.com/desktop/setup/install/windows-install/>.
 2. Open Docker Desktop and wait until it shows **Engine running**.
 
-During the VM run of issue #29, Docker Desktop asked for two PowerShell commands as administrator, then a
-restart:
+On a machine where WSL is not set up yet, Docker Desktop may ask you to run two commands in PowerShell as
+administrator, then to restart Windows:
 
 ```powershell
 wsl --install
 Enable-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform
 ```
-
-**To check:** whether Docker Desktop asks for them on your machine too.
 
 The launcher needs the engine to run every time you start a campaign. If Docker Desktop is closed, the
 launcher stops with « Docker Desktop n'est pas démarré ». Open Docker Desktop, wait for **Engine running**,
@@ -47,7 +41,7 @@ then try again.
 3. Open the vault in Obsidian at least once.
 
 The launcher accepts only a folder that contains a `.obsidian` folder, which Obsidian creates the first time
-it opens a vault (`selfhost/launcher/vault.ts`).
+it opens a vault.
 
 You do not install the Atlas VTT plugin yourself. The launcher copies the plugin from the image into the vault
 on every start.
@@ -63,8 +57,8 @@ on every start.
 
 ## Check the download
 
-`SHA256SUMS` holds the SHA-256 fingerprints of `atlas` and `atlas.exe`. CI writes it in the same job that
-builds both files (`.github/workflows/ci.yml`, job `launcher-release`).
+`SHA256SUMS` holds the SHA-256 fingerprints of `atlas` and `atlas.exe`. It is built together with both files
+and published in the same release.
 
 1. Open PowerShell in the folder that holds both files.
 2. Print the fingerprint of `atlas.exe`:
@@ -87,17 +81,17 @@ If the values differ, delete `atlas.exe` and download it again. Do not run a fil
 GitHub also records a SHA-256 for each file of a release. With the GitHub CLI, `gh release view <tag> -R
 kunail0804/atlas-vtt --json assets` prints it as `digest`.
 
-What the check proves: the file you have is the file CI put in the release. `SHA256SUMS` comes from the same
+What the check proves: the file you have is the file published in the release. `SHA256SUMS` comes from the same
 release, so the check does not protect you if someone replaced the release itself. The launcher is not
-signed: the release job builds and uploads it without a signing step.
+signed.
 
 ## Start the launcher
 
 1. Double-click `atlas.exe`. A console window opens with a menu.
 2. Check the version in the title line: `══════════ ATLAS 0.4.0 ══════════` for release 0.4.0.
 
-**To check:** because the file is not signed, Windows may show a SmartScreen warning before it runs. Note the
-message you see. Run the file only if it passed [Check the download](#check-the-download).
+Because the file is not signed, Windows SmartScreen may warn you before it runs. Run the file only if it
+passed [Check the download](#check-the-download).
 
 The menu waits for a number. `0` (« Quitter ») closes it. You can also run each command from PowerShell in
 the launcher's folder, for example `.\atlas.exe version` or `.\atlas.exe man`, which lists every command.
@@ -137,21 +131,25 @@ Adresse des joueurs : https://<name>-vtt.kunlab.cc  (copiée)
 The start also puts Fantasy Statblocks in the vault when the vault has none or an older one, and switches both
 plugins on in `.obsidian\community-plugins.json`.
 
-**To check:** whether Windows Defender Firewall asks for a permission during the first start. The container
-publishes its port on `127.0.0.1` only, and the players reach the campaign through a Cloudflare tunnel that
-the container opens itself. Note the program named in the dialog and the choice you made.
+The container publishes its port on `127.0.0.1` only, and the players reach the campaign through a
+Cloudflare tunnel that the container opens itself, so you do not open a port on your router. If Windows
+Defender Firewall asks for a permission during the first start, private networks are enough.
 
 ## Open the table in Obsidian
 
 1. If Obsidian was open on the vault, close it and open it again. The plugins changed while it ran.
 2. If Obsidian shows community plugins as disabled, open **Settings → Community plugins** and turn off
    **Restricted mode**.
-3. Open the command palette, go to the **Experimental features** page, and turn on **Online play**.
-4. Open a scene. **Start online table** is in the command palette only while an Atlas map tab is active.
-5. Sign in from the online control at the bottom left of the map.
-6. Run **Start online table** from the command palette. The online control opens its start menu.
-7. Under **World**, choose the world the table plays, or keep **No world**.
-8. Click **Start online table** at the bottom of the menu.
+3. Open the Atlas dashboard: press **Ctrl+P** to open Obsidian's command palette, type `Atlas`, and run
+   **Atlas VTT: Open dashboard**. The dashboard opens in a new tab.
+4. From the dashboard, create a scene or resume a recent one. The scene opens in an Atlas map tab.
+5. In the map, open the Atlas command palette (**Space**, or its button on the toolbar), go to the
+   **Experimental features** page, and turn on **Online play**.
+6. Sign in from the online control at the bottom left of the map.
+7. Run **Start online table** from the Atlas command palette. It is there only while an Atlas map tab is
+   active. The online control opens its start menu.
+8. Under **World**, choose the world the table plays, or keep **No world**.
+9. Click **Start online table** at the bottom of the menu.
 
 To invite the players, open the online control and click **Copy invite link**. Atlas copies the link to
 your clipboard and does not show it.
@@ -161,9 +159,8 @@ your clipboard and does not show it.
 - The top of the menu shows « Campagne en cours : <name>. »
 - Docker Desktop's **Containers** list shows `atlas-campaign-<name>` as running.
 - Open `http://127.0.0.1:8787/api/me` in a browser on the same machine. The relay answers
-  `{"error":"signed-out"}`, because the browser is not Obsidian (`selfhost/relay/account.ts`). That answer
-  shows that the relay runs. The launcher waits for this address before it reports the start
-  (`waitForRelay` in `selfhost/launcher/docker.ts`).
+  `{"error":"signed-out"}`, because the browser is not Obsidian. That answer shows that the relay runs. The
+  launcher waits for this address before it reports the start.
 - A player opens the invitation link from another network and joins the table.
 
 ## Stop a campaign
