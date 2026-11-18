@@ -1,4 +1,5 @@
-import { CAMPAIGN_NAME, MAX_CAMPAIGNS_PER_ACCOUNT } from './config.ts';
+import { nameProblem } from './campaignNames.ts';
+import { MAX_CAMPAIGNS_PER_ACCOUNT } from './config.ts';
 import type { Account, Context } from './context.ts';
 import { isUniqueViolation } from './db.ts';
 import { failure, json, readJson } from './http.ts';
@@ -16,7 +17,7 @@ const originOf = (context: Context, name: string): string => `https://${hostOf(c
 /** Tunnels the service makes carry this prefix; it never touches another tunnel of the account. */
 const tunnelName = (name: string): string => `atlas-campaign-${name}`;
 
-const NOT_APPROVED = 'Ton compte attend encore la validation de l\'administrateur.';
+const NOT_APPROVED = 'Ton compte attend encore la validation de l\'administrateur, qui en a été prévenu sur Discord à ta première connexion.';
 
 export async function listCampaigns(context: Context, account: Account): Promise<Response> {
   const { results } = await context.db.prepare('SELECT * FROM campaigns WHERE discord_id = ? AND tunnel_id IS NOT NULL ORDER BY created_at').bind(account.discord_id).all<CampaignRow>();
@@ -31,13 +32,19 @@ export async function createCampaign(context: Context, account: Account, request
   if (account.status !== 'approved') return failure(403, 'not-approved', NOT_APPROVED);
   const body = await readJson(request);
   const name = typeof body?.name === 'string' ? body.name : '';
-  if (!CAMPAIGN_NAME.test(name)) return failure(400, 'bad-name', 'Nom invalide : 1 à 30 lettres minuscules, chiffres ou tirets, sans tiret au début ni à la fin.');
+  const problem = nameProblem(name);
+  if (problem !== null) return failure(400, 'bad-name', problem);
   const owned = await context.db.prepare('SELECT COUNT(*) AS n FROM campaigns WHERE discord_id = ?').bind(account.discord_id).first<{ n: number }>();
   if ((owned?.n ?? 0) >= MAX_CAMPAIGNS_PER_ACCOUNT) return failure(409, 'too-many', `Tu as déjà ${MAX_CAMPAIGNS_PER_ACCOUNT} campagnes. Supprimes-en une d'abord.`);
   try {
     await context.db.prepare('INSERT INTO campaigns (name, discord_id, created_at) VALUES (?, ?, ?)').bind(name, account.discord_id, context.now()).run();
   } catch (error) {
-    if (isUniqueViolation(error)) return failure(409, 'taken', `Le nom « ${name} » est déjà pris.`);
+    if (isUniqueViolation(error)) {
+      const owner = await context.db.prepare('SELECT discord_id FROM campaigns WHERE name = ?').bind(name).first<{ discord_id: string }>();
+      return failure(409, 'taken', owner?.discord_id === account.discord_id
+        ? `Tu as déjà une campagne « ${name} ».`
+        : `Le nom « ${name} » est déjà pris par un autre MJ. Choisis-en un autre.`);
+    }
     throw error;
   }
   let tunnelId: string | null = null;

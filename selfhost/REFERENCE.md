@@ -51,7 +51,8 @@ A socket path whose code does not match `TABLE_CODE_PATTERN` gets HTTP 404 befor
 | `RELAY_HOST` | `127.0.0.1` | Where both listeners bind. `0.0.0.0` in the container. |
 | `DATA_DIR` | `selfhost/.local` | Tables (`tables.json`) and the GM's token (`host-token`). |
 | `PLAYER_ORIGIN` | `https://vtt.kunlab.cc` | The campaign's public address. |
-| `IDLE_STOP_MINUTES` | unset: never stops | Minutes with no socket open before the relay exits. |
+| `IDLE_STOP_MINUTES` | unset: never stops | Minutes with no socket open, after the last one closed, before the relay exits. A request on the GM side postpones the stop to at least this long from then. |
+| `IDLE_START_MINUTES` | `IDLE_STOP_MINUTES` | Minutes the relay waits for the first socket after it starts. 60 in the image: the GM prepares the table in Obsidian before anyone connects. |
 
 ## Table rules
 

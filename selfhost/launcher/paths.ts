@@ -10,7 +10,8 @@ export function join(...parts: string[]): string {
 }
 
 export const sessionFile = (): string => join(stateDir(), 'session.json');
-export const campaignFile = (name: string): string => join(stateDir(), 'campaigns', `${name}.json`);
+export const campaignsDir = (): string => join(stateDir(), 'campaigns');
+export const campaignFile = (name: string): string => join(campaignsDir(), `${name}.json`);
 export const logFile = (): string => join(stateDir(), 'atlas.log');
 
 export async function ensureDir(path: string): Promise<void> {

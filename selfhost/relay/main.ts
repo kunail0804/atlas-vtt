@@ -6,11 +6,17 @@ import { startTunnel } from './tunnel.ts';
 // Settings come from the environment, which the launcher sets for the container.
 // Without them the relay runs for development: loopback only, data in selfhost/.local, no idle stop.
 const env = process.env;
-const idleMinutes = env.IDLE_STOP_MINUTES === undefined ? null : Number(env.IDLE_STOP_MINUTES);
-if (idleMinutes !== null && !(Number.isFinite(idleMinutes) && idleMinutes > 0)) {
-  console.error(`IDLE_STOP_MINUTES must be a positive number, got: ${env.IDLE_STOP_MINUTES}`);
+function minutes(name: 'IDLE_STOP_MINUTES' | 'IDLE_START_MINUTES'): number | null {
+  const value = env[name];
+  if (value === undefined) return null;
+  const parsed = Number(value);
+  if (Number.isFinite(parsed) && parsed > 0) return parsed;
+  console.error(`${name} must be a positive number, got: ${value}`);
   process.exit(1);
 }
+// After everyone left the relay waits IDLE_STOP_MINUTES; before anyone came, IDLE_START_MINUTES.
+const idleMinutes = minutes('IDLE_STOP_MINUTES');
+const startMinutes = minutes('IDLE_START_MINUTES') ?? idleMinutes;
 
 const relay = await startRelay({
   host: env.RELAY_HOST ?? LOOPBACK,
@@ -19,8 +25,9 @@ const relay = await startRelay({
   dataDir: env.DATA_DIR ?? path.join(import.meta.dirname, '..', '.local'),
   playerOrigin: env.PLAYER_ORIGIN ?? 'https://vtt.kunlab.cc',
   idleStopMs: idleMinutes === null ? null : idleMinutes * 60_000,
+  firstIdleStopMs: idleMinutes === null || startMinutes === null ? null : startMinutes * 60_000,
   onIdle: () => {
-    console.log(`nobody connected for ${idleMinutes} minutes: stopping`);
+    console.log('nobody connected for the idle time: stopping');
     stop(0);
   },
 });

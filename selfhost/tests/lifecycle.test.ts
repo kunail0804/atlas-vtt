@@ -91,4 +91,38 @@ describe('the relay across restarts and idle time', () => {
     gm.connection.stop();
     await until(() => idle === 1, 'idle stop after the GM left', 3_000);
   });
+
+  it('waits longer for the first connection than after everyone left', async () => {
+    let idle = 0;
+    const test = await startTestRelay({ idleStopMs: 300, firstIdleStopMs: 1_500, onIdle: () => (idle += 1) });
+    relays.push(test);
+    // Nobody came yet: the short wait does not apply.
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    expect(idle).toBe(0);
+    const created = await createTable(test.gmOrigin);
+    const gm = new TestGm(test.gmOrigin, created.code, created.secret);
+    await until(() => gm.status === 'online', 'GM online');
+    gm.connection.stop();
+    // Once someone came and left, the short wait does.
+    await until(() => idle === 1, 'idle stop after the GM left', 1_000);
+  });
+
+  it('stops after the first wait when nobody ever connects', async () => {
+    let idle = 0;
+    const test = await startTestRelay({ idleStopMs: 200, firstIdleStopMs: 400, onIdle: () => (idle += 1) });
+    relays.push(test);
+    await until(() => idle === 1, 'idle stop with nobody ever connected', 2_000);
+  });
+
+  it('a request on the GM side postpones the stop', async () => {
+    let idle = 0;
+    const test = await startTestRelay({ idleStopMs: 600, onIdle: () => (idle += 1) });
+    relays.push(test);
+    for (let step = 0; step < 4; step += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      await (await fetch(`${test.gmOrigin}/api/me`)).body?.cancel();
+    }
+    expect(idle).toBe(0);
+    await until(() => idle === 1, 'idle stop once the requests stopped', 2_000);
+  });
 });

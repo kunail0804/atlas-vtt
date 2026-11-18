@@ -3,6 +3,9 @@ import { ensureDir, logFile, stateDir } from './paths.ts';
 /** A failure the GM can act on: `message` says what happened and what to do, in French. */
 export class UserError extends Error {}
 
+/** How the GM types the launcher in a terminal, for the commands the messages name. */
+export const COMMAND = Deno.build.os === 'windows' ? '.\\atlas.exe' : './atlas';
+
 export async function log(line: string): Promise<void> {
   try {
     await ensureDir(stateDir());
@@ -14,7 +17,7 @@ export async function log(line: string): Promise<void> {
 
 /** Runs a program; never through a shell, so nothing in an argument is ever read as a command. */
 export async function run(command: string, args: string[], options: { env?: Record<string, string>; stdin?: string; capture?: boolean } = {}): Promise<{ code: number; stdout: string; stderr: string }> {
-  // `capture: false` for programs that leave a process behind (a clipboard keeper): it would hold
+  // `capture: false` for programs that leave a process behind (xdg-open's browser): it would hold
   // captured pipes open, and reading them to the end would never finish.
   const output = options.capture === false ? 'null' : 'piped';
   try {
@@ -44,14 +47,6 @@ export async function openBrowser(url: string): Promise<boolean> {
   return result.code === 0;
 }
 
-export async function copyToClipboard(text: string): Promise<boolean> {
-  if (Deno.build.os === 'windows') return (await run('clip', [], { stdin: text, capture: false })).code === 0;
-  for (const [command, args] of [['wl-copy', []], ['xclip', ['-selection', 'clipboard']], ['xsel', ['--clipboard', '--input']]] as const) {
-    if ((await run(command, [...args], { stdin: text, capture: false })).code === 0) return true;
-  }
-  return false;
-}
-
 /** A folder chosen in the system's dialog; null when there is no dialog or the GM cancelled. */
 export async function pickFolder(title: string): Promise<string | null> {
   if (Deno.build.os === 'windows') {
@@ -69,10 +64,26 @@ export async function pickFolder(title: string): Promise<string | null> {
   return null;
 }
 
+let ended = false;
+
+/** The GM's answer, trimmed; '' once the input ended (Ctrl+C, Ctrl+D, no terminal), which `inputEnded` then reports. */
 export function ask(question: string): string {
-  return (prompt(question) ?? '').trim();
+  const answer = prompt(question);
+  if (answer === null) ended = true;
+  return (answer ?? '').trim();
+}
+
+/** Whether an answer was refused by Ctrl+C or Ctrl+D, or never came because nothing is typing. */
+export function inputEnded(): boolean {
+  return ended;
+}
+
+/** Whether `answer` is yes (o, oui); anything else is no. */
+export function isYes(answer: string): boolean {
+  const lower = answer.toLowerCase();
+  return lower === 'o' || lower === 'oui';
 }
 
 export function pause(): void {
-  prompt('Appuie sur Entrée pour continuer…');
+  ask('Appuie sur Entrée pour continuer…');
 }

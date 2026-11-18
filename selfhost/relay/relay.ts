@@ -25,6 +25,8 @@ export interface RelayOptions {
   readonly playerOrigin: string;
   /** Stop after this long with no socket open; null never stops. */
   readonly idleStopMs: number | null;
+  /** Before anyone connected for the first time, stop after this long instead; null or absent: `idleStopMs`. */
+  readonly firstIdleStopMs?: number | null;
   readonly onIdle: () => void;
 }
 
@@ -84,7 +86,7 @@ export async function startRelay(options: RelayOptions): Promise<RunningRelay> {
   // enforces with the protocol's close code; these only bound what a socket can make the relay hold.
   const gmSockets = new WebSocketServer({ noServer: true, perMessageDeflate: false, maxPayload: MAX_GM_FRAME * 2 });
   const publicSockets = new WebSocketServer({ noServer: true, perMessageDeflate: false, maxPayload: 64 * 1024 });
-  const idle = new IdleStop(options.idleStopMs, options.onIdle);
+  const idle = new IdleStop(options.idleStopMs, options.onIdle, options.firstIdleStopMs ?? options.idleStopMs);
   const openSockets = (): number => gmSockets.clients.size + publicSockets.clients.size;
   /** Open public sockets by visitor address. */
   const publicSources = new Map<string, number>();
@@ -100,6 +102,7 @@ export async function startRelay(options: RelayOptions): Promise<RunningRelay> {
 
   function handleGm(request: IncomingMessage, response: ServerResponse): void {
     if (!addressedToLoopback(request)) return sendJson(response, 421, { error: 'wrong-host' });
+    idle.touch();
     const pathname = pathnameOf(request);
     if (account.handle(request, response, pathname)) return;
     // Only Obsidian, which is no web page, uploads what players are shown.
