@@ -56,7 +56,8 @@ RUN mkdir /data && chown node:node /data
 ENV NODE_ENV=production \
     RELAY_HOST=0.0.0.0 \
     DATA_DIR=/data \
-    IDLE_STOP_MINUTES=5
+    IDLE_STOP_MINUTES=5 \
+    IDLE_START_MINUTES=60
 VOLUME /data
 USER node
 EXPOSE 8787 8788

@@ -71,7 +71,8 @@ describe('the accounts and campaigns service', () => {
     expect(created).toMatchObject({ status: 201, body: { name: 'name2', origin: 'https://name2-vtt.kunlab.cc' } });
     expect(service.cloudflare.calls).toEqual(['createTunnel atlas-campaign-name2 name2-vtt.kunlab.cc', 'createRecord name2-vtt.kunlab.cc tunnel-1']);
 
-    expect((await call(service, 'POST', '/campaigns', { token: lea, body: { name: 'name2' } })).body.error).toBe('taken');
+    expect((await call(service, 'POST', '/campaigns', { token: lea, body: { name: 'name2' } })).body).toMatchObject({ error: 'taken', message: 'Le nom « name2 » est déjà pris par un autre MJ. Choisis-en un autre.' });
+    expect((await call(service, 'POST', '/campaigns', { token: paul, body: { name: 'name2' } })).body).toMatchObject({ error: 'taken', message: 'Tu as déjà une campagne « name2 ».' });
     expect((await call(service, 'GET', '/campaigns/name2/start', { token: paul })).body).toMatchObject({ tunnelToken: 'token-of-tunnel-1', origin: 'https://name2-vtt.kunlab.cc' });
     expect((await call(service, 'GET', '/campaigns/name2/start', { token: lea })).status).toBe(404);
     expect((await call(service, 'GET', '/campaigns', { token: paul })).body.campaigns).toHaveLength(1);
@@ -83,6 +84,15 @@ describe('the accounts and campaigns service', () => {
     for (const name of ['', '-a', 'a-', 'A', 'a_b', 'x'.repeat(31)]) {
       expect((await call(service, 'POST', '/campaigns', { token: admin, body: { name } })).body.error).toBe('bad-name');
     }
+    const message = async (name: string): Promise<unknown> => (await call(service, 'POST', '/campaigns', { token: admin, body: { name } })).body.message;
+    expect(await message('Recette')).toBe('Nom invalide : pas de majuscule. Un nom a de 1 à 30 lettres minuscules, chiffres ou tirets. Essaie « recette ».');
+    expect(await message('re cette')).toBe('Nom invalide : pas d\'espace. Un nom a de 1 à 30 lettres minuscules, chiffres ou tirets. Essaie « re-cette ».');
+    expect(await message('récette')).toContain('pas d\'accent');
+    expect(await message('récette')).toContain('Essaie « recette ».');
+    expect(await message('re_cette')).toContain('pas d\'autre signe que le tiret');
+    expect(await message('-recette')).toContain('pas de tiret au début ni à la fin');
+    expect(await message('x'.repeat(31))).toContain('trop long (31 caractères, 30 au plus)');
+    expect(await message('')).toContain('Nom vide');
     for (let index = 1; index <= 5; index += 1) expect((await call(service, 'POST', '/campaigns', { token: admin, body: { name: `c${index}` } })).status).toBe(201);
     expect((await call(service, 'POST', '/campaigns', { token: admin, body: { name: 'c6' } })).body.error).toBe('too-many');
   });

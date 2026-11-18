@@ -4,7 +4,7 @@ import type { Message } from '../../src/app/i18n/types';
 import { SHEET_TEXT } from '../../src/app/sheets/sheetText';
 
 /** Messages about the hosted campaign (launcher, `<name>-vtt.kunlab.cc`), the one thing still called a campaign. */
-const HOSTED_CAMPAIGN_KEYS = new Set(['settings.updates.howToUpdate', 'settings.updates.notice']);
+const HOSTED_CAMPAIGN_KEYS = new Set(['settings.updates.howToUpdate', 'settings.updates.notice', 'online.account.unreachable', 'online.server.unreachable']);
 
 /** "Campaign" in every language Atlas ships, outside `{placeholders}`. */
 const CAMPAIGN_WORD = /campaign|campagne|кампани|战役/i;

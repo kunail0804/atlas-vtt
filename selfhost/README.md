@@ -110,8 +110,9 @@ docker run --rm -p 127.0.0.1:8787:8787 -v atlas-<campaign>:/data \
 ```
 
 Only the GM side (8787) is published, on the host's loopback. `cloudflared` reaches the public side
-(8788) inside the container. The relay stops after `IDLE_STOP_MINUTES` (5 in the image) with no
-socket open, and when the tunnel stops; `--rm` then deletes the container and the token with it.
+(8788) inside the container. The relay stops once nobody has connected for `IDLE_START_MINUTES` (60 in
+the image) after it started, or `IDLE_STOP_MINUTES` (5 in the image) after the last socket closed, and
+when the tunnel stops; `--rm` then deletes the container and the token with it.
 Tables live in the `atlas-<campaign>` volume.
 
 ## Expose the public side

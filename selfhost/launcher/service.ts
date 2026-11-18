@@ -1,5 +1,5 @@
 import { readJson, sessionFile, writeJson } from './paths.ts';
-import { UserError, log } from './system.ts';
+import { COMMAND, UserError, log } from './system.ts';
 
 /** An error the service answered, with its code (`pending`, `taken`, …) beside the GM's message. */
 export class ServiceError extends UserError {
@@ -37,7 +37,7 @@ export async function api<T>(method: string, path: string, body?: unknown, optio
   const headers: Record<string, string> = {};
   if (options.session !== false) {
     const token = await sessionToken();
-    if (token === null) throw new UserError('Tu n\'es pas connecté. Choisis « Se connecter » (ou : atlas login).');
+    if (token === null) throw new UserError(`Tu n'es pas connecté : choisis « Se connecter » dans le menu, ou tape ${COMMAND} login.`);
     headers.authorization = `Bearer ${token}`;
   }
   if (body !== undefined) headers['content-type'] = 'application/json';

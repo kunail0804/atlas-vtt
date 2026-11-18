@@ -3,6 +3,22 @@ import { UserError, log, run } from './system.ts';
 const PREFIX = 'atlas-campaign-';
 const DOWNLOAD = Deno.build.os === 'windows' ? 'https://docs.docker.com/desktop/setup/install/windows-install/' : 'https://docs.docker.com/engine/install/';
 
+/**
+ * What to do when Docker is installed but its engine does not answer. On Linux the engine is either
+ * Docker Engine, a system service, or Docker Desktop, which runs per user under the `desktop-linux`
+ * context and which `systemctl start docker` does not start.
+ */
+export function dockerDownAdvice(os: string, context: string, stderr: string): string {
+  if (os === 'windows') return 'Docker Desktop n\'est pas démarré. Ouvre Docker Desktop, attends qu\'il indique « Engine running », puis réessaie.';
+  if (/permission denied/i.test(stderr)) {
+    return 'Ton utilisateur n\'a pas le droit d\'utiliser Docker. Ajoute-le au groupe docker (sudo usermod -aG docker $USER), ferme ta session et rouvre-la, puis réessaie.';
+  }
+  if (context === 'desktop-linux' || stderr.includes('.docker/desktop')) {
+    return 'Docker Desktop n\'est pas démarré. Ouvre Docker Desktop (ou tape : systemctl --user start docker-desktop), attends qu\'il indique « Engine running », puis réessaie.';
+  }
+  return 'Le service Docker ne répond pas. Démarre-le (sudo systemctl start docker), puis réessaie. Si tu as installé Docker Desktop, ouvre plutôt Docker Desktop.';
+}
+
 /** Docker answers: installed, and its engine running. Each failure says what to do. */
 export async function checkDocker(): Promise<void> {
   const version = await run('docker', ['--version']);
@@ -10,9 +26,8 @@ export async function checkDocker(): Promise<void> {
   const engine = await run('docker', ['info', '--format', '{{.ServerVersion}}']);
   if (engine.code !== 0) {
     await log(`docker info: ${engine.stderr.slice(0, 300)}`);
-    throw new UserError(Deno.build.os === 'windows'
-      ? 'Docker Desktop n\'est pas démarré. Ouvre Docker Desktop, attends qu\'il indique « Engine running », puis réessaie.'
-      : 'Le service Docker ne répond pas. Démarre-le (sudo systemctl start docker), puis réessaie.');
+    const context = await run('docker', ['context', 'show']);
+    throw new UserError(dockerDownAdvice(Deno.build.os, context.stdout.trim(), engine.stderr));
   }
 }
 
@@ -104,6 +119,11 @@ export async function waitForRelay(name: string): Promise<void> {
   const logs = await run('docker', ['logs', `${PREFIX}${name}`]);
   await log(`relay did not answer: ${logs.stdout.slice(-500)} ${logs.stderr.slice(-500)}`);
   throw new UserError('La campagne s\'est arrêtée au démarrage. Le détail est dans le journal Atlas.');
+}
+
+/** Whether this machine keeps the campaign's tables (the Docker volume `atlas-<name>`). */
+export async function hasTables(name: string): Promise<boolean> {
+  return (await run('docker', ['volume', 'inspect', `atlas-${name}`])).code === 0;
 }
 
 export async function stopCampaign(name: string): Promise<void> {

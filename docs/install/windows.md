@@ -2,7 +2,8 @@
 
 This guide takes you from a Windows machine without Atlas to a campaign that your players can join from their
 browsers. You install Obsidian and Docker Desktop, download `atlas.exe`, check the file, and start a first
-campaign. The launcher speaks French, so this guide quotes its menus in French.
+campaign. The launcher speaks French, so this guide quotes its messages in French, each followed by what it
+means. Atlas itself, inside Obsidian, is mostly in English, even in an Obsidian set to French.
 
 For Linux, see [Install Atlas VTT on Linux](linux.md).
 
@@ -31,14 +32,14 @@ Enable-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform
 ```
 
 The launcher needs the engine to run every time you start a campaign. If Docker Desktop is closed, the
-launcher stops with « Docker Desktop n'est pas démarré ». Open Docker Desktop, wait for **Engine running**,
-then try again.
+launcher stops with « Docker Desktop n'est pas démarré » (Docker Desktop is not running). Open Docker Desktop,
+wait for **Engine running**, then try again.
 
 ## Install Obsidian and create the campaign's vault
 
 1. Install Obsidian 1.8.7 or later from <https://obsidian.md>.
 2. Create a vault for your campaign, or pick an existing one.
-3. Open the vault in Obsidian at least once.
+3. Open the vault in Obsidian at least once, then close Obsidian.
 
 The launcher accepts only a folder that contains a `.obsidian` folder, which Obsidian creates the first time
 it opens a vault.
@@ -48,12 +49,13 @@ on every start.
 
 ## Download the launcher
 
-1. Open the fork's releases: <https://github.com/kunail0804/atlas-vtt/releases>.
-2. Pick the newest release named **Atlas launcher x.y.z**, with a tag `launcher-v<x.y.z>`.
-   - Every launcher release is marked **Pre-release** on GitHub, the stable ones too.
-   - Skip the releases whose version ends in `-dev.<n>`. They are development builds from `develop`.
-   - Skip the **Compendium sources** releases. They hold data that the plugin downloads by itself.
-3. Download two files from that release: `atlas.exe` and `SHA256SUMS`. Put them in the same folder.
+1. Open the newest launcher release: <https://github.com/kunail0804/atlas-vtt/releases/latest>. Its title is
+   **Atlas launcher x.y.z** and GitHub marks it **Latest**.
+   - On the full list of releases, skip the ones marked **Pre-release**: the launcher builds whose version
+     ends in `-dev.<n>` are development builds, and **Compendium sources** hold data that the plugin downloads
+     by itself. Launcher releases up to 0.4.0 are marked **Pre-release** too.
+2. Unfold **Assets** at the bottom of the release if GitHub folds it, and download two files: `atlas.exe` and
+   `SHA256SUMS`. Put them in the same folder. You do not need the source code archives.
 
 ## Check the download
 
@@ -88,13 +90,14 @@ not signed.
 ## Start the launcher
 
 1. Double-click `atlas.exe`. A console window opens with a menu.
-2. Check the version in the title line: `══════════ ATLAS 0.4.0 ══════════` for release 0.4.0.
+2. Check the version in the title line: `══════════ ATLAS 0.5.0 ══════════` for release 0.5.0.
 
 Because the file is not signed, Windows SmartScreen may warn you before it runs. Run the file only if it
 passed [Check the download](#check-the-download).
 
-The menu waits for a number. `0` (« Quitter ») closes it. You can also run each command from PowerShell in
-the launcher's folder, for example `.\atlas.exe version` or `.\atlas.exe man`, which lists every command.
+The menu waits for a number. `0` (« Quitter », quit) or **Ctrl+C** closes it. You can also run each command
+from PowerShell in the launcher's folder, for example `.\atlas.exe version` or `.\atlas.exe man` (or
+`.\atlas.exe -h`), which lists every command.
 
 ## Sign in
 
@@ -103,33 +106,53 @@ the launcher's folder, for example `.\atlas.exe version` or `.\atlas.exe man`, w
    opens, copy the link that the launcher prints into your browser.
 3. Allow Atlas on Discord, then go back to the launcher's window.
 
-The first sign-in creates your account with the status « en attente de validation par l'administrateur ».
-You cannot create or start a campaign until the administrator approves the account. Ask the administrator to
-approve it. The menu shows the status at the top: it must say « compte validé ».
+The first sign-in creates your account with the status « en attente de validation par l'administrateur »
+(waiting for the administrator's approval). You cannot create or start a campaign until the administrator
+approves the account.
+
+- The administrator is the person who runs the campaigns service, `campaigns.kunlab.cc`, and gave you access
+  to Atlas. There is no automatic approval.
+- The service sends them a message on Discord when your account is created. If nothing happens, contact them
+  the way they invited you.
+- Signing in again does not speed it up. The menu shows the status at the top: it must say « compte validé »
+  (account approved).
 
 ## Create and start a campaign
 
-1. In the menu, choose « Créer une campagne » and type a name. A name has 1 to 30 lowercase letters, digits,
-   or hyphens, and does not start or end with a hyphen. An account holds 5 campaigns at most. The launcher
-   prints the players' address, `https://<name>-vtt.kunlab.cc`.
-2. Choose « Lancer une campagne », then the campaign's number.
-3. The first time, a folder dialog opens. Choose the vault folder, the one that contains `.obsidian`. The
-   launcher remembers it for this campaign.
+1. In the menu, choose « Créer une campagne » (create a campaign) and type a name. A name has 1 to 30
+   lowercase letters, digits, or hyphens, and does not start or end with a hyphen. When a name breaks a rule,
+   the launcher says which one, proposes a name that keeps them (`Ma campagne` gives « Essaie « ma-campagne » »,
+   try `ma-campagne`), and asks again. An empty name goes back to the menu. An account holds 5 campaigns at
+   most. The launcher prints the campaign's address, `https://<name>-vtt.kunlab.cc`.
+2. Choose « Lancer une campagne » (start a campaign), then the campaign's number.
+3. The first time, a folder dialog opens. Choose the vault folder itself, the one that contains `.obsidian`,
+   not the folder that holds it. The launcher remembers it for this campaign, and warns you when another
+   campaign uses the same vault.
 4. Wait while the launcher downloads the image, copies the plugins into the vault, and starts the container.
 
 From PowerShell, the same steps are `.\atlas.exe campaign create <name>` and `.\atlas.exe start <name>`.
 
-When the start succeeds, the launcher prints:
+To give a campaign another vault later, choose « Changer le coffre d'une campagne » (change a campaign's vault),
+or run `.\atlas.exe campaign vault <name>`. The next start puts the plugins in the new vault.
+
+When the start succeeds, the launcher prints what to do next:
 
 ```
-La campagne « <name> » tourne.
-Adresse des joueurs : https://<name>-vtt.kunlab.cc  (copiée)
+La campagne « <name> » tourne, avec le coffre <vault>.
+Pour inviter les joueurs : dans Obsidian, ouvre ce coffre, lance la table (« Start online table »), puis clique sur « Copy invite link » :
+Atlas copie le lien d'invitation sans l'afficher. C'est ce lien que tu envoies aux joueurs.
+L'adresse de la campagne, https://<name>-vtt.kunlab.cc, ne suffit pas : sans le lien d'invitation, les joueurs n'y trouvent pas de table.
+Elle s'arrête toute seule si personne ne s'y connecte dans l'heure, puis 5 minutes après le départ de tout le monde.
 ```
 
-`(copiée)` means that the address is on your clipboard.
+In English: the campaign runs with that vault; to invite the players, open the vault in Obsidian, start the
+table, and click **Copy invite link**, which copies the link without showing it; send that link to your
+players, because the campaign's address alone leads to no table; and the campaign stops by itself (see
+[Stop a campaign](#stop-a-campaign)).
 
-The start also puts Fantasy Statblocks in the vault when the vault has none or an older one, and switches both
-plugins on in `.obsidian\community-plugins.json`.
+The first start also puts Fantasy Statblocks in the vault when the vault has none or an older one, and
+switches both plugins on in `.obsidian\community-plugins.json`. The launcher then lists those changes and
+reminds you of Obsidian's trust dialog, described below.
 
 The container publishes its port on `127.0.0.1` only, and the players reach the campaign through a
 Cloudflare tunnel that the container opens itself, so you do not open a port on your router. If Windows
@@ -137,22 +160,41 @@ Defender Firewall asks for a permission during the first start, private networks
 
 ## Open the table in Obsidian
 
-1. If Obsidian was open on the vault, close it and open it again. The plugins changed while it ran.
-2. If Obsidian shows community plugins as disabled, open **Settings → Community plugins** and turn off
-   **Restricted mode**.
-3. Open the Atlas dashboard: press **Ctrl+P** to open Obsidian's command palette, type `Atlas`, and run
-   **Atlas VTT: Open dashboard**. The dashboard opens in a new tab.
-4. From the dashboard, create a scene or resume a recent one. The scene opens in an Atlas map tab.
-5. In the map, open the Atlas command palette (**Space**, or its button on the toolbar), go to the
-   **Experimental features** page, and turn on **Online play**.
-6. Sign in from the online control at the bottom left of the map.
-7. Run **Start online table** from the Atlas command palette. It is there only while an Atlas map tab is
-   active. The online control opens its start menu.
-8. Under **World**, choose the world the table plays, or keep **No world**.
-9. Click **Start online table** at the bottom of the menu.
+Do these steps within the hour after the start: a campaign nobody joined within an hour stops by itself.
 
-To invite the players, open the online control and click **Copy invite link**. Atlas copies the link to
-your clipboard and does not show it.
+1. If Obsidian was open on the vault, close it and open it again. The plugins changed while it ran.
+2. The first time Obsidian opens a vault that holds community plugins, it asks whether to trust the vault's
+   author (in a French Obsidian: « Faire confiance à l'auteur de ce coffre ? »). Obsidian recommends
+   restricted mode, and that button is selected, so **Enter** chooses it. Click **Trust author and enable
+   plugins** instead (« Faire confiance à l'auteur et activer les modules »): in restricted mode, Atlas does
+   not load.
+3. Obsidian then opens its settings on **Community plugins**, where Atlas VTT and Fantasy Statblocks are
+   switched on. Close the settings window.
+
+   If you chose restricted mode by mistake, open **Settings → Community plugins** and turn off **Restricted
+   mode**.
+4. Open the Atlas dashboard: press **Ctrl+P** to open Obsidian's command palette, type `Atlas`, and run
+   **Atlas VTT: Open dashboard**. The dashboard opens in a new tab.
+5. From the dashboard, create a scene or resume a recent one. The scene opens in an Atlas map tab.
+6. In the map, open the Atlas command palette (**Space**, or its button on the toolbar), go to the
+   **Experimental features** page, and turn on **Online play**.
+7. Sign in from the online control at the bottom left of the map.
+8. Run **Start online table** from the Atlas command palette. It is there only while an Atlas map tab is
+   active. The online control opens its start menu.
+9. Under **World**, choose the world the table plays, or keep **No world**.
+10. Click **Start online table** at the bottom of the menu.
+
+If the campaign stopped meanwhile, Atlas says that the campaign is not running on this machine. Start it again
+from the launcher, then start the table.
+
+## Invite the players
+
+Open the online control and click **Copy invite link**. Atlas copies the link to your clipboard and does not
+show it. Paste it where your players read it (Discord, e-mail).
+
+The campaign's address, `https://<name>-vtt.kunlab.cc`, is not that link. Opened on its own, it shows « Ce lien
+ne contient pas de table. Demande le lien d'invitation au MJ. » (this link holds no table; ask the GM for the
+invite link).
 
 ## Check that everything works
 
@@ -165,14 +207,32 @@ your clipboard and does not show it.
 
 ## Stop a campaign
 
-In the menu, choose « Arrêter la campagne en cours ». A campaign also stops by itself 5 minutes after the
-last player leaves. The tables stay in the Docker volume `atlas-<name>`.
+In the menu, choose « Arrêter la campagne en cours » (stop the running campaign). A campaign also stops by
+itself:
+
+- one hour after the start if nobody connected to it, you included;
+- 5 minutes after everyone left, once someone connected.
+
+The tables stay in the Docker volume `atlas-<name>`. Start the campaign again from the launcher.
+
+While the campaign is stopped, players who open its address see a Cloudflare error page, in English, « Error
+1033 — Cloudflare Tunnel error ». It means that the campaign is not running, not that something is broken.
+
+## Delete a campaign
+
+« Supprimer une campagne » (delete a campaign), or `.\atlas.exe campaign delete <name>`, asks for
+confirmation, then deletes the campaign and its address: nobody can reach it any more. The launcher forgets the
+campaign's vault, and the vault itself is left as it is.
+
+The tables stay on this machine, in the Docker volume `atlas-<name>`, so that a mistake does not cost your
+work. To delete them too, delete the volume `atlas-<name>` in Docker Desktop's **Volumes** list, or run
+`docker volume rm atlas-<name>` in PowerShell.
 
 ## Where the launcher keeps its files
 
 | What | Where |
 |---|---|
-| Your session, campaigns, and update check | `%APPDATA%\atlas-vtt\` |
+| Your session, the vault of each campaign, and update check | `%APPDATA%\atlas-vtt\` |
 | The log | `atlas.log` in that folder |
 | A campaign's tables | The Docker volume `atlas-<name>` |
 | The plugins | `<vault>\.obsidian\plugins\atlas-vtt\` and `<vault>\.obsidian\plugins\obsidian-5e-statblocks\` |
