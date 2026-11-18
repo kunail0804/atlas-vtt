@@ -22,7 +22,7 @@ export interface TestRelay {
   publicUrl: string;
 }
 
-export async function startTestRelay(options: { dataDir?: string; gmPort?: number; publicPort?: number; idleStopMs?: number | null; onIdle?: () => void } = {}): Promise<TestRelay> {
+export async function startTestRelay(options: { dataDir?: string; gmPort?: number; publicPort?: number; idleStopMs?: number | null; firstIdleStopMs?: number | null; onIdle?: () => void } = {}): Promise<TestRelay> {
   const dataDir = options.dataDir ?? mkdtempSync(path.join(tmpdir(), 'atlas-relay-test-'));
   const relay = await startRelay({
     host: '127.0.0.1',
@@ -31,6 +31,7 @@ export async function startTestRelay(options: { dataDir?: string; gmPort?: numbe
     dataDir,
     playerOrigin: PLAYER_ORIGIN,
     idleStopMs: options.idleStopMs ?? null,
+    firstIdleStopMs: options.firstIdleStopMs ?? null,
     onIdle: options.onIdle ?? (() => undefined),
   });
   return { relay, dataDir, gmOrigin: `http://127.0.0.1:${relay.gmPort}`, publicUrl: `ws://127.0.0.1:${relay.publicPort}` };

@@ -1,7 +1,7 @@
 import { extractPlugins } from './docker.ts';
 import { isNewer } from './update.ts';
-import { campaignFile, join, readJson, writeJson } from './paths.ts';
-import { UserError, ask, pickFolder } from './system.ts';
+import { campaignFile, campaignsDir, join, readJson, writeJson } from './paths.ts';
+import { UserError, ask, inputEnded, pickFolder } from './system.ts';
 
 /** A plugin's code files. Its settings (`data.json`) and the vault's table (`atlas-vtt/.atlas-data`) are never touched. */
 const PLUGIN_FILES = ['main.js', 'manifest.json', 'styles.css'] as const;
@@ -29,21 +29,90 @@ async function isVault(path: string): Promise<boolean> {
   }
 }
 
-/** The vault this campaign uses: remembered, or chosen once in a folder dialog (typed where there is none). */
-export async function campaignVault(name: string): Promise<string> {
+/**
+ * A path as the GM typed or pasted it: the quotes a file manager adds taken off, and a leading `~`
+ * read as the home folder, as a shell would.
+ */
+export function typedPath(input: string, home: string | undefined): string {
+  let path = input.trim();
+  if (path.length >= 2 && (path[0] === '\'' || path[0] === '"') && path.endsWith(path[0])) path = path.slice(1, -1).trim();
+  if (home !== undefined && (path === '~' || path.startsWith('~/') || path.startsWith('~\\'))) path = home + path.slice(1);
+  return path;
+}
+
+/** Why `path` is no vault, in words that say what to choose instead; null for a vault. */
+async function vaultProblem(path: string): Promise<string | null> {
+  let info: Deno.FileInfo;
+  try {
+    info = await Deno.stat(path);
+  } catch {
+    return `Ce dossier n'existe pas : ${path}`;
+  }
+  if (!info.isDirectory) return `C'est un fichier, pas un dossier : ${path}`;
+  if (await isVault(path)) return null;
+  const inside: string[] = [];
+  try {
+    for await (const entry of Deno.readDir(path)) {
+      if (entry.isDirectory && await isVault(join(path, entry.name))) inside.push(join(path, entry.name));
+    }
+  } catch {
+    // An unreadable folder is answered like one without vaults.
+  }
+  if (inside.length > 0) return `Ce dossier contient ${inside.length === 1 ? 'un coffre' : 'des coffres'} mais n'en est pas un. Choisis le coffre lui-même : ${inside.slice(0, 5).join(', ')}`;
+  return 'Ce dossier n\'est pas un coffre Obsidian : il n\'a pas de dossier .obsidian. Choisis le dossier que tu as ouvert comme coffre dans Obsidian, pas le dossier qui le contient.';
+}
+
+/** The other campaigns of this machine that use `vault`. */
+async function campaignsUsing(vault: string, except: string): Promise<string[]> {
+  const using: string[] = [];
+  try {
+    for await (const entry of Deno.readDir(campaignsDir())) {
+      if (!entry.isFile || !entry.name.endsWith('.json')) continue;
+      const name = entry.name.slice(0, -'.json'.length);
+      if (name === except) continue;
+      const settings = await readJson<CampaignSettings>(join(campaignsDir(), entry.name));
+      if (settings?.vault === vault) using.push(name);
+    }
+  } catch {
+    // No campaign remembered yet.
+  }
+  return using;
+}
+
+/** The vault this campaign uses, or null when none is remembered (or it is no vault any more). */
+export async function savedVault(name: string): Promise<string | null> {
   const saved = await readJson<CampaignSettings>(campaignFile(name));
-  if (saved !== null && await isVault(saved.vault)) return saved.vault;
+  return saved !== null && await isVault(saved.vault) ? saved.vault : null;
+}
+
+/** Asks for the campaign's vault in a folder dialog (typed where there is none) and remembers it. */
+export async function chooseVault(name: string): Promise<string> {
   console.log(`\nChoisis le coffre Obsidian de la campagne « ${name} » (le dossier qui contient .obsidian).`);
   for (let attempt = 0; attempt < 3; attempt += 1) {
-    const picked = (await pickFolder(`Coffre Obsidian de la campagne ${name}`)) ?? ask('Chemin du coffre :');
+    const picked = (await pickFolder(`Coffre Obsidian de la campagne ${name}`)) ?? typedPath(ask('Chemin du coffre :'), Deno.env.get('HOME') ?? Deno.env.get('USERPROFILE'));
+    if (inputEnded()) break;
     if (picked === '') continue;
-    if (await isVault(picked)) {
-      await writeJson(campaignFile(name), { vault: picked } satisfies CampaignSettings);
-      return picked;
+    const problem = await vaultProblem(picked);
+    if (problem !== null) {
+      console.log(problem);
+      continue;
     }
-    console.log('Ce dossier n\'est pas un coffre Obsidian : il ne contient pas de dossier .obsidian. Ouvre-le une fois dans Obsidian, puis réessaie.');
+    await writeJson(campaignFile(name), { vault: picked } satisfies CampaignSettings);
+    const others = await campaignsUsing(picked, name);
+    if (others.length > 0) console.log(`Attention : ${others.map((other) => `« ${other} »`).join(', ')} utilise${others.length > 1 ? 'nt' : ''} aussi ce coffre. Ces campagnes partagent ses scènes et son plugin.`);
+    return picked;
   }
   throw new UserError('Aucun coffre choisi.');
+}
+
+/** The vault this campaign uses: remembered, or chosen once. */
+export async function campaignVault(name: string): Promise<string> {
+  return (await savedVault(name)) ?? chooseVault(name);
+}
+
+/** Forgets the campaign's vault on this machine (the vault itself is left as it is). */
+export async function forgetVault(name: string): Promise<void> {
+  await Deno.remove(campaignFile(name)).catch(() => undefined);
 }
 
 async function sameFile(a: string, b: string): Promise<boolean> {

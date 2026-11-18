@@ -421,17 +421,15 @@ jobs:
           previous: ${{ steps.version.outputs.previous }}
         run: |
           {
-            echo "The \`atlas\` launcher for the self-hosted Atlas VTT fork."
+            echo "The \`atlas\` launcher for the self-hosted Atlas VTT fork. Follow the installation guide for your system: it takes you from a machine without Atlas to a campaign your players can join."
             echo
-            echo "- **Windows:** download \`atlas.exe\` and double-click it."
-            echo "- **Linux:** download \`atlas\`, run \`chmod +x atlas\`, then \`./atlas\`."
+            echo "- **Linux:** [installation guide](https://github.com/$GITHUB_REPOSITORY/blob/$GITHUB_SHA/docs/install/linux.md). Download \`atlas\` and \`SHA256SUMS\` (under **Assets** below), check them with \`sha256sum --check --ignore-missing SHA256SUMS\`, run \`chmod +x atlas\`, then \`./atlas\`."
+            echo "- **Windows:** [installation guide](https://github.com/$GITHUB_REPOSITORY/blob/$GITHUB_SHA/docs/install/windows.md). Download \`atlas.exe\` and \`SHA256SUMS\`, compare the fingerprint as the guide shows, then double-click \`atlas.exe\`."
             echo
-            echo "The installation guides take you from a machine without Atlas to a campaign your players can join: [Windows](https://github.com/$GITHUB_REPOSITORY/blob/$GITHUB_SHA/docs/install/windows.md) and [Linux](https://github.com/$GITHUB_REPOSITORY/blob/$GITHUB_SHA/docs/install/linux.md)."
-            echo
-            echo "You need Docker (Docker Desktop on Windows) and Obsidian. \`atlas man\` lists every command. \`SHA256SUMS\` holds the fingerprints of both files."
+            echo "You need Docker (Docker Desktop on Windows; Docker Engine or Docker Desktop on Linux), Obsidian and a Discord account. Your first sign-in creates your account, which waits until the administrator approves it: they get a message on Discord, and \`atlas status\` shows when it is approved. \`atlas man\` lists every command."
             echo
             if [ "$GITHUB_REF_NAME" != main ]; then
-              echo "**Development build from \`develop\`**, for testing: \`atlas start <name> --dev\` runs the \`dev\` image."
+              echo "**Development build from \`develop\`, not for players.** Take the newest release without \`-dev\` in its name instead. Here \`atlas start <name> --dev\` runs the \`dev\` image."
               echo
             fi
             echo "Changes since ${previous:-the first release}:"
@@ -439,8 +437,17 @@ jobs:
             echo
             echo "Built by CI from $GITHUB_SHA."
           } > "$RUNNER_TEMP/notes.md"
+          # A launcher from main is the release players take: GitHub's Latest, which /releases/latest
+          # opens. Development builds stay prereleases, never Latest.
+          if [ "$GITHUB_REF_NAME" = main ]; then
+            kind=(--latest)
+            title="Atlas launcher ${TAG#launcher-v}"
+          else
+            kind=(--prerelease --latest=false)
+            title="Atlas launcher ${TAG#launcher-v} (development build)"
+          fi
           gh release create "$TAG" selfhost/launcher/dist/atlas selfhost/launcher/dist/atlas.exe selfhost/launcher/dist/SHA256SUMS \
-            --target "$GITHUB_SHA" --title "Atlas launcher ${TAG#launcher-v}" --prerelease --notes-file "$RUNNER_TEMP/notes.md"
+            --target "$GITHUB_SHA" --title "$title" "${kind[@]}" --notes-file "$RUNNER_TEMP/notes.md"
 
   service-deploy:
     name: Deploy the campaigns service
