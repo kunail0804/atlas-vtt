@@ -18,6 +18,7 @@ import { openTemplateGallery } from '../statblocks/editor/gallery/openTemplateGa
 import { experimentalFeatureOn } from '../experimental/experimentalFeatures';
 import { runInBackground } from '../utils/backgroundTask';
 import { showNotice } from '../ui/notice';
+import { openCompendiumLibrary } from '../compendium/openCompendiumLibrary';
 
 export interface CommandDependencies {
   imageDisplay: ImageDisplayService;
@@ -125,6 +126,12 @@ function registerMapCommands(plugin: Plugin, deps: CommandDependencies): void {
     id: 'open-dashboard',
     name: t('command.openDashboard'),
     callback: () => void openDashboard(plugin),
+  });
+
+  plugin.addCommand({
+    id: 'manage-compendium-sources',
+    name: t('command.manageCompendiumSources'),
+    callback: () => openCompendiumLibrary(app),
   });
 
   plugin.addCommand({

@@ -25,7 +25,7 @@ export const rest: Translation = {
   'rest.skipped': 'Пропущено: {list}',
   'rest.skipUnknown': '{label} (нет в коллекции)',
   'rest.skipStatic': '{label} (постоянное значение)',
-  'rest.skipNoValue': '{label} (нет ни в открытой сцене, ни в текущей кампании)',
+  'rest.skipNoValue': '{label} (нет ни в открытой сцене, ни в текущем мире)',
   'rest.skipNoToken': '{label} (нет токена на открытой карте)',
   'rest.skipCounters': '{label} (не удаётся прочитать счётчики)',
   'rest.skipMissingField': '{label} (в статблоке нет {field})',

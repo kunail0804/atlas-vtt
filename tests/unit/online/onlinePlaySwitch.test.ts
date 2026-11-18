@@ -9,6 +9,7 @@ vi.mock('../../../src/app/online/gm/OnlineFeature.ts', () => ({
   OnlineFeature: class {
     settingsSections = (): unknown[] => [{ heading: 'Online account', rows: [] }];
     runCommand = (): boolean => true;
+    flush = (): Promise<void> => Promise.resolve();
   },
 }));
 
@@ -86,6 +87,30 @@ describe('online play behind its experimental switch', () => {
     flip(true);
     expect(commands.size).toBe(6);
     expect(commands.get('start-online-table')).toBe(start);
+  });
+});
+
+describe('online play paused for a restore', () => {
+  it('is unloaded while the work runs, stays unloaded if the switch is flipped meanwhile, and loads again after', async () => {
+    const { plugin, settings, children, flip } = host();
+    const online = registerOnlinePlay(plugin, settings);
+    flip(true);
+    const [before] = children;
+    const seen = await online.paused(async () => {
+      const during = children.size;
+      flip(true);
+      return during + children.size;
+    });
+    expect(seen).toBe(0);
+    expect(children.size).toBe(1);
+    expect([...children][0]).not.toBe(before);
+  });
+
+  it('only runs the work while online play is off', async () => {
+    const { plugin, settings, children } = host();
+    const online = registerOnlinePlay(plugin, settings);
+    expect(await online.paused(async () => 'done')).toBe('done');
+    expect(children.size).toBe(0);
   });
 });
 

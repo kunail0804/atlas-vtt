@@ -121,7 +121,7 @@ describe('the dashboard', () => {
         const firstRow = cards.filter((card) => Math.abs(box(card).top - box(cards[0]!).top) < 1);
         for (const card of firstRow) expect(box(card).height).toBeCloseTo(box(cards[0]!).height, 0);
         // The new campaign card stands in the grid like the others.
-        expect(query('.campaign-card--new').textContent).toBe('New campaign');
+        expect(query('.campaign-card--new').textContent).toBe('New world');
 
         // Recent scenes leave out the one the hero continues.
         expect(queryAll('.scene-card .dashboard-card__title').map((title) => title.textContent)).not.toContain('Blue Mouth Caves');

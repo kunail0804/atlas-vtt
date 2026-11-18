@@ -1,5 +1,5 @@
 import React, { useId, useState } from 'react';
-import type { Roster, ShareAccess } from '../../../../players/roster';
+import type { NamedPlayer, PageShares, ShareAccess } from '../../../../players/shares';
 import { SettingsDialog } from '../../../../react/components/collection-settings/SettingsDialog';
 import { t } from '../../../../i18n';
 
@@ -7,7 +7,9 @@ import { t } from '../../../../i18n';
 type Choice = ShareAccess | 'none' | 'mixed';
 
 interface ShareDialogProps {
-  roster: Roster;
+  /** The players of the table, in the order they are listed. */
+  players: readonly NamedPlayer[];
+  shares: PageShares;
   /** The notes to share, by vault path: one, or the GM's selection. */
   paths: readonly string[];
   /** The name of the one note shared, or null for several. */
@@ -20,27 +22,26 @@ interface ShareDialogProps {
 const messageOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
 /** What each player has of `paths` now: one access, none, or `mixed` where the pages differ. */
-function choicesOf(roster: Roster, paths: readonly string[]): Record<string, Choice> {
+function choicesOf(players: readonly NamedPlayer[], shares: PageShares, paths: readonly string[]): Record<string, Choice> {
   const choices: Record<string, Choice> = {};
-  for (const id of Object.keys(roster.players)) {
-    const accesses = new Set(paths.map((path) => roster.shares[path]?.[id] ?? 'none'));
+  for (const { id } of players) {
+    const accesses = new Set(paths.map((path) => shares.shares[path]?.[id] ?? 'none'));
     choices[id] = accesses.size === 1 ? [...accesses][0] ?? 'none' : 'mixed';
   }
   return choices;
 }
 
 /**
- * Who the pages are shared with: each of the vault's players reads them, reads and changes
- * them, or has none of them. Several pages shared unlike start at "as each is", which changes
+ * Who the pages are shared with: each player of the table, connected or not, reads them, reads
+ * and changes them, or has none of them. Several pages shared unlike start at "as each is", which changes
  * nothing for that player.
  */
-export function ShareDialog({ roster, paths, name, onSave, onClose }: ShareDialogProps): React.ReactElement {
+export function ShareDialog({ players, shares, paths, name, onSave, onClose }: ShareDialogProps): React.ReactElement {
   const headingId = useId();
-  const [initial] = useState(() => choicesOf(roster, paths));
+  const [initial] = useState(() => choicesOf(players, shares, paths));
   const [choices, setChoices] = useState(initial);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const players = Object.entries(roster.players).sort((a, b) => a[1].name.localeCompare(b[1].name));
 
   const save = async (): Promise<void> => {
     if (busy) return;
@@ -72,12 +73,12 @@ export function ShareDialog({ roster, paths, name, onSave, onClose }: ShareDialo
       <form className="atlas-compendium-form" onSubmit={(event) => { event.preventDefault(); void save(); }}>
         <p className="atlas-compendium-form__hint" id={headingId}>{t('compendium.share.hint')}</p>
         {players.length === 0 && <p className="atlas-compendium-form__hint">{t('compendium.share.noPlayers')}</p>}
-        {players.map(([id, player]) => (
+        {players.map(({ id, name: playerName }) => (
           <label key={id} className="atlas-compendium-form__field atlas-compendium-share__player">
-            <span>{player.name}</span>
+            <span>{playerName}</span>
             <select
               className="dropdown"
-              aria-label={t('compendium.share.accessOf', { name: player.name })}
+              aria-label={t('compendium.share.accessOf', { name: playerName })}
               value={choices[id] ?? 'none'}
               disabled={busy}
               onChange={(event) => setChoices({ ...choices, [id]: event.target.value as Choice })}

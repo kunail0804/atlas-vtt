@@ -173,18 +173,18 @@ export class RemoteMeasures {
     return live;
   }
 
-  private drawKept(drawn: Drawn, kept: readonly MeasureRecord[], colour: number, { measurement }: MeasureRules): void {
+  private drawKept(drawn: Drawn, kept: readonly MeasureRecord[], colour: number, { grid, measurement }: MeasureRules): void {
     drawn.kept = kept;
     drawn.colour = colour;
     drawn.keptShapes.begin(this.zoom());
-    for (const record of kept) drawMeasurement(drawn.keptShapes, colour, record, measurement.coneAngle);
+    for (const record of kept) drawMeasurement(drawn.keptShapes, colour, record, measurement.coneAngle, grid);
   }
 
   private drawLive(drawn: Drawn, rules: MeasureRules): void {
     drawn.liveShape.begin(this.zoom());
     if (drawn.live === null) return;
     const record = liveRecord(drawn.live);
-    drawMeasurement(drawn.liveShape, drawn.colour, record, rules.measurement.coneAngle);
+    drawMeasurement(drawn.liveShape, drawn.colour, record, rules.measurement.coneAngle, rules.grid);
     this.label(drawn.labels[drawn.kept.length], record, rules);
   }
 

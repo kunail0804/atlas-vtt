@@ -31,7 +31,12 @@ export function playerName(value: unknown): string | null {
   return SHOWN.test(name) && [...name].length <= MAX_PLAYER_NAME ? name : null;
 }
 
-/** Whether two shown names (`playerName`) read as one name: case and the Unicode form of their characters do not tell players apart. */
+/** What two shown names (`playerName`) that read as one name have in common: case and the Unicode form of their characters do not tell players apart. */
+export function playerNameKey(name: string): string {
+  return name.normalize('NFKC').toLowerCase();
+}
+
+/** Whether two shown names (`playerName`) read as one name (`playerNameKey`). */
 export function samePlayerName(a: string, b: string): boolean {
-  return a.normalize('NFKC').toLowerCase() === b.normalize('NFKC').toLowerCase();
+  return playerNameKey(a) === playerNameKey(b);
 }

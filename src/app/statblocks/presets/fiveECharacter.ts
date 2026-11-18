@@ -2,13 +2,16 @@
 
 /**
  * The 5E player character, 2024 and 2014 rules: the fork's character sheet as a built-in template, in
- * French. Both editions hold the same fields and work out the same values; only a few words differ,
- * so a sheet switched from one to the other keeps everything (`switchEdition`).
+ * French. Both editions hold the same fields; only a few words differ, and the 2024 rules also work
+ * out the hit point maximum and the spell slots from the classes, with one field of their own, the hit
+ * point bonus. A sheet switched from one to the other keeps everything (`switchEdition`): the note
+ * keeps that bonus under the 2014 rules.
  */
 
 import { D20_DICE_SET_ID } from '../../gameSystems/builtInDiceSets';
 import type { BuiltInTemplate, StatBlock, TemplateBlock, TemplateLayout } from '../model/templateTypes';
 import { ABILITY_NAMES, characterFields, SKILLS, type EditionWords } from './fiveECharacterFields';
+import { spellSlotTable } from './fiveECharacterRules';
 import { builtIn, hiddenParts } from './presetParts';
 
 export const FIVE_E_2024_CHARACTER_ID = 'builtin:5e-2024-character';
@@ -97,18 +100,21 @@ const LAYOUT: TemplateLayout = {
 };
 
 function character(id: typeof FIVE_E_2024_CHARACTER_ID | typeof FIVE_E_2014_CHARACTER_ID, name: string, words: EditionWords): BuiltInTemplate {
-  return builtIn(id, name, 1, {
+  // Revision 2: the 2024 rules work out the hit point maximum and the spell slots; classes say how they cast.
+  // Revision 3: the 2024 rules add a hit point bonus, give every level at least 1 hit point and skip classes of level 0.
+  return builtIn(id, name, 3, {
     description: 'La fiche d\'un personnage joueur : ses caractéristiques, ses maîtrises, ses classes, ses sorts et son histoire.',
     suits: ['Personnage joueur'],
     diceSetId: D20_DICE_SET_ID,
     fields: characterFields(words),
     ...hiddenParts('type', 'description'),
     layout: LAYOUT,
+    ...(words.worksOutClasses && { lookups: { spell_slots: spellSlotTable() } }),
     // Always worked out from other fields: a player's change would be written over at once.
     players: { proficiency: 'read', initiative: 'read' },
     sample: { name: 'Nom du personnage', level: 1, stats: [10, 10, 10, 10, 10, 10] },
   });
 }
 
-export const FIVE_E_2024_CHARACTER = character(FIVE_E_2024_CHARACTER_ID, 'Personnage 5E (règles 2024)', { species: 'Espèce', inspiration: 'Inspiration héroïque' });
-export const FIVE_E_2014_CHARACTER = character(FIVE_E_2014_CHARACTER_ID, 'Personnage 5E (règles 2014)', { species: 'Race', inspiration: 'Inspiration' });
+export const FIVE_E_2024_CHARACTER = character(FIVE_E_2024_CHARACTER_ID, 'Personnage 5E (règles 2024)', { species: 'Espèce', inspiration: 'Inspiration héroïque', worksOutClasses: true });
+export const FIVE_E_2014_CHARACTER = character(FIVE_E_2014_CHARACTER_ID, 'Personnage 5E (règles 2014)', { species: 'Race', inspiration: 'Inspiration', worksOutClasses: false });

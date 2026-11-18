@@ -133,6 +133,6 @@ export function renderAccountMenu(layer: HTMLElement, account: AccountView, star
     case 'can-host':
       if (outdated) return updateFoot(signedInFoot(layer, actions), head, actions);
       renderCampaignPicker(layer, campaigns, actions, starting);
-      return startButton(signedInFoot(layer, actions), starting, campaigns.chosen !== null, actions);
+      return startButton(signedInFoot(layer, actions), starting, true, actions);
   }
 }

@@ -9,12 +9,17 @@ export function memoryCampaigns(initial: readonly StoredCampaign[] = []): Campai
     entries = next;
     for (const listener of [...listeners]) listener();
   };
+  const update = (id: string, change: (stored: StoredCampaign) => StoredCampaign): void => set(entries.map((entry) => (entry.id === id ? change(entry) : entry)));
   return {
     current: () => entries,
     entries: () => entries,
     isLoaded: () => true,
     create: (entry) => set([...entries, entry]),
-    update: (id, change) => set(entries.map((entry) => (entry.id === id ? change(entry) : entry))),
+    update,
+    save: (id, change) => {
+      update(id, change);
+      return Promise.resolve();
+    },
     remove: (id) => set(entries.filter((entry) => entry.id !== id)),
     pathOf: (id) => {
       const entry = entries.find((stored) => stored.id === id);

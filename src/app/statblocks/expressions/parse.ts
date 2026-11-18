@@ -5,13 +5,15 @@
  *   term       := unary (('*' | '/') unary)*
  *   unary      := ('-' | '+') unary | primary
  *   primary    := number | 'value' | ref | function '(' expression (',' expression)* ')' | '(' expression ')'
+ *               | 'has' '(' ref ',' text ')' | ('sum' | 'first') '(' ref ',' expression (',' expression)? ')' | 'sides' '(' ref ')'
+ *               | 'default' '(' expression ',' expression ')'
  *
  * Operators of one level group from the left: `8 - 2 - 1` is 5.
  */
 
 import { quoted } from '../values/valueText';
 import { syntaxError, type ExpressionError } from './errors';
-import { FORMULA_FUNCTIONS, HAS_FUNCTION, isFormulaFunction, SLOT_WORD, type FormulaNode, type FormulaToken } from './formulaTypes';
+import { DEFAULT_FUNCTION, EACH_FUNCTIONS, FORMULA_FUNCTIONS, HAS_FUNCTION, isFormulaFunction, SIDES_FUNCTION, SLOT_WORD, type FormulaNode, type FormulaToken } from './formulaTypes';
 import { tokenizeFormula } from './tokenize';
 import { t } from '../../i18n';
 
@@ -144,7 +146,11 @@ class FormulaParser {
     if (this.peek().type !== 'open') return name === SLOT_WORD ? { kind: 'slot' } : { kind: 'ref', ref: name };
     const fn = name.toLowerCase();
     if (fn === HAS_FUNCTION) return this.has(at);
-    if (!isFormulaFunction(fn)) this.fail(`${quoted(name)} isn't a function. There are floor, ceil, round, abs, min, max and has.`, at);
+    if (fn === SIDES_FUNCTION) return this.sides(at);
+    if (fn === DEFAULT_FUNCTION) return this.fallback(at);
+    const each = Object.hasOwn(EACH_FUNCTIONS, fn) ? EACH_FUNCTIONS[fn] : undefined;
+    if (each !== undefined) return this.each(each, fn, at);
+    if (!isFormulaFunction(fn)) this.fail(`${quoted(name)} isn't a function. There are floor, ceil, round, abs, min, max, has, sum, first, sides and default.`, at);
     const openAt = this.take().at;
     const args = this.nested(openAt, () => this.argumentsUntilClose(openAt));
     const problem = arityProblem(fn, args.length);
@@ -162,6 +168,48 @@ class FormulaParser {
     const close = this.take();
     if (ref.type !== 'name' || ref.name === SLOT_WORD || comma.type !== 'comma' || text.type !== 'text' || close.type !== 'close') this.fail(usage, at);
     return { kind: 'has', ref: ref.name, text: text.text };
+  }
+
+  /**
+   * `sum(ref, formula)` or `first(ref, formula)`, after its name: a field reference, a comma, a formula,
+   * optionally a comma and the formula that keeps an entry where it is not 0, the closing bracket.
+   */
+  private each(mode: 'sum' | 'first', fn: string, at: number): FormulaNode {
+    const usage = `${quoted(fn)} takes a list and a formula of its entries' parts, like ${fn}(classes, level), and may take a third that keeps the entries where it is not 0.`;
+    const openAt = this.take().at;
+    const ref = this.take();
+    const comma = this.take();
+    if (ref.type !== 'name' || ref.name === SLOT_WORD || comma.type !== 'comma') this.fail(usage, at);
+    const body = this.nested(openAt, () => this.expression());
+    let when: FormulaNode | undefined;
+    if (this.peek().type === 'comma') {
+      this.take();
+      when = this.nested(openAt, () => this.expression());
+    }
+    if (this.peek().type !== 'close') this.fail(usage, at);
+    this.take();
+    return { kind: 'each', mode, ref: ref.name, body, ...(when !== undefined && { when }) };
+  }
+
+  /** `default(formula, fallback)`, after its name: two formulas and the closing bracket. */
+  private fallback(at: number): FormulaNode {
+    const openAt = this.take().at;
+    const args = this.nested(openAt, () => this.argumentsUntilClose(openAt));
+    const [value, fallback] = args;
+    if (args.length !== 2 || value === undefined || fallback === undefined) {
+      this.fail(`${quoted(DEFAULT_FUNCTION)} takes a formula and the one read where the first reads an empty field, like default(bonus, 0).`, at);
+    }
+    return { kind: 'fallback', value, fallback };
+  }
+
+  /** `sides(ref)`, after its name: a field reference and the closing bracket. */
+  private sides(at: number): FormulaNode {
+    const usage = `${quoted(SIDES_FUNCTION)} takes a field that holds a die, like sides(die).`;
+    this.take();
+    const ref = this.take();
+    const close = this.take();
+    if (ref.type !== 'name' || ref.name === SLOT_WORD || close.type !== 'close') this.fail(usage, at);
+    return { kind: 'sides', ref: ref.name };
   }
 
   private argumentsUntilClose(openAt: number): FormulaNode[] {

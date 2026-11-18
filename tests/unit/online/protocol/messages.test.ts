@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  CLOSE, MAX_CAMPAIGN_PLAYERS, FINAL_CLOSE_CODES, GATE_CLOSE_CODES, MAX_CURSOR_NUMBERS, PART_BYTES, MAX_LASER_SPAN_MS, MAX_LIVE_PATH, MAX_LIVE_TOKENS, MAX_BATCH_SENDS, MAX_PLAYER_NAME, MAX_PLAYERS, MAX_TOKEN_CONDITIONS, MAX_TOKENS, parseClientFrame, parseGmMessage, parsePlayerMessage, parseRelayFrame,
+  CLOSE, MAX_CAMPAIGN_PLAYERS, FINAL_CLOSE_CODES, GATE_CLOSE_CODES, MAX_CURSOR_NUMBERS, PART_BYTES, MAX_LASER_SPAN_MS, MAX_LIVE_PATH, MAX_LIVE_TOKENS, MAX_BATCH_SENDS, MAX_DRAG_NUMBER, MAX_PLAYER_NAME, MAX_PLAYERS, MAX_TOKEN_CONDITIONS, MAX_TOKENS, parseClientFrame, parseGmMessage, parsePlayerMessage, parseRelayFrame,
   playerName,
 } from '../../../../src/app/online/protocol/index.ts';
 
@@ -64,6 +64,19 @@ describe('the join gates\' frames', () => {
     expect(parseRelayFrame('{"v":1,"t":"welcome","role":"gm","players":[],"waiting":[]}')).toEqual({ v: 1, t: 'welcome', role: 'gm', players: [] });
     expect(parseRelayFrame('{"v":1,"t":"welcome","role":"gm","players":[],"batch":true}')).toEqual({ v: 1, t: 'welcome', role: 'gm', players: [], batch: true });
     expect(parseRelayFrame('{"v":1,"t":"welcome","role":"gm","players":[],"batch":"yes"}')).toEqual({ v: 1, t: 'welcome', role: 'gm', players: [] });
+  });
+
+  it('read a knock that asks for the seat of a player of the campaign, alone and in the waiting list, and nothing else as one', () => {
+    expect(parseRelayFrame(`{"v":1,"t":"knock","id":"${id}","name":"Mira","reclaim":true}`)).toEqual({ v: 1, t: 'knock', id, name: 'Mira', reclaim: true });
+    expect(parseRelayFrame(`{"v":1,"t":"knock","id":"${id}","name":"Mira","reclaim":"yes"}`)).toEqual({ v: 1, t: 'knock', id, name: 'Mira' });
+    expect(parseRelayFrame(`{"v":1,"t":"knock","id":"${id}","name":"Mira","reclaim":true,"seatConnected":true}`)).toEqual({ v: 1, t: 'knock', id, name: 'Mira', reclaim: true, seatConnected: true });
+    // Only a seat asked back can be connected, and only `true` says so.
+    expect(parseRelayFrame(`{"v":1,"t":"knock","id":"${id}","name":"Mira","seatConnected":true}`)).toEqual({ v: 1, t: 'knock', id, name: 'Mira' });
+    expect(parseRelayFrame(`{"v":1,"t":"knock","id":"${id}","name":"Mira","reclaim":true,"seatConnected":1}`)).toEqual({ v: 1, t: 'knock', id, name: 'Mira', reclaim: true });
+    expect(parseRelayFrame(`{"v":1,"t":"welcome","role":"gm","players":[],"waiting":[{"id":"${id}","name":"Mira","reclaim":true}]}`))
+      .toEqual({ v: 1, t: 'welcome', role: 'gm', players: [], waiting: [{ id, name: 'Mira', reclaim: true }] });
+    // The players at the table never carry it.
+    expect(parseRelayFrame(`{"v":1,"t":"welcome","role":"gm","players":[{"id":"${id}","name":"Mira","reclaim":true}]}`)).toEqual({ v: 1, t: 'welcome', role: 'gm', players: [{ id, name: 'Mira' }] });
   });
 
   it('refuse a knock without a name or id, a knock-gone without an id, a pause without a time and a welcome whose waiting list is malformed', () => {
@@ -221,6 +234,13 @@ describe('moves', () => {
     expect(parsePlayerMessage({ t, scene: 's', id, x: 10.5, y: -3, extra: 1 })).toEqual({ t, scene: 's', id, x: 10.5, y: -3 });
     for (const bad of [{ id: 'gm-token' }, { x: Number.NaN }, { y: Number.POSITIVE_INFINITY }, { x: 1e7 }, { y: '4' }, { scene: '' }, { scene: 'x'.repeat(65) }]) {
       expect(parsePlayerMessage({ t, scene: 's', id, x: 1, y: 2, ...bad }), JSON.stringify(bad)).toBeNull();
+    }
+  });
+
+  it.each(['move', 'drag'] as const)('read the number of a player\'s %s, and leave out one it cannot read', (t) => {
+    expect(parsePlayerMessage({ t, scene: 's', id, x: 1, y: 2, drag: 3 })).toEqual({ t, scene: 's', id, x: 1, y: 2, drag: 3 });
+    for (const unknown of [0, -1, 1.5, MAX_DRAG_NUMBER + 1, '3', null, Number.NaN]) {
+      expect(parsePlayerMessage({ t, scene: 's', id, x: 1, y: 2, drag: unknown }), String(unknown)).toEqual({ t, scene: 's', id, x: 1, y: 2 });
     }
   });
 
@@ -450,6 +470,22 @@ describe('whose pointer holds a dragged token', () => {
 
   it('leaves out a holder it cannot name and keeps the place: a later GM may name holders of other kinds', () => {
     for (const unknown of ['', 'GM', 'player', 'abcdefghijklmnopqrs1', 1, null, {}]) {
+      expect(parseGmMessage(live(unknown)), JSON.stringify(unknown)).toEqual({ t: 'live', scene: 's1', at: 1, tokens: [place] });
+    }
+  });
+});
+
+describe('the number of a player\'s drag on its live places', () => {
+  const place = { id: 'a'.repeat(24), x: 105, y: 35 };
+  const live = (drag: unknown): unknown => ({ t: 'live', scene: 's1', at: 1, tokens: [{ ...place, drag }] });
+
+  it('is read on a place and on an end, and a place without it reads as before', () => {
+    expect(parseGmMessage(live(4))).toEqual(live(4));
+    expect(parseGmMessage({ t: 'live', scene: 's1', at: 1, tokens: [{ ...place, end: true, drag: 4 }] })).toEqual({ t: 'live', scene: 's1', at: 1, tokens: [{ ...place, end: true, drag: 4 }] });
+  });
+
+  it('leaves out a number it cannot read and keeps the place', () => {
+    for (const unknown of [0, -2, 2.5, MAX_DRAG_NUMBER + 1, '4', null, {}]) {
       expect(parseGmMessage(live(unknown)), JSON.stringify(unknown)).toEqual({ t: 'live', scene: 's1', at: 1, tokens: [place] });
     }
   });

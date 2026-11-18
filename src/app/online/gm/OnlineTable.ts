@@ -206,12 +206,14 @@ export class OnlineTable {
         this.sound?.welcome();
         this.resend();
         ownership.welcome(players);
+        this.compendium.share.welcome(players.map((player) => player.id));
       },
       joined: (player) => {
         if (!this.roster.joined(player)) return;
         // The log as it was, then the line that they joined, which everyone gets.
         this.resend(player.id);
         ownership.joined(player);
+        this.compendium.share.playerJoined(player.id);
         this.log.joined(player);
       },
       left: (player) => {
@@ -233,7 +235,11 @@ export class OnlineTable {
     // Each player hears only how far the assets they were sent references of have come.
     this.connection.onSent = (text, to) => this.assets?.sent(text, to);
     this.roster = new TableRoster(seats, this.connection, { kick: (player) => this.kick(player), turnAway: (player) => this.connection.kick(player), joinCode: () => this.gate.settings.code });
-    this.stopOwnership = ownership.onChange(() => this.bound()?.share.ownersChanged());
+    // The table's players changed: tokens follow, and each player's compendium pages those of their place.
+    this.stopOwnership = ownership.onChange(() => {
+      this.bound()?.share.ownersChanged();
+      this.compendium.share.sharesChanged();
+    });
   }
 
   /** The players' rest requests waiting for the GM, and the GM's answers to them. */

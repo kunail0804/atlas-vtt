@@ -1,9 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
-  emptyPlayers, isPlayersPath, newLinkCode, newPlayerCode, newPlayerId, PLAYERS_LAYOUT, readPlayers,
+  newLinkCode, newPlayerCode, newPlayerId, readPlayers,
   withCharacterOwner, withLink, withoutPlayer, withPlayer, withPlayerFields, type StoredPlayers,
 } from '../../../src/app/campaigns/players/playersFile';
-import { CAMPAIGNS_FOLDER } from '../../../src/app/campaigns/campaignPaths';
 import { JOIN_CODE_PATTERN, MAX_CAMPAIGN_PLAYERS, PLAYER_ID_PATTERN, TABLE_CODE_PATTERN } from '../../../src/app/online/protocol/index';
 
 const letter = (n: number): string => String.fromCharCode(97 + n);
@@ -11,27 +10,8 @@ const idOf = (n: number): string => `p${letter(Math.floor(n / 26))}${letter(n % 
 const codeOf = (n: number): string => String(n).padStart(6, '0');
 const entry = (n: number, extra: Record<string, unknown> = {}): Record<string, unknown> => ({ name: `Player ${n}`, code: codeOf(n), characters: [], addedAt: 1, ...extra });
 const stored = (players: Record<string, unknown>, extra: Record<string, unknown> = {}): StoredPlayers => ({ id: 'c1', campaignId: 'c1', players, ...extra });
+const WORLD: StoredPlayers = { id: 'c1', campaignId: 'c1', players: {} };
 const seq = (...values: number[]): (() => number) => { const rest = [...values]; return () => rest.shift() ?? 0; };
-
-describe('players paths', () => {
-  it('are players.json directly in a campaign\'s folder', () => {
-    expect(isPlayersPath(`${CAMPAIGNS_FOLDER}/Witherwild/players.json`)).toBe(true);
-    expect(isPlayersPath(`${CAMPAIGNS_FOLDER}/players.json`)).toBe(false);
-    expect(isPlayersPath(`${CAMPAIGNS_FOLDER}/Witherwild/sessions/players.json`)).toBe(false);
-    expect(isPlayersPath(`${CAMPAIGNS_FOLDER}/Witherwild/characters.json`)).toBe(false);
-  });
-
-  it('are read and written with the campaign id as the record id, keeping unknown fields and a later format', () => {
-    const text = `${JSON.stringify({ format: 1, campaignId: 'c1', link: 'x', future: { a: 1 }, players: {} })}\n`;
-    const record = PLAYERS_LAYOUT.read(text)!;
-    expect(record.id).toBe('c1');
-    expect(JSON.parse(PLAYERS_LAYOUT.text(record))).toEqual({ format: 1, campaignId: 'c1', link: 'x', future: { a: 1 }, players: {} });
-    expect(PLAYERS_LAYOUT.read('{"format":1,"players":{}}')).toBeNull();
-    expect(PLAYERS_LAYOUT.read('not json')).toBeNull();
-    const later = PLAYERS_LAYOUT.read('{"format":2,"campaignId":"c1","players":{}}')!;
-    expect(JSON.parse(PLAYERS_LAYOUT.text(later)).format).toBe(2);
-  });
-});
 
 describe('readPlayers', () => {
   it('keeps a valid player', () => {
@@ -65,7 +45,7 @@ describe('readPlayers', () => {
   });
 
   it('reads nothing from a file without players', () => {
-    expect(readPlayers(emptyPlayers('c1'))).toEqual([]);
+    expect(readPlayers(WORLD)).toEqual([]);
     expect(readPlayers(stored([] as unknown as Record<string, unknown>))).toEqual([]);
   });
 });
@@ -107,7 +87,7 @@ describe('changing a players file', () => {
   });
 
   it('withLink sets the table code', () => {
-    expect(withLink(emptyPlayers('c1'), 'a'.repeat(26)).link).toBe('a'.repeat(26));
+    expect(withLink(WORLD, 'a'.repeat(26)).link).toBe('a'.repeat(26));
   });
 
   it('keeps unknown top-level and per-player fields through withPlayer', () => {

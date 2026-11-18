@@ -68,7 +68,8 @@ async function main(): Promise<void> {
   let connection: PlayerConnection | null = null;
   const send = (body: Parameters<PlayerConnection['send']>[0]): void => connection?.send(body);
   const assets = new AssetLoader(new AssetCache());
-  const tokens = new TokenLayer(stage.tokens, stage.viewport, assets, send);
+  let playerId: string | null = null;
+  const tokens = new TokenLayer(stage.tokens, stage.viewport, assets, send, () => playerId);
   let notice: SceneNotice = 'no-scene';
   let gmOnline = false;
   const refresh = (): void => {
@@ -79,9 +80,9 @@ async function main(): Promise<void> {
     notice = next;
     refresh();
   });
-  let playerId: string | null = null;
   const settings = new ToolSettingsStore();
   const marks = new MarksView(stage.viewport, stage.app.canvas, send, () => playerId, () => scene.sceneId, settings);
+  tokens.onOwnDrag = (drag) => marks.ownDrag(drag, drag === null ? 1 : tokens.cellsOf(drag.id) ?? 1);
   scene.onSceneChange = () => {
     marks.clear();
     drawTools.clear();
@@ -160,7 +161,8 @@ async function main(): Promise<void> {
     if (message.t === 'annotations') return message.scene === scene.sceneId ? annotations.showAnnotations(message) : undefined;
     if (message.t === 'widgets') return message.scene === scene.sceneId ? widgets.show(message.bar) : undefined;
     if (message.t === 'pins') return message.scene === scene.sceneId ? annotations.showPins(message.pins) : undefined;
-    if (message.t === 'live' && message.scene === scene.sceneId) marks.drags(message.tokens, (id) => tokens.cellsOf(id));
+    // Before the token layer takes the places (`scene.receive`), which ends the drops whose drag the GM ended.
+    if (message.t === 'live' && message.scene === scene.sceneId) marks.drags(message.tokens.filter((place) => !tokens.echoes(place)), (id) => tokens.cellsOf(id));
     scene.receive(message);
   }, (sceneId, of) => send({ t: 'resync', scene: sceneId, of }));
 

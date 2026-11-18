@@ -48,15 +48,17 @@ interface ChoiceFieldProps<T extends string> {
   label: string;
   value: T;
   options: readonly SegmentedOption<T>[];
+  /** Shown, but not to be set: its value means nothing right now. */
+  disabled?: boolean;
   onChange: (value: T) => void;
 }
 
 /** One of a few choices, all in view, under its label. */
-export function ChoiceField<T extends string>({ label, value, options, onChange }: ChoiceFieldProps<T>): React.ReactElement {
+export function ChoiceField<T extends string>({ label, value, options, disabled = false, onChange }: ChoiceFieldProps<T>): React.ReactElement {
   return (
     <div className="atlas-light-panel__field atlas-light-panel__field--choice">
       <span aria-hidden="true">{label}</span>
-      <SegmentedControl className="atlas-segmented--fit" value={value} options={options} ariaLabel={label} onChange={onChange} />
+      <SegmentedControl className="atlas-segmented--fit" value={value} options={options} ariaLabel={label} disabled={disabled} onChange={onChange} />
     </div>
   );
 }

@@ -34,7 +34,7 @@ function setUp() {
     buttons: [],
     character: restCharacter(),
     holds: [{ store, tokenIds: ['a', 'b'] }],
-    resourcePlace: (key) => (key === 'hp' || key === 'hitDice' ? { kind: 'token', store, tokenId: 'a' } : key === 'stress' ? { kind: 'party', campaignId: 'camp' } : null),
+    resourcePlace: (key) => (key === 'hp' || key === 'hitDice' ? { kind: 'token', store, tokenId: 'a' } : key === 'stress' ? { kind: 'party' } : null),
   };
   return { app, store, rest, record };
 }
@@ -71,10 +71,10 @@ describe('writeRest', () => {
     expect(store.getState().objects.tokens.b).not.toHaveProperty('conditionValues');
   });
 
-  it('writes a resource no token holds into the played campaign\'s values', async () => {
+  it('writes a resource no token holds into the party\'s values', async () => {
     const { app, rest } = setUp();
     await writeRest(app, rest, outcome({ resources: new Map([['stress', { current: 0, max: 6 }]]) }), async () => null);
-    expect(party.setValue).toHaveBeenCalledWith('camp', 'mira', 'stress', { current: 0, max: 6, maxByHand: true });
+    expect(party.setValue).toHaveBeenCalledWith('mira', 'stress', { current: 0, max: 6, maxByHand: true });
   });
 
   it('writes counters as one patch per field, based on what the rest read', async () => {

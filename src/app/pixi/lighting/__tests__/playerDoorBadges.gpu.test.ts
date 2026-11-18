@@ -24,7 +24,7 @@ const SEEN: Point = [100, 128];
 const UNSEEN: Point = [220, 128];
 const SECRET: Point = [60, 176];
 const HALL = {
-  lighting: { enabled: true, ambient: 1 },
+  lighting: { enabled: true, ambient: 1, exploredBy: 'players' },
   objects: {
     walls: { seen: door('seen', 'door', 100, 108, 100, 148), unseen: door('unseen', 'door', 220, 108, 220, 148), secret: door('secret', 'secret-door', 40, 176, 80, 176) },
     lights: {},

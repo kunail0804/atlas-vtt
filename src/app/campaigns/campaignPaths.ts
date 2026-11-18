@@ -1,7 +1,8 @@
 /**
  * The files of campaigns: a visible folder per campaign under `atlas-vtt/campaigns/`, named after
- * it, holding `campaign.json` and, later, what the campaign keeps (its party, sessions, log). The
- * id inside `campaign.json` is the campaign's identity, never the folder's name.
+ * it, holding `campaign.json` and the quest notes made from the campaign's page (`quests/`). The
+ * table's files lie beside these folders, in none of them (`tableFileLayout.ts`). The id inside
+ * `campaign.json` is the campaign's identity, never the folder's name.
  */
 
 import { ATLAS_VTT_DIR } from '../services/assetPaths';
@@ -13,6 +14,20 @@ export const CAMPAIGNS_FOLDER = `${ATLAS_VTT_DIR}/campaigns`;
 export const CAMPAIGN_FILE = 'campaign.json';
 /** The format of a campaign file this Atlas writes; a file of a later one is read and left as it is. */
 export const CAMPAIGN_FORMAT = 1;
+
+/**
+ * The files of the GM's online table, directly in the worlds' folder (`tableFileLayout.ts`). No
+ * world may go by their names, nor its folder take them.
+ */
+export const TABLE_FILE_NAMES = { players: 'players.json', books: 'books.json', characters: 'characters.json' } as const;
+
+const RESERVED_NAMES: ReadonlySet<string> = new Set(Object.values(TABLE_FILE_NAMES));
+
+/** Whether `name` is the name of one of the table's files, in any letter case. */
+export const isTableFileName = (name: string): boolean => RESERVED_NAMES.has(name.trim().toLowerCase());
+
+/** Whether `path` is where one of the table's files lies, in any letter case. */
+const isTableFilePath = (path: string): boolean => path.startsWith(`${CAMPAIGNS_FOLDER}/`) && isTableFileName(path.slice(CAMPAIGNS_FOLDER.length + 1));
 
 const FALLBACK_NAME = 'Campaign';
 
@@ -42,7 +57,7 @@ export const CAMPAIGN_LAYOUT: RecordLayout<StoredCampaign> = {
   text: (record) => recordText(record, CAMPAIGN_FORMAT),
   namedPath: campaignFolderOf,
   recordPathIn: (folder) => `${folder}/${CAMPAIGN_FILE}`,
-  freeNamedPath: (name, isTaken) => freeNamedPath(CAMPAIGNS_FOLDER, nameStem(name, FALLBACK_NAME), '', isTaken),
+  freeNamedPath: (name, isTaken) => freeNamedPath(CAMPAIGNS_FOLDER, nameStem(name, FALLBACK_NAME), '', (path) => isTableFilePath(path) || isTaken(path)),
   isNamedAfter: (folder, name) => isNamedAfterStem(folder, nameStem(name, FALLBACK_NAME), ''),
   namedHolds: true,
 };

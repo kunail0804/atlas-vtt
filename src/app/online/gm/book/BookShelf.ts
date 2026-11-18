@@ -19,7 +19,7 @@ export type ShelfListener = (characterId: string, by: BookWriter) => void;
 
 /**
  * The books the GM keeps, one per character. A book is its character's, so whoever plays that
- * character next finds it again. They are kept by the source (the campaign's books file); a book
+ * character next finds it again. They are kept by the source (the table's books file); a book
  * that cannot be kept there, and one of a token that is no library token's, stays in memory for
  * as long as the shelf lives.
  */
@@ -36,7 +36,7 @@ export class BookShelf {
 
   /**
    * Forgets the books held in memory for want of a source, but those of tokens that are no library
-   * token's: from now on the source (a campaign's books file just bound) holds each character's.
+   * token's: from now on the source (the table's books file just bound) holds each character's.
    */
   forgetKept(): void {
     for (const characterId of [...this.memory.keys()]) if (!characterId.startsWith(UNPLACED_PREFIX)) this.memory.delete(characterId);

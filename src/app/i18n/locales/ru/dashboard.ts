@@ -14,7 +14,7 @@ export const dashboard: Translation = {
   'dashboard.assets': 'Менеджер ресурсов',
   'dashboard.continue': 'Продолжить приключение',
   'dashboard.firstScene': 'Создайте первую сцену',
-  'dashboard.firstSceneMeta': 'Выберите карту и начните кампанию',
+  'dashboard.firstSceneMeta': 'Выберите карту и начните игру в своём мире',
   'dashboard.recent': 'Недавние сцены',
   'dashboard.loadingScenes': 'Загрузка сцен…',
   'dashboard.title': 'Панель Atlas',

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { SceneLighting } from '../../../types/lightingTypes';
+import type { SceneLightingChanges } from '../../../types/lightingTypes';
 import type { LightingEngine } from '../engine/LightingEngine';
 import { renderThroughEngine, type PixelReader } from '../engine/__tests__/gpuTestUtils';
 import { SAVE_DELAY, SIZE, createHarness, tokens, until, visionToken, type Harness } from './rendererHarness';
@@ -29,13 +29,13 @@ describe('LightingRenderer scene options', () => {
     vi.unstubAllGlobals();
   });
 
-  async function setup(lighting: Partial<SceneLighting>, patch: Record<string, unknown> = {}): Promise<Harness> {
-    harness = await createHarness({ patch: { lighting: { enabled: true, ambient: 1, ...lighting }, ...patch } });
+  async function setup(lighting: SceneLightingChanges, patch: Record<string, unknown> = {}): Promise<Harness> {
+    harness = await createHarness({ patch: { lighting: { enabled: true, ambient: 1, exploredBy: 'players', ...lighting }, ...patch } });
     await harness.settle();
     return harness;
   }
 
-  function changeLighting(changes: Partial<SceneLighting>): void {
+  function changeLighting(changes: SceneLightingChanges): void {
     const { state, change } = harness!;
     change({ lighting: { ...state.lighting, ...changes } });
   }
@@ -68,6 +68,30 @@ describe('LightingRenderer scene options', () => {
     expect(redAt(100, 128)).toBe(255);
     vi.advanceTimersByTime(SAVE_DELAY);
     expect(setExploredMask).toHaveBeenCalledTimes(1);
+  });
+
+  it('records nothing while the GM reveals by hand, unset or chosen, keeps the saved memory, and records once the players reveal', async () => {
+    const { state, change, redAt, setExploredMask } = await setup({ exploredBy: undefined }, { exploredMask: null, ...nearSighted });
+    expect(redAt(100, 128)).toBe(0);
+    change({ objects: { ...state.objects, tokens: { t: visionToken(120, 128, 5) } } });
+    changeLighting({ exploredBy: 'gm' });
+    change({ objects: { ...state.objects, tokens: { t: visionToken(100, 128, 5) } } });
+    expect(redAt(100, 128)).toBe(0);
+    vi.advanceTimersByTime(SAVE_DELAY);
+    expect(setExploredMask).not.toHaveBeenCalled();
+
+    changeLighting({ exploredBy: 'players' });
+    expect(redAt(100, 128)).toBe(255);
+    vi.advanceTimersByTime(SAVE_DELAY);
+    expect(setExploredMask).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps what the GM revealed by hand while the tokens record nothing', async () => {
+    const { lighting, redAt } = await setup({ exploredBy: undefined }, { exploredMask: null, ...nearSighted });
+    expect(redAt(200, 200)).toBe(0);
+    lighting.editExplored({ mode: 'reveal', area: { type: 'rectangle', x: 180, y: 180, width: 40, height: 40 } });
+    expect(redAt(200, 200)).toBe(255);
+    expect(redAt(100, 128)).toBe(0);
   });
 
   it('shows the unexplored colour instead of remembered areas while explored memory is off', async () => {
@@ -134,7 +158,7 @@ describe('LightingRenderer scene options', () => {
     expect(tinted[1]).toBeGreaterThan(tinted[0] + 15);
 
     const { state, change } = harness!;
-    change({ lighting: { enabled: true, ambient: state.lighting.ambient } });
+    change({ lighting: { enabled: true, ambient: state.lighting.ambient, exploredBy: 'players' } });
     expect(seen()).toEqual(grey);
   });
 
@@ -142,7 +166,7 @@ describe('LightingRenderer scene options', () => {
     let current: LightingQuality = LIGHTING_QUALITY.high;
     const listeners = new Set<() => void>();
     harness = await createHarness({
-      patch: { lighting: { enabled: true, ambient: 1 }, ...nearSighted },
+      patch: { lighting: { enabled: true, ambient: 1, exploredBy: 'players' }, ...nearSighted },
       quality: { current: () => current, onChange: (listener) => (listeners.add(listener), () => listeners.delete(listener)) },
     });
     await harness.settle();

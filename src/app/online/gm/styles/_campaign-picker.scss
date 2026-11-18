@@ -1,5 +1,5 @@
-// The campaign a table starts on, in the start menu: one row per campaign with its world map, its
-// name, when it was played and its players. Rows share the panel's rhythm (`_online.scss`); the
+// The campaign a table starts on, in the start menu: the table's players, then one row per campaign
+// with its world map, its name and when it was played. Rows share the panel's rhythm (`_online.scss`); the
 // chosen one is ringed in the accent and ticked, as every chosen control in Atlas is.
 @use '../../../../../styles/tokens' as *;
 @use '../../../../../styles/mixins' as *;
@@ -26,6 +26,7 @@ $campaigns-shown: 5;
     font-weight: $font-weight-semibold;
   }
 
+  .atlas-online-campaigns__players,
   .atlas-online-campaigns__note {
     padding: 0 $online-text-inset;
   }
@@ -221,6 +222,19 @@ $campaigns-shown: 5;
     }
 
     .campaign-emblem__icon {
+      width: 22px;
+      height: 22px;
+    }
+  }
+
+  // No world: the frame's own fill and a struck-out circle, in the size of a world's d20.
+  .atlas-online-campaign__art--none {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+
+    .svg-icon {
       width: 22px;
       height: 22px;
     }

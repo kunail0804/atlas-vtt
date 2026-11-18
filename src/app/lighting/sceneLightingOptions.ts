@@ -1,4 +1,4 @@
-import { DEFAULT_SCENE_LIGHTING, type DarkSightLook, type SceneLighting } from '../types/lightingTypes';
+import { DEFAULT_SCENE_LIGHTING, type DarkSightLook, type ExploredRevealer, type SceneLighting } from '../types/lightingTypes';
 import { isRecord } from '../utils/guards';
 import { isHexColor } from '../utils/hexColor';
 
@@ -26,6 +26,16 @@ export function tokenVisionOn(lighting: Pick<SceneLighting, 'tokenVision'>): boo
 
 export function exploredMemoryOn(lighting: Pick<SceneLighting, 'exploredMemory'>): boolean {
   return lighting.exploredMemory !== false;
+}
+
+/** Who fills the scene's explored memory: the players' tokens only where the scene says so, else the GM by hand. */
+export function exploredRevealerOf(lighting: Pick<SceneLighting, 'exploredBy'>): ExploredRevealer {
+  return lighting.exploredBy === 'players' ? 'players' : 'gm';
+}
+
+/** What tokens see goes into explored memory: the scene remembers, and its players reveal it. */
+export function tokensRecordMemory(lighting: Pick<SceneLighting, 'exploredMemory' | 'exploredBy'>): boolean {
+  return exploredMemoryOn(lighting) && exploredRevealerOf(lighting) === 'players';
 }
 
 /** Sight and light wait for the drop of a dragged token only where the scene asks for it; unset, they follow the drag. */

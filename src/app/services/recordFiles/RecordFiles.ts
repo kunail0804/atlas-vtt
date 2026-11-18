@@ -5,8 +5,13 @@ export type { RecordLayout, StoredRecord } from './recordLayout';
 
 interface RecordFile<Stored> {
   text: string;
-  /** Null for a file that holds no record (broken JSON, no id). */
+  /**
+   * Null for a file that holds no record (broken JSON, no id); where the layout keeps what it read
+   * last (`keepsLastRead`), that record instead.
+   */
   record: Stored | null;
+  /** Whether the file's text holds no record. */
+  unreadable: boolean;
 }
 
 const parentOf = (path: string): string => path.slice(0, path.lastIndexOf('/'));
@@ -67,6 +72,11 @@ export class RecordFiles<Stored extends StoredRecord> {
     return this.cache;
   }
 
+  /** Whether the file at `path` exists and its text holds no record (broken JSON, a sync that wrote half of it). */
+  isUnreadable(path: string): boolean {
+    return this.files.get(path)?.unreadable === true;
+  }
+
   /** The file that holds the record `id`, or null when none does. */
   pathOf(id: string): string | null {
     return this.holders().find((path) => this.files.get(path)?.record?.id === id) ?? null;
@@ -84,9 +94,9 @@ export class RecordFiles<Stored extends StoredRecord> {
   create(record: Stored, name: unknown = record.name): void {
     const path = this.layout.recordPathIn(this.layout.freeNamedPath(name, (candidate) => this.isTaken(candidate)));
     this.bump(path);
-    this.files.set(path, { text: this.layout.text(record), record });
+    this.files.set(path, { text: this.layout.text(record), record, unreadable: false });
     this.changed();
-    this.enqueue(() => this.writeNew(record.id));
+    void this.enqueue(() => this.writeNew(record.id));
   }
 
   /**
@@ -97,21 +107,36 @@ export class RecordFiles<Stored extends StoredRecord> {
   createAt(path: string, record: Stored, change: (stored: Stored) => Stored): void {
     if (!this.layout.isRecordPath(path)) throw new Error(`Not a ${this.layout.kind} file: ${path}`);
     this.bump(path);
-    this.files.set(path, { text: this.layout.text(record), record });
+    this.files.set(path, { text: this.layout.text(record), record, unreadable: false });
     this.changed();
-    this.enqueue(() => this.writeAt(path, change));
+    void this.enqueue(() => this.writeAt(path, change));
   }
 
   /** Changes the record; on disk the change is applied to what the file holds then. */
   update(id: string, change: (stored: Stored) => Stored): void {
+    void this.save(id, change);
+  }
+
+  /**
+   * Changes the record as `update` does and settles once the change is on disk; rejects when
+   * writing it failed, for a caller that must tell the user. The failure is logged either way, and
+   * the record is put back as it was, unless something changed it since.
+   */
+  save(id: string, change: (stored: Stored) => Stored): Promise<void> {
     const path = this.pathOf(id);
-    const record = path ? this.files.get(path)?.record : null;
-    if (!path || !record) throw new Error(`No ${this.layout.kind} file holds ${id}`);
-    const next = change(record);
+    const before = path ? this.files.get(path) : undefined;
+    if (!path || !before?.record) throw new Error(`No ${this.layout.kind} file holds ${id}`);
+    const next = change(before.record);
+    const entry: RecordFile<Stored> = { text: this.layout.text(next), record: next, unreadable: false };
     this.bump(path);
-    this.files.set(path, { text: this.layout.text(next), record: next });
+    this.files.set(path, entry);
     this.changed();
-    this.enqueue(() => this.writeChange(id, change));
+    const putBack = (): void => {
+      if (this.files.get(path) !== entry) return;
+      this.files.set(path, before);
+      this.changed();
+    };
+    return this.enqueue(() => this.writeChange(id, change, putBack));
   }
 
   /** Removes every file (or folder) that holds the record, conflict copies included, so none brings it back. */
@@ -120,7 +145,7 @@ export class RecordFiles<Stored extends StoredRecord> {
     if (paths.length === 0) return;
     for (const path of paths) this.files.delete(path);
     this.changed();
-    this.enqueue(async () => {
+    void this.enqueue(async () => {
       for (const path of paths) {
         const named = this.app.vault.getAbstractFileByPath(this.layout.namedPath(path));
         if (named) await this.app.fileManager.trashFile(named);
@@ -132,7 +157,7 @@ export class RecordFiles<Stored extends StoredRecord> {
   recordWrite(path: string, text: string): void {
     if (!this.layout.isRecordPath(path) || this.files.get(path)?.text === text) return;
     this.bump(path);
-    this.files.set(path, { text, record: this.layout.read(text) });
+    this.files.set(path, this.entryOf(path, text));
     this.changed();
   }
 
@@ -163,10 +188,13 @@ export class RecordFiles<Stored extends StoredRecord> {
     this.listeners.clear();
   }
 
-  private enqueue(write: () => Promise<void>): void {
-    this.writes = this.writes.then(write).catch((error: unknown) => {
+  /** Queues `write` after the writes before it; the promise returned rejects with its failure, while the queue goes on. */
+  private enqueue(write: () => Promise<void>): Promise<void> {
+    const written = this.writes.then(write);
+    this.writes = written.catch((error: unknown) => {
       console.error(`[Atlas] Writing a ${this.layout.kind} file failed:`, error);
     });
+    return written;
   }
 
   private async writeNew(id: string): Promise<void> {
@@ -199,19 +227,25 @@ export class RecordFiles<Stored extends StoredRecord> {
     await this.app.vault.createFolder(folder).catch(() => undefined);
   }
 
-  private async writeChange(id: string, change: (stored: Stored) => Stored): Promise<void> {
+  /** Applies `change` to what the file holds; `failed` is called before a failed write rejects. */
+  private async writeChange(id: string, change: (stored: Stored) => Stored, failed?: () => void): Promise<void> {
     const path = this.pathOf(id);
     const file = path ? this.app.vault.getFileByPath(path) : null;
     if (!path || !file) return;
     let written = '';
-    await this.app.vault.process(file, (text) => {
-      const onDisk = this.layout.read(text);
-      // A file that no longer holds the record is left as it is.
-      written = onDisk?.id === id ? this.layout.text(change(onDisk)) : text;
-      return written;
-    });
+    try {
+      await this.app.vault.process(file, (text) => {
+        const onDisk = this.layout.read(text);
+        // A file that no longer holds the record is left as it is.
+        written = onDisk?.id === id ? this.layout.text(change(onDisk)) : text;
+        return written;
+      });
+    } catch (error) {
+      failed?.();
+      throw error;
+    }
     if (this.files.get(path)?.text !== written) {
-      this.files.set(path, { text: written, record: this.layout.read(written) });
+      this.files.set(path, this.entryOf(path, written));
       this.changed();
     }
     await this.followName(id, path);
@@ -261,8 +295,16 @@ export class RecordFiles<Stored extends StoredRecord> {
       return;
     }
     if (this.versions.get(path) !== version || this.files.get(path)?.text === read) return;
-    this.files.set(path, { text: read, record: this.layout.read(read) });
+    this.files.set(path, this.entryOf(path, read));
     this.changed();
+  }
+
+  /** What `text` makes of the file at `path`: its record, or, where it holds none, what the layout keeps then. */
+  private entryOf(path: string, text: string): RecordFile<Stored> {
+    const record = this.layout.read(text);
+    if (record) return { text, record, unreadable: false };
+    const kept = this.layout.keepsLastRead === true ? this.files.get(path)?.record ?? null : null;
+    return { text, record: kept, unreadable: true };
   }
 
   private deleted(path: string): void {
@@ -297,7 +339,8 @@ export class RecordFiles<Stored extends StoredRecord> {
     return version;
   }
 
-  private changed(): void {
+  /** Tells the listeners that the records changed. */
+  protected changed(): void {
     this.cache = null;
     for (const listener of [...this.listeners]) listener();
   }

@@ -51,7 +51,7 @@ describe('LightingRenderer sight on drop', () => {
 
   /** A scene that waits for the drop, the option under test, unless `waits` is false: then it says nothing of it but what `lighting` does. */
   async function setup(lighting: Partial<SceneLighting> = {}, token = HERO, waits = true): Promise<Harness> {
-    harness = await createHarness({ patch: { exploredMask: null, lighting: { enabled: true, ambient: 1, ...(waits && { sightOnDrop: true }), ...lighting }, ...tokenAt(START.x, token) } });
+    harness = await createHarness({ patch: { exploredMask: null, lighting: { enabled: true, ambient: 1, exploredBy: 'players', ...(waits && { sightOnDrop: true }), ...lighting }, ...tokenAt(START.x, token) } });
     await harness.settle();
     watch = watchGl(harness.renderer.gl);
     return harness;
@@ -137,7 +137,7 @@ describe('LightingRenderer sight on drop', () => {
   it('keeps the light of a dragged token without vision where the drag began, though the party looks on', async () => {
     const bearer = { ...TORCH_BEARER, id: 'b', x: 88, vision: undefined } as unknown as TokenEntity;
     const scene = (x: number): Record<string, unknown> => ({ objects: { walls: WALLS, lights: NO_LIGHTS, tokens: { t: HERO, b: { ...bearer, x } } } });
-    harness = await createHarness({ patch: { exploredMask: null, lighting: { enabled: true, ambient: 0, sightOnDrop: true }, ...scene(88) } });
+    harness = await createHarness({ patch: { exploredMask: null, lighting: { enabled: true, ambient: 0, sightOnDrop: true, exploredBy: 'players' }, ...scene(88) } });
     const h = harness;
     await h.settle();
     watch = watchGl(h.renderer.gl);
@@ -165,7 +165,7 @@ describe('LightingRenderer sight on drop', () => {
     const scene = (dx: number, heroToo: boolean): Record<string, unknown> => ({
       objects: { walls: WALLS, lights: NO_LIGHTS, tokens: { t: heroToo ? { ...HERO, x: START.x + dx } : HERO, m: { ...mule, x: 60 + dx } } },
     });
-    harness = await createHarness({ patch: { exploredMask: null, lighting: { enabled: true, ambient: 1, sightOnDrop: true }, ...scene(0, false) } });
+    harness = await createHarness({ patch: { exploredMask: null, lighting: { enabled: true, ambient: 1, sightOnDrop: true, exploredBy: 'players' }, ...scene(0, false) } });
     const h = harness;
     await h.settle();
     watch = watchGl(h.renderer.gl);

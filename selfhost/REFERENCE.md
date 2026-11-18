@@ -64,7 +64,7 @@ message's `body`.
 | GM hello | GM side only, with the table's secret, else `badSecret` | `Table.attachGm` |
 | Player hello | public side only; a known `key` takes its seat back without the gate | `Table.attachPlayer` |
 | Table started again | a new table on the same link (`POST /api/tables` with the campaign's `code`) keeps the seats and keys of the one before, so a returning device takes its seat back by its `key` | `Tables.create` |
-| Campaign players | the GM sends its campaign's players (`players`, id, name, own code) after every welcome; a hello whose `code` is a player's own takes that player's seat past the gate, from any device; a newcomer whose name is a campaign player's gets `nameTaken`. Kept in memory only | `Table.attachPlayer` |
+| Campaign players | the GM sends its campaign's players (`players`, id, name, own code) after every welcome; a hello whose `code` is a player's own passes the gate, whatever it says: it takes a seat the table never gave a key (a player the GM added, on their first visit) at once, and otherwise asks the GM for that seat like the newcomer below, since an admission moves the seat away from the key it had; a newcomer whose name is a campaign player's, without that player's key or code (a cleared browser, another device), passes the join code like any newcomer and then always waits for the GM, whatever `ask` says: the knock says `reclaim`, and `seatConnected` as well when a page is on that seat at the moment of the knock (sent again with the GM's welcome, read afresh then; a GM that does not know the field ignores it), and an admission seats them under that player's id with a new key, so the key the seat had seats nobody any more and a page still on the seat is closed with `replaced`; a decline leaves the seat and its key as they were. Kept in memory only | `Table.attachPlayer`, `Table.seatAdmitted` |
 | Wrong join code | `wrongCode`; 10 within 10 minutes pause joins for 10 minutes (`paused`) | `relay/gate.ts` |
 | New join code from the GM | ends the pause and forgets wrong codes | `JoinGate.set` |
 | Waiting room | at most `MAX_WAITING` (8), else `tooManyKnocks`; no answer in 5 minutes gives `noAnswer` | `relay/gate.ts` |
@@ -177,12 +177,16 @@ Compendium tab (`src/app/packages/components/asset-manager/compendium/`) lists a
 the selected one, and makes, opens, deletes, exports and shares; `compendium/README.md` describes it. The
 character sheet does not read the compendium yet.
 
-The GM shares compendium pages with the vault's players (`src/app/players/`, kept in `atlas-vtt/players.json`).
-After every welcome, and when the GM comes back, the player's page sends `identify` with its device key
-(`deviceKey.ts`, kept in the browser for every table). The GM's `CompendiumShare`
-(`src/app/online/gm/compendium/`) finds the player by the key's SHA-256, a new player for a device never
-seen, and sends `compendium`, the list of their pages, by an id that is never the note's path. It sends it
-again when the shares or a note change. `compendium-open` asks for a page whole (`compendium-entry`). A change
+The GM shares compendium pages with the players of the table (`TablePlayers`). `atlas-vtt/players.json`
+keeps the shares (`src/app/players/`): for each note, the id of each player it is shared with and their
+access. The relay seats a player under the id of their place, however they took it: their own code, the key
+their browser kept, or a new device the GM admitted. The GM's `CompendiumShare`
+(`src/app/online/gm/compendium/`) sends each connected player `compendium`, the list of the pages of their
+place, by an id that is never the note's path. Someone the table does not seat gets nothing, whatever name
+they give, and a player taken off the table is sent an empty list. The GM sends the list again when the
+shares, the table's players or a note change. After every welcome, and when the GM comes back, the
+player's page sends `identify` with its device key (`deviceKey.ts`). The GM takes it only as a request for
+the list. `compendium-open` asks for a page whole (`compendium-entry`). A change
 of a page the player may write goes as `compendium-edit` in parts of 1,000 characters at most, since a
 player's frame holds 4 KiB. The GM checks the access once the change is whole, writes the note, and answers
 `compendium-saved`. The book's **Compendium** tab (`bookCompendium.ts`) lists the pages by kind and draws a page
@@ -195,7 +199,7 @@ Players draw and write with `draw`, `place-text` and `erase` (`src/app/online/pr
 
 A player's roll may name `advantage` (`advantage` or `disadvantage`); the GM rolls it by the collection's dice set, as the GM's own tray does. `rules.dice.sides` names the sides the map's set has a rule for, which the player's tray offers (both while a GM names none).
 
-A player of the campaign is sent their own code once, when the GM makes it (`your-code`); the page shows it for 30 s. With it, typed in the join form's code field, they take their seat from another device.
+A player of the campaign is sent their own code once, when the GM makes it (`your-code`); the page shows it for 30 s. With it, typed in the join form's code field, they pass the gate without the join code and take their seat on their first visit; from another device while the seat has a key, they take it once the GM admits them.
 
 The browser tests build nothing themselves: run `npm run player:build` first. They serve the built
 page from a real relay, drive it in `/usr/bin/chromium`, and play the GM with the plugin's

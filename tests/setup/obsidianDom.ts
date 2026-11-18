@@ -155,7 +155,8 @@ if (typeof Element !== 'undefined' && typeof Element.prototype.animate !== 'func
 }
 // jsdom has no canvas: getContext answers null, as a browser does for a context it cannot make. jsdom
 // answers null too, but logs "Not implemented" each time, which PIXI's probe at import made hundreds of.
-if (typeof HTMLCanvasElement !== 'undefined') {
+// The GPU suite loads this file in a real browser, whose canvas must stay.
+if (typeof HTMLCanvasElement !== 'undefined' && navigator.userAgent.includes('jsdom')) {
   HTMLCanvasElement.prototype.getContext = function getContext(): null {
     return null;
   } as HTMLCanvasElement['getContext'];

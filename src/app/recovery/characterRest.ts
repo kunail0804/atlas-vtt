@@ -2,7 +2,7 @@
  * A player character as a rest reads it in this app: the recovery buttons its note's template
  * offers, its collection's resources and conditions, and where each of
  * its values is held now. A resource is read from the character's token on an open map (one on
- * screen first), else from the values the played campaign keeps of it; a condition from its token
+ * screen first), else from the values the vault keeps of it (`PartySync`, whatever world is played); a condition from its token
  * on an open map; counters and `@` references from the note (`statblockLookup`: `@level`, `@str.mod`), where
  * the references a value itself names read only what the character's player may see. The template's tracked numbers are
  * resources too (`trackedResources`), whose maximum is always the note's and which start full or
@@ -10,7 +10,6 @@
  */
 
 import type { App } from 'obsidian';
-import { CampaignPlay } from '../campaigns/campaignPlay';
 import { PartySync } from '../campaigns/partyValues/PartySync';
 import { characterOf, libraryTokenOf } from '../characters/playerCharacters';
 import { playerCharacterOfNote } from '../characters/noteCharacter';
@@ -44,10 +43,10 @@ export interface TokenHold {
   readonly tokenIds: readonly string[];
 }
 
-/** Where a resource's value was read, and so is written: a token on an open map, or the played campaign's values. */
+/** Where a resource's value was read, and so is written: a token on an open map, or the party's values. */
 export type ResourcePlace =
   | { readonly kind: 'token'; readonly store: ViewAtlasStore; readonly tokenId: string }
-  | { readonly kind: 'party'; readonly campaignId: string };
+  | { readonly kind: 'party' };
 
 /** A player character ready to rest: its buttons, what the engine reads of it, and where its values live. */
 export interface CharacterRest {
@@ -109,7 +108,7 @@ export function characterRestOf(app: App, asset: TokenAsset, note: RestNote): Ch
   const buttons = note.template.recovery ?? NO_BUTTONS;
   const holds = characterHolds(app, asset);
   const sync = PartySync.forApp(app);
-  const campaignId = CampaignPlay.forApp(app).playing();
+  const keeping = sync?.isKeeping() === true;
   // What a player wrote into a value names only what they may see, here as on their sheet: a rest
   // that reads it must not fill it from a field hidden from them, since its player is shown the rest
   const shownFields = withHeaderFields(note.template).fields;
@@ -129,7 +128,7 @@ export function characterRestOf(app: App, asset: TokenAsset, note: RestNote): Ch
   const readShown = readIn(withReferencesFilled(note.record, note.template.fields, playerSees));
 
   const partyValue = (key: string): ResourceValue | undefined => {
-    const party = sync && campaignId !== null ? sync.value(campaignId, asset.id, key) : undefined;
+    const party = sync?.value(asset.id, key);
     return party && { current: party.current, max: party.max };
   };
 
@@ -138,12 +137,12 @@ export function characterRestOf(app: App, asset: TokenAsset, note: RestNote): Ch
   const resourcePlace = (key: string): ResourcePlace | null => {
     const token = tokenHolding(holds, key);
     if (token) return { kind: 'token', store: token.store, tokenId: token.tokenId };
-    if (campaignId !== null && partyValue(key)) return { kind: 'party', campaignId };
+    if (keeping && partyValue(key)) return { kind: 'party' };
     if (!tracked.has(key)) return null;
     // A tracked number nothing holds yet goes where the character's resources are kept
     const first = holds[0];
     if (first) return { kind: 'token', store: first.store, tokenId: first.tokenIds[0]! };
-    return campaignId !== null && sync ? { kind: 'party', campaignId } : null;
+    return keeping ? { kind: 'party' } : null;
   };
 
   const resourceValue = (key: string): ResourceValue | undefined => {

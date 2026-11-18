@@ -16,7 +16,8 @@ import { KNOCK_ROOM, knockCards, KnockStack, restCards, stackCards } from './kno
 import { DockSurface } from './dockSurface.ts';
 import { playerCodeCopier } from './playerCodes.ts';
 import { PANEL_WIDTH, panelView, renderPanel, type PanelActions } from './OnlinePanel.ts';
-import { badgeOf, isRunning, menuModel, tableTitle, tooltipOf, type OnlineSnapshot, type SceneFacts } from './panelModel.ts';
+import { badgeOf, isRunning, menuModel, tooltipOf, type OnlineSnapshot, type SceneFacts } from './panelModel.ts';
+import { worldRowOf } from './worldRow.ts';
 import { t } from '../../../i18n';
 
 export type { DockDeps } from './dockDeps.ts';
@@ -43,7 +44,7 @@ export class Dock {
   private readonly surface: DockSurface;
   private readonly surfaceId = `atlas-online-surface-${++nextSurface}`;
   private state: DockState = CLOSED;
-  /** The campaign the GM picked for the next table; null until they pick one. */
+  /** The world the GM picked for the next table; null for none, until they pick one. */
   private picked: string | null = null;
   /** What the GM typed into the campaign search; empty again whenever the menu closes. */
   private query = '';
@@ -235,7 +236,7 @@ export class Dock {
   }
 
   private drawPanel(layer: HTMLElement, snapshot: OnlineSnapshot, scene: SceneFacts, fresh: boolean): string {
-    const view = panelView(snapshot, scene, this.feedback.view(), this.qr.isOpen, tableTitle(snapshot, this.pick()));
+    const view = panelView(snapshot, scene, this.feedback.view(), worldRowOf(snapshot.campaignId, this.pick()), this.qr.isOpen);
     const key = JSON.stringify(view);
     if (fresh || key !== this.shownKey) renderPanel(layer, view, this.panelActions(scene));
     return key;
@@ -260,19 +261,17 @@ export class Dock {
     };
   }
 
-  /** The campaigns, and the one the next table would play. */
+  /** The worlds, and the one the next table would play (none: null). */
   private pick(): CampaignPick {
-    return campaignPick(this.deps.campaigns.list(), this.picked, this.query);
+    return campaignPick(this.deps.campaigns.list(), this.deps.campaigns.players(), this.picked, this.query);
   }
 
   private menuActions(): MenuActions {
     return {
       ...accountActions(this.deps.account),
       ...gateRowActions(this.deps.api, this.root),
-      start: () => {
-        const chosen = this.pick().chosen;
-        if (chosen !== null) this.deps.api.start(this.leaf, chosen);
-      },
+      start: () => this.deps.api.start(this.leaf, this.pick().chosen),
+      chooseWorld: (campaignId) => this.deps.api.chooseWorld(campaignId),
       choose: (campaignId) => {
         this.picked = campaignId;
         this.update();

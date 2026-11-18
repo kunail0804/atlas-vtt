@@ -51,7 +51,7 @@ const sameDefinitions = (a: readonly ResourceDefinition[], b: readonly ResourceD
 /**
  * The token a player character's note is shown for beside it: the first player character linking
  * the note, with the values it holds now as a rest reads them (`characterRestOf`: its token on an
- * open map, else the played campaign's values; a tracked number where it starts while nothing
+ * open map, else the party's values; a tracked number where it starts while nothing
  * holds it). Undefined where no player character links the note. The object stays the same while
  * the values do, so the card does not draw again for a token moved on the map.
  */
@@ -67,7 +67,7 @@ export function usePaneCharacterValues(app: App, notePath: string, template: Sta
   }, [app]);
   // `assets` reads the index again after it changed.
   const character = useMemo(() => characterOfNote(AssetService.getInstance(app).loadedTokenAssets(), notePath) ?? undefined, [app, notePath, assets]);
-  // Only a player character's note follows the maps and the campaign
+  // Only a player character's note follows the maps and the party's values
   useEffect(() => (character ? watchValues(app, refresh) : undefined), [app, character]);
 
   return useMemo((): StatblockTokenContext | undefined => {
@@ -84,6 +84,6 @@ export function usePaneCharacterValues(app: App, notePath: string, template: Sta
       && sameValues(kept.resources ?? {}, resources) && sameDefinitions(kept.definitions ?? [], definitions)) return kept;
     // Kept only to hand the card the same object while nothing changed; a render thrown away costs one redraw
     return (last.current = { id, name: character.name, imagePath: character.imagePath, resources, definitions });
-    // `revision` reads the maps and the campaign's values again after they changed.
+    // `revision` reads the maps and the party's values again after they changed.
   }, [app, character, notePath, template, record, revision]);
 }

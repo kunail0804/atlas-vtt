@@ -1,9 +1,13 @@
-import type { CampaignRoster, PlayersBlock } from '../../../../src/app/campaigns/players/CampaignPlayers.ts';
-import { emptyPlayers, isWritable, linkOf, readPlayers, withLink, withPlayer, type CampaignPlayer, type StoredPlayers } from '../../../../src/app/campaigns/players/playersFile.ts';
+import type { PlayersBlock, PlayersRoster } from '../../../../src/app/campaigns/players/TablePlayers.ts';
+import { isWritable, linkOf, readPlayers, withLink, withPlayer, type CampaignPlayer, type StoredPlayers } from '../../../../src/app/campaigns/players/playersFile.ts';
+import { emptyTablePlayers } from '../../../../src/app/campaigns/players/tablePlayersFile.ts';
 import { TableSeats, type PlayersFiles } from '../../../../src/app/online/gm/campaignSeats.ts';
 import type { TableCampaigns } from '../../../../src/app/online/gm/tableCampaigns.ts';
 import { Ownership, type CampaignSeats } from '../../../../src/app/online/gm/ownership.ts';
-import { NO_ASSIGNMENTS, readTokenAssignments, withCarriedAssignments, withPlayerTokens, withTokenOwners, type TokenAssignments } from '../../../../src/app/campaigns/players/tokenAssignments.ts';
+import { NO_ASSIGNMENTS, readTokenAssignments, withPlayerTokens, withTokenOwners, type TokenAssignments } from '../../../../src/app/campaigns/players/tokenAssignments.ts';
+
+/** The file with the fields that hold `assignments`. */
+const withAssigned = (stored: StoredPlayers, { owners, playerTokens }: TokenAssignments): StoredPlayers => ({ ...stored, tokenOwners: owners, playerTokens });
 
 /** A campaign's players in memory: a character has one owner, as in the players file (`withCharacterOwner`); its token assignments are kept as the file keeps them. */
 export class FakeSeats implements CampaignSeats {
@@ -14,7 +18,7 @@ export class FakeSeats implements CampaignSeats {
 
   constructor(players: readonly { readonly id: string; readonly name: string; readonly characters?: readonly string[] }[] = [], assignments: TokenAssignments = NO_ASSIGNMENTS) {
     this.current = players.map((player, index) => ({ id: player.id, name: player.name, code: String(100000 + index), characters: player.characters ?? [] }));
-    this.file = withCarriedAssignments(emptyPlayers('c1'), assignments);
+    this.file = withAssigned(emptyTablePlayers(), assignments);
   }
 
   assignments(): TokenAssignments {
@@ -69,7 +73,7 @@ export function boundOwnership(players: ConstructorParameters<typeof FakeSeats>[
 }
 
 /**
- * One campaign's players file in memory, read and written as `CampaignPlayers` does: a change is
+ * The table's players file in memory, read and written as `TablePlayers` does: a change is
  * applied to the copy in memory now and, as `RecordFiles` does inside `vault.process`, applied again
  * to what the disk holds once the write lands (the next timer turn, or `flush`), whose result then
  * stands in memory too. A change that is no pure function of the file shows here as it does in Atlas.
@@ -80,7 +84,7 @@ export class MemoryPlayers implements PlayersFiles {
   private waiting: ((stored: StoredPlayers) => StoredPlayers)[] = [];
   private readonly listeners = new Set<() => void>();
 
-  of(): CampaignRoster {
+  roster(): PlayersRoster {
     const { stored } = this;
     return stored === undefined ? { link: null, players: [], writable: true } : { link: linkOf(stored), players: readPlayers(stored), writable: isWritable(stored) };
   }
@@ -89,9 +93,9 @@ export class MemoryPlayers implements PlayersFiles {
     return this.stored === undefined ? NO_ASSIGNMENTS : readTokenAssignments(this.stored);
   }
 
-  change(campaignId: string, change: (stored: StoredPlayers) => StoredPlayers): boolean {
+  change(change: (stored: StoredPlayers) => StoredPlayers): boolean {
     if (this.blocked() !== null) return false;
-    const stored = this.stored ?? emptyPlayers(campaignId);
+    const stored = this.stored ?? emptyTablePlayers();
     this.stored = change(stored);
     // A new file is written as memory holds it; a file on disk takes the change again.
     if (this.disk === undefined) this.disk = this.stored;
@@ -140,7 +144,7 @@ export const FAKE_LINK = 'b'.repeat(26);
  */
 export function fakeCampaigns(players: ConstructorParameters<typeof FakeSeats>[0] = [], assignments: TokenAssignments = NO_ASSIGNMENTS): TableCampaigns & { readonly seats: TableSeats; readonly files: MemoryPlayers } {
   const files = new MemoryPlayers();
-  files.change('c1', (stored) => players.reduce((file, player, index) => withPlayer(file, { id: player.id, name: player.name, code: String(100000 + index), characters: player.characters ?? [] }, 0), withCarriedAssignments(withLink(stored, FAKE_LINK), assignments)));
-  const seats = new TableSeats(files, 'c1');
+  files.change((stored) => players.reduce((file, player, index) => withPlayer(file, { id: player.id, name: player.name, code: String(100000 + index), characters: player.characters ?? [] }, 0), withAssigned(withLink(stored, FAKE_LINK), assignments)));
+  const seats = new TableSeats(files);
   return { seats, files, playing: () => 'c1', play: () => undefined, stop: () => undefined, onChange: () => () => undefined, open: () => Promise.resolve(seats), known: () => seats, bound: () => undefined };
 }

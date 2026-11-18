@@ -28,7 +28,7 @@ import { editInStatblockPane } from './src/app/statblocks/editor/create/entryPoi
 import { registerStatblockFileMenu } from './src/app/statblocks/editor/create/statblockCommands';
 import { registerCompendiumFileMenu } from './src/app/compendium/compendiumFileMenu';
 import { registerCompendiumNoteCards } from './src/app/compendium/cards/compendiumNoteCards';
-import { registerPlayerRoster } from './src/app/players/PlayerRoster';
+import { registerPageShares } from './src/app/players/PageShares';
 import { registerStatblockInitiativeMenu } from './src/app/initiative/statblockCombatant';
 import { disposeImageProcessing } from './src/app/imageProcessing/imageProcessing';
 import { disposeSpectralEngine } from './src/app/pixi/spectralEngine/spectralEngineService';
@@ -68,8 +68,9 @@ import { HeaderAutocompleteSuggest } from './src/app/plugin/HeaderAutocompleteSu
 import { registerAtlasLinks } from './src/app/links/registerAtlasLinks';
 import { registerCommands } from './src/app/plugin/registerCommands';
 import { CampaignFiles } from './src/app/campaigns/CampaignFiles';
-import { CampaignBooks } from './src/app/campaigns/players/CampaignBooks';
-import { CampaignPlayers } from './src/app/campaigns/players/CampaignPlayers';
+import { TableBooks } from './src/app/campaigns/players/TableBooks';
+import { warnWhenUnreadable } from './src/app/campaigns/tableFileWarning';
+import { TablePlayers } from './src/app/campaigns/players/TablePlayers';
 import { releaseMapPictures } from './src/app/react/components/dashboard/mapPicture';
 import { PlayedRules } from './src/app/campaigns/playedRules';
 import { QuestIndex } from './src/app/campaigns/quests/QuestIndex';
@@ -84,6 +85,8 @@ import { SoundDirector } from './src/app/soundDirector/SoundDirector';
 import { SceneMoodLinks } from './src/app/soundLibrary/SceneMoodLinks';
 import { soundSettingsSection } from './src/app/settings/soundSettingsSection';
 import { registerOnlinePlay, type OnlinePlay } from './src/app/plugin/onlinePlay';
+import { registerWorldBackups } from './src/app/worldBackups/registerWorldBackups';
+import { worldBackupsSettingsSection } from './src/app/settings/worldBackupsSettingsSection';
 import type { TableChat } from './src/app/online/gm/tableChat';
 import { registerPlayerWindowReloadCleanup } from './src/app/plugin/playerWindowReload';
 import { registerReturnToAtlasOnClose } from './src/app/plugin/returnToAtlasOnClose';
@@ -163,16 +166,19 @@ export default class AtlasVTTPlugin extends Plugin {
     this.register(nameQuestCampaigns(this.app, campaignFiles, QuestIndex.open(this.app)));
     const campaignsRead = storageReady.catch(() => undefined).then(() => campaignFiles.load());
     void campaignsRead.catch((error: unknown) => console.error('[Atlas] Reading the campaigns failed:', error));
-    // Who plays a campaign online is its players file, read once the campaigns are.
-    const campaignPlayers = CampaignPlayers.open(this.app);
-    void campaignsRead.then(() => campaignPlayers.whenLoaded()).catch((error: unknown) => console.error('[Atlas] Reading the campaigns\' players failed:', error));
-    // The books of their characters are a campaign file too.
-    const campaignBooks = CampaignBooks.open(this.app);
-    void campaignsRead.then(() => campaignBooks.whenLoaded()).catch((error: unknown) => console.error('[Atlas] Reading the campaigns\' books failed:', error));
+    // Who plays at the online table is one file for the vault, read once the campaigns are.
+    const tablePlayers = TablePlayers.open(this.app);
+    void campaignsRead.catch(() => undefined).then(() => tablePlayers.load()).catch((error: unknown) => console.error('[Atlas] Reading the table\'s players failed:', error));
+    // So are the books of their characters.
+    const tableBooks = TableBooks.open(this.app);
+    // The GM is told where either cannot be read: they keep what was read last and are not written.
+    this.register(warnWhenUnreadable(tablePlayers));
+    this.register(warnWhenUnreadable(tableBooks));
+    void campaignsRead.catch(() => undefined).then(() => tableBooks.load()).catch((error: unknown) => console.error('[Atlas] Reading the table\'s books failed:', error));
     // The campaign this device plays records the scenes its map views open.
     this.register(recordCampaignPlay(this.app, campaignFiles, campaignsRead));
     // And keeps one set of values for each of its player characters, shared by every map view.
-    registerPartySync(this, campaignFiles, campaignsRead);
+    registerPartySync(this, campaignsRead);
     // The vault's dice sets are vault files too; collections and templates pick from them.
     void DiceSetFiles.open(this.app).load().catch((error: unknown) => console.error('[Atlas] Reading the dice sets failed:', error));
     // Settings carried over even when the data file migration failed, so they are not lost to the defaults.
@@ -226,6 +232,7 @@ export default class AtlasVTTPlugin extends Plugin {
 
     const onlinePlay = registerOnlinePlay(this, this.settingsService);
     this.onlinePlay = onlinePlay;
+    const worldBackups = registerWorldBackups(this, onlinePlay);
     this.addSettingTab(new AtlasSettingTab(this.app, this, () => [
       navigationSettingsSection(this.settingsService),
       diceSettingsSection(this.settingsService),
@@ -236,6 +243,7 @@ export default class AtlasVTTPlugin extends Plugin {
       onboardingSettingsSection(this.settingsService),
       changelogSettingsSection(this.settingsService, changelogService, this.manifest.version, updateWatch),
       ...onlinePlay.settingsSections(),
+      worldBackupsSettingsSection(this.app, worldBackups),
       supportSettingsSection(issueReporter),
     ]));
     this.registerEditorSuggest(new HeaderAutocompleteSuggest(this.app));
@@ -252,7 +260,7 @@ export default class AtlasVTTPlugin extends Plugin {
     // Every compendium note shows its entry as a statblock card beside it.
     registerCompendiumNoteCards(this);
     // The vault's players and the compendium pages shared with them, which follow notes renamed or deleted.
-    registerPlayerRoster(this);
+    registerPageShares(this);
     registerStatblockInitiativeMenu(this);
 
     this.app.workspace.onLayoutReady(() => {
@@ -291,8 +299,8 @@ export default class AtlasVTTPlugin extends Plugin {
     void this.settingsService?.saveSettingsNow();
     SystemPresetFiles.release(this.app);
     PlayedRules.release(this.app);
-    CampaignBooks.release(this.app);
-    CampaignPlayers.release(this.app);
+    TableBooks.release(this.app);
+    TablePlayers.release(this.app);
     CampaignFiles.release(this.app);
     QuestIndex.release(this.app);
     SoundDirector.release(this.app);

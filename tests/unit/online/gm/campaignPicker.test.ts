@@ -2,11 +2,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { CampaignChoice } from '../../../../src/app/online/gm/campaignChoices.ts';
 import { campaignPick, matchesQuery, renderCampaignPicker, type CampaignPickerActions } from '../../../../src/app/online/gm/dock/campaignPicker.ts';
-import { tableTitle, type OnlineSnapshot } from '../../../../src/app/online/gm/dock/panelModel.ts';
 
-const choice = (id: string, over: Partial<CampaignChoice> = {}): CampaignChoice => ({ id, name: id.toUpperCase(), activity: 'Played 3d ago', players: 0, art: null, hue: 120, ...over });
-const STRAHD = choice('strahd', { name: 'Curse of Strahd', players: 4 });
-const CAVES = choice('caves', { name: 'Blue Mouth Caves', players: 1 });
+const choice = (id: string, over: Partial<CampaignChoice> = {}): CampaignChoice => ({ id, name: id.toUpperCase(), activity: 'Played 3d ago', art: null, hue: 120, ...over });
+const STRAHD = choice('strahd', { name: 'Curse of Strahd' });
+const CAVES = choice('caves', { name: 'Blue Mouth Caves' });
 const LIST = [STRAHD, CAVES];
 
 function actions(): CampaignPickerActions & { [K in keyof CampaignPickerActions]: ReturnType<typeof vi.fn> } {
@@ -14,11 +13,11 @@ function actions(): CampaignPickerActions & { [K in keyof CampaignPickerActions]
 }
 
 /** The picker with the caves picked, unless a test picks another. */
-function picker(list: readonly CampaignChoice[] | null, picked: string | null = 'caves', query = ''): { layer: HTMLElement; rows: HTMLButtonElement[]; field: HTMLInputElement | null; does: ReturnType<typeof actions> } {
+function picker(list: readonly CampaignChoice[] | null, picked: string | null = 'caves', query = '', players = 4): { layer: HTMLElement; rows: HTMLButtonElement[]; noWorld: HTMLButtonElement | null; field: HTMLInputElement | null; does: ReturnType<typeof actions> } {
   const layer = document.body.createDiv();
   const does = actions();
-  renderCampaignPicker(layer, campaignPick(list, picked, query), does);
-  return { layer, rows: [...layer.querySelectorAll<HTMLButtonElement>('[role="radio"]')], field: layer.querySelector('input'), does };
+  renderCampaignPicker(layer, campaignPick(list, players, picked, query), does);
+  return { layer, rows: [...layer.querySelectorAll<HTMLButtonElement>('[role="radio"]:not([data-campaign=""])')], noWorld: layer.querySelector('[role="radio"][data-campaign=""]'), field: layer.querySelector('input'), does };
 }
 
 function type(field: HTMLInputElement | null, text: string): void {
@@ -30,22 +29,57 @@ function type(field: HTMLInputElement | null, text: string): void {
 const key = (target: Element | null | undefined, name: string): void => void target?.dispatchEvent(new KeyboardEvent('keydown', { key: name, bubbles: true }));
 
 describe('the campaign a table starts on', () => {
-  it('is the one the GM picked while it is there, else the one played last', () => {
-    expect(campaignPick(LIST, 'caves').chosen).toBe('caves');
-    expect(campaignPick(LIST, 'gone').chosen).toBe('strahd');
-    expect(campaignPick(LIST, null).chosen).toBe('strahd');
-    expect(campaignPick([STRAHD, choice('other')], null).chosen).toBe('strahd');
-    expect(campaignPick([], null).chosen).toBeNull();
-    expect(campaignPick(null, 'strahd').chosen).toBeNull();
+  it('is the one the GM picked while it is there, else none', () => {
+    expect(campaignPick(LIST, 0, 'caves').chosen).toBe('caves');
+    expect(campaignPick(LIST, 0, 'gone').chosen).toBeNull();
+    expect(campaignPick(LIST, 0, null).chosen).toBeNull();
+    expect(campaignPick([], 0, null).chosen).toBeNull();
+    expect(campaignPick(null, 0, 'strahd').chosen).toBeNull();
   });
 
-  it('shows each campaign with its name, when it was played and its players, the chosen one checked', () => {
-    const { rows } = picker(LIST);
+  it('may be none: No world comes first, chosen until a world is picked, and stays whatever the search finds', () => {
+    const { noWorld, rows, field, does } = picker(LIST, null);
+    expect(noWorld?.querySelector('.atlas-online-campaign__name bdi')?.textContent).toBe('No world');
+    expect(noWorld?.getAttribute('aria-checked')).toBe('true');
+    expect(noWorld?.tabIndex).toBe(0);
+    expect(rows.map((row) => row.getAttribute('aria-checked'))).toEqual(['false', 'false']);
+    rows[0]?.click();
+    expect(does.choose).toHaveBeenLastCalledWith('strahd');
+    noWorld?.click();
+    expect(does.choose).toHaveBeenLastCalledWith(null);
+    noWorld?.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    expect(does.start).toHaveBeenCalledTimes(1);
+    does.choose.mockClear();
+    type(field, 'curse');
+    expect(noWorld?.hidden).toBe(false);
+    expect(does.choose).not.toHaveBeenCalled();
+    // A world chosen and then the arrow keys back to No world.
+    const again = picker(LIST, 'strahd');
+    key(again.rows[0], 'ArrowUp');
+    expect(again.does.choose).toHaveBeenLastCalledWith(null);
+    expect(again.rows[0]?.dataset.focusKey).toBe('campaign-none');
+  });
+
+  it('shows each campaign with its name and when it was played, the chosen one checked', () => {
+    const { rows, noWorld } = picker(LIST);
     expect(rows.map((row) => row.querySelector('.atlas-online-campaign__name bdi')?.textContent)).toEqual(['Curse of Strahd', 'Blue Mouth Caves']);
-    expect(rows.map((row) => row.querySelector('.atlas-online-campaign__meta')?.textContent)).toEqual(['Played 3d ago · 4 players', 'Played 3d ago · 1 player']);
+    expect(rows.map((row) => row.querySelector('.atlas-online-campaign__meta')?.textContent)).toEqual(['Played 3d ago', 'Played 3d ago']);
+    expect(noWorld?.querySelector('.atlas-online-campaign__meta')?.textContent).toBe('Each map follows its collection\'s system');
     expect(rows.map((row) => row.getAttribute('aria-checked'))).toEqual(['false', 'true']);
     // One tab stop, as a radio group has.
     expect(rows.map((row) => row.tabIndex)).toEqual([-1, 0]);
+  });
+
+  it('says once how many players the table has, outside every world\'s row', () => {
+    const playersLine = (layer: HTMLElement): (string | null)[] => [...layer.querySelectorAll('.atlas-online-campaigns__players')].map((line) => line.textContent);
+    const { layer } = picker(LIST, 'caves', '', 4);
+    expect(playersLine(layer)).toEqual(['4 players']);
+    expect(layer.querySelector('[role="radiogroup"] .atlas-online-campaigns__players')).toBeNull();
+    expect(playersLine(picker(LIST, 'caves', '', 1).layer)).toEqual(['1 player']);
+    expect(playersLine(picker(LIST, 'caves', '', 0).layer)).toEqual(['No players yet']);
+    // The table has its players before its worlds are read, and without any world.
+    expect(playersLine(picker(null, null, '', 2).layer)).toEqual(['2 players']);
+    expect(playersLine(picker([], null, '', 2).layer)).toEqual(['2 players']);
   });
 
   it('shows the world map, or the campaign\'s own tint where it has none', () => {
@@ -98,12 +132,16 @@ describe('the campaign a table starts on', () => {
   });
 
   it('draws again with what was typed, and the arrow keys skip what it hides', () => {
-    const { rows, field, does } = picker([STRAHD, CAVES, choice('cavern', { name: 'Caverns Deep' })], 'cavern', 'cave');
+    const { rows, field, does, layer } = picker([STRAHD, CAVES, choice('cavern', { name: 'Caverns Deep' })], 'cavern', 'cave');
     expect(field?.value).toBe('cave');
     expect(rows[0]?.hidden).toBe(true);
     key(rows[2], 'Home');
-    expect(does.choose).toHaveBeenLastCalledWith('caves');
+    expect(does.choose).toHaveBeenLastCalledWith(null);
     key(rows[1], 'ArrowUp');
+    expect(does.choose).toHaveBeenLastCalledWith(null);
+    key(rows[2], 'ArrowUp');
+    expect(does.choose).toHaveBeenLastCalledWith('caves');
+    key(layer.querySelector('[data-campaign=""]'), 'ArrowUp');
     expect(document.activeElement).toBe(field);
   });
 
@@ -132,14 +170,9 @@ describe('the campaign a table starts on', () => {
   it('offers the dashboard to a vault without campaigns, and waits for them while they are read', () => {
     const empty = picker([]);
     expect(empty.rows).toHaveLength(0);
+    expect(empty.noWorld).toBeNull();
     empty.layer.querySelector<HTMLButtonElement>('.atlas-online-button')?.click();
     expect(empty.does.openCampaigns).toHaveBeenCalledTimes(1);
-    expect(picker(null).layer.textContent).toContain('Reading your campaigns');
-  });
-
-  it('names a running table by its campaign', () => {
-    const running = { campaignId: 'strahd' } as OnlineSnapshot;
-    expect(tableTitle(running, campaignPick(LIST, null))).toBe('Curse of Strahd');
-    expect(tableTitle({ campaignId: null } as OnlineSnapshot, campaignPick(LIST, null))).toBe('Online table');
+    expect(picker(null).layer.textContent).toContain('Reading your worlds');
   });
 });

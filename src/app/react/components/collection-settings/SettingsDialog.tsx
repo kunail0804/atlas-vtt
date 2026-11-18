@@ -14,8 +14,9 @@ interface SettingsDialogProps {
   title: string;
   subtitle?: string;
   closeLabel: string;
-  canSave: boolean;
-  onSave: () => void;
+  canSave?: boolean;
+  /** Unset: what the dialog does takes effect at once, and its footer has a Done button only. */
+  onSave?: () => void;
   onClose: () => void;
   /** `fullscreen` fills the Obsidian window but for the overlay's margin; unset, a window of its own size. */
   size?: 'fullscreen';
@@ -28,7 +29,7 @@ interface SettingsDialogProps {
  * system): its heading and close button, the body, and Cancel and Save. Escape no control used and
  * a press beside it close it without saving.
  */
-export function SettingsDialog({ title, subtitle, closeLabel, canSave, onSave, onClose, size, children }: SettingsDialogProps): React.ReactElement {
+export function SettingsDialog({ title, subtitle, closeLabel, canSave = true, onSave, onClose, size, children }: SettingsDialogProps): React.ReactElement {
   const windowVariants = useDialogWindowVariants();
   const titleId = useId();
 
@@ -65,12 +66,20 @@ export function SettingsDialog({ title, subtitle, closeLabel, canSave, onSave, o
         {children}
 
         <div className="atlas-collection-settings-footer">
-          <Button variant="outline" className="atlas-csm-cancel" onClick={onClose}>
-            {t('common.cancel')}
-          </Button>
-          <Button variant="default" className="atlas-csm-save" disabled={!canSave} onClick={onSave}>
-            {t('common.save')}
-          </Button>
+          {onSave ? (
+            <>
+              <Button variant="outline" className="atlas-csm-cancel" onClick={onClose}>
+                {t('common.cancel')}
+              </Button>
+              <Button variant="default" className="atlas-csm-save" disabled={!canSave} onClick={onSave}>
+                {t('common.save')}
+              </Button>
+            </>
+          ) : (
+            <Button variant="default" className="atlas-csm-save" disabled={!canSave} onClick={onClose}>
+              {t('common.done')}
+            </Button>
+          )}
         </div>
       </motion.div>
     </motion.div>,

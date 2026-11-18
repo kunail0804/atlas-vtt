@@ -2,7 +2,7 @@ import type { App } from 'obsidian';
 import { CampaignFiles } from '../../campaigns/CampaignFiles';
 import { CampaignService } from '../../campaigns/CampaignService';
 import type { Campaign } from '../../campaigns/campaignTypes';
-import { CampaignPlayers } from '../../campaigns/players/CampaignPlayers';
+import { TablePlayers } from '../../campaigns/players/TablePlayers';
 import { resourceUrl, sceneThumbnailUrl } from '../../react/components/dashboard/libraryPictures';
 import { campaignActivity } from '../../react/components/dashboard/relativeTime';
 import { AssetService } from '../../services/AssetService';
@@ -14,18 +14,18 @@ export interface CampaignChoice {
   readonly name: string;
   /** When it was last played, or made ("Played 3d ago"). */
   readonly activity: string;
-  /** Its lasting players. */
-  readonly players: number;
   /** Its world map's thumbnail as a URL; null for none, or while it is looked up. */
   readonly art: string | null;
   /** A hue of its own (0–359) for a campaign without a world map, as the dashboard tints it. */
   readonly hue: number;
 }
 
-/** The campaigns tables can be started on, and their changes. */
+/** The campaigns tables can be started on, the table's players, and their changes. */
 export interface CampaignChoices {
   /** Every campaign, the most recently played first; null while the campaigns are not read yet. */
   list(): readonly CampaignChoice[] | null;
+  /** How many lasting players the table has; 0 while its players file is not read. */
+  players(): number;
   onChange(listener: () => void): () => void;
 }
 
@@ -38,8 +38,8 @@ async function thumbnailOf(app: App, assetId: string): Promise<string | null> {
 }
 
 /**
- * The vault's campaigns for the start menu: read from the campaigns and players files, with each
- * world map's thumbnail looked up once (again when the asset index or a scene's thumbnail changes).
+ * The vault's campaigns for the start menu, with each world map's thumbnail looked up once (again when
+ * the asset index or a scene's thumbnail changes), and the count of the table's players from its players file.
  */
 export function appCampaignChoices(app: App): CampaignChoices {
   /** Thumbnails by world map asset id; absent while looked up. */
@@ -66,11 +66,10 @@ export function appCampaignChoices(app: App): CampaignChoices {
       });
     return null;
   };
-  const choiceOf = (campaign: Campaign, players: CampaignPlayers | undefined): CampaignChoice => ({
+  const choiceOf = (campaign: Campaign): CampaignChoice => ({
     id: campaign.id,
     name: campaign.name,
     activity: campaignActivity(campaign),
-    players: players?.of(campaign.id).players.length ?? 0,
     art: artOf(campaign.worldMap),
     hue: fnv1a32(campaign.id) % 360,
   });
@@ -78,9 +77,9 @@ export function appCampaignChoices(app: App): CampaignChoices {
     list: () => {
       const files = CampaignFiles.forApp(app);
       if (files === undefined || !files.isLoaded()) return null;
-      const players = CampaignPlayers.forApp(app);
-      return new CampaignService(files).list().map((campaign) => choiceOf(campaign, players));
+      return new CampaignService(files).list().map(choiceOf);
     },
+    players: () => TablePlayers.forApp(app)?.roster().players.length ?? 0,
     onChange: (listener) => {
       listeners.add(listener);
       const forgetArt = (): void => {
@@ -90,7 +89,7 @@ export function appCampaignChoices(app: App): CampaignChoices {
       const refs = [app.workspace.on('atlas-vtt:refresh-assets', forgetArt), app.workspace.on('atlas-vtt:scene-thumbnail-updated', forgetArt)];
       const stops = [
         CampaignFiles.forApp(app)?.onChange(listener),
-        CampaignPlayers.forApp(app)?.onChange(listener),
+        TablePlayers.forApp(app)?.onChange(listener),
       ];
       return () => {
         listeners.delete(listener);

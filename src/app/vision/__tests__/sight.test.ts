@@ -358,6 +358,7 @@ describe('sightOptionsChanged', () => {
   it('is true for the options that decide what is seen and recorded', () => {
     expect(sightOptionsChanged(night, { ...night, tokenVision: false })).toBe(true);
     expect(sightOptionsChanged(night, { ...night, exploredMemory: false })).toBe(true);
+    expect(sightOptionsChanged(night, { ...night, exploredBy: 'players' })).toBe(true);
     expect(sightOptionsChanged(night, { ...night, litThreshold: 0.5 })).toBe(true);
     expect(sightOptionsChanged(night, { ...night, brightThreshold: 0.5 })).toBe(true);
   });

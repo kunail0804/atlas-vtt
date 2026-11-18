@@ -3,7 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CampaignFiles } from '../../../../src/app/campaigns/CampaignFiles';
 import { CampaignPlay } from '../../../../src/app/campaigns/campaignPlay';
 import { CAMPAIGNS_FOLDER } from '../../../../src/app/campaigns/campaignPaths';
-import { CampaignPlayers } from '../../../../src/app/campaigns/players/CampaignPlayers';
+import { TABLE_PLAYERS_PATH } from '../../../../src/app/campaigns/players/tablePlayersFile';
+import { TablePlayers } from '../../../../src/app/campaigns/players/TablePlayers';
 import { CLOSE, GM_LEVEL, MAX_CAMPAIGN_PLAYERS } from '../../../../src/app/online/protocol/index.ts';
 import { OnlineControl } from '../../../../src/app/online/gm/OnlineControl.ts';
 import { Ownership } from '../../../../src/app/online/gm/ownership.ts';
@@ -49,12 +50,12 @@ vi.mock('../../../../src/app/online/gm/gmMarks.ts', () => ({
 }));
 
 const FOLDER = `${CAMPAIGNS_FOLDER}/Witherwild`;
-const PLAYERS = `${FOLDER}/players.json`;
+const PLAYERS = TABLE_PLAYERS_PATH;
 const campaignText = `${JSON.stringify({ format: 1, id: 'c1', name: 'Witherwild', createdAt: 1 })}\n`;
 const LINK = 'k'.repeat(26);
 const ANA = 'a'.repeat(20);
 const NOOR = 'n'.repeat(20);
-const playersText = (players: Record<string, object> = { [ANA]: { name: 'Ana', code: '000001', characters: [], addedAt: 1 } }): string => `${JSON.stringify({ format: 1, campaignId: 'c1', link: LINK, players })}\n`;
+const playersText = (players: Record<string, object> = { [ANA]: { name: 'Ana', code: '000001', characters: [], addedAt: 1 } }): string => `${JSON.stringify({ format: 1, link: LINK, players })}\n`;
 /** The GM's account: signed in unless a test signs it out. */
 const account = { signedIn: true };
 const signedIn = { token: (): string | null => (account.signedIn ? 'account-token' : null), signedOutByServer: (): void => undefined, refresh: (): Promise<void> => Promise.resolve() };
@@ -67,21 +68,21 @@ const seatId = (index: number): string => `${String.fromCharCode(97 + Math.floor
 const opened: App[] = [];
 
 /** A vault with one campaign (and its players file when given), the GM signed in, playing it unless told not to, and an Atlas tab. */
-async function gm(players: string | null = playersText(), play = true): Promise<{ online: OnlineControl; vault: ReturnType<typeof createInMemoryApp>; app: App; files: CampaignPlayers; leaf: ReturnType<typeof atlasTab>['leaf']; bound: [string | null, number][]; saves: (SavedTable | null)[] }> {
-  const vault = createInMemoryApp({ files: { [`${FOLDER}/campaign.json`]: campaignText, ...(players === null ? {} : { [PLAYERS]: players }) } });
+async function gm(players: string | null = playersText(), play = true, files: Record<string, string> = {}): Promise<{ online: OnlineControl; vault: ReturnType<typeof createInMemoryApp>; app: App; files: TablePlayers; leaf: ReturnType<typeof atlasTab>['leaf']; bound: [boolean, number][]; saves: (SavedTable | null)[] }> {
+  const vault = createInMemoryApp({ files: { [`${FOLDER}/campaign.json`]: campaignText, ...(players === null ? {} : { [PLAYERS]: players }), ...files } });
   const app = { ...vault.app, workspace: fakeApp.workspace, plugins: (fakeApp as unknown as { plugins: unknown }).plugins } as unknown as App;
   opened.push(app);
   await CampaignFiles.open(app).load();
   // Opened as the plugin opens it; reading the file is left to whoever waits for it.
-  const files = CampaignPlayers.open(app);
+  const table = TablePlayers.open(app);
   if (play) CampaignPlay.forApp(app).play('c1');
   const tab = atlasTab(sceneState({ mapPath: 'Scenes/Cave.atlasmap' }));
   workspace.leaves = [tab.leaf];
-  // Which campaign the books were bound to, and how many sockets were open by then.
-  const bound: [string | null, number][] = [];
+  // Whether the table's books were bound, and how many sockets were open by then.
+  const bound: [boolean, number][] = [];
   const saves: (SavedTable | null)[] = [];
-  const online = new OnlineControl(app, new Ownership(), appCampaigns(app, (campaignId) => void bound.push([campaignId, FakeSocket.all.length])), (table) => void saves.push(table), signedIn);
-  return { online, vault, app, files, leaf: tab.leaf, bound, saves };
+  const online = new OnlineControl(app, new Ownership(), appCampaigns(app, (running) => void bound.push([running, FakeSocket.all.length])), (table) => void saves.push(table), signedIn);
+  return { online, vault, app, files: table, leaf: tab.leaf, bound, saves };
 }
 
 /** A table started for the campaign and welcomed by the relay with `connected` at it. */
@@ -110,7 +111,7 @@ beforeEach(() => {
 
 afterEach(() => {
   for (const app of opened.splice(0)) {
-    CampaignPlayers.release(app);
+    TablePlayers.release(app);
     CampaignFiles.release(app);
   }
   vi.useRealTimers();
@@ -127,10 +128,10 @@ describe('a table of the played campaign', () => {
     expect(seen.requests.map((request) => request.body)).toEqual([`{"code":"${LINK}","gmLevel":${GM_LEVEL}}`]);
     await files.flush();
     expect([...vault.files.keys()].filter((path) => path.endsWith('players.json'))).toEqual([PLAYERS]);
-    // The campaign's books are bound before the table's socket opens, and let go when it ends.
-    expect(bound).toEqual([['c1', 0]]);
+    // The table's books are bound before the table's socket opens, and let go when it ends.
+    expect(bound).toEqual([[true, 0]]);
     online.stop();
-    expect(bound.at(-1)?.[0]).toBeNull();
+    expect(bound.at(-1)?.[0]).toBe(false);
   });
 
   it('makes the campaign\'s link once, and keeps it in the players file', async () => {
@@ -143,18 +144,28 @@ describe('a table of the played campaign', () => {
     online.stop();
   });
 
-  it('is not started without a campaign: no request, and the GM is told', async () => {
-    const { online, leaf } = await gm(playersText(), false);
-    expect(await online.start(leaf, null)).toBeNull();
-    expect(seen.requests).toEqual([]);
-    expect(seen.notices).toEqual(['Choose a campaign first.']);
+  it('starts without a world, on the table\'s link, with its players and books, and plays none', async () => {
+    const { online, app, leaf, bound, saves } = await gm(playersText(), false);
+    const table = await online.start(leaf, null);
+    expect(table).not.toBeNull();
+    expect(seen.notices).toEqual([]);
+    expect(seen.requests.map((request) => request.body)).toEqual([`{"code":"${LINK}","gmLevel":${GM_LEVEL}}`]);
+    expect(bound).toEqual([[true, 0]]);
+    expect(online.campaignId()).toBeNull();
+    expect(CampaignPlay.forApp(app).playing()).toBeNull();
+    expect(saves.at(-1)?.campaignId).toBeNull();
+    await advance(0);
+    FakeSocket.all.at(-1)?.relay({ t: 'welcome', role: 'gm', players: [] });
+    await advance(100);
+    expect(online.players().map((player) => player.name)).toEqual(['Ana']);
+    online.stop();
   });
 
   it('is not started where the link belongs to another account', async () => {
     const { online, leaf } = await gm();
     seen.created = { status: 409, json: { error: 'link-taken' } };
     expect(await online.start(leaf, 'c1')).toBeNull();
-    expect(seen.notices).toEqual(['This campaign\'s link belongs to another account. Make a new link.']);
+    expect(seen.notices).toEqual(['The table\'s link belongs to another account. Make a new link.']);
   });
 
   it('is not run where the relay opened another link than the campaign\'s, and the table it opened is ended', async () => {
@@ -164,7 +175,7 @@ describe('a table of the played campaign', () => {
     expect(await online.start(leaf, 'c1')).toBeNull();
     expect(online.table).toBeNull();
     expect(bound).toEqual([]);
-    expect(seen.notices).toEqual(['The server could not open this campaign\'s link. Try again later.']);
+    expect(seen.notices).toEqual(['The server could not open the table\'s link. Try again later.']);
     await advance(0);
     const socket = FakeSocket.all.at(-1);
     expect(FakeSocket.all).toHaveLength(1);
@@ -190,7 +201,7 @@ describe('who joins the campaign\'s table', () => {
     socket.relay({ t: 'player-joined', id: ANA, name: 'Ana' });
     socket.relay({ t: 'player-joined', id: NOOR, name: 'Noor' });
     await advance(100);
-    const noor = files.of('c1').players.find((player) => player.id === NOOR);
+    const noor = files.roster().players.find((player) => player.id === NOOR);
     expect(noor).toMatchObject({ name: 'Noor', characters: [] });
     const codes = frames().filter((frame) => frame.t === 'send' && frame.body?.t === 'your-code').map((frame) => [frame.to, frame.body]);
     expect(codes).toEqual([[ANA, { t: 'your-code', code: '000001', first: false }], [NOOR, { t: 'your-code', code: noor?.code, first: true }]]);
@@ -208,8 +219,8 @@ describe('who joins the campaign\'s table', () => {
     socket.relay({ t: 'player-joined', id: NOOR, name: 'Noor' });
     await advance(100);
     expect(frames().at(-1)).toEqual({ v: 1, t: 'kick', id: NOOR });
-    expect(seen.notices).toContain('The campaign has no room for Noor.');
-    expect(files.of('c1').players).toHaveLength(MAX_CAMPAIGN_PLAYERS);
+    expect(seen.notices).toContain('The table has no room for Noor.');
+    expect(files.roster().players).toHaveLength(MAX_CAMPAIGN_PLAYERS);
     online.stop();
   });
 
@@ -222,19 +233,19 @@ describe('who joins the campaign\'s table', () => {
     online.removeFromCampaign(seatId(0));
     socket.relay({ t: 'player-joined', id: NOOR, name: 'Noor' });
     await advance(100);
-    const noor = files.of('c1').players.find((player) => player.id === NOOR);
+    const noor = files.roster().players.find((player) => player.id === NOOR);
     expect(noor).toMatchObject({ name: 'Noor', characters: [] });
     expect(frames().find((frame) => frame.to === NOOR && frame.body?.t === 'your-code')?.body).toEqual({ t: 'your-code', code: noor?.code, first: true });
     online.stop();
   });
 
   it('is turned away where the players file is from a newer Atlas', async () => {
-    const later = `${JSON.stringify({ format: 2, campaignId: 'c1', link: LINK, players: {} })}\n`;
+    const later = `${JSON.stringify({ format: 2, link: LINK, players: {} })}\n`;
     const { socket, frames, online } = await hosting(later);
     socket.relay({ t: 'player-joined', id: NOOR, name: 'Noor' });
     await advance(100);
     expect(frames().at(-1)).toEqual({ v: 1, t: 'kick', id: NOOR });
-    expect(seen.notices).toContain('This campaign\'s players file is from a newer Atlas.');
+    expect(seen.notices).toContain('The table\'s players file is from a newer Atlas.');
     online.stop();
   });
 });
@@ -260,7 +271,7 @@ describe('the GM\'s players', () => {
     online.removeFromCampaign(ANA);
     await advance(100);
     expect(frames().slice(before).filter((frame) => frame.t !== 'send')).toEqual([{ v: 1, t: 'players', players: [] }, { v: 1, t: 'kick', id: ANA }]);
-    expect(files.of('c1').players).toEqual([]);
+    expect(files.roster().players).toEqual([]);
     expect(online.players()).toEqual([]);
     online.stop();
   });
@@ -278,20 +289,45 @@ describe('the GM\'s players', () => {
     online.stop();
   });
 
-  it('keep their campaign, and are nobody\'s once the table ends', async () => {
+  it('stay the table\'s, and are nobody\'s once the table ends', async () => {
     const { online, files } = await hosting();
     online.addPlayer('Cal');
-    expect(files.of('c1').players.map((player) => player.name).sort()).toEqual(['Ana', 'Cal']);
+    expect(files.roster().players.map((player) => player.name).sort()).toEqual(['Ana', 'Cal']);
     online.stop();
     expect(online.players()).toEqual([]);
-    expect(online.playerCode(ANA)).toBeNull();
+    // Their codes are the table's, whatever runs.
+    expect(online.playerCode(ANA)).toBe('000001');
+  });
+});
+
+describe('a vault whose worlds hold players files from before the table\'s file', () => {
+  const MOOR = `${CAMPAIGNS_FOLDER}/Moor`;
+  const OLD_WORLDS: Record<string, string> = {
+    [`${MOOR}/campaign.json`]: `${JSON.stringify({ format: 1, id: 'c2', name: 'Moor', createdAt: 1, lastPlayed: 100 })}\n`,
+    [`${FOLDER}/players.json`]: `${JSON.stringify({ format: 1, campaignId: 'c1', link: LINK, players: { [ANA]: { name: 'Ana', code: '000001', characters: [], addedAt: 20 } } })}\n`,
+    [`${MOOR}/players.json`]: `${JSON.stringify({ format: 1, campaignId: 'c2', link: 'm'.repeat(26), players: { ['c'.repeat(20)]: { name: 'Cal', code: '000003', characters: [], addedAt: 11 } } })}\n`,
+  };
+
+  it('starts a table with none of their players, on a new link of its own', async () => {
+    const { online, leaf, vault, files } = await gm(null, true, OLD_WORLDS);
+    await online.start(leaf, 'c1');
+    await advance(0);
+    const asked = seen.requests.map((request) => JSON.parse(request.body ?? '{}') as { code: string });
+    expect(asked).toHaveLength(1);
+    expect(asked[0]?.code).toMatch(/^[a-z2-7]{26}$/);
+    expect([LINK, 'm'.repeat(26)]).not.toContain(asked[0]?.code);
+    expect(online.players()).toEqual([]);
+    await files.flush();
+    expect(JSON.parse(vault.files.get(PLAYERS)!)).toEqual({ format: 1, link: asked[0]?.code, players: {} });
+    for (const [path, text] of Object.entries(OLD_WORLDS)) expect(vault.files.get(path)).toBe(text);
+    online.stop();
   });
 });
 
 describe('a player\'s code', () => {
   it('is looked up while no table runs, from the played campaign\'s players file', async () => {
     const { online, files } = await gm();
-    await files.whenLoaded();
+    await files.load();
     expect(online.table).toBeNull();
     expect(online.playerCode(ANA)).toBe('000001');
     expect(online.playerCode(NOOR)).toBeNull();
@@ -320,7 +356,7 @@ describe('a player taken off the campaign', () => {
     if (again === undefined || again === socket) throw new Error('no second socket');
     again.relay({ t: 'welcome', role: 'gm', players: [{ id: ANA, name: 'Ana' }] });
     await advance(100);
-    expect(files.of('c1').players).toEqual([]);
+    expect(files.roster().players).toEqual([]);
     const sent = again.frames() as Frame[];
     expect(sent.some((frame) => frame.body?.t === 'your-code')).toBe(false);
     expect(sent.filter((frame) => frame.t === 'kick').map((frame) => frame.id)).toContain(ANA);
@@ -335,10 +371,10 @@ describe('a player taken off the campaign', () => {
     await vault.app.vault.adapter.write(PLAYERS, playersText({}));
     vault.emit('modify', new TFile(PLAYERS));
     await advance(0);
-    expect(files.of('c1').players).toEqual([]);
+    expect(files.roster().players).toEqual([]);
     socket.relay({ t: 'player-joined', id: ANA, name: 'Ana' });
     await advance(100);
-    expect(files.of('c1').players).toEqual([]);
+    expect(files.roster().players).toEqual([]);
     expect(frames().some((frame) => frame.body?.t === 'your-code')).toBe(false);
     expect(frames().at(-1)).toEqual({ v: 1, t: 'kick', id: ANA });
     online.stop();
@@ -357,7 +393,7 @@ describe('a new link', () => {
       else account.signedIn = false;
       // No tab is shared, so the table would start again from the active one.
       await online.newLink();
-      expect(files.of('c1').link, block).toBe(LINK);
+      expect(files.roster().link, block).toBe(LINK);
       expect(frames().some((frame) => frame.t === 'end'), block).toBe(false);
       expect(online.table, block).not.toBeNull();
       expect(seen.notices, block).toEqual([block === 'tab' ? 'Open an Atlas map tab first.' : 'Sign in to host first.']);
@@ -368,7 +404,7 @@ describe('a new link', () => {
   it('replaces the campaign\'s link and starts the running table again on it', async () => {
     const { frames, online, files } = await hosting();
     await online.newLink();
-    const link = files.of('c1').link;
+    const link = files.roster().link;
     expect(link).not.toBe(LINK);
     expect(frames().at(-1)).toEqual({ v: 1, t: 'end' });
     expect(seen.requests.map((request) => request.body)).toEqual([`{"code":"${LINK}","gmLevel":${GM_LEVEL}}`, `{"code":"${link}","gmLevel":${GM_LEVEL}}`]);
@@ -423,6 +459,10 @@ describe('the played campaign', () => {
     const campaigns = appCampaigns(app);
     playSavedTable(campaigns, SAVED);
     expect(playing(app)).toBe('c1');
+    // A table saved without a world plays none while it comes back.
+    playSavedTable(campaigns, { ...SAVED, campaignId: null });
+    expect(playing(app)).toBeNull();
+    playSavedTable(campaigns, SAVED);
     // An older Atlas played campaigns without a table: such a play ends at the next start.
     playSavedTable(campaigns, null);
     expect(playing(app)).toBeNull();
@@ -456,13 +496,57 @@ describe('the played campaign', () => {
     }
   });
 
-  it('ends its table when the campaign is deleted while the table runs', async () => {
+  it('is taken off its table when the world is deleted while the table runs, and the table goes on', async () => {
     const { online, app, frames, saves } = await hosting();
-    // What the campaign page and `recordCampaignPlay` do once the campaign is gone.
+    // What the campaign page and `recordCampaignPlay` do once the world is gone.
     CampaignPlay.forApp(app).stop();
-    expect(online.table).toBeNull();
-    expect(frames().at(-1)).toEqual({ v: 1, t: 'end' });
-    expect(saves.at(-1)).toBeNull();
+    expect(online.table).not.toBeNull();
+    expect(frames().at(-1)).not.toEqual({ v: 1, t: 'end' });
+    expect(online.campaignId()).toBeNull();
+    expect(saves.at(-1)?.campaignId).toBeNull();
+    expect(playing(app)).toBeNull();
+    online.stop();
+  });
+
+  it('is chosen and changed during the session, players staying seated', async () => {
+    const { online, app, saves, socket, frames } = await hosting(playersText(), [{ id: ANA, name: 'Ana' }]);
+    const sockets = FakeSocket.all.length;
+    online.chooseWorld(null);
+    expect(playing(app)).toBeNull();
+    expect(online.campaignId()).toBeNull();
+    expect(saves.at(-1)?.campaignId).toBeNull();
+    online.chooseWorld('c1');
+    expect(playing(app)).toBe('c1');
+    expect(online.campaignId()).toBe('c1');
+    expect(saves.at(-1)?.campaignId).toBe('c1');
+    // The same connection, never ended, and Ana still at the table.
+    expect(FakeSocket.all).toHaveLength(sockets);
+    expect(FakeSocket.all.at(-1)).toBe(socket);
+    expect(frames().some((frame) => frame.t === 'end')).toBe(false);
+    expect(online.players().find((player) => player.id === ANA)?.online).toBe(true);
+    online.stop();
+  });
+
+  it('is chosen only while a table runs', async () => {
+    const { online, app } = await gm(playersText(), false);
+    online.chooseWorld('c1');
+    expect(playing(app)).toBeNull();
+    expect(online.campaignId()).toBeNull();
+  });
+
+  it('comes back with the world its saved table names, and none with a table saved without one', async () => {
+    const { app } = await gm(playersText(), false);
+    const online = new OnlineControl(app, new Ownership(), appCampaigns(app), () => undefined, signedIn);
+    expect(await online.resume(SAVED)).not.toBeNull();
+    expect(playing(app)).toBe('c1');
+    expect(online.campaignId()).toBe('c1');
+    online.close();
+    CampaignPlay.forApp(app).stop();
+    const again = new OnlineControl(app, new Ownership(), appCampaigns(app), () => undefined, signedIn);
+    expect(await again.resume({ ...SAVED, campaignId: null })).not.toBeNull();
+    expect(playing(app)).toBeNull();
+    expect(again.campaignId()).toBeNull();
+    again.stop();
   });
 
   it('stays the same while a new link starts the table again', async () => {

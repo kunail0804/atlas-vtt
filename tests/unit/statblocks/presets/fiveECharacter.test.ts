@@ -57,11 +57,11 @@ describe('has() in formulas', () => {
 });
 
 describe('the 5E character template', () => {
-  it('works out class, level, proficiency, initiative and hit dice from the classes', () => {
+  it('works out class, level, proficiency, initiative, hit dice and hit points from the classes', () => {
     expect(Object.fromEntries(derivedValues(template, RECORD))).toEqual({
-      class: 'Guerrier / Magicien', level: 5, proficiency: 3, initiative: 4, hit_dice: '3d10 + 2d6',
+      class: 'Guerrier / Magicien', level: 5, proficiency: 3, initiative: 4, hp: 35, hit_dice: '3d10 + 2d6',
     });
-    expect(derivedPatches(template, { ...RECORD, class: 'Guerrier / Magicien', level: 5, proficiency: 3, initiative: 4, hit_dice: '3d10 + 2d6' })).toEqual([]);
+    expect(derivedPatches(template, { ...RECORD, class: 'Guerrier / Magicien', level: 5, proficiency: 3, initiative: 4, hp: 35, hit_dice: '3d10 + 2d6' })).toEqual([]);
   });
 
   it('keeps what was typed where the sheet lists no classes', () => {
@@ -81,8 +81,8 @@ describe('the 5E character template', () => {
     expect(shown(patterns.get('DD des sorts') ?? '', record)).toBe('13');
   });
 
-  it('is the same sheet under both rule sets but for its words', () => {
-    expect(FIVE_E_2014_CHARACTER.template.fields.map((field) => field.key)).toEqual(template.fields.map((field) => field.key));
+  it('is the same sheet under both rule sets but for its words and the hit point bonus the 2024 rules add', () => {
+    expect(FIVE_E_2014_CHARACTER.template.fields.map((field) => field.key)).toEqual(template.fields.map((field) => field.key).filter((key) => key !== 'hp_bonus'));
     expect(FIVE_E_2014_CHARACTER.template.fields.find((field) => field.key === 'species')?.label).toBe('Race');
   });
 });

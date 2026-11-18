@@ -1,4 +1,4 @@
-import { LIGHT_CEILING } from '../../../lighting/lightingConstants';
+import { FADE_POWER, LIGHT_CEILING, RIM_DIP, RIM_HUE_WIDTH } from '../../../lighting/lightingConstants';
 import { BOUNCE_GATHER_GLSL } from './cascadeShaders';
 import { GLSL_VERSION, SRGB_GLSL, TONEMAP_GLSL, TRACE_GLSL, fieldGlsl, traceGlsl } from './glsl';
 import { WALL_PUSH_GLSL, wallPushGlsl } from './wallPushGlsl';
@@ -436,6 +436,15 @@ ${traced ? TRACED_FACES_GLSL : ''}
   // brightness, so the light fades into the memory beneath it without a darker ring between.
   float lacking = max(dot(memory - visible, LUMA), 0.0) / max(dot(memory, LUMA), 1e-5);
   vec3 inSight = visible + memory * (recalls * lacking);
+  // A light's rim keeps the light's colour at the memory's brightness, dipping a little, and turns
+  // to the memory's grey only towards its end (RIM_HUE_WIDTH, RIM_DIP), so floor the rules count
+  // lit never looks remembered. Only by the share of the light that lights give, their bounce
+  // included, and not the ambient light: past a light's dim radius it is gone.
+  float ownLight = clamp(dot(direct + bounce * uBounceGain, LUMA) * uExposure / max(level, 1e-4), 0.0, 1.0);
+  float rimShown = pow(clamp(1.0 - lacking, 0.0, 1.0), ${(1 / FADE_POWER).toFixed(4)});
+  float rimHue = recalls * ownLight * step(1e-5, lacking) * smoothstep(0.0, ${RIM_HUE_WIDTH.toFixed(4)}, rimShown);
+  vec3 rimLook = visible / max(dot(visible, LUMA), 1e-6) * dot(memory, LUMA) * (1.0 - ${RIM_DIP.toFixed(4)} * lacking);
+  inSight = mix(inSight, rimLook, rimHue);
   // The players see the veil only where the darkness takes something from their picture: ambient
   // light, a light's light (blue of the darkness map), or what a sense that does not see in it
   // would show. Over unlit floor and over memory there is none: it would give away where the

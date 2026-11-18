@@ -107,7 +107,8 @@ export async function createHarness({ patch = {}, holdFirstDecode = false, failF
   const listeners = new Set<(state: ViewAtlasState) => void>();
   const state = {
     mapPath: 'a.atlasmap',
-    lighting: { enabled: true, ambient: 1 },
+    // The players reveal the memory, so that what tokens see is recorded.
+    lighting: { enabled: true, ambient: 1, exploredBy: 'players' },
     objects: { walls: {}, lights: {}, tokens: {} },
     grid: null,
     exploredMask: await fullMask(renderer),

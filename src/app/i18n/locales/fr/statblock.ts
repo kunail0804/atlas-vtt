@@ -22,7 +22,7 @@ export const statblock: Translation = {
   'statblock.editNamed': 'Modifier {name}',
   'statblock.editValue': 'Modifier la valeur',
   'statblock.increase': 'Augmenter {label}',
-  'statblock.trackedNowhere': '{label} est conservé avec le token du personnage ou sa campagne jouée : placez le personnage sur une carte ou jouez sa campagne',
+  'statblock.trackedNowhere': '{label} est conservé avec le token du personnage ou son monde joué : placez le personnage sur une carte ou jouez son monde',
   'statblock.locate': 'Localiser {label} sur la carte',
   'statblock.pip': '{label} {n} sur {max}',
   'statblock.pipDamage': '{label} dégâts {n} sur {max}',

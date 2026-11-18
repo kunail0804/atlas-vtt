@@ -3,7 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MenuEntry } from '../../../../src/app/online/gm/dock/dockMenu.ts';
 import { renderMenu, type MenuActions } from '../../../../src/app/online/gm/dock/ConnectionMenu.ts';
 import { renderPanel, panelView, type PanelActions } from '../../../../src/app/online/gm/dock/OnlinePanel.ts';
-import { menuModel, type OnlineSnapshot, type SceneFacts } from '../../../../src/app/online/gm/dock/panelModel.ts';
+import { menuModel, NO_CAMPAIGNS, type OnlineSnapshot, type SceneFacts } from '../../../../src/app/online/gm/dock/panelModel.ts';
+import { worldRowOf } from '../../../../src/app/online/gm/dock/worldRow.ts';
+import type { CampaignPick } from '../../../../src/app/online/gm/dock/campaignPicker.ts';
 import { renderKnocks } from '../../../../src/app/online/gm/dock/knockStack.ts';
 
 const menus = vi.hoisted(() => ({ opened: [] as (readonly MenuEntry[])[] }));
@@ -19,7 +21,7 @@ function actions(): PanelActions {
   return {
     selectToken: vi.fn(), assign: vi.fn(), release: vi.fn(), unmark: vi.fn(), mark: vi.fn(), kick: vi.fn(), selected: () => [], imageSrc: (path) => path,
     copyPlayerCode: vi.fn(() => Promise.resolve(true)), newPlayerCode: vi.fn(), renamePlayer: vi.fn(), removeFromCampaign: vi.fn(), addPlayer: vi.fn(() => ({ id: 'd'.repeat(20), name: 'Dora', code: '731904' })), newLink: vi.fn(),
-    start: vi.fn(), choose: vi.fn(), search: vi.fn(), openCampaigns: vi.fn(), stop: vi.fn(), share: vi.fn(), copy: () => Promise.resolve(true), toggleQr: vi.fn(), close: vi.fn(), hideImage: vi.fn(), openAccountPage: vi.fn(),
+    start: vi.fn(), choose: vi.fn(), chooseWorld: vi.fn(), search: vi.fn(), openCampaigns: vi.fn(), stop: vi.fn(), share: vi.fn(), copy: () => Promise.resolve(true), toggleQr: vi.fn(), close: vi.fn(), hideImage: vi.fn(), openAccountPage: vi.fn(),
     newCode: vi.fn(), copyCode: vi.fn(), setRequireCode: vi.fn(), setAskToJoin: vi.fn(),
     toggleFeedback: vi.fn(), feedbackText: () => '', setFeedbackText: vi.fn(), setFeedbackDiagnostics: vi.fn(), sendFeedback: vi.fn(), setErrorReports: vi.fn(),
   } as unknown as PanelActions;
@@ -28,7 +30,7 @@ function actions(): PanelActions {
 function panel(): { layer: HTMLElement; does: PanelActions; redraw(players?: OnlineSnapshot['players']): void } {
   const layer = document.body.createDiv();
   const does = actions();
-  const redraw = (players: OnlineSnapshot['players'] = [ANA]): void => renderPanel(layer, panelView(snapshot({ players }), SCENE, feedback), does);
+  const redraw = (players: OnlineSnapshot['players'] = [ANA]): void => renderPanel(layer, panelView(snapshot({ players }), SCENE, feedback, worldRowOf(null, NO_CAMPAIGNS)), does);
   redraw();
   return { layer, does, redraw };
 }
@@ -52,17 +54,17 @@ beforeEach(() => {
   document.body.empty();
 });
 
-describe('removing a player from the campaign', () => {
+describe('removing a player from the table', () => {
   it('asks first, and only the confirmation removes them', () => {
     const { layer, does } = panel();
     layer.querySelector<HTMLButtonElement>('.atlas-online-player__more')?.click();
-    rowOf(menus.opened.at(-1)!, 'Remove from campaign').run();
+    rowOf(menus.opened.at(-1)!, 'Remove from players').run();
     expect(does.removeFromCampaign).not.toHaveBeenCalled();
-    expect(layer.querySelector('.atlas-online-confirm__text')?.textContent).toBe('Remove Ana from the campaign?');
+    expect(layer.querySelector('.atlas-online-confirm__text')?.textContent).toBe('Remove Ana from the table\'s players?');
     press(layer, 'Cancel');
     expect(layer.querySelector('.atlas-online-confirm')).toBeNull();
     expect(does.removeFromCampaign).not.toHaveBeenCalled();
-    rowOf(menus.opened.at(-1)!, 'Remove from campaign').run();
+    rowOf(menus.opened.at(-1)!, 'Remove from players').run();
     press(layer, 'Remove');
     expect(does.removeFromCampaign).toHaveBeenCalledWith(ANA.id);
     expect(layer.querySelector('.atlas-online-confirm')).toBeNull();
@@ -71,7 +73,7 @@ describe('removing a player from the campaign', () => {
   it('keeps the question over a redraw the table causes', () => {
     const { layer, redraw } = panel();
     layer.querySelector<HTMLButtonElement>('.atlas-online-player__more')?.click();
-    rowOf(menus.opened.at(-1)!, 'Remove from campaign').run();
+    rowOf(menus.opened.at(-1)!, 'Remove from players').run();
     redraw();
     expect(layer.querySelectorAll('.atlas-online-confirm')).toHaveLength(1);
   });
@@ -79,7 +81,7 @@ describe('removing a player from the campaign', () => {
   it('asks in place of the player\'s row, where the GM clicked', () => {
     const { layer } = panel();
     layer.querySelector<HTMLButtonElement>('.atlas-online-player__more')?.click();
-    rowOf(menus.opened.at(-1)!, 'Remove from campaign').run();
+    rowOf(menus.opened.at(-1)!, 'Remove from players').run();
     const question = layer.querySelector('.atlas-online-confirm');
     expect(question?.closest('.atlas-online-group')).not.toBeNull();
     expect(question?.classList.contains('atlas-online-player-prompt')).toBe(true);
@@ -91,7 +93,7 @@ describe('removing a player from the campaign', () => {
   it('goes with a player who leaves while it is open', () => {
     const { layer, redraw } = panel();
     layer.querySelector<HTMLButtonElement>('.atlas-online-player__more')?.click();
-    rowOf(menus.opened.at(-1)!, 'Remove from campaign').run();
+    rowOf(menus.opened.at(-1)!, 'Remove from players').run();
     redraw([]);
     expect(layer.querySelector('.atlas-online-confirm')).toBeNull();
     redraw();
@@ -231,5 +233,68 @@ describe('stopping the table', () => {
     expect(header(layer)).toEqual(['Stop table']);
     layer.querySelector<HTMLButtonElement>('.atlas-online-header__stop')?.click();
     expect(does.stop).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('the world the table plays', () => {
+  const WORLDS: CampaignPick = { list: [{ id: 'strahd', name: 'Curse of Strahd', activity: '', art: null, hue: 0 }, { id: 'caves', name: 'Blue Mouth Caves', activity: '', art: null, hue: 0 }], players: 0, chosen: null, query: '' };
+  const worldRow = (layer: HTMLElement): HTMLButtonElement | null => layer.querySelector('.atlas-online-world');
+
+  it('is named in the panel, and its menu offers No world and every world, the one played ticked', () => {
+    const layer = document.body.createDiv();
+    const does = actions();
+    renderPanel(layer, panelView(snapshot({ campaignId: 'strahd' }), SCENE, feedback, worldRowOf('strahd', WORLDS)), does);
+    expect(worldRow(layer)?.textContent).toBe('World: Curse of Strahd');
+    worldRow(layer)?.click();
+    const entries = menus.opened.at(-1)!;
+    expect(entries.map((entry) => [entry.title, entry.checked])).toEqual([['No world', false], ['Curse of Strahd', true], ['Blue Mouth Caves', false]]);
+    rowOf(entries, 'Blue Mouth Caves').run();
+    expect(does.chooseWorld).toHaveBeenLastCalledWith('caves');
+    rowOf(entries, 'No world').run();
+    expect(does.chooseWorld).toHaveBeenLastCalledWith(null);
+  });
+
+  it('titles the panel and the menu Table, whichever world is played: the world is said on its row alone', () => {
+    const layer = document.body.createDiv();
+    renderPanel(layer, panelView(snapshot({ campaignId: 'strahd' }), SCENE, feedback, worldRowOf('strahd', WORLDS)), actions());
+    expect(layer.querySelector('.atlas-online-title')?.textContent).toBe('Table');
+    const menu = document.body.createDiv();
+    renderMenu(menu, menuModel(snapshot({ players: [], campaignId: 'strahd' }), SCENE, { kind: 'signed-out' }, false, WORLDS), actions() as unknown as MenuActions);
+    expect(menu.querySelector('.atlas-online-title')?.textContent).toBe('Table');
+    expect(worldRow(menu)?.textContent).toBe('World: Curse of Strahd');
+  });
+
+  it('shows … for a world played while the worlds are not read yet, never No world', () => {
+    const layer = document.body.createDiv();
+    renderPanel(layer, panelView(snapshot({ campaignId: 'strahd' }), SCENE, feedback, worldRowOf('strahd', NO_CAMPAIGNS)), actions());
+    expect(worldRow(layer)?.textContent).toBe('…');
+    const menu = document.body.createDiv();
+    renderMenu(menu, menuModel(snapshot({ players: [], campaignId: 'strahd' }), SCENE, { kind: 'signed-out' }, false, NO_CAMPAIGNS), actions() as unknown as MenuActions);
+    expect(worldRow(menu)?.textContent).toBe('…');
+    // A table that plays none says so whether the worlds are read or not.
+    renderPanel(layer, panelView(snapshot(), SCENE, feedback, worldRowOf(null, NO_CAMPAIGNS)), actions());
+    expect(worldRow(layer)?.textContent).toBe('No world');
+  });
+
+  it('offers no world to choose while the worlds are not read yet, only a switched-off row that says they load', () => {
+    const layer = document.body.createDiv();
+    const does = actions();
+    for (const campaignId of ['strahd', null]) {
+      renderPanel(layer, panelView(snapshot({ campaignId }), SCENE, feedback, worldRowOf(campaignId, NO_CAMPAIGNS)), does);
+      worldRow(layer)?.click();
+      const entries = menus.opened.at(-1)!;
+      expect(entries.map((entry) => [entry.title, entry.disabled])).toEqual([['Reading your worlds…', true]]);
+      entries[0]!.run();
+    }
+    expect(does.chooseWorld).not.toHaveBeenCalled();
+  });
+
+  it('says No world in the menu before anyone joined, while the table plays none', () => {
+    const layer = document.body.createDiv();
+    const does = actions() as unknown as MenuActions;
+    renderMenu(layer, menuModel(snapshot({ players: [] }), SCENE, { kind: 'signed-out' }, false, WORLDS), does);
+    expect(worldRow(layer)?.textContent).toBe('No world');
+    worldRow(layer)?.click();
+    expect(menus.opened.at(-1)!.map((entry) => [entry.title, entry.checked])).toEqual([['No world', true], ['Curse of Strahd', false], ['Blue Mouth Caves', false]]);
   });
 });

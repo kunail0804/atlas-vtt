@@ -64,6 +64,17 @@ export function lightFade(bright: number, dim: number, distance: number): number
   return (u * (2 - u)) ** (1.5 * FADE_POWER);
 }
 /**
+ * The rim of a light in the players' picture: where a light's fade is dimmer than the explored
+ * memory beneath it, the memory used to fill it in grey, so floor the rules count lit looked
+ * remembered (#139). The rim is drawn at the memory's brightness in the light's own colour instead,
+ * which gives way to the memory's grey over the last `RIM_HUE_WIDTH` of the way, measured in what
+ * the eye sees of the light under the memory's brightness (1: the whole rim, smaller: only its
+ * end), and may dip by up to `RIM_DIP` of the memory's brightness on the way (0: none). Nothing
+ * changes past the dim radius, where the light is gone, nor in the GM's picture.
+ */
+export const RIM_HUE_WIDTH = 0.7;
+export const RIM_DIP = 0.25;
+/**
  * A sense with a range that shows the map (darkvision, a token's limited sight) fades in the
  * players' picture over this last share of its range, as light fades within its dim radius: what
  * it perceives is unchanged, the picture only darker towards its edge.

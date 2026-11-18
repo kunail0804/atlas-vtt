@@ -49,6 +49,14 @@ Keep scenes, maps, encounters, and characters together in collections. Use folde
 
 ## Install
 
+To run campaigns with this fork (`kunail0804/atlas-vtt`), install the `atlas` launcher and Docker. The
+launcher puts the fork's plugin in your vault. Follow the guide for your system:
+
+- [Install Atlas VTT on Linux](docs/install/linux.md)
+- [Install Atlas VTT on Windows](docs/install/windows.md)
+
+The steps below install the official plugin from Obsidian's community plugins.
+
 Requires **Obsidian 1.8.7 or newer on desktop**. Atlas VTT is available through Obsidian's community plugins.
 
 1. Open **Settings → Community plugins** and turn off **Restricted mode** if it is enabled.

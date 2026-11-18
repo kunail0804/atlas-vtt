@@ -38,7 +38,7 @@ describe('the relay across restarts and idle time', () => {
     expect(back.frame('welcome')?.id).toBe(id);
   });
 
-  it("seats a player of the campaign by their kept key at the table started again on the campaign's link, and still turns away a newcomer who takes their name", async () => {
+  it("seats a player of the campaign by their kept key at the table started again on the campaign's link, and still leaves a newcomer who takes their name to the GM", async () => {
     const first = await startTestRelay();
     const created = await createTable(first.gmOrigin);
     const link = created.code;
@@ -70,8 +70,12 @@ describe('the relay across restarts and idle time', () => {
     expect(back.frame('welcome')?.id).toBe(id);
     const impostor = new TestPlayer(second.publicUrl, link, { name: 'mira' });
     closers.push(() => impostor.socket.close());
-    await until(() => impostor.closeCode !== null, 'name taken');
-    expect(impostor.closeCode).toBe(CLOSE.nameTaken);
+    await until(() => next.knocks.length === 1, 'the GM is asked for her seat');
+    expect(next.knocks[0]).toMatchObject({ name: 'mira', reclaim: true });
+    next.connection.answer(next.knocks[0]?.id ?? '', false);
+    await until(() => impostor.closeCode !== null, 'declined');
+    expect(impostor.closeCode).toBe(CLOSE.declined);
+    expect(back.closeCode).toBeNull();
   });
 
   it('stops after the idle time with nobody connected, and not while someone is', async () => {

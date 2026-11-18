@@ -27,7 +27,7 @@ async function scene(view: LevelsView, surfaces: Record<string, LevelSurface>, t
     mapLoaded: true, isMapLoading: false, levels: LEVELS, viewedLevel: 'upper',
     objects: { ...store.getState().objects, tokens, levelSurfaces: surfaces },
   });
-  store.getState().setSceneLighting({ enabled: true, ambient });
+  store.getState().setSceneLighting({ enabled: true, ambient, exploredBy: 'players' });
   await view.settle();
 }
 

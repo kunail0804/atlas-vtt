@@ -1,7 +1,7 @@
 /**
- * The values a campaign keeps of its player characters, one per character and resource: every
- * number a character's tokens hold in `resources` (the collection's resources and the statblock's
- * further quantities). Keys are built and read here alone.
+ * The values the vault keeps of its player characters, one per character and resource, whatever
+ * world is played: every number a character's tokens hold in `resources` (the collection's resources
+ * and the statblock's further quantities). Keys are built and read here alone.
  */
 
 import type { PartyKey, PartyValue } from '../../types/partyTypes';
@@ -10,13 +10,12 @@ export type { PartyKey, PartyValue, PartyValues } from '../../types/partyTypes';
 
 /** What a party key names. */
 export interface PartyKeyParts {
-  readonly campaignId: string;
   readonly characterId: string;
   readonly resourceKey: string;
 }
 
-export function partyKey(campaignId: string, characterId: string, resourceKey: string): PartyKey {
-  return JSON.stringify([campaignId, characterId, resourceKey]);
+export function partyKey(characterId: string, resourceKey: string): PartyKey {
+  return JSON.stringify([characterId, resourceKey]);
 }
 
 /** What `key` names, or null for a key that is no party key. */
@@ -27,9 +26,9 @@ export function readPartyKey(key: string): PartyKeyParts | null {
   } catch {
     return null;
   }
-  if (!Array.isArray(parts) || parts.length !== 3 || !parts.every((part) => typeof part === 'string')) return null;
-  const [campaignId, characterId, resourceKey] = parts as [string, string, string];
-  return { campaignId, characterId, resourceKey };
+  if (!Array.isArray(parts) || parts.length !== 2 || !parts.every((part) => typeof part === 'string')) return null;
+  const [characterId, resourceKey] = parts as [string, string];
+  return { characterId, resourceKey };
 }
 
 /** Whether two values are the same. */

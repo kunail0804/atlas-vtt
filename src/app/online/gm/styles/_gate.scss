@@ -54,6 +54,34 @@
     white-space: pre;
   }
 
+  // Words that do not fit beside the answers (a seat asked for from a new device): the whole sentence
+  // over the card's width, wrapped, and the answers under it at the card's end.
+  .atlas-online-knock--wrap {
+    flex-wrap: wrap;
+    height: auto;
+    row-gap: $spacing-xs;
+
+    > .atlas-online-knock__text {
+      display: block;
+      flex-basis: 100%;
+      line-height: var(--line-height-tight);
+    }
+
+    .atlas-online-knock__name {
+      display: inline-block;
+      max-width: 100%;
+      vertical-align: bottom;
+    }
+
+    .atlas-online-knock__rest {
+      white-space: normal;
+    }
+
+    > .atlas-online-button:first-of-type {
+      margin-left: auto;
+    }
+  }
+
   // A line with more behind it (what a rest will do) shows it as a tooltip on hover or keyboard focus.
   .atlas-online-knock__text--about {
     border-radius: $radius-l;

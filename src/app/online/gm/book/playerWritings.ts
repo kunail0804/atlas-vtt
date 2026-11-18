@@ -2,8 +2,13 @@ import { MAX_BOOK_NOTES, MAX_BOOK_PINS, type PlayerBookMessage } from '../../pro
 import type { BookShelf } from './BookShelf.ts';
 import { applyBookMessage, type ShelfMessage, type StoredBook } from './bookStore.ts';
 
+const OWN_BOOK = 'player:';
+
 /** The book a player's own writing goes to, whichever character they play: `player:` cannot be an asset's id or a `token:` key. */
-export const ownBookOf = (player: string): string => `player:${player}`;
+export const ownBookOf = (player: string): string => `${OWN_BOOK}${player}`;
+
+/** The player whose own book `key` names (`ownBookOf`); null for a character's book. */
+export const playerOfBook = (key: string): string | null => (key.startsWith(OWN_BOOK) ? key.slice(OWN_BOOK.length) : null);
 
 /** What a player wrote themselves, which is theirs to read whichever character they play now. */
 export type Writings = Pick<StoredBook, 'notes' | 'pins'>;

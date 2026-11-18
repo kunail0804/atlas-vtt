@@ -38,7 +38,7 @@ describe('LightingRenderer on a graphics device that cannot run the lighting', (
 
   /** Lighting off at first, so each test decides what the first build meets. */
   async function setup(attempt?: LightingAttempt): Promise<Harness> {
-    harness = await createHarness({ patch: { lighting: { enabled: false, ambient: 1 } }, onUnavailable, ...(attempt ? { attempt } : {}) });
+    harness = await createHarness({ patch: { lighting: { enabled: false, ambient: 1, exploredBy: 'players' } }, onUnavailable, ...(attempt ? { attempt } : {}) });
     return harness;
   }
 
@@ -233,7 +233,7 @@ describe('LightingRenderer on a graphics device that cannot run the lighting', (
       h.change({ mapPath: 'b.atlasmap' });
       h.change({ lighting: { enabled: false, ambient: 0.1 }, exploredMask: null, objects: { walls: {}, lights: {}, tokens: {} } });
       h.lighting.refreshBounds();
-      h.change({ lighting: { enabled: true, ambient: 1 }, ...tokens(visionToken(60)) });
+      h.change({ lighting: { enabled: true, ambient: 1, exploredBy: 'players' }, ...tokens(visionToken(60)) });
       h.tick();
       expect(build).not.toHaveBeenCalled();
       expect(render).not.toHaveBeenCalled();

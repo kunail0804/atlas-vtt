@@ -4,7 +4,7 @@ import path from 'node:path';
 import { TableConnection, type GateEvents, type TableEvents, type TableStatus } from '../../src/app/online/gm/TableConnection.ts';
 import type { Timers } from '../../src/app/online/gm/companionTimers.ts';
 import type { GateFrame } from '../../src/app/online/gm/joinGate.ts';
-import type { PlayerInfo } from '../../src/app/online/protocol/index.ts';
+import type { KnockInfo, PlayerInfo } from '../../src/app/online/protocol/index.ts';
 import { startRelay, type RunningRelay } from '../relay/relay.ts';
 import { newTableCode } from '../relay/ids.ts';
 import { createTable as askForTable } from '../../src/app/online/gm/createTable.ts';
@@ -64,7 +64,7 @@ export class TestGm {
   readonly joined: PlayerInfo[] = [];
   readonly left: string[] = [];
   readonly messages: { from: string; body: unknown }[] = [];
-  readonly knocks: PlayerInfo[] = [];
+  readonly knocks: KnockInfo[] = [];
   readonly gone: { id: string; full: boolean }[] = [];
   readonly pauses: number[] = [];
   gateFrame: GateFrame = { code: null, ask: false };

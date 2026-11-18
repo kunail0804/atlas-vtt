@@ -25,7 +25,7 @@ export const rest = {
   'rest.skipped': 'Skipped: {list}',
   'rest.skipUnknown': '{label} (not in the collection)',
   'rest.skipStatic': '{label} (a fixed value)',
-  'rest.skipNoValue': '{label} (no open scene or played campaign holds it)',
+  'rest.skipNoValue': '{label} (no open scene or played world holds it)',
   'rest.skipNoToken': '{label} (no token on an open map)',
   'rest.skipCounters': '{label} (its counters cannot be read)',
   'rest.skipMissingField': '{label} (the statblock has no {field})',

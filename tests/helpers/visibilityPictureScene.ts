@@ -40,7 +40,7 @@ function storeOf(scene: PictureScene): ViewAtlasStore {
   store.getState().setPersistenceEnabled(false);
   store.getState().setMapPath('maps/pictures.atlasmap');
   store.setState((state) => ({ exploredMask: null, objects: { ...state.objects, tokens: scene.tokens, walls: Object.fromEntries(scene.walls.map((w) => [w.id, w])), lights: scene.lights } }));
-  store.getState().setSceneLighting({ enabled: true, ambient: 0.05, sightOnDrop: true, ...scene.lighting });
+  store.getState().setSceneLighting({ enabled: true, ambient: 0.05, sightOnDrop: true, exploredBy: 'players', ...scene.lighting });
   return store;
 }
 

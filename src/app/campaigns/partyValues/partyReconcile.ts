@@ -4,9 +4,8 @@ import { partyKey, readPartyKey, samePartyValue, type PartyKey, type PartyValue,
 
 type Tokens = Readonly<Record<string, TokenEntity>>;
 
-/** Which campaign's values a store follows, and which tokens are its player characters. */
+/** Which tokens of a store are player characters, whose values the vault keeps. */
 export interface PartyContext {
-  readonly campaignId: string;
   /** The library token id of the player character a token was placed from; null for any other token. */
   readonly characterOf: (token: TokenEntity) => string | null;
 }
@@ -26,12 +25,12 @@ export interface PartyWrite {
 /** A character's values, by resource key. */
 type CharacterValues = Map<string, PartyValue>;
 
-/** The campaign's values, by character. */
-function indexOf(party: PartyValues, campaignId: string): Map<string, CharacterValues> {
+/** The party's values, by character. */
+function indexOf(party: PartyValues): Map<string, CharacterValues> {
   const characters = new Map<string, CharacterValues>();
   for (const [key, value] of Object.entries(party)) {
     const parts = readPartyKey(key);
-    if (parts?.campaignId !== campaignId) continue;
+    if (parts === null) continue;
     let values = characters.get(parts.characterId);
     if (!values) characters.set(parts.characterId, (values = new Map<string, PartyValue>()));
     values.set(parts.resourceKey, value);
@@ -80,7 +79,7 @@ class PassWrites {
   readonly tokens: Record<string, TokenEntity> = {};
   readonly party: Record<PartyKey, PartyValue> = {};
 
-  constructor(private readonly scene: PartyScene, private readonly context: PartyContext) {}
+  constructor(private readonly scene: PartyScene) {}
 
   token(id: string): TokenEntity | undefined {
     return this.tokens[id] ?? this.scene.tokens[id];
@@ -88,7 +87,7 @@ class PassWrites {
 
   /** Sets the party's value unless it holds that one already. */
   setValue(characterId: string, resourceKey: string, value: PartyValue): void {
-    const key = partyKey(this.context.campaignId, characterId, resourceKey);
+    const key = partyKey(characterId, resourceKey);
     if (samePartyValue(this.party[key] ?? this.scene.partyValues[key], value)) return;
     this.party[key] = value;
   }
@@ -128,12 +127,12 @@ function adopt(writes: PassWrites, index: Map<string, CharacterValues>, characte
 
 /**
  * Every player character's token takes its character's values. With `adoptMissing` (a scene
- * loaded, a campaign that starts to keep values), what a token holds that the party lacks is
+ * loaded, the party values that start to be kept), what a token holds that the party lacks is
  * adopted first, from the first token that holds it, so the numbers the GM had stay.
  */
 export function settleTokens(scene: PartyScene, context: PartyContext, adoptMissing: boolean): PartyWrite {
-  const writes = new PassWrites(scene, context);
-  const index = indexOf(scene.partyValues, context.campaignId);
+  const writes = new PassWrites(scene);
+  const index = indexOf(scene.partyValues);
   const placed = characterTokens(scene.tokens, context);
   if (adoptMissing) for (const [id, characterId] of placed) adopt(writes, index, characterId, scene.tokens[id]!);
   for (const [id, characterId] of placed) writes.take(id, index.get(characterId) ?? []);
@@ -148,13 +147,13 @@ function editedKeys(before: TokenEntity, after: TokenEntity): string[] {
 }
 
 /** Per character, the keys whose party value changed between two states of the party. */
-function changedValues(before: PartyValues, after: PartyValues, campaignId: string): Map<string, Set<string>> {
+function changedValues(before: PartyValues, after: PartyValues): Map<string, Set<string>> {
   const changed = new Map<string, Set<string>>();
   if (before === after) return changed;
   for (const key of new Set([...Object.keys(before), ...Object.keys(after)])) {
     if (samePartyValue(before[key], after[key])) continue;
     const parts = readPartyKey(key);
-    if (parts?.campaignId !== campaignId) continue;
+    if (parts === null) continue;
     let keys = changed.get(parts.characterId);
     if (!keys) changed.set(parts.characterId, (keys = new Set<string>()));
     keys.add(parts.resourceKey);
@@ -169,11 +168,11 @@ function changedValues(before: PartyValues, after: PartyValues, campaignId: stri
  * from elsewhere (another view, another device) reach the character's tokens.
  */
 export function followWrite(before: PartyScene, after: PartyScene, context: PartyContext): PartyWrite {
-  const writes = new PassWrites(after, context);
+  const writes = new PassWrites(after);
   // Read only when a value moves: a drag frame reads none.
   let known: Map<string, CharacterValues> | null = null;
-  const index = (): Map<string, CharacterValues> => (known ??= indexOf(after.partyValues, context.campaignId));
-  const toTake = changedValues(before.partyValues, after.partyValues, context.campaignId);
+  const index = (): Map<string, CharacterValues> => (known ??= indexOf(after.partyValues));
+  const toTake = changedValues(before.partyValues, after.partyValues);
   const fresh = new Set<string>();
   const taking = (characterId: string): Set<string> => {
     let keys = toTake.get(characterId);

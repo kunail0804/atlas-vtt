@@ -76,7 +76,7 @@ export function tableScenes(): { scene: (options?: TableSceneOptions) => Promise
       ...state.objects, tokens: options.tokens ?? { party: visionToken('party', 60) },
       walls: options.walls ?? { divider: DIVIDER, door: DOOR },
     } }));
-    store.getState().setSceneLighting({ enabled: true, ambient: 1, sightOnDrop: true, ...options.lighting });
+    store.getState().setSceneLighting({ enabled: true, ambient: 1, sightOnDrop: true, exploredBy: 'players', ...options.lighting });
     let memory: Texture | null = null;
     const unavailable: LightingUnavailable[] = [];
     const lighting = new LightingRenderer({

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseYourCode } from '../../../../src/app/online/protocol/index.ts';
+import { parseSeats, parseYourCode } from '../../../../src/app/online/protocol/index.ts';
 
 describe('the player\'s own code', () => {
   it('is read from a your-code message', () => {
@@ -12,5 +12,14 @@ describe('the player\'s own code', () => {
       { t: 'your-code', code: '48219', first: true }, { t: 'your-code', code: '4821930', first: true }, { t: 'your-code', code: 482193, first: true }, { t: 'your-code', code: '482193', first: 'yes' },
       { t: 'your-code', code: '482193' }, { t: 'your-code', first: true }, { t: 'other', code: '482193', first: true }, null, undefined, 'your-code', [], 7,
     ]) expect(parseYourCode(body), JSON.stringify(body)).toBeNull();
+  });
+});
+
+describe('the campaign\'s seats the relay is told', () => {
+  const seat = { id: 'a'.repeat(20), name: 'Ana', code: '000001' };
+
+  it('carry a player\'s id, name and own code, and nothing else', () => {
+    expect(parseSeats([seat])).toEqual([seat]);
+    expect(parseSeats([{ ...seat, was: ['b'.repeat(20)] }])).toEqual([seat]);
   });
 });
