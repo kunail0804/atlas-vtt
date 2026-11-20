@@ -121,8 +121,10 @@ async function main(): Promise<void> {
   });
   const log = new LogPanel(logHost, send, () => scene.sceneId, assets, viewer, reader, () => notices.show(TEXT.rolls.noScene));
   dice = new DiceView(app, (who) => log.nameOf(who));
+  // The cell the GM's named sizes are shares of, while the GM lets players draw (`rules.draw`).
+  let drawCell: number | null = null;
   const drawTools = new DrawTools(stage.viewport, stage.annotations, annotations, {
-    send, scene: () => scene.sceneId, self: () => playerId, settings, askText: (at) => askText(app, at),
+    send, scene: () => scene.sceneId, cell: () => drawCell, settings, notify: (text) => notices.show(text), askText: (at) => askText(app, at),
   });
   let bar: ReturnType<typeof mountToolbar> | null = null;
   const showToolbar = (): void => {
@@ -147,8 +149,12 @@ async function main(): Promise<void> {
     if (message.t === 'roll-refused') return notices.show(TEXT.rolls.refused[message.reason]);
     if (assets.receive(message) || log.receive(message)) return;
     if (message.t === 'marks') return marks.receive(message);
+    if (message.t === 'draw-mine') return message.scene === scene.sceneId ? annotations.showMine(message) : undefined;
+    if (message.t === 'draw-refused') return message.scene === scene.sceneId ? notices.show(TEXT.draw.refused[message.reason]) : undefined;
     if (message.t === 'rules') {
       marks.rules(message);
+      drawCell = message.draw?.cell ?? null;
+      drawTools.rulesChanged();
       if (message.scene !== scene.sceneId) return;
       toolbarState = { ...toolbarState, advantage: message.dice?.sides ?? ['advantage', 'disadvantage'], dice: message.dice?.dice ?? null };
       return bar?.update(toolbarState);
