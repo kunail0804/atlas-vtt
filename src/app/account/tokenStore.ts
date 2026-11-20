@@ -1,6 +1,6 @@
 import { requireApiVersion, type App } from 'obsidian';
 
-/** The secret's id: one sign-in for everything the Atlas account is used for (online play, the Armarium). */
+/** The secret's id: one sign-in for everything the Atlas account is used for (online play). */
 export const ACCOUNT_SECRET_ID = 'atlas-account';
 
 /** The first Obsidian with secret storage, which the account token is kept in: older ones cannot sign in. */

@@ -34,7 +34,7 @@ export function accountStateText(state: AccountState): string {
 
 /**
  * The settings' Atlas account section: who is signed in, sign in and out, and the way to the account page. The
- * account is optional; online play and the Armarium say what they use it for where they ask for it.
+ * account is optional; online play says what it uses it for where it asks for it.
  */
 export function accountSettingsSection(account: AtlasAccount): AtlasSettingSection {
   return {
@@ -42,7 +42,7 @@ export function accountSettingsSection(account: AtlasAccount): AtlasSettingSecti
     rows: [{
       name: t('account.name'),
       desc: accountStateText(account.state()),
-      aliases: ['account', 'sign in', 'sign out', 'login', 'Armarium', 'online'],
+      aliases: ['account', 'sign in', 'sign out', 'login', 'online'],
       // Drawn from the account as it is now and again whenever it changes, while the settings are open.
       render: (setting) => {
         const draw = (): void => {

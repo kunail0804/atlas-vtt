@@ -2,16 +2,13 @@
 
 <!-- Generated from changelog/*.md. Run npm run changelog:generate. -->
 
-## 0.17.0 — Armarium, documentation and the dice tray
+## 0.17.0 — Documentation and the dice tray
 
 2026-11-18
 
 ### New
 
-**New Feature: Armarium and Documentation directly within Atlas**
-- Browse the Armarium right inside the asset manager: choose the shop icon at the end of the tabs, or Armarium in the command palette
-- Install a collection with one click. The import review shows what's included before anything is added
-- Share your own collections in the Armarium without leaving Atlas
+**New Feature: Documentation directly within Atlas**
 - Read the documentation inside Atlas: choose Documentation in the command palette
 
 **Updated: Dice tray**

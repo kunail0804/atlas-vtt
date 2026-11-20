@@ -2,7 +2,7 @@ import React, { useId, useMemo, useState } from 'react';
 import { groupContents, selectContent, selectedKeys } from '../../../../services/collectionBundle/bundleContents';
 import type { CoverChoice } from '../../../../services/collectionBundle/collectionCover';
 import type { ExportChoice, ExportPreview } from '../../../../services/collectionBundle/collectionExport';
-import { formatByteSize, formatFileSize } from '../../../../utils/fileSize';
+import { formatFileSize } from '../../../../utils/fileSize';
 import { baseName } from '../../../../utils/pathUtils';
 import { Button } from '../../primitives/button';
 import { LabelTooltip } from '../../primitives/tooltip';
@@ -12,7 +12,7 @@ import { ContentsList } from './ContentsList';
 import { CoverPicker } from './CoverPicker';
 import { TransferDialog } from './TransferDialog';
 import { useObjectUrl } from './useObjectUrl';
-import { getLocale, t } from '../../../../i18n';
+import { t } from '../../../../i18n';
 
 interface ExportCollectionDialogProps {
   preview: ExportPreview;
@@ -20,10 +20,6 @@ interface ExportCollectionDialogProps {
   /** Resolves with a message to show when the choice cannot be exported. */
   onExport: (choice: ExportChoice) => Promise<string | null>;
   onCancel: () => void;
-  /** `file` (default) saves a zip; `armarium` packs it in memory and uploads it to the Armarium. */
-  purpose?: 'file' | 'armarium';
-  /** The most the selection may weigh (the Armarium's largest upload); a larger one is refused before anything is packed. */
-  maxBytes?: number | undefined;
 }
 
 const MISSING_SHOWN = 5;
@@ -48,9 +44,8 @@ export function coverUrl(choice: CoverChoice, preview: ExportPreview, uploadUrl:
  * new name. The user picks a cover and what to include, and sees it the way
  * people who import it will.
  */
-export function ExportCollectionDialog({ preview, media, onExport, onCancel, purpose = 'file', maxBytes }: ExportCollectionDialogProps): React.JSX.Element {
+export function ExportCollectionDialog({ preview, media, onExport, onCancel }: ExportCollectionDialogProps): React.JSX.Element {
   const { collection } = preview;
-  const toArmarium = purpose === 'armarium';
   const isFork = preview.publisher === 'other';
   const [version, setVersion] = useState(String(preview.suggestedVersion));
   // A published copy is the user's own work, not its original author's.
@@ -73,7 +68,6 @@ export function ExportCollectionDialog({ preview, media, onExport, onCancel, pur
 
   const choice = (): ExportChoice | string => {
     if (selected.assets.length === 0) return t('exportDialog.includeOne');
-    if (maxBytes !== undefined && bytes > maxBytes) return t('exportDialog.tooLargeToShare', { size: formatByteSize(bytes, getLocale()), limit: formatByteSize(maxBytes, getLocale()) });
     const content = { excluded, cover, author, notes };
     if (isFork) return forkName.trim() ? { kind: 'fork', name: forkName, ...content } : t('exportDialog.enterName');
     if (!isWholeVersion || versionNumber < preview.minimumVersion) {
@@ -89,10 +83,8 @@ export function ExportCollectionDialog({ preview, media, onExport, onCancel, pur
 
   const sameVersion = versionNumber === collection.version && collection.releasedAt !== undefined;
   const shownVersion = isWholeVersion ? String(versionNumber) : '…';
-  const confirmLabel = toArmarium
-    ? t('exportDialog.uploadVersion', { version: shownVersion })
-    : isFork ? t('exportDialog.publish') : t('exportDialog.exportVersion', { version: shownVersion });
-  const eyebrow = toArmarium ? t('exportDialog.shareInArmarium') : isFork ? t('exportDialog.publishOwn') : t('exportDialog.exportCollection');
+  const confirmLabel = isFork ? t('exportDialog.publish') : t('exportDialog.exportVersion', { version: shownVersion });
+  const eyebrow = isFork ? t('exportDialog.publishOwn') : t('exportDialog.exportCollection');
 
   const heroUrl = coverUrl(cover, preview, uploadUrl);
   // The tint is blurred beyond recognition, so the small preview gives the same colours at a fraction of the cost.
@@ -103,7 +95,7 @@ export function ExportCollectionDialog({ preview, media, onExport, onCancel, pur
 
   return (
     <TransferDialog
-      label={toArmarium ? t('armariumShare.dialogLabel', { name: collection.name }) : t(isFork ? 'exportDialog.publishNamed' : 'exportDialog.exportNamed', { name: collection.name })}
+      label={t(isFork ? 'exportDialog.publishNamed' : 'exportDialog.exportNamed', { name: collection.name })}
       onClose={onCancel}
       ambientUrl={ambientUrl}
       hero={(
@@ -139,10 +131,10 @@ export function ExportCollectionDialog({ preview, media, onExport, onCancel, pur
       summary={`${t('count.items', { count: itemCount })} · ${t('count.files', { count: selected.files.length + (cover.kind === 'none' ? 0 : 1) })} · ${formatFileSize(bytes)}`}
       actions={(
         <>
-          <LabelTooltip label={toArmarium ? t('exportDialog.closeShareHint') : t('exportDialog.closeHint')} describe>
+          <LabelTooltip label={t('exportDialog.closeHint')} describe>
             <Button variant="outline" onClick={onCancel}>{t('common.cancel')}</Button>
           </LabelTooltip>
-          <LabelTooltip label={selected.assets.length === 0 ? t('exportDialog.includeHint') : toArmarium ? t('exportDialog.uploadHint') : t('exportDialog.zipHint')} describe>
+          <LabelTooltip label={selected.assets.length === 0 ? t('exportDialog.includeHint') : t('exportDialog.zipHint')} describe>
             <Button variant="default" className="atlas-transfer-confirm" disabled={selected.assets.length === 0} onClick={() => { void submit(); }}>{confirmLabel}</Button>
           </LabelTooltip>
         </>
@@ -165,10 +157,7 @@ export function ExportCollectionDialog({ preview, media, onExport, onCancel, pur
           <input className="atlas-input" value={author} placeholder={t('exportDialog.authorPlaceholder')} onChange={(event) => setAuthor(event.target.value)} />
         </label>
       </div>
-      {toArmarium && (
-        <p className="atlas-transfer-text atlas-transfer-text--muted">{t('exportDialog.shareIntro')}</p>
-      )}
-      {sameVersion && !isFork && !toArmarium && (
+      {sameVersion && !isFork && (
         <p className="atlas-transfer-hint">{t('exportDialog.sameVersion', { version: String(collection.version) })}</p>
       )}
       <label className="atlas-transfer-field">

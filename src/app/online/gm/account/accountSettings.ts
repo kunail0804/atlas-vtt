@@ -19,7 +19,7 @@ function accountDesc(view: AccountView): string {
 /**
  * Online play's account section: what the account may host or why it may not, and the way to the account page, where
  * invite keys are redeemed and the account's data is exported and deleted. Signing in and out is the plugin's Atlas
- * account section's (`accountSettingsSection`), which online play shares with the Armarium.
+ * account section's (`accountSettingsSection`), which online play uses.
  */
 export function accountSections(account: AccountControl): AtlasSettingSection[] {
   return [{

@@ -67,12 +67,12 @@ describe('online play\'s source', () => {
 });
 
 /**
- * The plugin's Atlas account, shared by online play and the Armarium: the token is read in one place, and sent only to
- * the account service (who is signed in, sign-out) and the Armarium's API, both on api.atlas-vtt.dev.
+ * The plugin's Atlas account, used by online play: the token is read in one place, and sent only to the account
+ * service (who is signed in, sign-out), the self-hosted relay on loopback.
  */
 describe('the Atlas account\'s source', () => {
   const SRC = path.resolve(__dirname, '../../../src/app');
-  const files = [...sources(path.join(SRC, 'account')), ...sources(path.join(SRC, 'armarium'))];
+  const files = sources(path.join(SRC, 'account'));
   const naming = (pattern: RegExp): string[] => files.filter((file) => pattern.test(readFileSync(file, 'utf8'))).map((file) => path.relative(SRC, file)).sort();
 
   it('reads the token from secret storage in the token store alone, and holds it in the account alone', () => {
@@ -80,9 +80,8 @@ describe('the Atlas account\'s source', () => {
     expect(naming(/tokens\.get\(/)).toEqual(['account/AtlasAccount.ts']);
   });
 
-  it('sends it as a bearer from the account service\'s calls and the Armarium\'s API only', () => {
-    expect(naming(/Bearer \$\{/)).toEqual(['account/accountIdentity.ts', 'armarium/upload/armariumApi.ts']);
-    expect(readFileSync(path.join(SRC, 'account/accountServers.ts'), 'utf8')).toContain("ACCOUNTS_ORIGIN = 'https://api.atlas-vtt.dev'");
-    expect(readFileSync(path.join(SRC, 'armarium/upload/armariumApi.ts'), 'utf8')).toContain('ARMARIUM_API = `${ACCOUNTS_ORIGIN}/v1/armarium`');
+  it('sends it as a bearer from the account service\'s calls only', () => {
+    expect(naming(/Bearer \$\{/)).toEqual(['account/accountIdentity.ts']);
+    expect(readFileSync(path.join(SRC, 'account/accountServers.ts'), 'utf8')).toContain("ACCOUNTS_ORIGIN = 'http://127.0.0.1:8787'");
   });
 });

@@ -40,7 +40,7 @@ const FRESH_MS = 60_000;
 
 /**
  * The GM's Atlas account, one per app and independent of any feature: device sign-in (RFC 8628), the token in
- * Obsidian's secret storage, who it signs in, and sign-out. Online play and the Armarium use it; neither keeps a
+ * Obsidian's secret storage, who it signs in, and sign-out. Online play uses it and keeps no
  * token of its own. A server that refuses the token (401) makes it forgotten here, for everyone. Signing in is
  * optional: Atlas works without an account, and nothing is asked of the service until the GM signs in.
  */

@@ -1,6 +1,6 @@
 import type { Message } from '../../types';
 
-/** The Atlas account: signing in on this device, shared by online play and the Armarium. */
+/** The Atlas account: signing in on this device, for online play. */
 export const account = {
   'account.heading': 'Atlas account',
   'account.name': 'Account',
@@ -8,8 +8,8 @@ export const account = {
   'account.signOut': 'Sign out',
   'account.openAgain': 'Open the page again',
   'account.openPage': 'Open account page',
-  'account.signedOut': 'Optional. Sign in to share collections in the Armarium and to host online tables.',
-  'account.signedOutWithNotice': '{notice} Sign in to share collections in the Armarium and to host online tables.',
+  'account.signedOut': 'Optional. Sign in to host online tables.',
+  'account.signedOutWithNotice': '{notice} Sign in to host online tables.',
   'account.opening': 'Opening your browser…',
   'account.approve': 'Approve the sign-in in your browser. Your code is {code}.',
   'account.checking': 'Signed in. Checking your account…',

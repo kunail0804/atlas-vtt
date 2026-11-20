@@ -8,7 +8,7 @@ import { RelayAccount, type AccountAnswer } from './relayAccount.ts';
 export interface AccountPorts {
   readonly http: Http;
   readonly timers: Timers;
-  /** The plugin's account: sign-in, the token and sign-out are its own, shared with the Armarium. */
+  /** The plugin's account: sign-in, the token and sign-out are its own, shared with the rest of Atlas. */
   readonly account: AtlasAccount;
 }
 
@@ -27,7 +27,7 @@ const FRESH_MS = 10_000;
 export class AccountControl {
   private readonly ports: AccountPorts;
   private me: AccountAnswer | 'unreachable' | null = null;
-  /** The token `me` was asked with: a sign-in elsewhere (the settings, the Armarium) asks again. */
+  /** The token `me` was asked with: a sign-in elsewhere (the settings) asks again. */
   private meToken: string | null = null;
   private checkedAt = Number.NEGATIVE_INFINITY;
   private checking: Promise<void> | null = null;

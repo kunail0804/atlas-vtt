@@ -1,6 +1,6 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { MotionConfig, motion, useReducedMotion } from 'framer-motion';
-import { Search, X, Settings, Tag, Download, Upload, CloudUpload, MoreHorizontal } from 'lucide-react';
+import { Search, X, Settings, Tag, Download, Upload, MoreHorizontal } from 'lucide-react';
 import { Button } from '../../primitives/button';
 import { LabelTooltip } from '../../primitives/tooltip';
 import type { AnyAsset, CollectionOption, Tag as TagType } from '../types';
@@ -35,8 +35,6 @@ export interface SidebarProps {
   onEditCollectionSettings?: (collectionId: string) => void;
   onExportCollection?: () => void;
   onImportCollection?: () => void;
-  /** Shares the selected collection in the Armarium: sign-in, upload, checks and the listing, all in Atlas. */
-  onShareCollection?: () => void;
   /** Stands above the Manage button: what the open tab offers to add (the bestiary tokens). */
   footer?: React.ReactNode;
   /** Floating behaviour from `useSidebarLayout`; omitted, the sidebar is docked. */
@@ -48,13 +46,11 @@ function collectionMenuItems(handlers: {
   onSettings: (() => void) | undefined;
   onExport: (() => void) | undefined;
   onImport: (() => void) | undefined;
-  onShare: (() => void) | undefined;
 }): HeaderMenuItem[] {
   const items: HeaderMenuItem[] = [
     { key: 'settings', label: t('am.sidebar.settings'), icon: <Settings />, onSelect: handlers.onSettings },
     { key: 'export', label: t('am.sidebar.export'), icon: <Upload />, onSelect: handlers.onExport },
     { key: 'import', label: t('am.sidebar.import'), icon: <Download />, onSelect: handlers.onImport },
-    { key: 'share', label: t('armariumShare.shareCollection'), icon: <CloudUpload />, onSelect: handlers.onShare },
   ];
   return items.filter((item) => item.onSelect !== undefined);
 }
@@ -74,7 +70,6 @@ export function Sidebar({
   onEditCollectionSettings,
   onExportCollection,
   onImportCollection,
-  onShareCollection,
   footer,
   layout,
 }: SidebarProps): React.JSX.Element {
@@ -108,7 +103,6 @@ export function Sidebar({
     onSettings: onEditCollectionSettings && (() => onEditCollectionSettings(selectedCollection)),
     onExport: onExportCollection,
     onImport: onImportCollection,
-    onShare: onShareCollection,
   });
 
   const isFloating = layout?.isFloating === true;

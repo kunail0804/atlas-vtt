@@ -20,8 +20,7 @@ function lazyWorkerTimers(): { timers: Timers; dispose: () => void } {
 }
 
 /**
- * The Atlas account, at plugin level and in no experimental switch: one per app, shared by online play and the
- * Armarium. Signing in needs the Obsidian that keeps the token in its secret storage; on an older one the account
+ * The Atlas account, at plugin level and in no experimental switch: one per app, used by online play. Signing in needs the Obsidian that keeps the token in its secret storage; on an older one the account
  * reads as unavailable and nothing is asked of the service.
  */
 export function registerAtlasAccount(plugin: Plugin): AtlasAccount {

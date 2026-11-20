@@ -13,7 +13,7 @@ import { DASHBOARD_THEME } from './dashboardTheme';
 
 /**
  * The asset manager's top left with the plugin's stylesheet: the sidebar opens with the collection picker and its
- * ⋯ menu in the header's controls row, and the Armarium is the tab strip's last place. Screenshots go to
+ * ⋯ menu in the header's controls row. Screenshots go to
  * `__screenshots__/asset-manager/`.
  */
 
@@ -23,7 +23,7 @@ const SHOT_DIR = '__screenshots__/asset-manager';
 
 const noop = (): void => undefined;
 
-function headerProps(armariumShown: boolean): HeaderProps {
+function headerProps(): HeaderProps {
   return {
     app: new App(),
     search: '',
@@ -36,21 +36,19 @@ function headerProps(armariumShown: boolean): HeaderProps {
     sidebarToggleLabel: 'Hide sidebar',
     onToggleSidebar: noop,
     sel: { navigationHistory: new NavigationHistory(), handleNavigateBack: noop, handleNavigateForward: noop },
-    onShowArmarium: noop,
-    armarium: armariumShown ? { onBack: noop, onReload: noop, onShare: noop, page: 'https://atlas-vtt.dev/armarium' } : undefined,
   };
 }
 
-function managerOf(armariumShown: boolean): React.ReactElement {
+function managerOf(): React.ReactElement {
   return React.createElement('div', { className: 'atlas-asset-manager-container' },
     React.createElement(Sidebar, {
       selectedTagIds: ['forest'], onSelectTag: noop, onClearTags: noop, countedAssets: [],
       tags: [{ id: 'forest', name: 'Forest' }, { id: 'undead', name: 'Undead' }, { id: 'beast', name: 'Beast' }],
       collections: [{ id: 'Blue Mouth Caves', uid: 'u', name: 'Blue Mouth Caves', isDefault: true }],
       selectedCollection: 'Blue Mouth Caves', onSelectCollection: noop, onManageTags: noop,
-      onEditCollectionSettings: noop, onExportCollection: noop, onImportCollection: noop, onShareCollection: noop,
+      onEditCollectionSettings: noop, onExportCollection: noop, onImportCollection: noop,
     }),
-    React.createElement(Header, headerProps(armariumShown)),
+    React.createElement(Header, headerProps()),
     React.createElement('div', { className: 'atlas-asset-manager-body' }),
   );
 }
@@ -72,9 +70,9 @@ describe('the asset manager\'s top left', () => {
   let host: HTMLElement;
   let root: Root;
 
-  const show = async (theme: 'dark' | 'light', armariumShown: boolean): Promise<void> => {
+  const show = async (theme: 'dark' | 'light'): Promise<void> => {
     document.body.className = `theme-${theme}`;
-    act(() => root.render(managerOf(armariumShown)));
+    act(() => root.render(managerOf()));
     await nextFrame();
     await nextFrame();
   };
@@ -95,7 +93,7 @@ describe('the asset manager\'s top left', () => {
 
   for (const theme of ['dark', 'light'] as const) {
     it(`lines the picker row up with the header's controls (${theme})`, async () => {
-      await show(theme, false);
+      await show(theme);
       const picker = box('.atlas-collection-dropdown-trigger');
       const more = box('.atlas-collection-more-btn');
       const toolbar = box('.atlas-am-toolbar');
@@ -112,38 +110,15 @@ describe('the asset manager\'s top left', () => {
       await page.screenshot({ path: `${SHOT_DIR}/top-left-library-${theme}.png`, element: host });
     });
 
-    it(`shows the Armarium as the strip's last tab, the size of the others (${theme})`, async () => {
-      await show(theme, true);
-      const tabs = Array.from(document.querySelectorAll<HTMLElement>('.atlas-asset-manager-tabs .atlas-tab-button'));
-      const armarium = tabs.at(-1)!;
-      expect(armarium.textContent).toBe('');
-      expect(armarium.getAttribute('aria-label')).toBe('Armarium');
-      const square = armarium.getBoundingClientRect();
-      expect(Math.abs(square.width - square.height)).toBeLessThanOrEqual(0.5);
-      expect(armarium.getAttribute('aria-current')).toBe('page');
-      expect(document.querySelectorAll('.atlas-tab-button.atlas-active')).toHaveLength(1);
-      for (const tab of tabs) {
-        expect(Math.abs(tab.getBoundingClientRect().height - armarium.getBoundingClientRect().height)).toBeLessThanOrEqual(0.5);
-        expect(Math.abs(centre(tab.getBoundingClientRect()) - centre(armarium.getBoundingClientRect()))).toBeLessThanOrEqual(0.5);
-      }
-      // The divider stands centred between the last library tab and the Armarium.
-      const divider = box('.atlas-tab-divider');
-      const before = tabs.at(-2)!.getBoundingClientRect();
-      const after = armarium.getBoundingClientRect();
-      expect(Math.abs((divider.left - before.right) - (after.left - divider.right))).toBeLessThanOrEqual(0.5);
-      expect(Math.abs(centre(divider) - centre(after))).toBeLessThanOrEqual(0.5);
-      await page.screenshot({ path: `${SHOT_DIR}/top-left-armarium-${theme}.png`, element: host });
-    });
-
     it(`opens the collection's ⋯ menu below its button, inside the sidebar (${theme})`, async () => {
-      await show(theme, false);
+      await show(theme);
       const trigger = document.querySelector<HTMLButtonElement>('.atlas-collection-more-btn')!;
       act(() => trigger.click());
       await nextFrame();
       await new Promise((resolve) => setTimeout(resolve, 250));
       const menu = box('.atlas-collections .atlas-am-menu');
       const labels = Array.from(document.querySelectorAll('.atlas-collections .atlas-am-menu-item')).map((item) => item.textContent);
-      expect(labels).toEqual(['Collection settings…', 'Export collection…', 'Import collection…', 'Share in the Armarium…']);
+      expect(labels).toEqual(['Collection settings…', 'Export collection…', 'Import collection…']);
       expect(document.activeElement?.textContent).toBe('Collection settings…');
       expect(menu.top).toBeGreaterThan(trigger.getBoundingClientRect().bottom);
       const sidebar = box('.atlas-asset-manager-sidebar');
@@ -152,20 +127,4 @@ describe('the asset manager\'s top left', () => {
       await page.screenshot({ path: `${SHOT_DIR}/top-left-menu-${theme}.png`, element: host });
     });
   }
-
-  it('names the Armarium in the folded tabs and offers it last in their menu', async () => {
-    host.style.width = '900px';
-    await show('dark', true);
-    const trigger = document.querySelector<HTMLButtonElement>('.atlas-am-tab-menu-trigger')!;
-    expect(trigger.getClientRects()).toHaveLength(1);
-    expect(trigger.textContent).toBe('Armarium');
-    act(() => trigger.click());
-    await nextFrame();
-    const items = Array.from(document.querySelectorAll<HTMLElement>('.atlas-am-tab-menu .atlas-am-menu-item'));
-    expect(items.at(-1)?.textContent).toBe('Armarium');
-    expect(items.at(-1)?.getAttribute('aria-checked')).toBe('true');
-    expect(items.filter((item) => item.getAttribute('aria-checked') === 'true')).toHaveLength(1);
-    await new Promise((resolve) => setTimeout(resolve, 250));
-    await page.screenshot({ path: `${SHOT_DIR}/top-left-folded-armarium-dark.png`, element: host });
-  });
 });

@@ -146,8 +146,8 @@ describe('the Atlas account', () => {
   });
 
   it('says what the settings row shows in each state', () => {
-    expect(accountStateText({ kind: 'signed-out', notice: null })).toBe('Optional. Sign in to share collections in the Armarium and to host online tables.');
-    expect(accountStateText({ kind: 'signed-out', notice: 'declined' })).toBe('Sign-in was declined. Sign in to share collections in the Armarium and to host online tables.');
+    expect(accountStateText({ kind: 'signed-out', notice: null })).toBe('Optional. Sign in to host online tables.');
+    expect(accountStateText({ kind: 'signed-out', notice: 'declined' })).toBe('Sign-in was declined. Sign in to host online tables.');
     expect(accountStateText({ kind: 'waiting', userCode: 'WXYZ', again: false })).toBe('Approve the sign-in in your browser. Your code is WXYZ.');
     expect(accountStateText({ kind: 'signed-in', who: MARA })).toBe('Signed in as Mara (@mara).');
     expect(identityText({ name: 'Mara', handle: null })).toBe('Mara');

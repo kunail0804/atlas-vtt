@@ -66,7 +66,6 @@ export const MainToolbar = forwardRef<HTMLDivElement, MainToolbarProps>(({ viewI
   const setCommandPaletteOpen = useAtlasStore(s => s.setCommandPaletteOpen)
   const isAssetManagerOpen = useAtlasStore(s => s.isAssetManagerOpen)
   const assetManagerInitialTab = useAtlasStore(s => s.assetManagerInitialTab)
-  const assetManagerArmarium = useAtlasStore(s => s.assetManagerArmarium)
   const isDiceTrayOpen = useAtlasStore(s => s.isDiceTrayOpen)
   const setDiceTrayOpen = useAtlasStore(s => s.setDiceTrayOpen)
   const lootRollerOpen = useAtlasStore(s => s.lootRoller.open)
@@ -237,7 +236,6 @@ export const MainToolbar = forwardRef<HTMLDivElement, MainToolbarProps>(({ viewI
             isOpen={isAssetManagerOpen}
             onClose={handleCloseAssetManager}
             {...(assetManagerInitialTab && { initialTab: assetManagerInitialTab })}
-            {...(assetManagerArmarium > 0 && { armariumRequest: assetManagerArmarium })}
           />
         </div>,
         portalHost(),

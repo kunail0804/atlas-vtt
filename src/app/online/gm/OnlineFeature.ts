@@ -126,7 +126,7 @@ export class OnlineFeature extends Component {
 
   onload(): void {
     this.live = true;
-    // A sign-in anywhere in Atlas (the dock, the settings, the Armarium) reaches the table and the asset salt.
+    // A sign-in anywhere in Atlas (the dock, the settings) reaches the table and the asset salt.
     this.register(this.atlasAccount.onSignedIn(() => {
       void this.salt.ensure(true);
       this.online.table?.signedIn();
