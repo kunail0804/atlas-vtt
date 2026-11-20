@@ -57,7 +57,8 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player toolbar
     send({ t: 'scene', scene: { id: 's1', map: mapRef, lit: false } }, player);
     send({ t: 'tokens', scene: 's1', seq: 1, cell: 70, snap: null, tokens: [] }, player);
     const measurement = { mode: 'metric', unitType: 'feet', unitDistance: 5, ruleDistance: 5, diagonalRule: 'equidistant', rangeBands: [], coneAngle: 53 };
-    const rules = { t: 'rules', scene: 's1', grid: { type: 'square', size: 70, offsetX: 0, offsetY: 0 }, snap: true, measurement, accent: '#7c8cff' } as const;
+    // `draw`: the GM lets players draw, on a map whose cell is 70 px.
+    const rules = { t: 'rules', scene: 's1', grid: { type: 'square', size: 70, offsetX: 0, offsetY: 0 }, snap: true, measurement, accent: '#7c8cff', draw: { cell: 70 } } as const;
     send(rules as GmMessage, player);
     send({ t: 'book', book: { character: null, worldMap: null, items: [], notes: [], pins: [], quests: [], purse: [], slots: DEFAULT_BOOK_SLOTS, equipped: [] } } as GmMessage, player);
     await page.waitForFunction(() => (document.querySelector('.status') as HTMLElement | null)?.hidden === true, null, { timeout: 10_000 });
@@ -93,30 +94,43 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player toolbar
     await page.click('.atlas-bottom-toolbar-row__start button');
     await page.click('.atlas-bottom-toolbar-row__end button');
 
-    // The GM keeps what players make and sends it to all, as the plugin's PlayerAnnotations does.
+    // The GM takes what the player's Draw tool asks for and sends the map's drawings to all, telling the
+    // player which are theirs (`draw-mine`), as the plugin's PlayerDrawings does; its rules are its own tests'.
     const drawings: Record<string, unknown>[] = [];
     const texts: Record<string, unknown>[] = [];
+    let rev = 0;
+    let made = 0;
     let echoed = 0;
     const echo = setInterval(() => {
       const fresh = gm.messages.slice(echoed);
       echoed = gm.messages.length;
       let changed = false;
-      for (const { from, body } of fresh) {
+      let seen = 0;
+      for (const { body } of fresh) {
         const message = body as Record<string, unknown>;
-        if (message.t === 'draw') {
-          drawings.push({ ...(message.drawing as object), opacity: 1, id: message.id, by: from });
+        if (typeof message.n === 'number') seen = Math.max(seen, message.n);
+        const look = message.look as { colour: string } | undefined;
+        if (message.t === 'draw-add') {
+          drawings.push({ type: 'pen', points: message.pts, colour: look?.colour, width: 6, opacity: 1, id: String((made += 1)) });
           changed = true;
-        } else if (message.t === 'place-text') {
-          const text = message.text as Record<string, unknown>;
-          texts.push({ ...text, fontFamily: 'Arial', background: '#000000', padding: 8, radius: 4, opacity: 0.7, align: 'center', italic: false, rotation: 0, scale: 1, id: message.id, by: from });
+        } else if (message.t === 'draw-stamp') {
+          drawings.push({ type: 'icon', points: [message.x, message.y], colour: look?.colour, width: 70, opacity: 1, icon: message.icon, id: String((made += 1)) });
           changed = true;
-        } else if (message.t === 'erase') {
+        } else if (message.t === 'draw-text') {
+          texts.push({ x: message.x, y: message.y, text: message.text, fontSize: 31, fontFamily: 'Atlas Fantaisie Artistique', colour: look?.colour, background: '#000000', padding: 8, radius: 4, opacity: 0.7, align: 'center', bold: false, italic: false, rotation: 0, scale: 1, id: String((made += 1)) });
+          changed = true;
+        } else if (message.t === 'draw-remove') {
           const ids = new Set(message.ids as string[]);
           for (const list of [drawings, texts]) for (let index = list.length - 1; index >= 0; index -= 1) if (ids.has(list[index]?.id as string)) list.splice(index, 1);
           changed = true;
         }
       }
-      if (changed) send({ t: 'annotations', scene: 's1', drawings, texts } as GmMessage, player);
+      if (!changed) return;
+      rev += 1;
+      const strip = ({ id: _id, ...told }: Record<string, unknown>): Record<string, unknown> => told;
+      send({ t: 'annotations', scene: 's1', rev, drawings: drawings.map(strip), texts: texts.map(strip) } as GmMessage, player);
+      const own = (list: Record<string, unknown>[]): { at: number; id: string }[] => list.map((entry, at) => ({ at, id: entry.id as string }));
+      send({ t: 'draw-mine', scene: 's1', rev, drawings: own(drawings), texts: own(texts), seen } as GmMessage, player);
     }, 30);
 
     try {
@@ -129,48 +143,48 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player toolbar
         await page.mouse.up();
       };
 
-      // The pen: a stroke goes to the GM in world pixels, white and 4 wide by default.
+      // The pen: a stroke goes to the GM in world pixels, white and of size M by default; the GM makes its width.
       await page.keyboard.press('b');
       await drag(screen(200, 300), screen(600, 300));
-      await until(() => sentOf('draw').length === 1, 'stroke sent', 5_000);
-      const stroke = sentOf('draw')[0] as { id: string; drawing: { type: string; points: number[]; colour: string; width: number } };
-      expect(stroke.drawing).toMatchObject({ type: 'pen', colour: '#ffffff', width: 4 });
-      expect(stroke.drawing.points[0]).toBeCloseTo(200, -1);
-      expect(stroke.drawing.points.at(-2)).toBeCloseTo(600, -1);
-      expect(stroke.id).toMatch(/^[0-9a-f]{24}$/);
+      await until(() => sentOf('draw-add').length === 1, 'stroke sent', 5_000);
+      const stroke = sentOf('draw-add')[0] as { mode: string; pts: number[]; look: unknown; n: number; scene: string };
+      expect(stroke).toMatchObject({ mode: 'pen', scene: 's1', look: { colour: '#ffffff', size: 'm' } });
+      expect(stroke.pts[0]).toBeCloseTo(200, -1);
+      expect(stroke.pts.at(-2)).toBeCloseTo(600, -1);
 
-      // The icon stamp, from the draw menu's icon grid.
+      // The symbol stamp, from the draw menu's grid (the fork's own request).
       await page.locator('.player-toolbar .atlas-tool-group .atlas-dropdown-trigger').nth(1).click();
       await page.locator('.atlas-icon-grid__item').nth(5).click();
       await page.mouse.click(screen(800, 150).x, screen(800, 150).y);
-      await until(() => sentOf('draw').length === 2, 'stamp sent', 5_000);
-      expect((sentOf('draw')[1] as { drawing: unknown }).drawing).toMatchObject({ type: 'icon', icon: 'skull', width: 70 });
+      await until(() => sentOf('draw-stamp').length === 1, 'stamp sent', 5_000);
+      expect(sentOf('draw-stamp')[0]).toMatchObject({ icon: 'skull', look: { colour: '#ffffff', size: 'm' } });
 
       // A text, typed where the player clicked.
       await page.keyboard.press('t');
       await page.mouse.click(screen(500, 450).x, screen(500, 450).y);
       await page.fill('.player-text-input input', 'Porte piégée');
       await page.keyboard.press('Enter');
-      await until(() => sentOf('place-text').length === 1, 'text sent', 5_000);
-      expect((sentOf('place-text')[0] as { text: unknown }).text).toMatchObject({ text: 'Porte piégée', fontSize: 24, colour: '#ffffff', bold: false });
+      await until(() => sentOf('draw-text').length === 1, 'text sent', 5_000);
+      expect(sentOf('draw-text')[0]).toMatchObject({ text: 'Porte piégée', look: { colour: '#ffffff', size: 'm', look: 'plate' } });
+      expect((sentOf('draw-text')[0]?.look as Record<string, unknown>).bold).toBeUndefined();
       await page.waitForFunction(() => document.querySelector('.player-text-input') === null);
+      // Every request has a number of its own, which only grows.
+      const numbers = [...sentOf('draw-add'), ...sentOf('draw-stamp'), ...sentOf('draw-text')].map((message) => message.n as number);
+      expect(new Set(numbers).size).toBe(3);
 
-      // The eraser rubs out the middle of the stroke: the stroke goes, its two ends come back as strokes of their own.
-      await until(() => drawings.length === 2, 'drawings echoed', 5_000);
+      // The eraser tells the GM its sweep, at its size; the GM cuts the player's own ink.
+      await until(() => drawings.length === 2 && texts.length === 1, 'drawings echoed', 5_000);
       await page.waitForTimeout(200);
       await shot('drawn');
       await page.locator('.player-toolbar .atlas-tool-group .atlas-dropdown-trigger').nth(1).click();
-      await page.click('.atlas-dropdown-content >> text=Drawing Eraser');
+      await page.click('.atlas-dropdown-content >> text=Gomme');
       await drag(screen(400, 260), screen(400, 340));
-      await until(() => sentOf('erase').length >= 1, 'erase sent', 5_000);
-      expect(sentOf('erase').flatMap((message) => message.ids as string[])).toContain(stroke.id);
-      await until(() => drawings.filter((drawing) => drawing.type === 'pen').length === 2, 'two ends kept', 5_000);
-      const ends = drawings.filter((drawing) => drawing.type === 'pen').map((drawing) => drawing.points as number[]);
-      expect(Math.min(...ends.map((points) => Math.min(...points.filter((_, index) => index % 2 === 0))))).toBeLessThan(250);
-      expect(Math.max(...ends.map((points) => Math.max(...points.filter((_, index) => index % 2 === 0))))).toBeGreaterThan(550);
-      expect(ends.every((points) => points.filter((_, index) => index % 2 === 0).every((x) => Math.abs(x - 400) > 15))).toBe(true);
+      await until(() => sentOf('draw-erase').length === 1, 'erase sent', 5_000);
+      const erase = sentOf('draw-erase')[0] as { pts: number[]; size: string };
+      expect(erase.size).toBe('m');
+      expect(erase.pts[0]).toBeCloseTo(400, -1);
 
-      // "Delete all": everything the player made goes.
+      // "Delete all": every drawing and text the GM said is the player's goes.
       await page.locator('.player-toolbar .atlas-tool-group .atlas-dropdown-trigger').nth(1).click();
       await page.click('text=Effacer tous mes dessins');
       await until(() => drawings.length === 0 && texts.length === 0, 'all erased', 5_000);
@@ -180,7 +194,7 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player toolbar
 
     // A circle that stays: the measure menu's shape and "Persist Measurements".
     await page.locator('.player-toolbar .atlas-tool-group .atlas-dropdown-trigger').nth(3).click();
-    await page.click('.atlas-dropdown-content >> text=Circle/Sphere');
+    await page.click('.atlas-dropdown-content >> text=Circle');
     await page.locator('.player-toolbar .atlas-tool-group .atlas-dropdown-trigger').nth(3).click();
     await page.click('.atlas-dropdown-content [role="switch"]');
     await page.locator('.player-toolbar .atlas-tool-group .atlas-dropdown-trigger').nth(3).click();

@@ -6,12 +6,13 @@ import { CloseButton } from '../primitives/CloseButton';
 import { Button } from '../primitives/button';
 import { dialogOverlayMotion, useDialogWindowVariants } from '../primitives/dialogMotion';
 import { useDialogEscape } from '../primitives/useDialogEscape';
+import { useFocusTrap } from '../primitives/useFocusTrap';
 import { filterStatblockEntries } from './statblock-link/statblockEntries';
 import { StatblockList } from './statblock-link/StatblockList';
 import { StatblockPreviewPane, type StatblockPreviewToken } from './statblock-link/StatblockPreviewPane';
 import { useStatblockEntries, type BestiaryStatus } from './statblock-link/useStatblockEntries';
 import { NewStatblockButton } from '../../../statblocks/editor/create/RoleMenu';
-import type { NewStatblockOption } from '../../../statblocks/editor/create/roleChoices';
+import type { NewStatblockOption } from '../../../statblocks/editor/create/templateOffers';
 import { t } from '../../../i18n';
 import { SHEET_TEXT } from '../../../sheets/sheetText';
 
@@ -61,6 +62,7 @@ const StatblockLinkModal: React.FC<StatblockLinkModalProps> = ({ isOpen, onClose
   // While the role menu is open, Escape closes the menu only.
   const [roleMenuOpen, setRoleMenuOpen] = useState(false);
   useDialogEscape(dialogRef, isOpen && !roleMenuOpen ? onClose : undefined);
+  useFocusTrap(dialogRef, isOpen);
 
   const results = useMemo(() => filterStatblockEntries(entries, query), [entries, query]);
   // A selection the search hides gives way to the first result.
@@ -113,12 +115,12 @@ const StatblockLinkModal: React.FC<StatblockLinkModalProps> = ({ isOpen, onClose
         variants={windowVariants}
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="atlas-modal-header">
+        <div className="atlas-statblock-link__header">
           <div className="atlas-statblock-link__heading">
             <h2 id={`${idPrefix}-title`}>{t('am.link.title')}</h2>
             <span className="atlas-statblock-link__subtitle">For {asset.name}</span>
           </div>
-          <CloseButton onClick={onClose} />
+          <CloseButton className="atlas-statblock-link__close" onClick={onClose} />
         </div>
 
         <div className="atlas-statblock-link__body">
@@ -160,7 +162,7 @@ const StatblockLinkModal: React.FC<StatblockLinkModalProps> = ({ isOpen, onClose
           <StatblockPreviewPane app={app} path={previewPath} token={asset} />
         </div>
 
-        <div className="atlas-modal-footer">
+        <div className="atlas-statblock-link__footer">
           {newCharacterSheet && (
             <Button variant="outline" size="sm" onClick={() => {
               onClose();
@@ -173,9 +175,9 @@ const StatblockLinkModal: React.FC<StatblockLinkModalProps> = ({ isOpen, onClose
                 className="atlas-statblock-link__new"
                 choices={newStatblock.choices}
                 onMenuOpenChange={setRoleMenuOpen}
-                onChoose={(roleId) => {
+                onChoose={(offer) => {
                   onClose();
-                  newStatblock.onChoose(roleId);
+                  newStatblock.onChoose(offer);
                 }}
               />
               {unlinkButton}

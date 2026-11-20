@@ -154,8 +154,8 @@ function searchField(parent: HTMLElement, query: string): { field: HTMLInputElem
  * The step before a table starts: which world it plays, if any. No world comes first and is chosen
  * until the GM picks a world; each world shows its world map, name and when it was played; the
  * chosen one is ringed and ticked. Above the worlds, the table says once how many players it has. The list has room for five and scrolls past them, and
- * the search above it finds a world by its name (no world always stays). A vault without worlds gets
- * the way to make one.
+ * the search above it finds a world by its name (no world always stays). Where the chosen world keeps a game
+ * system of its own, a line under them says so. A vault without worlds gets the way to make one.
  */
 export function renderCampaignPicker(parent: HTMLElement, pick: CampaignPick, actions: CampaignPickerActions, disabled = false): void {
   const section = parent.createDiv({ cls: 'atlas-online-campaigns' });
@@ -184,6 +184,8 @@ export function renderCampaignPicker(parent: HTMLElement, pick: CampaignPick, ac
   });
   const none = box.createDiv({ cls: 'atlas-online-help atlas-online-campaigns__none', text: t('online.noCampaignMatch') });
   field.disabled = disabled;
+  // The campaign's rules win over the collections' on every map it plays (`rulesForMap`): units, conditions, resources.
+  if (list.some((choice) => choice.id === pick.chosen && choice.ownSystem)) section.createDiv({ cls: 'atlas-online-help atlas-online-campaigns__system', text: t('online.campaignOwnSystem') });
 
   /** Shows the campaigns the search finds, and says so where it finds none. */
   const filter = (): CampaignChoice[] => {

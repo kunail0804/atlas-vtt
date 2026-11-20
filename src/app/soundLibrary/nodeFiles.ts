@@ -37,7 +37,9 @@ export interface NodeFsModule {
     readFile(path: string, encoding: 'utf8'): Promise<string>;
     writeFile(path: string, text: string, encoding: 'utf8'): Promise<void>;
     unlink(path: string): Promise<void>;
+    access(path: string, mode?: number): Promise<void>;
   };
+  constants: { W_OK: number };
   watch(path: string, options: { recursive: boolean }, listener: (event: string, name: string | Uint8Array | null) => void): NodeWatcher;
 }
 

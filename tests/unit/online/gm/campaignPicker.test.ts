@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { CampaignChoice } from '../../../../src/app/online/gm/campaignChoices.ts';
 import { campaignPick, matchesQuery, renderCampaignPicker, type CampaignPickerActions } from '../../../../src/app/online/gm/dock/campaignPicker.ts';
 
-const choice = (id: string, over: Partial<CampaignChoice> = {}): CampaignChoice => ({ id, name: id.toUpperCase(), activity: 'Played 3d ago', art: null, hue: 120, ...over });
+const choice = (id: string, over: Partial<CampaignChoice> = {}): CampaignChoice => ({ id, name: id.toUpperCase(), activity: 'Played 3d ago', art: null, hue: 120, ownSystem: false, ...over });
 const STRAHD = choice('strahd', { name: 'Curse of Strahd' });
 const CAVES = choice('caves', { name: 'Blue Mouth Caves' });
 const LIST = [STRAHD, CAVES];
@@ -80,6 +80,14 @@ describe('the campaign a table starts on', () => {
     // The table has its players before its worlds are read, and without any world.
     expect(playersLine(picker(null, null, '', 2).layer)).toEqual(['2 players']);
     expect(playersLine(picker([], null, '', 2).layer)).toEqual(['2 players']);
+  });
+
+  it('says when the chosen world\'s own game system replaces the collections\' rules on the shared maps', () => {
+    const note = (layer: HTMLElement): string | undefined => layer.querySelector('.atlas-online-campaigns__system')?.textContent ?? undefined;
+    const own = [STRAHD, choice('caves', { name: 'Blue Mouth Caves', ownSystem: true })];
+    expect(note(picker(own, 'caves').layer)).toBe('Every map at this table plays by this world\'s game system, not its collection\'s.');
+    expect(note(picker(own, 'strahd').layer)).toBeUndefined();
+    expect(note(picker(LIST).layer)).toBeUndefined();
   });
 
   it('shows the world map, or the campaign\'s own tint where it has none', () => {

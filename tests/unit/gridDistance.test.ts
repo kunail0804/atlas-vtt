@@ -7,50 +7,53 @@ import { ALIGNED_GRIDS, pointInCell, snappingGrid, type SnappingGridOptions } fr
 const square: GridGeometry = { type: 'square', size: 70, offsetX: 0, offsetY: 0 };
 const cell = (col: number, row: number): { x: number; y: number } => ({ x: 35 + col * 70, y: 35 + row * 70 });
 
-it('pathLengthInCells on square grids', () => {
-  // counts straight moves in cells
-  {
+describe('pathLengthInCells on square grids', () => {
+  it('counts straight moves in cells', () => {
     expect(pathLengthInCells(square, [cell(0, 0), cell(4, 0)], 'equidistant')).toBe(4);
-  }
+  });
 
-  // counts every diagonal as 1 under the equidistant rule
-  {
+  it('counts every diagonal as 1 under the equidistant rule', () => {
     expect(pathLengthInCells(square, [cell(0, 0), cell(3, 3)], 'equidistant')).toBe(3);
     expect(pathLengthInCells(square, [cell(0, 0), cell(4, 2)], 'equidistant')).toBe(4);
-  }
+  });
 
-  // alternates diagonals between 1 and 2
-  {
+  it('alternates diagonals between 1 and 2', () => {
     expect(pathLengthInCells(square, [cell(0, 0), cell(1, 1)], 'alternating')).toBe(1);
     expect(pathLengthInCells(square, [cell(0, 0), cell(2, 2)], 'alternating')).toBe(3);
     expect(pathLengthInCells(square, [cell(0, 0), cell(3, 3)], 'alternating')).toBe(4);
     expect(pathLengthInCells(square, [cell(0, 0), cell(4, 2)], 'alternating')).toBe(5);
-  }
+  });
 
-  // carries the alternating count across waypoints
-  {
+  it('carries the alternating count across waypoints', () => {
     expect(pathLengthInCells(square, [cell(0, 0), cell(1, 1), cell(2, 2)], 'alternating')).toBe(3);
-  }
+  });
 
-  // measures the straight line under the euclidean rule
-  {
+  it('measures the straight line under the euclidean rule', () => {
     expect(pathLengthInCells(square, [cell(0, 0), cell(3, 4)], 'euclidean')).toBeCloseTo(5);
-  }
+  });
 
-  // adds up the segments of a path
-  {
+  it('counts every diagonal 2 under the Manhattan rule: the steps across plus the steps along', () => {
+    expect(pathLengthInCells(square, [cell(0, 0), cell(4, 0)], 'manhattan')).toBe(4);
+    expect(pathLengthInCells(square, [cell(0, 0), cell(3, 3)], 'manhattan')).toBe(6);
+    expect(pathLengthInCells(square, [cell(0, 0), cell(4, 2)], 'manhattan')).toBe(6);
+    expect(pathLengthInCells(square, [cell(4, 2), cell(0, 0)], 'manhattan')).toBe(6);
+    // Corners change nothing: every leg costs its steps across and along.
+    expect(pathLengthInCells(square, [cell(0, 0), cell(1, 1), cell(3, 0), cell(3, 2)], 'manhattan')).toBe(2 + 3 + 2);
+  });
+
+  it('adds up the segments of a path', () => {
     expect(pathLengthInCells(square, [cell(0, 0), cell(3, 0), cell(3, 2)], 'equidistant')).toBe(5);
-  }
+  });
 
-  // is zero for a single point
-  {
+  it('is zero for a single point', () => {
     expect(pathLengthInCells(square, [cell(2, 2)], 'equidistant')).toBe(0);
-  }
+  });
 });
 
-it('pathLengthInCells on a grid aligned to a map', () => {
+describe('pathLengthInCells on a grid aligned to a map', () => {
   const SPAN = 40;
 
+  /** Every distinct result of measuring the same path of cell steps from each cell of the map, between the points a token of `tokenSize` snaps to. */
   function everywhere(grid: SnappingGridOptions, steps: readonly (readonly [number, number])[], measure: (points: Point[]) => unknown, tokenSize = 1): unknown[] {
     const snapping = snappingGrid(grid);
     const results = new Set<unknown>();
@@ -65,75 +68,57 @@ it('pathLengthInCells on a grid aligned to a map', () => {
     return [...results];
   }
 
-  // prices two diagonals as 1 and 2 wherever they are measured, on every aligned grid
-  {
-    for (const grid of ALIGNED_GRIDS) {
-      expect(everywhere(grid, [[0, 0], [2, 2]], points => pathLengthInCells(grid, points, 'alternating'))).toEqual([3]);
-      expect(everywhere(grid, [[2, 0], [0, 2]], points => pathLengthInCells(grid, points, 'alternating'))).toEqual([3]);
-    }
-  }
+  it.each(ALIGNED_GRIDS)('prices two diagonals as 1 and 2 wherever they are measured (size $size, offset $offsetX/$offsetY)', (grid) => {
+    expect(everywhere(grid, [[0, 0], [2, 2]], points => pathLengthInCells(grid, points, 'alternating'))).toEqual([3]);
+    expect(everywhere(grid, [[2, 0], [0, 2]], points => pathLengthInCells(grid, points, 'alternating'))).toEqual([3]);
+  });
 
-  // prices a longer path with a waypoint the same everywhere, on every aligned grid
-  {
-    for (const grid of ALIGNED_GRIDS) {
-      // 3 diagonals, 2 straight, 1 more diagonal: 4 diagonals cost 6, the straights 2.
-      expect(everywhere(grid, [[0, 0], [3, 3], [5, 3], [6, 2]], points => pathLengthInCells(grid, points, 'alternating'))).toEqual([8]);
-    }
-  }
+  it.each(ALIGNED_GRIDS)('prices a longer path with a waypoint the same everywhere (size $size)', (grid) => {
+    // 3 diagonals, 2 straight, 1 more diagonal: 4 diagonals cost 6, the straights 2.
+    expect(everywhere(grid, [[0, 0], [3, 3], [5, 3], [6, 2]], points => pathLengthInCells(grid, points, 'alternating'))).toEqual([8]);
+  });
 
-  // counts whole cells under the other rules, on every aligned grid
-  {
-    for (const grid of ALIGNED_GRIDS) {
-      expect(everywhere(grid, [[0, 0], [3, 0]], points => pathLengthInCells(grid, points, 'equidistant'))).toEqual([3]);
-      expect(everywhere(grid, [[0, 0], [4, 2]], points => pathLengthInCells(grid, points, 'equidistant'))).toEqual([4]);
-      expect(everywhere(grid, [[0, 0], [3, 4]], points => pathLengthInCells(grid, points, 'euclidean'))).toEqual([5]);
-    }
-  }
+  it.each(ALIGNED_GRIDS)('counts whole cells under the other rules (size $size)', (grid) => {
+    expect(everywhere(grid, [[0, 0], [3, 0]], points => pathLengthInCells(grid, points, 'equidistant'))).toEqual([3]);
+    expect(everywhere(grid, [[0, 0], [4, 2]], points => pathLengthInCells(grid, points, 'equidistant'))).toEqual([4]);
+    expect(everywhere(grid, [[0, 0], [3, 4]], points => pathLengthInCells(grid, points, 'euclidean'))).toEqual([5]);
+  });
 
-  // measures a token of an even footprint, which snaps to where cells meet, like any other, on every aligned grid
-  {
-    for (const grid of ALIGNED_GRIDS) {
-      for (const tokenSize of [1.5, 2.5]) {
-        expect(everywhere(grid, [[0, 0], [2, 2]], points => pathLengthInCells(grid, points, 'alternating'), tokenSize)).toEqual([3]);
-      }
+  it.each(ALIGNED_GRIDS)('measures a token of an even footprint, which snaps to where cells meet, like any other (size $size)', (grid) => {
+    for (const tokenSize of [1.5, 2.5]) {
+      expect(everywhere(grid, [[0, 0], [2, 2]], points => pathLengthInCells(grid, points, 'alternating'), tokenSize)).toEqual([3]);
     }
-  }
+  });
 
-  // labels the same path alike everywhere, on every aligned grid
-  {
-    for (const grid of ALIGNED_GRIDS) {
-      const pathfinder: MeasurementSettings = { mode: 'metric', unitType: 'feet', unitDistance: 5, ruleDistance: 5, diagonalRule: 'alternating', rangeBands: [], coneAngle: 90 };
-      const metres: MeasurementSettings = { ...pathfinder, unitType: 'meters', unitDistance: 1.5, ruleDistance: 1.5, diagonalRule: 'equidistant' };
-      expect(everywhere(grid, [[0, 0], [2, 2]], points => formatDistance(pathLengthInCells(grid, points, 'alternating'), pathfinder))).toEqual(['15ft']);
-      // Three cells of 1.5 m are 4.5 m: one label, however a half unit is written.
-      expect(everywhere(grid, [[0, 0], [3, 0]], points => formatDistance(pathLengthInCells(grid, points, 'equidistant'), metres))).toHaveLength(1);
-    }
-  }
+  it.each(ALIGNED_GRIDS)('labels the same path alike everywhere (size $size)', (grid) => {
+    const pathfinder: MeasurementSettings = { mode: 'metric', unitType: 'feet', unitDistance: 5, ruleDistance: 5, diagonalRule: 'alternating', rangeBands: [], coneAngle: 90 };
+    const metres: MeasurementSettings = { ...pathfinder, unitType: 'meters', unitDistance: 1.5, ruleDistance: 1.5, diagonalRule: 'equidistant' };
+    expect(everywhere(grid, [[0, 0], [2, 2]], points => formatDistance(pathLengthInCells(grid, points, 'alternating'), pathfinder))).toEqual(['15ft']);
+    // Three cells of 1.5 m are 4.5 m: one label, however a half unit is written.
+    expect(everywhere(grid, [[0, 0], [3, 0]], points => formatDistance(pathLengthInCells(grid, points, 'equidistant'), metres))).toHaveLength(1);
+  });
 
-  // keeps the part of a cell a path measured without snapping covers
-  {
+  it('keeps the part of a cell a path measured without snapping covers', () => {
     const grid = ALIGNED_GRIDS[0]!;
     const from = { x: 10, y: 10 };
     expect(pathLengthInCells(grid, [from, { x: 10 + 2.5 * grid.size, y: 10 }], 'equidistant')).toBeCloseTo(2.5, 12);
     expect(pathLengthInCells(grid, [from, { x: 10 + 1.5 * grid.size, y: 10 + 1.5 * grid.size }], 'alternating')).toBeCloseTo(1.5, 12);
-  }
+  });
 });
 
-it('pathLengthInCells on hex grids', () => {
+describe('pathLengthInCells on hex grids', () => {
   const hex: GridGeometry = { type: 'hex-vertical', size: 60, offsetX: 0, offsetY: 0 };
-
   const layout = createHexLayout('hex-vertical', 60, 0, 0);
 
-  // counts hex steps and ignores the diagonal rule
-  {
+  it('counts hex steps and ignores the diagonal rule', () => {
     const points = [axialToPixel(layout, { q: 0, r: 0 }), axialToPixel(layout, { q: 3, r: -1 })];
     expect(pathLengthInCells(hex, points, 'equidistant')).toBe(3);
     expect(pathLengthInCells(hex, points, 'alternating')).toBe(3);
-  }
+    expect(pathLengthInCells(hex, points, 'manhattan')).toBe(3);
+  });
 
-  // adds up steps across waypoints
-  {
+  it('adds up steps across waypoints', () => {
     const points = [{ q: 0, r: 0 }, { q: 2, r: 0 }, { q: 2, r: 2 }].map(hexCell => axialToPixel(layout, hexCell));
     expect(pathLengthInCells(hex, points, 'euclidean')).toBe(4);
-  }
+  });
 });

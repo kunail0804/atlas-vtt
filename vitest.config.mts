@@ -1,6 +1,7 @@
 import { defineConfig } from 'vitest/config';
 import { playwright } from '@vitest/browser-playwright';
 import { fileURLToPath } from 'node:url';
+import { motionNativeAnimation } from './vite/motion-native-animation.mts';
 
 const alias = {
   '@': '/src',
@@ -31,6 +32,7 @@ const SLOW_TEST_FILES = [
   'tests/unit/measuredDistanceAcrossMap.test.ts',
   'tests/unit/statblocks/notes/frontmatterPatch.{property,corpus}.test.ts',
   'src/app/lighting/__tests__/sealWalls{Rays,Hostile,Crowded}.test.ts',
+  'src/app/annotations/__tests__/{eraseCutLarge,fillWindowCut}.test.ts',
 ];
 
 /**
@@ -46,6 +48,8 @@ export default defineConfig({
   define: {
   },
   resolve: { alias },
+  // The browser tests run the animation library as the bundle has it (`vite/motion-native-animation.mts`).
+  plugins: [motionNativeAnimation()],
   test: {
     projects: [
       {

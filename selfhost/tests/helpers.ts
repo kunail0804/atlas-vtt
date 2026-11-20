@@ -8,7 +8,7 @@ import type { KnockInfo, PlayerInfo } from '../../src/app/online/protocol/index.
 import { startRelay, type RunningRelay } from '../relay/relay.ts';
 import { newTableCode } from '../relay/ids.ts';
 import { createTable as askForTable } from '../../src/app/online/gm/createTable.ts';
-import { obsidianHttp } from '../../src/app/online/gm/account/obsidianHttp.ts';
+import { obsidianHttp } from '../../src/app/account/obsidianHttp.ts';
 import { createHash } from 'node:crypto';
 import { assetIdOf } from '../../src/app/online/gm/assets/assetIds.ts';
 import type { AssetRef } from '../../src/app/online/protocol/asset.ts';

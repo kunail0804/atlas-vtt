@@ -7,7 +7,7 @@
   padding: $spacing-s;
   gap: $spacing-s;
   @include atlas-elevated-surface;
-  @include atlas-panel-radius($radius-2xl);
+  @include atlas-panel-radius($surface-radius);
   animation: atlas-book-slide-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
 
   .book-header {
