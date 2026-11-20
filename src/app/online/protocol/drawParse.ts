@@ -5,6 +5,7 @@ import {
   type DrawLinePlace, type DrawMap, type DrawMine, type DrawOwn, type DrawRefused, type DrawShapeMode, type DrawStylePick, type DrawWordsPlace, type PlayerDrawChange, type PlayerDrawMessage,
 } from './draw.ts';
 import { SHOWN, UNSEEN, UNSHOWN } from './identity.ts';
+import { isIconKey } from './mapLayers.ts';
 import { isRecord } from './shape.ts';
 import { MAX_COORDINATE } from './tokens.ts';
 
@@ -143,6 +144,12 @@ export function parsePlayerDraw(value: Record<string, unknown>): PlayerDrawMessa
       const made = parseMade(value);
       const look = parseDrawLook(value.look);
       return made === null || look === null || made.pts.length === 0 ? null : { t: 'draw-add', ...request, ...made, look };
+    }
+    case 'draw-stamp': {
+      const { x, y, icon } = value;
+      const look = parseDrawLook(value.look);
+      if (look === null || !isDrawPlace(x) || !isDrawPlace(y) || !isIconKey(icon)) return null;
+      return { t: 'draw-stamp', ...request, x, y, icon, look: { colour: look.colour, size: look.size } };
     }
     case 'draw-text': {
       const { x, y, text, wrap, breaks } = value;

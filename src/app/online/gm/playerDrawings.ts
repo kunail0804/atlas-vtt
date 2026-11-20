@@ -7,6 +7,7 @@ import { orderOnTop } from '../../annotations/annotationStack';
 import { placedBy } from '../../annotations/annotationTransform';
 import type { Annotation, AnnotationPlace } from '../../annotations/annotationTypes';
 import { drawCell } from '../../annotations/drawSizes';
+import type { LiveDrawing } from '../../annotations/madeDrawing';
 import { madeText } from '../../annotations/madeText';
 import { levelObjects } from '../../levels/levelObjects';
 import { placedOnViewedLevel } from '../../levels/sceneLevels';
@@ -15,7 +16,7 @@ import { changeDrawing, changeText, newAnnotationId, newDrawing } from '../../st
 import type { DrawingStroke, TextElement } from '../../types';
 import type { SceneStore } from './atlasView.ts';
 import { seeThroughWeight } from './drawCost.ts';
-import { allNearEdge, drawingPoints, drawRate, maxWrap, nearEdge, playerDrawing, playerUse, pointsOf, styleChoice, textChoices, transformOf, withinUse, writeRate } from './drawCheck.ts';
+import { allNearEdge, drawingPoints, drawRate, maxWrap, nearEdge, playerDrawing, playerStamp, playerUse, pointsOf, styleChoice, textChoices, transformOf, withinUse, writeRate } from './drawCheck.ts';
 import { JoinedSteps } from './joinedSteps.ts';
 import { MoveRate, type MapSize } from './moveCheck.ts';
 import {
@@ -157,9 +158,13 @@ export class PlayerDrawings {
     if (refusal !== null) return refusal;
     // An erasing is held to a rate of its own, which also one that is refused takes from.
     if (message.t === 'draw-erase') return this.erase(from, message);
-    if (!(message.t === 'draw-add' ? this.rate : this.writes).take(from, this.ports.now())) return 'rate';
+    if (!(message.t === 'draw-add' || message.t === 'draw-stamp' ? this.rate : this.writes).take(from, this.ports.now())) return 'rate';
     switch (message.t) {
       case 'draw-add': return this.add(from, message);
+      case 'draw-stamp': {
+        const cell = drawCell(this.store.getState().grid);
+        return this.place(from, playerStamp(message, message.icon, message.look, cell), cell);
+      }
       case 'draw-text': return this.addText(from, message);
       case 'draw-change': return this.change(from, message);
       case 'draw-remove': return this.remove(from, message);
@@ -171,9 +176,14 @@ export class PlayerDrawings {
     const cell = drawCell(state.grid);
     const points = this.ahead.all(from, message.n, message.from, message.pts);
     if (points === null) return 'shape';
-    const drawing = playerDrawing(message.mode, points, message.closed === true, message.look, cell);
+    return this.place(from, playerDrawing(message.mode, points, message.closed === true, message.look, cell), cell);
+  }
+
+  /** Writes a drawing a player made, where it lies near the map and leaves its maker within what they may have. */
+  private place(from: string, drawing: LiveDrawing | null, cell: number): Verdict {
     if (drawing === null) return 'shape';
     if (!allNearEdge(drawing.points, this.ports.map(), cell)) return 'place';
+    const state = this.store.getState();
     const objects = levelObjects(state);
     const record = newDrawing(state, { ...drawing, points: [...drawing.points], by: from }, orderOnTop(state));
     const read = readDrawing(record.id, record);
@@ -205,6 +215,7 @@ export class PlayerDrawings {
     const record: TextElement = {
       id, kind: 'text', ...made,
       ...(wrap !== undefined && { width: wrap }), ...(wrap !== undefined && breaks !== undefined && { breaks: [...breaks] }),
+      ...(message.look.bold === true && { bold: true }),
       order: orderOnTop(state), by: from, ...placedOnViewedLevel(state),
     };
     this.store.setState((draft) => {

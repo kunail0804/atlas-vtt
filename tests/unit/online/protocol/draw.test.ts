@@ -61,11 +61,13 @@ describe('a player\'s Draw tool on the wire', () => {
     expect(read({ ...base, style: {} })).toBeNull();
   });
 
-  it('does not read an alignment, a weight or a slant: a text\'s look and a pick that name one read as without it', () => {
+  it('does not read an alignment or a slant, and reads a weight only as the fork\'s bold: a text\'s look and a pick that name one read as without it', () => {
     const text = { t: 'draw-text', scene: 's', n: 1, x: 1, y: 1, text: 'Mill', look: TEXT_LOOK };
-    for (const more of [{ align: 'left' }, { bold: true }, { italic: true }, { align: 'justify', bold: 'very', italic: 0 }]) {
+    for (const more of [{ align: 'left' }, { italic: true }, { align: 'justify', bold: 'very', italic: 0 }]) {
       expect(read({ ...text, look: { ...TEXT_LOOK, ...more } })).toEqual(text);
     }
+    // The fork's player page writes bold texts: `bold: true` is read, and nothing else of a weight.
+    expect(read({ ...text, look: { ...TEXT_LOOK, bold: true, align: 'left' } })).toEqual({ ...text, look: { ...TEXT_LOOK, bold: true } });
     const change = { t: 'draw-change', scene: 's', n: 2, ids: ['1'] };
     expect(read({ ...change, style: { font: 'mono', bold: true, italic: false, align: 'right' } })).toEqual({ ...change, style: { font: 'mono' } });
     // With nothing else in it, such a pick is a pick of nothing.

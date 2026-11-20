@@ -243,7 +243,7 @@ export class FloorShare {
     if (message.t === 'drag') return this.moves.drag(from, message);
     if (message.t === 'drag-cancel') return this.moves.dragCancel(from, message);
     if (message.t === 'laser' || message.t === 'measure' || message.t === 'cursor' || message.t === 'stroke') return this.marks.receive(from, message);
-    if (message.t === 'draw-points' || message.t === 'draw-add' || message.t === 'draw-text' || message.t === 'draw-change' || message.t === 'draw-remove' || message.t === 'draw-erase') {
+    if (message.t === 'draw-points' || message.t === 'draw-add' || message.t === 'draw-stamp' || message.t === 'draw-text' || message.t === 'draw-change' || message.t === 'draw-remove' || message.t === 'draw-erase') {
       this.dealing = true;
       try {
         return this.drawings.receive(from, message);

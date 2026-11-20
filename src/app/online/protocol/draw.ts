@@ -58,12 +58,13 @@ export interface DrawLook {
   readonly fill?: Fill;
 }
 
-/** The look a player's text is written in, in the Draw tool's own words. */
+/** The look a player's text is written in, in the Draw tool's own words. `bold` is the self-hosted fork's: its player page writes bold texts. */
 export interface DrawTextLook {
   readonly colour: string;
   readonly size: DrawSizeName;
   readonly font: (typeof DRAW_FONT_NAMES)[number];
   readonly look: (typeof DRAW_TEXT_LOOKS)[number];
+  readonly bold?: true;
 }
 
 /** One pick of the Draw tool's bars, for drawings and texts that are there: exactly one of these. */
@@ -123,6 +124,13 @@ export interface DrawWordsPlace {
 }
 
 /**
+ * A player stamps the symbol `icon` (one a stamp may show, `stampGlyph`) centred on (x, y), in a
+ * colour and a named size, as the GM's Stamp mode does. The self-hosted fork's: its player page
+ * stamps symbols, which upstream's protocol carries no request for.
+ */
+export type PlayerDrawStamp = { readonly t: 'draw-stamp'; readonly x: number; readonly y: number; readonly icon: string; readonly look: Pick<DrawLook, 'colour' | 'size'> } & DrawRequest;
+
+/**
  * A player changes drawings and texts of their own (`ids`, as `draw-mine` named them), in exactly
  * one way: all of them moved, turned or scaled as one (`map`), all of them given one pick of the
  * tool's bars (`style`), or one of them set anew (`line`, `words`).
@@ -140,7 +148,7 @@ export type PlayerDrawRemove = { readonly t: 'draw-remove'; readonly ids: readon
  */
 export type PlayerDrawErase = { readonly t: 'draw-erase'; readonly pts: readonly number[]; readonly size: DrawSizeName; readonly whole?: true } & DrawRequest;
 
-export type PlayerDrawMessage = PlayerStroke | PlayerDrawPoints | PlayerDrawAdd | PlayerDrawText | PlayerDrawChange | PlayerDrawRemove | PlayerDrawErase;
+export type PlayerDrawMessage = PlayerStroke | PlayerDrawPoints | PlayerDrawAdd | PlayerDrawStamp | PlayerDrawText | PlayerDrawChange | PlayerDrawRemove | PlayerDrawErase;
 
 /** The most numbers (x, y pairs) of the points a curve was clicked with that its maker is told. */
 export const MAX_OWN_ANCHOR_NUMBERS = 128;
@@ -189,7 +197,7 @@ export interface DrawRefused {
   readonly reason: DrawRefusal;
 }
 
-const PLAYER_TYPES: readonly string[] = ['stroke', 'draw-points', 'draw-add', 'draw-text', 'draw-change', 'draw-remove', 'draw-erase'];
+const PLAYER_TYPES: readonly string[] = ['stroke', 'draw-points', 'draw-add', 'draw-stamp', 'draw-text', 'draw-change', 'draw-remove', 'draw-erase'];
 
 /** Whether a message type is one of a player's Draw tool. */
 export const isPlayerDrawType = (t: unknown): boolean => typeof t === 'string' && PLAYER_TYPES.includes(t);
@@ -237,7 +245,7 @@ export function parseDrawLook(value: unknown): DrawLook | null {
 /** A text's look, or null for anything malformed. */
 export function parseDrawTextLook(value: unknown): DrawTextLook | null {
   if (!isRecord(value) || !isDrawColour(value.colour) || !isOneOf(DRAW_SIZE_NAMES, value.size)) return null;
-  const { font, look } = value;
+  const { font, look, bold } = value;
   if (!isOneOf(DRAW_FONT_NAMES, font) || !isOneOf(DRAW_TEXT_LOOKS, look)) return null;
-  return { colour: value.colour, size: value.size, font, look };
+  return { colour: value.colour, size: value.size, font, look, ...(bold === true && { bold }) };
 }

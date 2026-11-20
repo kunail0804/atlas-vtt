@@ -5,7 +5,8 @@ import {
 import { readDrawing } from '../../annotations/annotationList';
 import type { Transform } from '../../annotations/annotationTransform';
 import { DEFAULT_DRAW_TOOL, type Annotation, type DrawingAnnotation, type DrawToolChoices } from '../../annotations/annotationTypes';
-import { liveDrawing, type LiveDrawing, type MadeShape } from '../../annotations/madeDrawing';
+import { liveDrawing, madeStamp, type LiveDrawing, type MadeShape } from '../../annotations/madeDrawing';
+import { stampGlyph } from '../../pixi/mapIcons';
 import { thinned } from '../../annotations/penStroke';
 import type { DrawStyle, StyleField } from '../../packages/components/toolbar/drawStyle';
 import { cornersOf, crossesItself, dashCount, seeThroughWeight } from './drawCost.ts';
@@ -123,6 +124,11 @@ export function playerDrawing(mode: DrawShapeMode, points: readonly Point[], clo
   const drawing = liveDrawing({ mode, points: line, closed }, drawChoices(look), cell);
   const read = drawing === null ? null : readLive(drawing);
   return drawing !== null && read !== null && costAllowed(read) && fillAllowed(read) ? drawing : null;
+}
+
+/** The fork's stamp of a player: the symbol `icon` centred on `at` in the player's colour and size, as the GM's Stamp mode makes it; null for a symbol no stamp shows. */
+export function playerStamp(at: Point, icon: string, look: Pick<DrawLook, 'colour' | 'size'>, cell: number): LiveDrawing | null {
+  return stampGlyph(icon) === null ? null : madeStamp({ x: at.x, y: at.y }, { ...drawChoices({ colour: look.colour, size: look.size }), icon }, cell);
 }
 
 /**

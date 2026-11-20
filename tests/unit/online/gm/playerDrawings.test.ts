@@ -189,16 +189,17 @@ describe('a text a player writes', () => {
     expect(steps(history)).toBe(1);
   });
 
-  it('is centred and upright whatever a page says of an alignment, a weight or a slant: those words are not read', () => {
+  it('is centred and upright whatever a page says of an alignment or a slant, and bold only where the fork\'s page asks', () => {
     const harness = table();
     harness.send(ANA, { t: 'draw-text', scene: SCENE, n: next(), x: 300, y: 200, text: 'Mill', look: { ...TEXT_LOOK, align: 'left', bold: true, italic: true } });
     expect(harness.written()).toHaveLength(1);
-    for (const field of ['align', 'bold', 'italic']) expect(harness.written()[0]).not.toHaveProperty(field);
+    for (const field of ['align', 'italic']) expect(harness.written()[0]).not.toHaveProperty(field);
+    expect(harness.written()[0]).toMatchObject({ bold: true });
     // A pick that names one of them beside a pick the bars have is that pick; one that names nothing else changes nothing, and nothing is refused.
     const [words] = Object.keys(harness.mine(ANA).texts);
     harness.send(ANA, { t: 'draw-change', scene: SCENE, n: next(), ids: [words!], style: { colour: '#00ff00', bold: true, align: 'right' } });
-    expect(harness.written()[0]).toMatchObject({ color: '#00ff00' });
-    for (const field of ['align', 'bold', 'italic']) expect(harness.written()[0]).not.toHaveProperty(field);
+    expect(harness.written()[0]).toMatchObject({ color: '#00ff00', bold: true });
+    for (const field of ['align', 'italic']) expect(harness.written()[0]).not.toHaveProperty(field);
     expect(parsePlayerMessage({ t: 'draw-change', scene: SCENE, n: next(), ids: [words!], style: { italic: true } })).toBeNull();
     expect(harness.refusals()).toEqual([]);
   });
