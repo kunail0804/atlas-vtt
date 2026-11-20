@@ -1,14 +1,12 @@
 name: Upstream
 
-# Every Monday: what atlas-vtt/atlas-vtt changed since last week. `upstream-main` follows its main,
-# a dated branch `upstream-sync-<date>` keeps that week's state, and an issue lists the new commits
-# and the files that would conflict with ours. Nothing is merged: take what you want into a branch
+# Run by hand only (Actions tab, or `gh workflow run upstream.yml`): what atlas-vtt/atlas-vtt changed
+# since the last run. `upstream-main` follows its main, a dated branch `upstream-sync-<date>` keeps
+# that run's state, and an issue lists the new commits and the files that would conflict with ours. Nothing is merged: take what you want into a branch
 # made from develop (see .github/WORKFLOW.md). Never open a pull request from these branches: they hold
 # upstream's workflows, which a pull request would run.
 
 on:
-  schedule:
-    - cron: '0 6 * * 1'
   workflow_dispatch:
 
 permissions:
@@ -46,7 +44,7 @@ jobs:
           new=$(git rev-parse upstream/main)
           old=$(git rev-parse --verify --quiet origin/upstream-main || echo none)
           echo "new=$new" >> "$GITHUB_OUTPUT"
-          if [ "$new" = "$old" ]; then echo "changed=false" >> "$GITHUB_OUTPUT"; echo "Upstream has not moved since last week." >> "$GITHUB_STEP_SUMMARY"; exit 0; fi
+          if [ "$new" = "$old" ]; then echo "changed=false" >> "$GITHUB_OUTPUT"; echo "Upstream has not moved since the last run." >> "$GITHUB_STEP_SUMMARY"; exit 0; fi
           echo "changed=true" >> "$GITHUB_OUTPUT"
           range=$([ "$old" = none ] && echo "upstream/main" || echo "$old..upstream/main")
           count=$(git rev-list --count "$range")
@@ -59,7 +57,7 @@ jobs:
             echo "conflicts=$(printf '%s\n' "$conflicts" | grep -c . || true)"
           } >> "$GITHUB_OUTPUT"
           {
-            echo "### New commits this week ($count)"
+            echo "### New commits since the last run ($count)"
             echo
             git log --no-merges --format='- %s ([%h](https://github.com/atlas-vtt/atlas-vtt/commit/%H))' "$range" | head -150
             echo
@@ -91,15 +89,15 @@ jobs:
           PUSHED: ${{ steps.branches.outputs.pushed }}
         run: |
           {
-            echo "Upstream ([atlas-vtt/atlas-vtt](https://github.com/atlas-vtt/atlas-vtt)) has **$COUNT** new commits since last week. develop is **$BEHIND** commits behind upstream in all; merging upstream/main whole would conflict in **$CONFLICTS** files."
+            echo "Upstream ([atlas-vtt/atlas-vtt](https://github.com/atlas-vtt/atlas-vtt)) has **$COUNT** new commits since the last run. develop is **$BEHIND** commits behind upstream in all; merging upstream/main whole would conflict in **$CONFLICTS** files."
             echo
             if [ "$PUSHED" = true ]; then
-              echo "- This week's upstream: branch [\`$BRANCH\`](https://github.com/$GITHUB_REPOSITORY/tree/$BRANCH); \`upstream-main\` follows it."
+              echo "- Upstream as of this run: branch [\`$BRANCH\`](https://github.com/$GITHUB_REPOSITORY/tree/$BRANCH); \`upstream-main\` follows it."
             else
               echo "- The branches were not updated: the secret \`AUTOMATION_TOKEN\` is not set."
             fi
             echo "- Everything upstream has that main has not: [compare](https://github.com/$GITHUB_REPOSITORY/compare/develop...atlas-vtt:atlas-vtt:main)"
-            echo "- To take something: branch from develop, \`git cherry-pick <commit>\`, open a pull request into develop. Close this issue when the week is read."
+            echo "- To take something: branch from develop, \`git cherry-pick <commit>\`, open a pull request into develop. Close this issue once it is read."
             echo
             cat "$RUNNER_TEMP/details.md"
           } > "$RUNNER_TEMP/issue.md"
