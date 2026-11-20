@@ -29,7 +29,7 @@ function initialCover({ cover, coverCandidates }: ExportPreview): CoverChoice {
   return coverCandidates[0] ? { kind: 'artwork', path: coverCandidates[0].sourcePath } : { kind: 'none' };
 }
 
-function coverUrl(choice: CoverChoice, preview: ExportPreview, uploadUrl: string | undefined): string | undefined {
+export function coverUrl(choice: CoverChoice, preview: ExportPreview, uploadUrl: string | undefined): string | undefined {
   switch (choice.kind) {
     case 'current': return preview.cover?.url;
     case 'artwork': return preview.coverCandidates.find((candidate) => candidate.sourcePath === choice.path)?.imageUrl;
@@ -82,7 +82,9 @@ export function ExportCollectionDialog({ preview, media, onExport, onCancel }: E
   };
 
   const sameVersion = versionNumber === collection.version && collection.releasedAt !== undefined;
-  const confirmLabel = isFork ? t('exportDialog.publish') : t('exportDialog.exportVersion', { version: isWholeVersion ? String(versionNumber) : '…' });
+  const shownVersion = isWholeVersion ? String(versionNumber) : '…';
+  const confirmLabel = isFork ? t('exportDialog.publish') : t('exportDialog.exportVersion', { version: shownVersion });
+  const eyebrow = isFork ? t('exportDialog.publishOwn') : t('exportDialog.exportCollection');
 
   const heroUrl = coverUrl(cover, preview, uploadUrl);
   // The tint is blurred beyond recognition, so the small preview gives the same colours at a fraction of the cost.
@@ -98,7 +100,7 @@ export function ExportCollectionDialog({ preview, media, onExport, onCancel }: E
       ambientUrl={ambientUrl}
       hero={(
         <CollectionHero
-          eyebrow={isFork ? t('exportDialog.publishOwn') : t('exportDialog.exportCollection')}
+          eyebrow={eyebrow}
           imageUrl={heroUrl}
           name={isFork
             ? (

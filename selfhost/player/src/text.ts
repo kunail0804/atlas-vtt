@@ -1,5 +1,6 @@
 import type { DefaultSlot } from '../../../src/app/online/protocol/bookSlots.ts';
 import type { PinKind, QuestState } from '../../../src/app/online/protocol/bookMap.ts';
+import type { DrawRefusal } from '../../../src/app/online/protocol/draw.ts';
 import type { RollRefusal } from '../../../src/app/online/protocol/dice.ts';
 
 /** The page's own words (the plugin's panels bring theirs), in one place for every language the page speaks. */
@@ -139,6 +140,38 @@ export const TEXT = {
     textPlaceholder: 'Ton texte…',
     textAdd: 'Placer',
     noScene: 'Le MJ ne partage aucune scène pour l\'instant.',
+    drawOff: 'Le MJ ne laisse pas dessiner pour l\'instant.',
+    drawTool: 'Dessin',
+    drawOptions: 'Options de dessin',
+    pen: 'Stylo',
+    iconStamp: 'Tampon',
+    drawingEraser: 'Gomme',
+    icons: 'Symboles',
+    ink: 'Encre',
+    penSize: 'Taille du trait',
+    eraserSize: 'Taille de la gomme',
+    textTool: 'Texte',
+    textOptions: 'Options du texte',
+    textSize: 'Taille du texte',
+    bold: 'Gras',
+    measureLine: 'Mesurer une ligne',
+    measureCircle: 'Mesurer un cercle',
+    measureCone: 'Mesurer un cône',
+    line: 'Ligne',
+    persist: 'Garder les mesures',
+    sizes: { s: 'P', m: 'M', l: 'G', xl: 'TG' },
+  },
+  draw: {
+    refused: {
+      off: 'Le MJ ne laisse pas dessiner pour l\'instant.',
+      scene: 'Le MJ a changé de scène : ton dessin n\'a pas été pris.',
+      rate: 'Trop de dessins d\'un coup : attends un instant.',
+      shape: 'Ce dessin ne peut pas être pris.',
+      place: 'Ce dessin sort de la carte.',
+      full: 'Tu as déjà autant de dessins que le MJ en accepte.',
+      gone: 'Ce dessin n\'existe plus.',
+      busy: 'La carte du MJ ne peut pas prendre de dessin pour l\'instant.',
+    } satisfies Record<DrawRefusal, string>,
   },
   seat: {
     /** The code of their own the GM made for a player of the campaign: with it they take their seat from any device. */

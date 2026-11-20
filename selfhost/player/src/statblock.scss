@@ -65,7 +65,7 @@
 .sb-section,
 .sb-rests {
   padding: $spacing-s;
-  border-radius: $radius-xl;
+  border-radius: $surface-radius;
   background: var(--background-secondary);
 }
 
@@ -128,7 +128,7 @@
 .sb-chip-remove {
   padding: $spacing-xs;
   border: 0;
-  border-radius: $radius-l;
+  border-radius: $radius-m;
   background: var(--background-primary);
   color: var(--interactive-accent);
   font: inherit;
@@ -225,7 +225,7 @@
   flex-direction: column;
   gap: $spacing-xs;
   padding: $spacing-s;
-  border-radius: $radius-l;
+  border-radius: $radius-m;
   background: var(--background-primary);
 }
 
@@ -254,7 +254,7 @@
   gap: $spacing-xs;
   padding: $spacing-s;
   border: 1px solid var(--background-modifier-border);
-  border-radius: $radius-l;
+  border-radius: $radius-m;
 }
 
 .sb-rest-pick {

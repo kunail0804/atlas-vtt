@@ -10,13 +10,18 @@ import { t } from '../../../src/app/i18n/index.ts';
 import { DropdownMenuItem } from '../../../src/app/packages/components/primitives/DropdownMenuItem.tsx';
 import { DropdownModeSelector } from '../../../src/app/packages/components/primitives/DropdownModeSelector.tsx';
 import { DropdownSliderRow } from '../../../src/app/packages/components/primitives/DropdownSliderRow.tsx';
+import { SegmentedControl } from '../../../src/app/packages/components/primitives/SegmentedControl.tsx';
 import { DropdownSwatchGrid } from '../../../src/app/packages/components/primitives/DropdownSwatchGrid.tsx';
 import { DropdownToggleRow } from '../../../src/app/packages/components/primitives/DropdownToggleRow.tsx';
 import { ToolButton } from '../../../src/app/packages/components/primitives/ToolButton.tsx';
 import { LabelTooltip, TooltipProvider } from '../../../src/app/packages/components/primitives/tooltip.tsx';
 import { ToolGroup, type ToolGroupFace } from '../../../src/app/packages/components/toolbar/ToolGroup.tsx';
 import { DiceTray } from '../../../src/app/react/components/dice/DiceTray.tsx';
-import { MAP_ICON_LABELS } from '../../../src/app/pixi/mapIcons.ts';
+import { stampIconName } from '../../../src/app/pixi/mapIcons.ts';
+import { DRAW_SIZES, type DrawSize } from '../../../src/app/annotations/annotationTypes.ts';
+import { setRollText } from '../../../src/app/gameSystems/diceSets.ts';
+import { parseFormula } from '../../../src/app/tools/parseFormula.ts';
+import { emptyTrayMemory, type DiceTrayMemory } from '../../../src/app/tools/diceTrayMemory.ts';
 import { LASER_COLOR_HINT, LASER_COLOR_SWATCHES, LASER_SIZE_MAX, LASER_SIZE_MIN } from '../../../src/app/tools/laserPointerSettings.ts';
 import { TEXT } from './text.ts';
 import type { PlayerTool, ToolSettingsStore } from './toolSettings.ts';
@@ -51,6 +56,19 @@ const MAP_ICON_OPTIONS = [
   { key: 'gem', icon: Gem }, { key: 'swords', icon: Swords }, { key: 'footprints', icon: Footprints }, { key: 'circle-x', icon: CircleX },
 ] as const;
 
+/** The Draw tool's named sizes, as the GM's draw menu offers them. */
+const SIZE_OPTIONS = DRAW_SIZES.map((size) => ({ value: size, label: TEXT.toolbar.sizes[size] }));
+
+/** A named size under its label. */
+function SizeRow({ label, value, onChange }: { label: string; value: DrawSize; onChange: (size: DrawSize) => void }): ReactElement {
+  return (
+    <div className="space-y-2">
+      <span className="atlas-dropdown-label">{label}</span>
+      <SegmentedControl<DrawSize> value={value} options={SIZE_OPTIONS} ariaLabel={label} onChange={onChange} />
+    </div>
+  );
+}
+
 /** Text colours, as the GM's text menu offers them (`TextToolGroup`). */
 const TEXT_COLOR_SWATCHES = [
   { value: '#ffffff', label: t('color.white') }, { value: '#000000', label: t('color.black') }, { value: '#e93147', label: t('color.red') }, { value: '#ec7500', label: t('color.orange') },
@@ -65,15 +83,15 @@ function moveFace(tool: PlayerTool): ToolGroupFace & { tool: PlayerTool } {
 }
 
 function drawFace(tool: PlayerTool): ToolGroupFace & { tool: PlayerTool } {
-  if (tool === 'draw-eraser') return { icon: Eraser, label: t('toolbar.drawingEraser'), tool, isActive: true };
-  if (tool === 'draw-icon') return { icon: Stamp, label: t('toolbar.iconStamp'), tool, isActive: true };
-  return { icon: Pencil, label: t('toolbar.drawTool'), tool: 'draw-pen', isActive: tool === 'draw-pen' };
+  if (tool === 'draw-eraser') return { icon: Eraser, label: TEXT.toolbar.drawingEraser, tool, isActive: true };
+  if (tool === 'draw-icon') return { icon: Stamp, label: TEXT.toolbar.iconStamp, tool, isActive: true };
+  return { icon: Pencil, label: TEXT.toolbar.drawTool, tool: 'draw-pen', isActive: tool === 'draw-pen' };
 }
 
 function measureFace(tool: PlayerTool): ToolGroupFace & { tool: PlayerTool } {
-  if (tool === 'measure-circle') return { icon: Circle, label: t('toolbar.measureCircle'), tool, isActive: true };
-  if (tool === 'measure-cone') return { icon: Triangle, label: t('toolbar.measureCone'), tool, isActive: true };
-  return { icon: Ruler, label: t('toolbar.measureLine'), tool: 'measure', isActive: tool === 'measure' };
+  if (tool === 'measure-circle') return { icon: Circle, label: TEXT.toolbar.measureCircle, tool, isActive: true };
+  if (tool === 'measure-cone') return { icon: Triangle, label: TEXT.toolbar.measureCone, tool, isActive: true };
+  return { icon: Ruler, label: TEXT.toolbar.measureLine, tool: 'measure', isActive: tool === 'measure' };
 }
 
 /** The next tool a key gives: the family's first, else the next of the family, as the GM's keys cycle. */
@@ -103,6 +121,7 @@ function PlayerToolbar({ host, state }: { host: ToolbarHost; state: () => Toolba
   const shown = useSyncExternalStore(subscribeState, state);
   const [tool, setTool] = useState<PlayerTool>('move');
   const [menu, setMenu] = useState<Menu>(null);
+  const [trayMemory, setTrayMemory] = useState<DiceTrayMemory>(emptyTrayMemory);
   const diceRef = useRef<HTMLDivElement>(null);
   const select = (next: PlayerTool): void => {
     setTool(next);
@@ -167,20 +186,20 @@ function PlayerToolbar({ host, state }: { host: ToolbarHost; state: () => Toolba
           </div>
         </ToolGroup>
 
-        <ToolGroup face={draw} shortcut={KEYS.draw} menuLabel={t('toolbar.drawOptions')} onSelect={() => select(draw.tool)} {...group('draw')}>
+        <ToolGroup face={draw} shortcut={KEYS.draw} menuLabel={TEXT.toolbar.drawOptions} onSelect={() => select(draw.tool)} {...group('draw')}>
           <div className="atlas-dropdown-section">
-            <DropdownMenuItem icon={Pencil} label={t('toolbar.pen')} shortcut={KEYS.draw} isActive={tool === 'draw-pen'} onClick={() => select('draw-pen')} />
-            <DropdownMenuItem icon={Stamp} label={t('toolbar.iconStamp')} shortcut={KEYS.draw} isActive={tool === 'draw-icon'} onClick={() => select('draw-icon')} />
-            <DropdownMenuItem icon={Eraser} label={t('toolbar.drawingEraser')} shortcut={KEYS.draw} isActive={tool === 'draw-eraser'} onClick={() => select('draw-eraser')} />
+            <DropdownMenuItem icon={Pencil} label={TEXT.toolbar.pen} shortcut={KEYS.draw} isActive={tool === 'draw-pen'} onClick={() => select('draw-pen')} />
+            <DropdownMenuItem icon={Stamp} label={TEXT.toolbar.iconStamp} shortcut={KEYS.draw} isActive={tool === 'draw-icon'} onClick={() => select('draw-icon')} />
+            <DropdownMenuItem icon={Eraser} label={TEXT.toolbar.drawingEraser} shortcut={KEYS.draw} isActive={tool === 'draw-eraser'} onClick={() => select('draw-eraser')} />
           </div>
           <div className="atlas-dropdown-section">
             <div className="space-y-2">
-              <span className="atlas-dropdown-label">{t('toolbar.icons')}</span>
+              <span className="atlas-dropdown-label">{TEXT.toolbar.icons}</span>
               <div className="atlas-icon-grid">
                 {MAP_ICON_OPTIONS.map(({ key, icon: Icon }) => {
                   const chosen = tool === 'draw-icon' && settings.draw.icon === key;
                   return (
-                    <LabelTooltip key={key} label={MAP_ICON_LABELS[key] ?? key}>
+                    <LabelTooltip key={key} label={stampIconName(key) ?? key}>
                       <button type="button" aria-pressed={chosen} className={`atlas-icon-grid__item${chosen ? ' atlas-icon-grid__item--active' : ''}`} onClick={() => { host.settings.update('draw', { icon: key }); select('draw-icon'); }}>
                         <Icon className="h-4 w-4" />
                       </button>
@@ -193,13 +212,13 @@ function PlayerToolbar({ host, state }: { host: ToolbarHost; state: () => Toolba
           <div className="atlas-dropdown-section">
             <div className="space-y-3">
               <DropdownModeSelector
-                label={t('toolbar.ink')}
+                label={TEXT.toolbar.ink}
                 value={settings.draw.color}
                 options={[{ value: '#ffffff' as const, icon: Circle, label: t('color.white') }, { value: '#000000' as const, icon: Circle, label: t('color.black') }]}
                 onChange={(color) => host.settings.update('draw', { color })}
               />
-              <DropdownSliderRow label={t('toolbar.penSize')} value={settings.draw.width} min={1} max={40} onChange={(width) => host.settings.update('draw', { width })} />
-              <DropdownSliderRow label={t('toolbar.eraserSize')} value={settings.draw.eraserWidth} min={10} max={200} onChange={(eraserWidth) => host.settings.update('draw', { eraserWidth })} />
+              <SizeRow label={TEXT.toolbar.penSize} value={settings.draw.size} onChange={(size) => host.settings.update('draw', { size })} />
+              <SizeRow label={TEXT.toolbar.eraserSize} value={settings.draw.eraserSize} onChange={(eraserSize) => host.settings.update('draw', { eraserSize })} />
             </div>
           </div>
           <div className="atlas-dropdown-section">
@@ -207,27 +226,27 @@ function PlayerToolbar({ host, state }: { host: ToolbarHost; state: () => Toolba
           </div>
         </ToolGroup>
 
-        <ToolGroup face={{ icon: Type, label: t('toolbar.textTool'), isActive: textActive }} shortcut={KEYS.text} menuLabel={t('toolbar.textOptions')} onSelect={() => select('text')} {...group('text')}>
+        <ToolGroup face={{ icon: Type, label: TEXT.toolbar.textTool, isActive: textActive }} shortcut={KEYS.text} menuLabel={TEXT.toolbar.textOptions} onSelect={() => select('text')} {...group('text')}>
           <div className="atlas-dropdown-section">
             <DropdownSwatchGrid label={t('toolbar.colour')} swatches={TEXT_COLOR_SWATCHES} value={settings.text.color} onChange={(color) => host.settings.update('text', { color })} />
           </div>
           <div className="atlas-dropdown-section">
             <div className="space-y-3">
-              <DropdownSliderRow label={t('toolbar.size')} value={settings.text.size} min={10} max={96} onChange={(size) => host.settings.update('text', { size })} />
-              <DropdownToggleRow label={t('toolbar.bold')} value={settings.text.bold} onChange={() => host.settings.update('text', { bold: !settings.text.bold })} />
+              <SizeRow label={TEXT.toolbar.textSize} value={settings.text.size} onChange={(size) => host.settings.update('text', { size })} />
+              <DropdownToggleRow label={TEXT.toolbar.bold} value={settings.text.bold} onChange={() => host.settings.update('text', { bold: !settings.text.bold })} />
             </div>
           </div>
         </ToolGroup>
 
         <ToolGroup face={measure} shortcut={KEYS.measure} menuLabel={t('toolbar.measureOptions')} onSelect={() => select(measure.tool)} {...group('measure')}>
           <div className="atlas-dropdown-section">
-            <DropdownMenuItem icon={Ruler} label={t('toolbar.line')} isActive={tool === 'measure'} onClick={() => select('measure')} />
+            <DropdownMenuItem icon={Ruler} label={TEXT.toolbar.line} isActive={tool === 'measure'} onClick={() => select('measure')} />
             <DropdownMenuItem icon={Circle} label={t('toolbar.circle')} isActive={tool === 'measure-circle'} onClick={() => select('measure-circle')} />
             <DropdownMenuItem icon={Triangle} label={t('toolbar.cone')} isActive={tool === 'measure-cone'} onClick={() => select('measure-cone')} />
           </div>
           <div className="atlas-dropdown-separator"></div>
           <div className="atlas-dropdown-section">
-            <DropdownToggleRow label={t('toolbar.persist')} value={settings.measure.persist} onChange={() => host.settings.update('measure', { persist: !settings.measure.persist })} />
+            <DropdownToggleRow label={TEXT.toolbar.persist} value={settings.measure.persist} onChange={() => host.settings.update('measure', { persist: !settings.measure.persist })} />
           </div>
         </ToolGroup>
 
@@ -237,12 +256,29 @@ function PlayerToolbar({ host, state }: { host: ToolbarHost; state: () => Toolba
             <div className="atlas-dice-tray">
               <div className="atlas-dice-panel">
                 <DiceTray
-                  onRoll={(formula, side) => {
+                  memory={trayMemory}
+                  onRemember={setTrayMemory}
+                  // The page checks what it can read; the GM's Atlas checks the roll again with the map's rules.
+                  check={(formula) => {
+                    const parsed = parseFormula(formula);
+                    return 'code' in parsed ? parsed : null;
+                  }}
+                  onRoll={({ formula, advantage: side }) => {
                     if (!host.roll(formula, side)) return false;
                     setMenu(null);
                     return true;
                   }}
-                  advantage={shown.advantage.length > 0 ? { sides: shown.advantage, applies: (formula) => shown.dice === null || rollsSetDice(formula, { dice: shown.dice }) } : undefined}
+                  // The GM keeps the table's rolls in the log; the tray holds no history of its own here.
+                  history={[]}
+                  onRepeat={() => false}
+                  historyOpen={false}
+                  onHistoryOpen={() => undefined}
+                  onClose={() => setMenu(null)}
+                  advantage={shown.advantage.length > 0 ? {
+                    sides: shown.advantage,
+                    applies: (formula) => shown.dice === null || rollsSetDice(formula, { dice: shown.dice }),
+                    dice: shown.dice === null ? 'd20' : setRollText(shown.dice),
+                  } : undefined}
                 />
               </div>
             </div>

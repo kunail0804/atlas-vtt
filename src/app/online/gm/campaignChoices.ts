@@ -18,6 +18,8 @@ export interface CampaignChoice {
   readonly art: string | null;
   /** A hue of its own (0–359) for a campaign without a world map, as the dashboard tints it. */
   readonly hue: number;
+  /** Whether it keeps a game system of its own, which every map then plays by in place of its collection's. */
+  readonly ownSystem: boolean;
 }
 
 /** The campaigns tables can be started on, the table's players, and their changes. */
@@ -72,6 +74,7 @@ export function appCampaignChoices(app: App): CampaignChoices {
     activity: campaignActivity(campaign),
     art: artOf(campaign.worldMap),
     hue: fnv1a32(campaign.id) % 360,
+    ownSystem: campaign.system !== undefined,
   });
   return {
     list: () => {

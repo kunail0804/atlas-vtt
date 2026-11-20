@@ -1,17 +1,16 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { MotionConfig, motion } from 'framer-motion';
-import {
-  Search, X, Folder, Settings, ChevronDown, Check, Tag,
-  Download, Upload,
-} from 'lucide-react';
+import React, { useState, useRef, useMemo } from 'react';
+import { MotionConfig, motion, useReducedMotion } from 'framer-motion';
+import { Search, X, Settings, Tag, Download, Upload, MoreHorizontal } from 'lucide-react';
 import { Button } from '../../primitives/button';
 import { LabelTooltip } from '../../primitives/tooltip';
 import type { AnyAsset, CollectionOption, Tag as TagType } from '../types';
 import { hasAssetTag } from '../../../../services/tagGroups';
 import type { SidebarLayout } from '../hooks/useSidebarLayout';
-import { sidebarContentVariants, sidebarMotionState, sidebarVariants } from './sidebarMotion';
+import { sidebarContentVariants, sidebarMotionState, sidebarVariants, stillSidebarContentVariants, stillSidebarVariants } from './sidebarMotion';
 import { ClearTagsChip } from './ClearTagsChip';
 import { TagListSkeleton } from './TagListSkeleton';
+import { CollectionPicker } from './CollectionPicker';
+import { HeaderMenu, type HeaderMenuItem } from './HeaderMenu';
 import { t } from '../../../../i18n';
 
 export interface SidebarProps {
@@ -21,7 +20,13 @@ export interface SidebarProps {
   tags: TagType[];
   /** The collection's tags are not loaded yet: the list shows placeholders instead of "No tags yet". */
   tagsLoading?: boolean;
-  assets: AnyAsset[];
+  /** The collection could not be loaded: its tags are unknown, so the list shows neither placeholders nor "No tags yet". */
+  tagsFailed?: boolean;
+  /**
+   * The assets tags are counted in: those of the tab, in every folder, that the search and the other filters leave
+   * (`CreatureFiltering.matching`). A tag's count is therefore what the list shows once it is picked.
+   */
+  countedAssets: readonly AnyAsset[];
   collections: CollectionOption[];
   /** Id of the selected collection. */
   selectedCollection: string;
@@ -36,13 +41,28 @@ export interface SidebarProps {
   layout?: Pick<SidebarLayout, 'isFloating' | 'isPeeking' | 'isNearEdge' | 'panelRef'>;
 }
 
+/** The selected collection's actions in its ⋯ menu, each offered only where the manager handles it. */
+function collectionMenuItems(handlers: {
+  onSettings: (() => void) | undefined;
+  onExport: (() => void) | undefined;
+  onImport: (() => void) | undefined;
+}): HeaderMenuItem[] {
+  const items: HeaderMenuItem[] = [
+    { key: 'settings', label: t('am.sidebar.settings'), icon: <Settings />, onSelect: handlers.onSettings },
+    { key: 'export', label: t('am.sidebar.export'), icon: <Upload />, onSelect: handlers.onExport },
+    { key: 'import', label: t('am.sidebar.import'), icon: <Download />, onSelect: handlers.onImport },
+  ];
+  return items.filter((item) => item.onSelect !== undefined);
+}
+
 export function Sidebar({
   selectedTagIds,
   onSelectTag,
   onClearTags,
   tags,
   tagsLoading = false,
-  assets,
+  tagsFailed = false,
+  countedAssets,
   collections,
   selectedCollection,
   onSelectCollection,
@@ -53,18 +73,9 @@ export function Sidebar({
   footer,
   layout,
 }: SidebarProps): React.JSX.Element {
-  const [isCollectionDropdownOpen, setIsCollectionDropdownOpen] = useState(false);
-  const [collectionSearchQuery, setCollectionSearchQuery] = useState('');
-  const collectionDropdownRef = useRef<HTMLDivElement>(null);
-
   const [isTagsSearchVisible, setIsTagsSearchVisible] = useState(false);
   const [tagsSearchQuery, setTagsSearchQuery] = useState('');
   const tagsSearchInputRef = useRef<HTMLInputElement>(null);
-
-  const filteredCollections = collections.filter((c) =>
-    c.name.toLowerCase().includes(collectionSearchQuery.toLowerCase())
-  );
-  const selectedCollectionName = collections.find((c) => c.id === selectedCollection)?.name;
 
   const filteredTags = tagsSearchQuery
     ? tags.filter((t) => t.name.toLowerCase().includes(tagsSearchQuery.toLowerCase()))
@@ -73,28 +84,10 @@ export function Sidebar({
   const tagCounts = useMemo(() => {
     const counts = new Map<string, number>();
     for (const tag of tags) {
-      counts.set(tag.id, assets.filter((asset) => hasAssetTag(asset.tags, tag)).length);
+      counts.set(tag.id, countedAssets.filter((asset) => hasAssetTag(asset.tags, tag)).length);
     }
     return counts;
-  }, [tags, assets]);
-
-  useEffect(() => {
-    if (!isCollectionDropdownOpen) return;
-    const handleClickOutside = (event: MouseEvent): void => {
-      if (collectionDropdownRef.current && !collectionDropdownRef.current.contains(event.target as Node)) {
-        setIsCollectionDropdownOpen(false);
-        setCollectionSearchQuery('');
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isCollectionDropdownOpen]);
-
-  const handleCollectionSelect = (collectionId: string): void => {
-    onSelectCollection(collectionId);
-    setIsCollectionDropdownOpen(false);
-    setCollectionSearchQuery('');
-  };
+  }, [tags, countedAssets]);
 
   const toggleTagSearch = (): void => {
     const next = !isTagsSearchVisible;
@@ -106,23 +99,15 @@ export function Sidebar({
     }
   };
 
-  const renderCollectionOption = (collectionId: string, label: string): React.JSX.Element => (
-    <button
-      key={collectionId}
-      type="button"
-      className={`atlas-collection-option ${selectedCollection === collectionId ? 'atlas-selected' : ''}`}
-      onClick={() => handleCollectionSelect(collectionId)}
-    >
-      <div className="atlas-collection-option-content">
-        <Folder className="atlas-collection-option-icon" />
-        <span className="atlas-collection-option-text">{label}</span>
-      </div>
-      <Check className="atlas-collection-check" />
-    </button>
-  );
+  const collectionActions = collectionMenuItems({
+    onSettings: onEditCollectionSettings && (() => onEditCollectionSettings(selectedCollection)),
+    onExport: onExportCollection,
+    onImport: onImportCollection,
+  });
 
   const isFloating = layout?.isFloating === true;
   const isHidden = isFloating && !layout.isPeeking;
+  const still = useReducedMotion() === true;
 
   return (
     <MotionConfig reducedMotion="user">
@@ -132,84 +117,26 @@ export function Sidebar({
         className={`atlas-asset-manager-sidebar ${isFloating ? 'atlas-floating' : ''}`}
         aria-hidden={isHidden ? true : undefined}
         inert={isHidden ? true : undefined}
-        variants={sidebarVariants}
+        variants={still ? stillSidebarVariants : sidebarVariants}
         initial={false}
         animate={sidebarMotionState(isFloating, layout?.isPeeking === true)}
       >
-        <motion.div className="atlas-asset-manager-sidebar-content" variants={sidebarContentVariants}>
+        <motion.div className="atlas-asset-manager-sidebar-content" variants={still ? stillSidebarContentVariants : sidebarContentVariants}>
           <div className="atlas-collections">
-            <div className="atlas-collections-heading-row">
-              <div className="atlas-section-title">{t('am.sidebar.collection')}</div>
-              <div className="atlas-collections-heading-actions">
-                {onExportCollection && (
-                  <LabelTooltip label={t('am.sidebar.export')}>
-                    <Button variant="ghost" size="icon" className="atlas-collection-header-btn" onClick={onExportCollection}>
-                      <Upload />
-                    </Button>
-                  </LabelTooltip>
-                )}
-                {onImportCollection && (
-                  <LabelTooltip label={t('am.sidebar.import')}>
-                    <Button variant="ghost" size="icon" className="atlas-collection-header-btn" onClick={onImportCollection}>
-                      <Download />
-                    </Button>
-                  </LabelTooltip>
-                )}
-              </div>
-            </div>
-
-            <div className="atlas-collection-row">
-              <div className={`atlas-collection-dropdown ${isCollectionDropdownOpen ? 'atlas-open' : ''}`} ref={collectionDropdownRef}>
-                <button
-                  type="button"
-                  className={`atlas-collection-dropdown-trigger ${isCollectionDropdownOpen ? 'atlas-open' : ''}`}
-                  onClick={(e) => { e.stopPropagation(); setIsCollectionDropdownOpen(!isCollectionDropdownOpen); setCollectionSearchQuery(''); }}
-                  aria-haspopup="listbox"
-                  aria-expanded={isCollectionDropdownOpen}
-                >
-                  <span className="atlas-collection-selected">
-                    <Folder />
-                    <span>{selectedCollectionName ?? selectedCollection}</span>
-                  </span>
-                  <ChevronDown className={`atlas-collection-chevron ${isCollectionDropdownOpen ? 'atlas-rotated' : ''}`} />
-                </button>
-
-                {isCollectionDropdownOpen && (
-                  <div className="atlas-collection-dropdown-content" role="listbox">
-                    <div className="atlas-collection-search">
-                      <Search className="atlas-collection-search-icon" />
-                      <input
-                        type="text"
-                        placeholder={t('creator.searchCollections')}
-                        value={collectionSearchQuery}
-                        onChange={(e) => setCollectionSearchQuery(e.target.value)}
-                        className="atlas-collection-search-input"
-                        autoFocus
-                      />
-                    </div>
-                    <div className="atlas-collection-options">
-                      {filteredCollections.map((collection) => renderCollectionOption(collection.id, collection.name))}
-                      {filteredCollections.length === 0 && collectionSearchQuery && (
-                        <div className="atlas-collection-no-results">{t('creator.noCollections')}</div>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {onEditCollectionSettings && (
-                <LabelTooltip label={t('am.sidebar.settings')}>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="atlas-collection-header-btn"
-                    onClick={(e) => { e.stopPropagation(); onEditCollectionSettings(selectedCollection); }}
-                  >
-                    <Settings />
-                  </Button>
-                </LabelTooltip>
-              )}
-            </div>
+            <CollectionPicker
+              collections={collections}
+              selectedCollection={selectedCollection}
+              onSelectCollection={onSelectCollection}
+            />
+            {collectionActions.length > 0 && (
+              <HeaderMenu
+                label={t('am.sidebar.collection')}
+                triggerClassName="atlas-collection-more-btn"
+                iconTrigger
+                triggerContent={<MoreHorizontal />}
+                items={collectionActions}
+              />
+            )}
           </div>
 
           <div className="atlas-tags">
@@ -252,8 +179,8 @@ export function Sidebar({
             )}
 
             <div className="atlas-tags-list">
-              {tagsLoading && <TagListSkeleton />}
-              {!tagsLoading && (filteredTags.length > 0 ? (
+              {tagsLoading && !tagsFailed && <TagListSkeleton />}
+              {!tagsLoading && !tagsFailed && (filteredTags.length > 0 ? (
                 filteredTags.map((tag) => {
                   const tagCount = tagCounts.get(tag.id) ?? 0;
                   return (
@@ -284,14 +211,16 @@ export function Sidebar({
 
           {footer}
 
-          <Button
-            variant="ghost"
-            className="atlas-asset-manager-manage-btn"
-            onClick={(e) => { e.stopPropagation(); onManageTags(); }}
-          >
-            <Settings />
-            <span>{t('am.sidebar.manage')}</span>
-          </Button>
+          <div className="atlas-sidebar-actions">
+            <Button
+              variant="ghost"
+              className="atlas-asset-manager-manage-btn"
+              onClick={(e) => { e.stopPropagation(); onManageTags(); }}
+            >
+              <Settings />
+              <span>{t('am.sidebar.manage')}</span>
+            </Button>
+          </div>
         </motion.div>
       </motion.aside>
     </MotionConfig>

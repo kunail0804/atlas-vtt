@@ -57,7 +57,7 @@ export function renderMenu(layer: HTMLElement, model: MenuModel, actions: MenuAc
   renderImageRow(layer, model.imageShown, actions);
   renderWorldRow(layer, model.world, actions);
   if (model.link !== null) inviteRow(layer, () => actions.copy(), { open: model.qr, toggle: () => actions.toggleQr() }, linkEntries(layer, actions, redraw));
-  renderCodeRow(layer, model.gate, actions);
+  renderCodeRow(layer, model.gate);
   addPlayerRow(layer, actions, redraw);
   if (!model.isShared) {
     const share = textButton(layer, t('online.share'), () => actions.share());

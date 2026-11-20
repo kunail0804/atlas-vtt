@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import type { Plugin } from 'obsidian';
 import { describe, expect, it, vi } from 'vitest';
+import type { AtlasAccount } from '../../../src/app/account/AtlasAccount';
 import { CampaignPlay } from '../../../src/app/campaigns/campaignPlay';
 import { registerOnlinePlay } from '../../../src/app/plugin/onlinePlay';
 import type { SettingsService } from '../../../src/app/services/SettingsService';
@@ -12,6 +13,9 @@ vi.mock('../../../src/app/online/gm/OnlineFeature.ts', () => ({
     flush = (): Promise<void> => Promise.resolve();
   },
 }));
+
+/** The plugin's account; the mocked feature never reads it. */
+const ACCOUNT = {} as AtlasAccount;
 
 /** A plugin that records its children, and settings whose experimental switch the test flips. */
 function host(): { plugin: Plugin; settings: SettingsService; children: Set<unknown>; commands: Map<string, (checking: boolean) => boolean>; playedAtRemoval: (string | null)[]; flip(on: boolean): void } {
@@ -39,14 +43,14 @@ function host(): { plugin: Plugin; settings: SettingsService; children: Set<unkn
 describe('online play behind its experimental switch', () => {
   it('loads nothing and offers no settings while the switch is off', () => {
     const { plugin, settings, children } = host();
-    const online = registerOnlinePlay(plugin, settings);
+    const online = registerOnlinePlay(plugin, settings, ACCOUNT);
     expect(children.size).toBe(0);
     expect(online.settingsSections()).toEqual([]);
   });
 
   it('loads with the switch, once, and unloads when it goes off', () => {
     const { plugin, settings, children, flip } = host();
-    const online = registerOnlinePlay(plugin, settings);
+    const online = registerOnlinePlay(plugin, settings, ACCOUNT);
     flip(true);
     flip(true);
     expect(children.size).toBe(1);
@@ -60,13 +64,13 @@ describe('online play behind its experimental switch', () => {
     const { plugin, settings, flip } = host();
     const play = CampaignPlay.forApp(plugin.app);
     expect(play.playing()).toBe('a'.repeat(24));
-    registerOnlinePlay(plugin, settings);
+    registerOnlinePlay(plugin, settings, ACCOUNT);
     expect(play.playing()).toBeNull();
   });
 
   it('switched off while a table runs, ends the play only after the table was closed', () => {
     const { plugin, settings, flip, playedAtRemoval } = host();
-    registerOnlinePlay(plugin, settings);
+    registerOnlinePlay(plugin, settings, ACCOUNT);
     flip(true);
     const play = CampaignPlay.forApp(plugin.app);
     play.play('b'.repeat(24));
@@ -77,7 +81,7 @@ describe('online play behind its experimental switch', () => {
 
   it('registers its commands once and offers them only while it is loaded', () => {
     const { plugin, settings, commands, flip } = host();
-    registerOnlinePlay(plugin, settings);
+    registerOnlinePlay(plugin, settings, ACCOUNT);
     const start = commands.get('start-online-table');
     expect(commands.size).toBe(6);
     expect(start?.(true)).toBe(false);

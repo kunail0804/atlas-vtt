@@ -29,7 +29,7 @@ export const FIVE_E_2014_MONSTER: BuiltInTemplate = builtIn('builtin:5e-2014-mon
     { key: 'ac_class', label: 'Armor', type: 'text' },
     { key: 'hp', label: 'Hit Points', type: 'number', meaning: 'hit-points' },
     { key: 'hit_dice', label: 'Hit Dice', type: 'dice' },
-    { key: 'speed', label: 'Speed', type: 'text' },
+    { key: 'speed', label: 'Speed', type: 'text', meaning: 'speed' },
     {
       key: 'stats', label: 'Abilities', type: 'scores', addRows: false, addColumns: false, slots: ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA'], align: centredColumns(6),
       slotKeys: ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'],

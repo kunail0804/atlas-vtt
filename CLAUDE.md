@@ -14,8 +14,9 @@ This repository is a fork whose `main` is its own product; `.github/WORKFLOW.md`
   on merge into main the Docker image, the launcher when `VERSION` in `selfhost/launcher/version.ts` is
   raised, the campaigns service when `selfhost/service/` changes, the compendium sources when
   `compendium/builder/` changes. Never push an image, a release or a deployment by hand.
-- Upstream (`atlas-vtt/atlas-vtt`) is not followed: take a commit from it with `git cherry-pick` on a branch from
-  develop. Never open a pull request from an `upstream-*` branch.
+- Upstream (`atlas-vtt/atlas-vtt`) is followed by releases: a sync merges an `upstream-sync-<date>` branch into a
+  branch from develop with a real `git merge` (upstream's version first, the fork's additions put back on top), merged
+  with a merge commit. A single fix may still be cherry-picked. Never open a pull request from an `upstream-*` branch.
 
 # Context
 - We are working on Atlas VTT, a Virtual Tabletop plugin for Obsidian.md

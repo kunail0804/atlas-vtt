@@ -58,7 +58,9 @@ export function useCollectionTransfer({ app, assetService, selectedCollection, o
   const isMounted = useRef(true);
   useEffect(() => {
     isMounted.current = true;
-    return (): void => { isMounted.current = false; };
+    return (): void => {
+      isMounted.current = false;
+    };
   }, []);
 
   const working = (title: string): BundleProgressListener => (progress) => setTransfer({ step: 'working', title, progress });
@@ -118,11 +120,11 @@ export function useCollectionTransfer({ app, assetService, selectedCollection, o
     return null;
   };
 
-  const importFile = async (file: File): Promise<void> => {
+  const importBundle = async (data: Blob): Promise<void> => {
     if (!assetService) return;
     setTransfer({ step: 'working', title: IMPORTING, progress: { message: t('bundle.reading'), fraction: 0 } });
     try {
-      session.current = await openCollectionImport(app, assetService, file, working(IMPORTING));
+      session.current = await openCollectionImport(app, assetService, data, working(IMPORTING));
       setTransfer({ step: 'import-review', review: session.current.review, files: session.current.files });
     } catch (error) {
       console.error('[useCollectionTransfer] Reading the bundle failed:', error);
@@ -162,7 +164,7 @@ export function useCollectionTransfer({ app, assetService, selectedCollection, o
     input.addEventListener('change', () => {
       const file = input.files?.[0];
       input.remove();
-      if (file) void importFile(file);
+      if (file) void importBundle(file);
     });
     input.addEventListener('cancel', () => input.remove());
     input.click();

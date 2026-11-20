@@ -2,8 +2,6 @@ import React from "react"
 import { ToolButton } from "../primitives/ToolButton"
 import { DropdownMenu } from "../primitives/DropdownMenu"
 
-const CHEVRON_CLASS = "h-9 w-5 p-0 ml-0 text-[var(--text-muted)] hover:text-[var(--text-normal)] hover:bg-[var(--background-modifier-hover)]"
-
 /** What a tool button shows: its icon and label, and whether its tool is in use. */
 export interface ToolGroupFace {
   icon: React.ComponentType<{ className?: string }>
@@ -22,7 +20,7 @@ interface ToolGroupProps {
   children: React.ReactNode
 }
 
-/** A split button: the tool itself, and a chevron opening the tool's options. */
+/** The tool itself, and beside it a chevron opening the tool's options. */
 export function ToolGroup({ face, shortcut, menuLabel, menuOpen, onSelect, onMenuToggle, children }: ToolGroupProps): React.ReactElement {
   return (
     <div className="atlas-tool-group">
@@ -33,7 +31,7 @@ export function ToolGroup({ face, shortcut, menuLabel, menuOpen, onSelect, onMen
         position="top"
         align="left"
         label={menuLabel}
-        chevronClassName={CHEVRON_CLASS}
+        chevronClassName="atlas-tool-group__chevron"
         menuClassName="min-w-[220px] shadow-ob"
       >
         {children}

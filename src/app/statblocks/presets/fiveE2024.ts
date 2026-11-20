@@ -33,7 +33,7 @@ export const FIVE_E_2024_MONSTER: BuiltInTemplate = builtIn('builtin:5e-2024-mon
     { key: 'initiative', label: 'Initiative', type: 'number', meaning: 'initiative' },
     { key: 'hp', label: 'HP', type: 'number', meaning: 'hit-points' },
     { key: 'hit_dice', label: 'Hit Dice', type: 'dice' },
-    { key: 'speed', label: 'Speed', type: 'text' },
+    { key: 'speed', label: 'Speed', type: 'text', meaning: 'speed' },
     {
       key: 'stats', label: 'Abilities', type: 'scores', addRows: false, addColumns: false, slots: ['Str', 'Dex', 'Con', 'Int', 'Wis', 'Cha'],
       slotKeys: ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'],

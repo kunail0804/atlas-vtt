@@ -89,13 +89,16 @@ of the *Tâche* template, or the labels `review:claude`, `review:glm`, `review:d
 
 ## Upstream
 
-`atlas-vtt/atlas-vtt` stays in sight without being followed:
+`atlas-vtt/atlas-vtt` is followed by releases:
 
-- Branch `upstream-main` is upstream's main as of the last Monday.
-- Every Monday the `upstream` workflow keeps that week's upstream as `upstream-sync-<date>` and opens an issue
+- Branch `upstream-main` is upstream's main as of the last run of the `upstream` workflow.
+- The `upstream` workflow runs only when started by hand (Actions tab, or `gh workflow run upstream.yml
+  -R kunail0804/atlas-vtt`). It keeps upstream as it is then as `upstream-sync-<date>` and opens an issue
   (label `upstream`) with the new commits and the files that would conflict with develop.
-- To take something: a branch from develop, `git cherry-pick <commit>` (or copy by hand), a pull request into
-  develop.
+- To take a release: a branch from develop, a real `git merge` of the `upstream-sync-<date>` branch (upstream's version
+  first, the fork's additions put back on top), a pull request into develop merged with a merge commit, so the common
+  base with upstream moves forward.
+- A single fix may still be taken alone: a branch from develop, `git cherry-pick <commit>`, a pull request into develop.
   Never open a pull request from an `upstream-*` branch: it holds upstream's workflows, which would run on it.
 
 Locally the remote `upstream` points at it: `git fetch upstream`, then `git log develop..upstream/main`.
