@@ -26,37 +26,33 @@ function rules(conditions: SystemRules['conditions']): SystemRules {
   return { gridDefaults: structuredClone(dnd5e.rules.gridDefaults), conditions };
 }
 
-it('built-in presets', () => {
-  // name distances with the Daggerheart SRD grid conversion
-  {
+describe('built-in presets', () => {
+  it('name distances with the Daggerheart SRD grid conversion', () => {
     const settings = resolveMeasurementSettings(daggerheart.rules.gridDefaults, null);
     const label = (squares: number): string => formatDistance(squares, settings);
     expect([1, 2, 3, 4, 6, 7, 12, 13, 40].map(label)).toEqual([
       'Melee', 'Very Close', 'Very Close', 'Close', 'Close', 'Far', 'Far', 'Very Far', 'Very Far',
     ]);
-  }
+  });
 
-  // name Shadowdark distances close, near, double near and far on 5-foot squares
-  {
+  it('name Shadowdark distances close, near, double near and far on 5-foot squares', () => {
     const shadowdark = BUILT_IN_SYSTEM_PRESETS.find((preset) => preset.name === 'Shadowdark')!;
     const settings = resolveMeasurementSettings(shadowdark.rules.gridDefaults, null);
     const label = (squares: number): string => formatDistance(squares, settings);
     expect([1, 2, 6, 7, 12, 13, 30].map(label)).toEqual([
       'Close', 'Near', 'Near', 'Double Near', 'Double Near', 'Far', 'Far',
     ]);
-  }
+  });
 
-  // measure Old-School Essentials at its miniatures scale of 5 feet per square
-  {
+  it('measure Old-School Essentials at its miniatures scale of 5 feet per square', () => {
     const ose = BUILT_IN_SYSTEM_PRESETS.find((preset) => preset.name === 'Old-School Essentials')!;
     const settings = resolveMeasurementSettings(ose.rules.gridDefaults, null);
     // The default encounter movement of 40' covers 8 squares.
     expect(formatDistance(8, settings)).toBe('40ft');
     expect(ose.rules.conditions.map((c) => c.name)).toContain('Paralysed');
-  }
+  });
 
-  // measure Cairn in 5-foot squares with its core-rule conditions
-  {
+  it('measure Cairn in 5-foot squares with its core-rule conditions', () => {
     const cairn = BUILT_IN_SYSTEM_PRESETS.find((preset) => preset.name === 'Cairn')!;
     const settings = resolveMeasurementSettings(cairn.rules.gridDefaults, null);
     // A turn's 40ft of movement covers 8 squares.
@@ -66,10 +62,9 @@ it('built-in presets', () => {
     // Saves roll under an attribute: a 1 always succeeds, a 20 always fails.
     const save = (value: number): ReturnType<typeof getDiceCrit> => getDiceCrit([{ die: 'd20', value, max: 20 }], cairn.rules.dice!);
     expect([save(1), save(20), save(10)]).toEqual(['high', 'low', null]);
-  }
+  });
 
-  // give every built-in system HP, Cairn STR from its stat row and Daggerheart Stress
-  {
+  it('give every built-in system HP, Cairn STR from its stat row and Daggerheart Stress', () => {
     for (const preset of BUILT_IN_SYSTEM_PRESETS) {
       const hp = preset.rules.resources?.find((r) => r.key === 'hp');
       // In Cairn a character at 0 HP still stands; STR 0 is death
@@ -81,37 +76,33 @@ it('built-in presets', () => {
     expect(cairn.rules.resources?.filter((r) => r.defeatedWhenSpent).map((r) => r.key)).toEqual(['str']);
     const daggerheart = BUILT_IN_SYSTEM_PRESETS.find((p) => p.name === 'Daggerheart')!;
     expect(daggerheart.rules.resources?.map((r) => [r.key, r.direction])).toEqual([['hp', 'drains'], ['stress', 'fills']]);
-  }
+  });
 
-  // count a changed resource list as an edited system
-  {
+  it('count a changed resource list as an edited system', () => {
     const cairn = BUILT_IN_SYSTEM_PRESETS.find((p) => p.name === 'Cairn')!;
     const rules = rulesOfPreset(cairn);
     expect(sameSystemRules(rules, rules)).toBe(true);
     expect(sameSystemRules(rules, { ...rules, resources: rules.resources.slice(0, 1) })).toBe(false);
-  }
+  });
 
-  // keep valid resources of stored user presets and drop broken ones
-  {
+  it('keep valid resources of stored user presets and drop broken ones', () => {
     const [preset] = parseUserPresets([{ id: 'u1', name: 'Mine', builtIn: false, rules: {
       gridDefaults: BUILT_IN_SYSTEM_PRESETS[0]!.rules.gridDefaults, conditions: [],
       resources: [{ key: 'ammo', name: 'Ammo', field: 'ammo', direction: 'drains', color: '#f59e0b', visibleToPlayers: true }, { key: '', name: 'x' }],
     } }]);
     expect(preset?.rules.resources?.map((r) => r.key)).toEqual(['ammo']);
-  }
+  });
 
-  // does not count the old bar switches or what players see as an edit of the system
-  {
+  it('does not count the old bar switches or what players see as an edit of the system', () => {
     const daggerheart = BUILT_IN_SYSTEM_PRESETS.find((preset) => preset.id === 'builtin:daggerheart')!;
     const rules = rulesOfPreset(daggerheart);
     expect(sameSystemRules(daggerheart.rules, { ...rules, defaultWidgets: { hpBar: true, stressBar: true } })).toBe(true);
     expect(sameSystemRules(daggerheart.rules, { ...rules, resources: rules.resources.map((r) => ({ ...r, visibleToPlayers: true })) })).toBe(true);
     expect(sameSystemRules(daggerheart.rules, { ...rules, resources: rules.resources.map((r) => ({ ...r, direction: 'fills' as const })) })).toBe(false);
     expect(sameSystemRules(daggerheart.rules, { ...rules, defaultWidgets: { initiativeTracker: true } })).toBe(false);
-  }
+  });
 
-  // gives a user preset saved before resources the bars its default widgets switched on
-  {
+  it('gives a user preset saved before resources the bars its default widgets switched on', () => {
     const rules = { gridDefaults: BUILT_IN_SYSTEM_PRESETS[0]!.rules.gridDefaults, conditions: [] };
     const [plain, both, emptied] = parseUserPresets([
       { id: 'u1', name: 'Old', rules: { ...rules, defaultWidgets: { hpBar: true } } },
@@ -121,10 +112,9 @@ it('built-in presets', () => {
     expect(rulesOfPreset(plain!).resources.map((r) => r.key)).toEqual(['hp']);
     expect(rulesOfPreset(both!).resources.map((r) => r.key)).toEqual(['hp', 'stress']);
     expect(rulesOfPreset(emptied!).resources).toEqual([]);
-  }
+  });
 
-  // measure Pathfinder 2e in 5-foot squares with 5/10 diagonals and the Remaster conditions
-  {
+  it('measure Pathfinder 2e in 5-foot squares with 5/10 diagonals and the Remaster conditions', () => {
     const pf2 = BUILT_IN_SYSTEM_PRESETS.find((preset) => preset.name === 'Pathfinder 2e')!;
     const settings = resolveMeasurementSettings(pf2.rules.gridDefaults, null);
     expect(settings.diagonalRule).toBe('alternating');
@@ -133,10 +123,9 @@ it('built-in presets', () => {
     expect(names).toHaveLength(35);
     expect(names).toContain('Off-Guard');
     expect(names).not.toContain('Flat-Footed');
-  }
+  });
 
-  // open a 5e cone as wide as it is long and every other cone a quarter circle
-  {
+  it('open a 5e cone as wide as it is long and every other cone a quarter circle', () => {
     const dnd5e = BUILT_IN_SYSTEM_PRESETS.find((preset) => preset.id === 'builtin:dnd5e')!;
     const { coneAngle } = resolveMeasurementSettings(dnd5e.rules.gridDefaults, null);
     // Width at the far end over the length: 2 × tan(half the angle)
@@ -144,19 +133,17 @@ it('built-in presets', () => {
     const pf2 = BUILT_IN_SYSTEM_PRESETS.find((preset) => preset.name === 'Pathfinder 2e')!;
     expect(resolveMeasurementSettings(pf2.rules.gridDefaults, null).coneAngle).toBe(90);
     expect(resolveMeasurementSettings(undefined, null).coneAngle).toBe(90);
-  }
+  });
 
-  // give a 5e collection set up before cone angles existed the 5e cone, still unedited
-  {
+  it('give a 5e collection set up before cone angles existed the 5e cone, still unedited', () => {
     const dnd5e = BUILT_IN_SYSTEM_PRESETS.find((preset) => preset.id === 'builtin:dnd5e')!;
     const { coneAngle: _, ...older } = dnd5e.rules.gridDefaults;
     expect(collectionConeAngle(older, dnd5e.id)).toBe(dnd5e.rules.gridDefaults.coneAngle);
     expect(collectionConeAngle(older, undefined)).toBe(90);
     expect(sameSystemRules(dnd5e.rules, { ...rulesOfPreset(dnd5e), gridDefaults: older })).toBe(true);
-  }
+  });
 
-  // keep a valid cone angle of a stored user preset and count it as part of the system
-  {
+  it('keep a valid cone angle of a stored user preset and count it as part of the system', () => {
     const gridDefaults = BUILT_IN_SYSTEM_PRESETS[0]!.rules.gridDefaults;
     const [narrow, broken] = parseUserPresets([
       { id: 'u1', name: 'Narrow', rules: { gridDefaults: { ...gridDefaults, coneAngle: 60 }, conditions: [] } },
@@ -165,37 +152,33 @@ it('built-in presets', () => {
     expect(narrow?.rules.gridDefaults.coneAngle).toBe(60);
     expect(broken?.rules.gridDefaults.coneAngle).toBeUndefined();
     expect(sameSystemRules(broken!.rules, rulesOfPreset(narrow!))).toBe(false);
-  }
+  });
 
-  // measure Cyberpunk RED in 2-metre squares where a diagonal step costs one square
-  {
+  it('measure Cyberpunk RED in 2-metre squares where a diagonal step costs one square', () => {
     const cyberpunk = BUILT_IN_SYSTEM_PRESETS.find((preset) => preset.name === 'Cyberpunk RED')!;
     const settings = resolveMeasurementSettings(cyberpunk.rules.gridDefaults, null);
     expect(settings.diagonalRule).toBe('equidistant');
     // MOVE 6 covers 6 squares, 12 m.
     expect(formatDistance(6, settings)).toBe('12m');
     expect(describeSystemRules(cyberpunk.rules)).toBe('2 m squares · 9 conditions · 1 sense');
-  }
+  });
 
-  // measure Call of Cthulhu in yards, one per square, along the exact distance
-  {
+  it('measure Call of Cthulhu in yards, one per square, along the exact distance', () => {
     const coc = BUILT_IN_SYSTEM_PRESETS.find((preset) => preset.name === 'Call of Cthulhu')!;
     const settings = resolveMeasurementSettings(coc.rules.gridDefaults, null);
     expect(settings.diagonalRule).toBe('euclidean');
     // A .38 revolver's base range of 15 yards.
     expect(formatDistance(15, settings)).toBe('15yd');
     expect(describeSystemRules(coc.rules)).toBe('1 yd squares · 9 conditions');
-  }
+  });
 
-  // measure D&D 5e in 5-foot squares with every diagonal counting 5 feet
-  {
+  it('measure D&D 5e in 5-foot squares with every diagonal counting 5 feet', () => {
     const settings = resolveMeasurementSettings(dnd5e.rules.gridDefaults, null);
     expect(settings.diagonalRule).toBe('equidistant');
     expect(formatDistance(6, settings)).toBe('30ft');
-  }
+  });
 
-  // measure Draw Steel in 1-unit squares with every diagonal counting 1 unit
-  {
+  it('measure Draw Steel in 1-unit squares with every diagonal counting 1 unit', () => {
     const drawSteel = BUILT_IN_SYSTEM_PRESETS.find((preset) => preset.name === 'Draw Steel')!;
     const settings = resolveMeasurementSettings(drawSteel.rules.gridDefaults, null);
     expect(settings.diagonalRule).toBe('equidistant');
@@ -204,10 +187,9 @@ it('built-in presets', () => {
     expect(describeSystemRules(drawSteel.rules)).toBe('1 unit squares · 9 conditions');
     expect(drawSteel.id).toBe('builtin:drawsteel');
     expect(drawSteel.rules.conditions.map((c) => c.id)).toContain('drawsteel-bleeding');
-  }
+  });
 
-  // roll Draw Steel power rolls on 2d10 with a critical hit on 19 or 20, and track Stamina in place of hit points
-  {
+  it('roll Draw Steel power rolls on 2d10 with a critical hit on 19 or 20, and track Stamina in place of hit points', () => {
     const drawSteel = BUILT_IN_SYSTEM_PRESETS.find((preset) => preset.name === 'Draw Steel')!;
     expect(drawSteel.rules.dice).toEqual({ defaultRoll: '2d10', crit: 'high-total' });
     const power = (first: number, second: number): ReturnType<typeof getDiceCrit> =>
@@ -216,10 +198,9 @@ it('built-in presets', () => {
     expect([power(10, 10), power(9, 10), power(9, 9), power(10, 1), power(1, 1)]).toEqual(['high', 'high', null, null, null]);
     expect(drawSteel.rules.resources?.map((r) => [r.key, r.name, r.field, r.direction])).toEqual([['hp', 'Stamina', 'stamina', 'drains']]);
     expect(rulesOfPreset(drawSteel).defaultWidgets).toMatchObject({ hpBar: true, stressBar: false });
-  }
+  });
 
-  // carry the core conditions of each system with known icons and unique ids
-  {
+  it('carry the core conditions of each system with known icons and unique ids', () => {
     expect(daggerheart.rules.conditions.map((c) => c.name)).toEqual(['Hidden', 'Restrained', 'Vulnerable']);
     expect(dnd5e.rules.conditions).toHaveLength(15);
     for (const preset of BUILT_IN_SYSTEM_PRESETS) {
@@ -229,7 +210,7 @@ it('built-in presets', () => {
         expect(condition.icon && condition.icon in WIDGET_ICON_PATHS).toBe(true);
       }
     }
-  }
+  });
 });
 
 describe('rulesOfPreset', () => {
@@ -250,31 +231,28 @@ describe('the bar switches of a system', () => {
   });
 });
 
-it('comparing and describing rules', () => {
-  // ignores condition ids and colour case
-  {
+describe('comparing and describing rules', () => {
+  it('ignores condition ids and colour case', () => {
     const a = rules([{ id: 'x', name: 'Prone', color: '#AABBCC' }]);
     const b = rules([{ id: 'y', name: 'Prone', color: '#aabbcc' }]);
     expect(sameSystemRules(a, b)).toBe(true);
     expect(sameSystemRules(a, { ...b, gridDefaults: { ...b.gridDefaults, unitDistance: 10 } })).toBe(false);
-  }
+  });
 
-  // summarises measurement and conditions
-  {
+  it('summarises measurement and conditions', () => {
     expect(describeSystemRules(dnd5e.rules)).toBe('5 ft squares · 15 conditions · 6 senses');
     expect(describeSystemRules(daggerheart.rules)).toBe('5 range bands · 3 conditions · HP, Stress');
-  }
+  });
 
-  // finds the recorded preset, or the one whose rules match
-  {
+  it('finds the recorded preset, or the one whose rules match', () => {
     const edited = rules([]);
     expect(findActivePreset(BUILT_IN_SYSTEM_PRESETS, dnd5e.id, edited)?.id).toBe(dnd5e.id);
     expect(findActivePreset(BUILT_IN_SYSTEM_PRESETS, 'deleted', structuredClone(daggerheart.rules))?.id).toBe(daggerheart.id);
     expect(findActivePreset(BUILT_IN_SYSTEM_PRESETS, undefined, edited)).toBeUndefined();
-  }
+  });
 });
 
-it('parseUserPresets', () => {
+describe('parseUserPresets', () => {
   const valid = {
     id: 'p1',
     name: ' Homebrew ',
@@ -287,8 +265,7 @@ it('parseUserPresets', () => {
     },
   };
 
-  // keeps usable presets and drops what cannot be used
-  {
+  it('keeps usable presets and drops what cannot be used', () => {
     const parsed = parseUserPresets([
       valid,
       { ...valid, name: 'Duplicate id' },
@@ -309,16 +286,26 @@ it('parseUserPresets', () => {
         resources: [expect.objectContaining({ key: 'hp' })],
       },
     }]);
-  }
+  });
 
-  // reads anything that is not a list as no presets
-  {
+  it('keeps the Manhattan diagonal rule and a custom unit\'s name, and drops a name no custom unit shows', () => {
+    const grid = { unitType: 'custom', unitName: ' mi ', unitDistance: 1, measurementMode: 'metric', diagonalRule: 'manhattan', abstractRangeBands: [] };
+    const parsed = parseUserPresets([
+      { ...valid, rules: { ...valid.rules, gridDefaults: grid } },
+      { ...valid, id: 'p2', rules: { ...valid.rules, gridDefaults: { ...grid, unitType: 'feet', diagonalRule: 'taxicab' } } },
+    ]);
+    expect(parsed.map((preset) => preset.rules.gridDefaults)).toEqual([
+      { unitType: 'custom', unitName: 'mi', unitDistance: 1, measurementMode: 'metric', diagonalRule: 'manhattan', abstractRangeBands: [] },
+      { unitType: 'feet', unitDistance: 1, measurementMode: 'metric', diagonalRule: 'equidistant', abstractRangeBands: [] },
+    ]);
+  });
+
+  it('reads anything that is not a list as no presets', () => {
     expect(parseUserPresets(undefined)).toEqual([]);
     expect(parseUserPresets({})).toEqual([]);
-  }
+  });
 
-  // keeps a preset whose distance per square a field can show and read back, and drops any other
-  {
+  it('keeps a preset whose distance per square a field can show and read back, and drops any other', () => {
     // 1e999 is what a file's number too large to hold reads as: Infinity.
     const distances = [0.5, 0.000001, 1_000_000, 0, -5, 0.0000001, 1e23, JSON.parse('1e999') as number, null, '5'];
     const presets = distances.map((unitDistance, index) => ({
@@ -327,40 +314,34 @@ it('parseUserPresets', () => {
       rules: { ...valid.rules, gridDefaults: { ...valid.rules.gridDefaults, unitDistance } },
     }));
     expect(parseUserPresets(presets).map(preset => preset.rules.gridDefaults.unitDistance)).toEqual([0.5, 0.000001, 1_000_000]);
-  }
+  });
 });
 
-it('preset widgets', () => {
+describe('preset widgets', () => {
   const shadowdark = BUILT_IN_SYSTEM_PRESETS.find((preset) => preset.name === 'Shadowdark')!;
-
   const torch = shadowdark.rules.widgets![0]!;
-
   const fear = { id: 'fear', type: 'counter', label: 'Fear', icon: 'skull', visible: true, visibleToPlayers: true, value: 3, order: 4, scope: 'collection' } as const;
 
-  // gives Shadowdark a shared one-hour torch timer
-  {
+  it('gives Shadowdark a shared one-hour torch timer', () => {
     expect(torch).toMatchObject({ type: 'timer', label: 'Torch', icon: 'torch', duration: 3600, value: 3600, scope: 'collection' });
     expect(describeSystemRules(shadowdark.rules)).toBe('4 range bands · 10 conditions · 1 sense · Torch timer');
-  }
+  });
 
-  // gives a collection exactly its system's widgets and keeps the user's own
-  {
+  it('gives a collection exactly its system\'s widgets and keeps the user\'s own', () => {
     const withTorch = withSystemWidgets({ fear }, BUILT_IN_SYSTEM_PRESETS, shadowdark.id);
     expect(withTorch.fear).toBe(fear);
     expect(withTorch[torch.id]).toMatchObject({ label: 'Torch', order: 5 });
 
     expect(withSystemWidgets(withTorch, BUILT_IN_SYSTEM_PRESETS, dnd5e.id)).toEqual({ fear });
     expect(withSystemWidgets(withTorch, BUILT_IN_SYSTEM_PRESETS, undefined)).toEqual({ fear });
-  }
+  });
 
-  // keeps a running timer and returns the same record when nothing changes
-  {
+  it('keeps a running timer and returns the same record when nothing changes', () => {
     const current = { fear, [torch.id]: { ...torch, value: 1200 } };
     expect(withSystemWidgets(current, BUILT_IN_SYSTEM_PRESETS, shadowdark.id)).toBe(current);
-  }
+  });
 
-  // reads the widgets of stored presets and drops unusable ones
-  {
+  it('reads the widgets of stored presets and drops unusable ones', () => {
     const [preset] = parseUserPresets([{
       id: 'p1',
       name: 'Torchlit',
@@ -371,61 +352,53 @@ it('preset widgets', () => {
       },
     }]);
     expect(preset?.rules.widgets).toEqual([{ ...torch, icon: 'star' }]);
-  }
+  });
 });
 
-it('default token vision', () => {
+describe('default token vision', () => {
   const withVision = (vision: SystemRules['defaultTokenVision']): SystemRules => ({ ...rules([]), ...(vision && { defaultTokenVision: vision }) });
-
   const stored = (defaultTokenVision: unknown) => ({
     id: 'p1',
     name: 'Homebrew',
     rules: { gridDefaults: { unitType: 'feet', unitDistance: 5, measurementMode: 'metric' }, conditions: [], defaultTokenVision },
   });
 
-  // is copied by rulesOfPreset, not shared with the preset
-  {
+  it('is copied by rulesOfPreset, not shared with the preset', () => {
     const preset: SystemPreset = { id: 'user', name: 'Night', builtIn: false, rules: withVision({ darkvision: 60, angle: 120 }) };
     const copied = rulesOfPreset(preset);
     expect(copied.defaultTokenVision).toEqual({ darkvision: 60, angle: 120 });
     expect(copied.defaultTokenVision).not.toBe(preset.rules.defaultTokenVision);
-  }
+  });
 
-  // is left out of rulesOfPreset for a system that sets none
-  {
+  it('is left out of rulesOfPreset for a system that sets none', () => {
     expect(rulesOfPreset(dnd5e)).not.toHaveProperty('defaultTokenVision');
-  }
+  });
 
-  // is cleared by the vanilla settings
-  {
+  it('is cleared by the vanilla settings', () => {
     expect(vanillaSystemSettings().defaultTokenVision).toBeUndefined();
-  }
+  });
 
-  // shows in the preset summary when a system sets one
-  {
+  it('shows in the preset summary when a system sets one', () => {
     expect(describeSystemRules(withVision({ darkvision: 60 }))).toBe('5 ft squares · 0 conditions · Default vision');
     expect(describeSystemRules(withVision({}))).toBe('5 ft squares · 0 conditions');
     expect(describeSystemRules(withVision(undefined))).toBe('5 ft squares · 0 conditions');
-  }
+  });
 
-  // marks a preset as edited when it changes, and treats none and empty alike
-  {
+  it('marks a preset as edited when it changes, and treats none and empty alike', () => {
     expect(sameSystemRules(withVision({ darkvision: 60 }), withVision({ darkvision: 60 }))).toBe(true);
     expect(sameSystemRules(withVision({ darkvision: 60 }), withVision({ darkvision: 30 }))).toBe(false);
     expect(sameSystemRules(withVision({ darkvision: 60 }), withVision(undefined))).toBe(false);
     expect(sameSystemRules(withVision({ tremorsense: 10 }), withVision({ darkvision: 10 }))).toBe(false);
     expect(sameSystemRules(withVision({ range: 30, angle: 90 }), withVision({ angle: 90, range: 30 }))).toBe(true);
     expect(sameSystemRules(withVision({}), withVision(undefined))).toBe(true);
-  }
+  });
 
-  // is read field by field from stored presets
-  {
+  it('is read field by field from stored presets', () => {
     const [preset] = parseUserPresets([stored({ range: 60, darkvision: 30, tremorsense: 10, angle: 90 })]);
     expect(preset?.rules.defaultTokenVision).toEqual({ range: 60, darkvision: 30, tremorsense: 10, angle: 90 });
-  }
+  });
 
-  // drops invalid fields and unknown ones, keeping the valid ones
-  {
+  it('drops invalid fields and unknown ones, keeping the valid ones', () => {
     const [preset] = parseUserPresets([stored({ range: -5, darkvision: '60', tremorsense: 15, angle: 0, enabled: true, other: 1 })]);
     expect(preset?.rules.defaultTokenVision).toEqual({ tremorsense: 15 });
     const [zero] = parseUserPresets([stored({ range: 0, darkvision: 30 })]);
@@ -434,10 +407,9 @@ it('default token vision', () => {
     expect(wide?.rules.defaultTokenVision).toEqual({ range: 25 });
     const [full] = parseUserPresets([stored({ angle: 360, range: 30 })]);
     expect(full?.rules.defaultTokenVision).toEqual({ range: 30 });
-  }
+  });
 
-  // reads a cone angle exactly as the forms and the cone do, so a stored preset never shows as edited
-  {
+  it('reads a cone angle exactly as the forms and the cone do, so a stored preset never shows as edited', () => {
     for (const angle of [0.5, 1, 90, 359.5, 360, 400, 0, -30]) {
       const [parsed] = parseUserPresets([stored({ angle, range: 30 })]);
       const vision = parsed?.rules.defaultTokenVision;
@@ -447,65 +419,57 @@ it('default token vision', () => {
       const cone = visionCone(0, angle);
       expect(cone === undefined ? undefined : Math.round((cone.angle * 180) / Math.PI * 1e6) / 1e6).toBe(vision?.angle);
     }
-  }
+  });
 
-  // is absent when nothing usable is stored
-  {
+  it('is absent when nothing usable is stored', () => {
     for (const raw of [undefined, null, 'dark', [], {}, { angle: 0 }]) {
       const [preset] = parseUserPresets([stored(raw)]);
       expect(preset).toBeDefined();
       expect(preset).not.toHaveProperty('rules.defaultTokenVision');
     }
-  }
+  });
 
-  // is never set on a built-in preset unless every character of the system has it, and then it is valid
-  {
+  it('is never set on a built-in preset unless every character of the system has it, and then it is valid', () => {
     for (const preset of BUILT_IN_SYSTEM_PRESETS) {
       const vision = preset.rules.defaultTokenVision;
       if (!vision) continue;
       const [parsed] = parseUserPresets([{ ...stored(vision), id: 'copy' }]);
       expect(parsed?.rules.defaultTokenVision).toEqual(vision);
     }
-  }
+  });
 });
 
-it('senses', () => {
+describe('senses', () => {
   const witchSight: SenseDefinition = {
     id: 'home-1', name: 'Witch sight', description: 'Sees in the dark within its range.', lineOfSight: true,
     sees: { bright: 'normal', dim: 'normal', dark: 'as-dim', magicalDark: 'none' }, look: 'colour', reveals: 'all', precise: true,
     seesInvisible: false, worksWhileBlinded: false, range: 'required',
   };
-
   const withSenses = (senses: SystemRules['senses']): SystemRules => ({ ...rules([]), ...(senses && { senses }) });
-
   const stored = (extra: Record<string, unknown>) => ({
     id: 'p1',
     name: 'Homebrew',
     rules: { gridDefaults: { unitType: 'feet', unitDistance: 5, measurementMode: 'metric' }, conditions: [], ...extra },
   });
 
-  // are never copied into a collection by rulesOfPreset: it reads those of its preset until the GM edits them
-  {
+  it('are never copied into a collection by rulesOfPreset: it reads those of its preset until the GM edits them', () => {
     expect(rulesOfPreset(dnd5e)).not.toHaveProperty('senses');
     expect(rulesOfPreset(daggerheart)).not.toHaveProperty('senses');
     const user: SystemPreset = { id: 'user', name: 'Homebrew', builtIn: false, rules: withSenses([witchSight]) };
     expect(rulesOfPreset(user)).not.toHaveProperty('senses');
-  }
+  });
 
-  // are cleared by the vanilla settings
-  {
+  it('are cleared by the vanilla settings', () => {
     expect(vanillaSystemSettings()).toHaveProperty('senses', undefined);
-  }
+  });
 
-  // are counted in the preset summary when a system has its own
-  {
+  it('are counted in the preset summary when a system has its own', () => {
     expect(describeSystemRules(withSenses([witchSight]))).toBe('5 ft squares · 0 conditions · 1 sense');
     expect(describeSystemRules(withSenses([]))).toBe('5 ft squares · 0 conditions');
     expect(describeSystemRules(daggerheart.rules)).toBe('5 range bands · 3 conditions · HP, Stress');
-  }
+  });
 
-  // mark a preset as edited when they change, and count a preset without senses as having the generic set
-  {
+  it('mark a preset as edited when they change, and count a preset without senses as having the generic set', () => {
     expect(sameSystemRules(withSenses([witchSight]), withSenses([structuredClone(witchSight)]))).toBe(true);
     expect(sameSystemRules(withSenses([witchSight]), withSenses([{ ...witchSight, seesInvisible: true }]))).toBe(false);
     expect(sameSystemRules(withSenses([witchSight]), withSenses([]))).toBe(false);
@@ -513,62 +477,56 @@ it('senses', () => {
     expect(sameSystemRules(withSenses(undefined), withSenses([...GENERIC_SENSES]))).toBe(true);
     expect(sameSystemRules(withSenses(undefined), withSenses([]))).toBe(false);
     expect(sameSystemRules(dnd5e.rules, { ...structuredClone(dnd5e.rules), senses: [...GENERIC_SENSES] })).toBe(false);
-  }
+  });
 
-  // count a collection without senses of its own as unedited, whatever its preset has
-  {
+  it('count a collection without senses of its own as unedited, whatever its preset has', () => {
     const { senses: _senses, ...following } = structuredClone(dnd5e.rules);
     expect(sameSystemRules(dnd5e.rules, following)).toBe(true);
     expect(sameSystemRules(dnd5e.rules, { ...following, senses: structuredClone(BUILT_IN_SENSES[dnd5e.id]!) })).toBe(true);
     expect(sameSystemRules(dnd5e.rules, rulesOfPreset(dnd5e))).toBe(true);
     expect(findActivePreset(BUILT_IN_SYSTEM_PRESETS, undefined, rulesOfPreset(dnd5e))?.id).toBe(dnd5e.id);
-  }
+  });
 
-  // are read sense by sense from stored presets: an unusable one is left out and the rest of the preset stays
-  {
+  it('are read sense by sense from stored presets: an unusable one is left out and the rest of the preset stays', () => {
     const [preset] = parseUserPresets([stored({ senses: [witchSight, { name: 'No id' }, 'garbage', { ...witchSight, id: 'home-2', range: 'far', addedLater: 1 }], dice: { defaultRoll: '2d6', crit: 'none' } })]);
     expect(preset?.rules.senses).toEqual([witchSight, { ...witchSight, id: 'home-2' }]);
     expect(preset?.rules.dice).toEqual({ defaultRoll: '2d6', crit: 'none' });
-  }
+  });
 
-  // are absent from a stored preset that has none or an unreadable list, and kept when the list is empty
-  {
+  it('are absent from a stored preset that has none or an unreadable list, and kept when the list is empty', () => {
     for (const senses of [undefined, null, 'darkvision', {}]) {
       const [preset] = parseUserPresets([stored({ senses })]);
       expect(preset).toBeDefined();
       expect(preset?.rules).not.toHaveProperty('senses');
     }
     expect(parseUserPresets([stored({ senses: [] })])[0]?.rules.senses).toEqual([]);
-  }
+  });
 
-  // decide which default senses a stored preset may give new tokens
-  {
+  it('decide which default senses a stored preset may give new tokens', () => {
     const defaultTokenVision = { senses: [{ id: 'home-1', range: 30 }, { id: 'blindsight', range: 10 }, { id: 'dnd5e-truesight', range: 120 }] };
     expect(parseUserPresets([stored({ senses: [witchSight], defaultTokenVision })])[0]?.rules.defaultTokenVision)
       .toEqual({ senses: [{ id: 'home-1', range: 30 }, { id: 'blindsight', range: 10 }] });
     // A preset without senses of its own uses the generic ones.
     expect(parseUserPresets([stored({ defaultTokenVision })])[0]?.rules.defaultTokenVision).toEqual({ senses: [{ id: 'blindsight', range: 10 }] });
-  }
+  });
 
-  // of every built-in preset survive being stored as a user preset
-  {
+  it('of every built-in preset survive being stored as a user preset', () => {
     for (const preset of BUILT_IN_SYSTEM_PRESETS) {
       const [parsed] = parseUserPresets([{ id: 'copy', name: 'Copy', rules: structuredClone(preset.rules) }]);
       expect(parsed?.rules.senses).toEqual(preset.rules.senses);
       expect(sameSystemRules(parsed!.rules, preset.rules)).toBe(true);
     }
-  }
+  });
 });
 
-it('conditions that change sight', () => {
+describe('conditions that change sight', () => {
   const stored = (conditions: unknown[]) => ({
     id: 'p1',
     name: 'Homebrew',
     rules: { gridDefaults: { unitType: 'feet', unitDistance: 5, measurementMode: 'metric' }, conditions },
   });
 
-  // are marked in the built-in presets where the system has such a condition, under their old ids
-  {
+  it('are marked in the built-in presets where the system has such a condition, under their old ids', () => {
     const effects = Object.fromEntries(BUILT_IN_SYSTEM_PRESETS.flatMap((preset) => preset.rules.conditions)
       .filter((condition) => condition.effect !== undefined)
       .map((condition) => [condition.id, condition.effect]));
@@ -584,42 +542,37 @@ it('conditions that change sight', () => {
       'ose-blinded': 'blinded',
       'ose-invisible': 'invisible',
     });
-  }
+  });
 
-  // are every condition named Blinded, Invisible, Undetected or Unnoticed, and no other; Hidden depends on who looks
-  {
+  it('are every condition named Blinded, Invisible, Undetected or Unnoticed, and no other; Hidden depends on who looks', () => {
     for (const condition of BUILT_IN_SYSTEM_PRESETS.flatMap((preset) => preset.rules.conditions)) {
       const expected = { Blinded: 'blinded', Invisible: 'invisible', Undetected: 'undetected', Unnoticed: 'undetected' }[condition.name];
       expect(condition.effect).toBe(expected);
     }
-  }
+  });
 
-  // apply to a collection that copied the conditions before they were marked, by the condition's id
-  {
+  it('apply to a collection that copied the conditions before they were marked, by the condition\'s id', () => {
     const { effect: _effect, ...copied } = dnd5e.rules.conditions.find((condition) => condition.name === 'Blinded')!;
     expect(conditionEffect(copied)).toBe('blinded');
     expect(conditionEffect({ ...copied, name: 'Renamed by the GM' })).toBe('blinded');
     expect(conditionEffect({ id: 'pathfinder2e-unnoticed', name: 'Unnoticed', color: '#000000' })).toBe('undetected');
     expect(conditionEffect({ id: 'c1', name: 'Blinded', color: '#000000' })).toBeUndefined();
     expect(conditionEffect({ id: 'dnd5e-prone', name: 'Prone', color: '#000000' })).toBeUndefined();
-  }
+  });
 
-  // take the effect a condition sets itself before the one of its id
-  {
+  it('take the effect a condition sets itself before the one of its id', () => {
     expect(conditionEffect({ id: 'dnd5e-blinded', name: 'Blinded', color: '#000000', effect: 'invisible' })).toBe('invisible');
     expect(conditionEffect({ id: 'c1', name: 'Flying', color: '#000000', effect: 'airborne' })).toBe('airborne');
-  }
+  });
 
-  // leave a collection that copied the conditions before they were marked unedited
-  {
+  it('leave a collection that copied the conditions before they were marked unedited', () => {
     for (const preset of BUILT_IN_SYSTEM_PRESETS) {
       const before = { ...structuredClone(preset.rules), conditions: preset.rules.conditions.map(({ effect: _effect, ...condition }) => condition) };
       expect(sameSystemRules(preset.rules, before)).toBe(true);
     }
-  }
+  });
 
-  // are read from stored presets, and an effect Atlas does not know is dropped without the condition
-  {
+  it('are read from stored presets, and an effect Atlas does not know is dropped without the condition', () => {
     const [preset] = parseUserPresets([stored([
       { id: 'c1', name: 'Blind', color: '#123456', effect: 'blinded' },
       { id: 'c2', name: 'Unseen', color: '#123456', effect: 'invisible', valued: true },
@@ -636,18 +589,16 @@ it('conditions that change sight', () => {
       { id: 'c5', name: 'Prone', color: '#123456' },
       { id: 'c6', name: 'Gone', color: '#123456', effect: 'undetected' },
     ]);
-  }
+  });
 
-  // mark a preset as edited when the effect of a condition changes; condition ids still do not matter
-  {
+  it('mark a preset as edited when the effect of a condition changes; condition ids still do not matter', () => {
     const blind = { id: 'x', name: 'Blind', color: '#123456', effect: 'blinded' as const };
     expect(sameSystemRules(rules([blind]), rules([{ ...blind, id: 'y' }]))).toBe(true);
     expect(sameSystemRules(rules([blind]), rules([{ ...blind, effect: 'invisible' }]))).toBe(false);
     expect(sameSystemRules(rules([blind]), rules([{ id: 'x', name: 'Blind', color: '#123456' }]))).toBe(false);
-  }
+  });
 
-  // are copied by rulesOfPreset with the conditions
-  {
+  it('are copied by rulesOfPreset with the conditions', () => {
     expect(rulesOfPreset(dnd5e).conditions.find((condition) => condition.name === 'Blinded')?.effect).toBe('blinded');
-  }
+  });
 });

@@ -38,6 +38,8 @@ export interface TableBookPorts {
   readonly cards: ArmedCards;
   /** The rest requests' cards changed. */
   cardsChanged(): void;
+  /** The log entries that tell who found readable pins (`FoundShare.foundPins`). */
+  foundPins(): ReadonlyMap<string, string>;
 }
 
 const offref = (app: App, ref: EventRef): (() => void) => () => app.metadataCache.offref(ref);
@@ -83,6 +85,7 @@ export function tableBook(ports: TableBookPorts): TableBook {
       return file === null ? null : { mtime: file.stat.mtime, size: file.stat.size };
     },
     worldMap: () => gatedWorldMap(),
+    foundPins: () => ports.foundPins(),
     notice: (text) => showNotice(text),
     quests: async () => storedQuests.of(await gatedQuests()),
     editResource: (edit, answer) => {
@@ -97,6 +100,7 @@ export function tableBook(ports: TableBookPorts): TableBook {
     libraryStatblock: (placed) => gatedStatblocks.libraryStatblock(placed),
     readStatblock: (path) => gatedStatblocks.read(path),
     writeStatblock: (path, patches) => gatedStatblocks.write(path, patches),
+    readStatblockLink: async (path, link) => (await gatedStatblocks.readLink?.(path, link)) ?? null,
     statblockPanelWidth: () => gatedStatblocks.panelWidth?.(),
     rests: gatedRests,
     cards: ports.cards,
