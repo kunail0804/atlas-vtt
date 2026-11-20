@@ -5,7 +5,8 @@ import { AtlasAccount } from '../../../src/app/account/AtlasAccount';
 import type { HttpRequest, HttpResponse } from '../../../src/app/account/http';
 import { ManualTimers, settle } from './accountFakes';
 
-const ORIGIN = 'https://api.atlas-vtt.dev';
+// The fork's account is the self-hosted relay's, on loopback (`accountServers.ts`).
+const ORIGIN = 'http://127.0.0.1:8787';
 const MARA = { id: 'acc_mara', handle: 'mara', name: 'Mara' };
 
 /** The account service: device codes, polls that approve at once, the session route and sign-out. */

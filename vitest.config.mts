@@ -32,6 +32,7 @@ const SLOW_TEST_FILES = [
   'tests/unit/measuredDistanceAcrossMap.test.ts',
   'tests/unit/statblocks/notes/frontmatterPatch.{property,corpus}.test.ts',
   'src/app/lighting/__tests__/sealWalls{Rays,Hostile,Crowded}.test.ts',
+  'src/app/annotations/__tests__/{eraseCutLarge,fillWindowCut}.test.ts',
 ];
 
 /**

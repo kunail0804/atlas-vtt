@@ -2,20 +2,23 @@
 import React from 'react';
 import { act, cleanup, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { SceneLightingPanelHost } from '../../src/app/pixi/lighting/SceneLightingPanel';
+import { LightingSettingsPanel } from '../../src/app/react/components/command-palette/LightingSettingsPanel';
+import { AtlasUIContext, type AtlasUIContextValue } from '../../src/app/react/root/AtlasUIContext';
 import { ViewStoreProvider } from '../../src/app/react/ViewStoreContext';
 import { createViewAtlasStore, type ViewAtlasStore } from '../../src/app/storeFactory';
 import { createInMemoryApp } from '../mocks/inMemoryVault';
 
-describe('the scene lighting panel\'s choice of who reveals explored memory', () => {
+const ui = { app: undefined, view: null, pixiApp: null, renderer: null } as unknown as AtlasUIContextValue;
+
+// The fork's choice of who fills explored memory (#51), on upstream's Lighting page of the command palette.
+describe('the Lighting page\'s choice of who reveals explored memory', () => {
   let store: ViewAtlasStore;
 
   beforeEach(() => {
     store = createViewAtlasStore(createInMemoryApp({ files: {} }).app, `scene-lighting-panel-${Math.random()}`);
     store.getState().setPersistenceEnabled(false);
     store.getState().setSceneLighting({ enabled: true });
-    store.getState().setSceneLightingPanelOpen(true);
-    render(<ViewStoreProvider store={store}><SceneLightingPanelHost /></ViewStoreProvider>);
+    render(<AtlasUIContext.Provider value={ui}><ViewStoreProvider store={store}><LightingSettingsPanel /></ViewStoreProvider></AtlasUIContext.Provider>);
   });
 
   afterEach(cleanup);

@@ -59,7 +59,8 @@ describe('a defeated token under dynamic lighting', () => {
   it('is rebuilt when it is killed and revived', () => {
     const state = (token: TokenEntity): SceneState => ({
       objects: { tokens: { [token.id]: token }, walls: {}, lights: {} },
-      lighting: { enabled: true, ambient: 1 },
+      // The fork's scenes leave explored memory to the GM unless the players' tokens fill it (#51).
+      lighting: { enabled: true, ambient: 1, exploredBy: 'players' },
       grid: { enabled: true, size: 50, offsetX: 0, offsetY: 0, opacity: 1 },
       heldTokens: {},
     });

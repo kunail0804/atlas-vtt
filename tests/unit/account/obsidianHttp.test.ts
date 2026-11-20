@@ -30,14 +30,14 @@ describe('obsidianHttp', () => {
     vi.mocked(requestUrl).mockResolvedValue({ status: 204, json: null } as never);
     const bytes = new Uint8Array([1, 2, 3]).buffer;
     await obsidianHttp({
-      url: 'https://api.atlas-vtt.dev/v1/armarium/uploads/u1/parts/1',
+      url: 'http://127.0.0.1:8787/api/assets/u1/parts/1',
       method: 'PUT',
       authorization: 'Bearer secret',
       headers: { 'x-atlas-part-sha256': 'abc', authorization: 'Bearer forged' },
       bytes,
     });
     expect(vi.mocked(requestUrl).mock.calls.at(-1)?.[0]).toEqual({
-      url: 'https://api.atlas-vtt.dev/v1/armarium/uploads/u1/parts/1',
+      url: 'http://127.0.0.1:8787/api/assets/u1/parts/1',
       method: 'PUT',
       headers: { 'x-atlas-part-sha256': 'abc', Authorization: 'Bearer secret' },
       body: bytes,
@@ -46,10 +46,10 @@ describe('obsidianHttp', () => {
     });
   });
 
-  it('names an Armarium refusal\'s code when a server error is logged', async () => {
+  it('names a refusal\'s code when a server error is logged', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     vi.mocked(requestUrl).mockResolvedValue({ status: 503, json: { code: 'internal' } } as never);
-    await obsidianHttp({ url: 'https://api.atlas-vtt.dev/v1/armarium/uploads/eligibility', method: 'DELETE' });
-    expect(warn.mock.calls).toEqual([['[Atlas] DELETE https://api.atlas-vtt.dev/v1/armarium/uploads/eligibility answered 503 (internal)']]);
+    await obsidianHttp({ url: 'http://127.0.0.1:8787/api/assets/eligibility', method: 'DELETE' });
+    expect(warn.mock.calls).toEqual([['[Atlas] DELETE http://127.0.0.1:8787/api/assets/eligibility answered 503 (internal)']]);
   });
 });

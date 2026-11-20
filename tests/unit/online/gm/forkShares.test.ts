@@ -7,7 +7,7 @@ import { boundOwnership } from './fakeSeats.ts';
 import { pngOf } from './fakeTileCache.ts';
 import { sceneState, shareHarness, token, tokenLists, type ShareHarness } from './shareHarness.ts';
 
-// What the fork adds to upstream's scene share: a player's own bars in `mine`, and players' drawings and texts.
+// What the fork adds to upstream's scene share: a player's own bars in `mine`.
 
 const ANA = 'a'.repeat(20);
 const BEN = 'b'.repeat(20);
@@ -45,15 +45,5 @@ describe('the fork\'s additions to the scene share', () => {
     expect(mine?.bars?.[gm.hero]?.map((bar) => [bar.current, bar.max])).toEqual([[7, 10], [2, 6]]);
     expect(parseGmMessage(JSON.parse(JSON.stringify(mine)))).toEqual(mine);
     expect(lastTo(gm.sent, 'mine', BEN)?.bars).toBeUndefined();
-  });
-
-  it('keeps a player\'s drawing and text on the map as Atlas\'s own, marked with who made them', async () => {
-    const gm = await table();
-    gm.share.receive(ANA, { t: 'draw', scene: gm.scene, id: '1'.repeat(24), drawing: { type: 'pen', points: [10, 10, 50, 40], colour: '#ff0000', width: 4 } });
-    gm.share.receive(ANA, { t: 'place-text', scene: gm.scene, id: '2'.repeat(24), text: { x: 100, y: 80, text: 'Ici', fontSize: 24, colour: '#000000', bold: false } });
-    await gm.settle();
-    const { drawings, texts } = gm.state().objects;
-    expect(drawings[`drawing_player_${'1'.repeat(24)}`]).toMatchObject({ author: ANA, points: [{ x: 10, y: 10 }, { x: 50, y: 40 }] });
-    expect(texts[`text_player_${'2'.repeat(24)}`]).toMatchObject({ author: ANA, text: 'Ici' });
   });
 });
