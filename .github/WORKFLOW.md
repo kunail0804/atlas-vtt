@@ -91,8 +91,9 @@ of the *Tâche* template, or the labels `review:claude`, `review:glm`, `review:d
 
 `atlas-vtt/atlas-vtt` stays in sight without being followed:
 
-- Branch `upstream-main` is upstream's main as of the last Monday.
-- Every Monday the `upstream` workflow keeps that week's upstream as `upstream-sync-<date>` and opens an issue
+- Branch `upstream-main` is upstream's main as of the last run of the `upstream` workflow.
+- The `upstream` workflow runs only when started by hand (Actions tab, or `gh workflow run upstream.yml
+  -R kunail0804/atlas-vtt`). It keeps upstream as it is then as `upstream-sync-<date>` and opens an issue
   (label `upstream`) with the new commits and the files that would conflict with develop.
 - To take something: a branch from develop, `git cherry-pick <commit>` (or copy by hand), a pull request into
   develop.
