@@ -673,7 +673,7 @@ Help me develop Atlas: https://www.patreon.com/cw/atlas_vtt
 ### Fixed
 
 - A collection's cover and the thumbnails of small images are saved as WebP, as their file names say, and an export no longer carries one that is a PNG or JPEG under a WebP name
-- Fixed a bug where too small cover images of exported collections weren't converted to .webp correctly as expected by the Armarium parser
+- Fixed a bug where too small cover images of exported collections weren't converted to .webp correctly
 - Fixed a bug where modifier rolls in FS statblock tables weren't clickable
 
 ## 0.7.0 — Huge sharp maps, gliding tokens and a lighting quality setting
