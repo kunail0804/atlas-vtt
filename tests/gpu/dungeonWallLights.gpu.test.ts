@@ -30,8 +30,7 @@ vi.mock('events', async () => import('eventemitter3'));
  * A lived-in dungeon's wall lights through the real lighting engine at night: whole floors of a
  * mansion, a fortress and a cave in the players' view with every light shown, and close-ups of a
  * sconce, a torch bracket and a cave torch in the map image (into `out/dungeon-render/wall-lights/`);
- * and that each light shines into its room and nothing of it through its wall. What they cost is
- * `dungeonWallLightsCost.gpu.test.ts`.
+ * and that each light shines into its room and nothing of it through its wall.
  */
 
 const FEET = { unitType: 'feet', ruleDistance: 5 } as const;

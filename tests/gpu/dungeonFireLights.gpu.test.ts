@@ -24,7 +24,7 @@ vi.mock('events', async () => import('eventemitter3'));
  * A lived-in dungeon's fires through the real lighting engine at night: the players' view of a
  * mansion room lit by its fireplace, close up, a Fortress hearth and a cave's fire pit (into
  * `out/dungeon-render/fire-lights/`); and that a fireplace's light leaves its firebox only through
- * its mouth. What they cost is `dungeonFireLightsCost.gpu.test.ts`.
+ * its mouth.
  */
 
 const FEET = { unitType: 'feet', ruleDistance: 5 } as const;
