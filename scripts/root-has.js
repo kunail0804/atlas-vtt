@@ -25,7 +25,7 @@ const OBSIDIAN_BODY_CLASSES = [
 
 /**
  * Rules on elements of Obsidian that are known and measured. The tab container of a note
- * preview is restyled alone when something changes inside it (`tests/gpu/documentRestyle.gpu.test.ts`).
+ * preview is restyled alone when something changes inside it.
  */
 const MEASURED_SELECTORS = [
   '.workspace-tab-container:has(.workspace-tab-header[data-atlas-preview="true"]):not(:has(.workspace-tab-header:not([data-atlas-preview="true"])))',
