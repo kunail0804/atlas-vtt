@@ -11,11 +11,11 @@ import { LiquidLayer, type LiquidLayerDeps } from '../../src/app/pixi/liquids/Li
 import type { LiquidDetail } from '../../src/app/pixi/liquids/liquidShader';
 import { deepPoint } from './liquidHarness';
 
-export const WATER_OUT = 'out/liquids-water';
+const WATER_OUT = 'out/liquids-water';
 export const WATER_SIZE = { width: 960, height: 640 };
 export const WATER_CELL = DEFAULT_PX_PER_CELL;
 export const WATER_PLAY_CELL = 100;
-export const WATER_PHASE = String(import.meta.env.VITE_WATER_PHASE ?? 'check');
+const WATER_PHASE = String(import.meta.env.VITE_WATER_PHASE ?? 'check');
 export const WATER_CAPTURE = import.meta.env.VITE_WATER_CAPTURE === '1';
 
 /** Real generator → scene writer → reader → LiquidLayer; no substituted outlines or colours. */
@@ -107,36 +107,4 @@ export function meanChange(a: Uint8ClampedArray, b: Uint8ClampedArray): number {
   let sum = 0;
   for (let i = 0; i < a.length; i += 4) for (let c = 0; c < 3; c++) sum += Math.abs(a[i + c]! - b[i + c]!);
   return sum / (a.length * 0.75);
-}
-
-interface TimerExt { TIME_ELAPSED_EXT: number; GPU_DISJOINT_EXT: number }
-
-/** Bounded query wait; disjoint samples are discarded, never presented as timing evidence. */
-export async function waterGpuCost(renderer: WebGLRenderer, draw: () => void): Promise<{ samples: number[]; median: number | null; gpu: string }> {
-  const gl = renderer.gl as WebGL2RenderingContext;
-  const ext = gl.getExtension('EXT_disjoint_timer_query_webgl2') as TimerExt | null;
-  const debug = gl.getExtension('WEBGL_debug_renderer_info');
-  const gpu = String(gl.getParameter(debug?.UNMASKED_RENDERER_WEBGL ?? gl.RENDERER));
-  const samples: number[] = [];
-  if (ext) {
-    for (let i = 0; i < 20; i++) draw();
-    gl.finish();
-    for (let i = 0; i < 15; i++) {
-      gl.getParameter(ext.GPU_DISJOINT_EXT);
-      const query = gl.createQuery()!;
-      gl.beginQuery(ext.TIME_ELAPSED_EXT, query);
-      // Amortise query / command buffer overhead over several identical layer draws.
-      for (let k = 0; k < 12; k++) draw();
-      gl.endQuery(ext.TIME_ELAPSED_EXT);
-      gl.flush();
-      const deadline = performance.now() + 5000;
-      while (!gl.getQueryParameter(query, gl.QUERY_RESULT_AVAILABLE) && performance.now() < deadline) await new Promise(resolve => window.setTimeout(resolve, 4));
-      const ready = gl.getQueryParameter(query, gl.QUERY_RESULT_AVAILABLE);
-      const disjoint = gl.getParameter(ext.GPU_DISJOINT_EXT);
-      if (ready && !disjoint) samples.push(Number(gl.getQueryParameter(query, gl.QUERY_RESULT)) / 12e6);
-      gl.deleteQuery(query);
-    }
-  }
-  samples.sort((a, b) => a - b);
-  return { samples, median: samples.length ? samples[Math.floor(samples.length / 2)]! : null, gpu };
 }

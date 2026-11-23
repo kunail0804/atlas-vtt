@@ -1,7 +1,7 @@
 import type { DungeonModel, PropKind } from '../../../src/app/dungeons/model';
 
 /**
- * One family's specimen for the glyph sheets (`dungeonGlyphSheets.gpu.test.ts`): every kind it
+ * One family's specimen for the glyph sheets (`dungeonRendering.gpu.test.ts`): every kind it
  * draws, a crowded group as recipes place them, and whole scenes for families that are no props.
  * A file `glyphSheets/<family>.ts` exports one as `SPECIMEN`.
  */
