@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'vitest';
-
-import {
-  dieGeometry,
-  faceIndexForValue,
-  faceQuaternion,
-  lyingHeight,
-  restingQuaternion,
-} from '../../../src/app/dice3d/dieGeometry';
+import { dieGeometry, faceIndexForValue, faceQuaternion, lyingHeight, restingQuaternion, type DieSides } from '../../../src/app/dice3d/dieGeometry';
+import { qRotate, vDot, vLength, vSub, qAngle } from '../../../src/app/dice3d/vectorMath';
 import { beginRoll, makeDie, stepDie, type DieAnim } from '../../../src/app/dice3d/dieMotion';
 import { restHeight, STAGE_X, STAGE_Z } from '../../../src/app/dice3d/dieTour';
 import { throwRandom } from '../../../src/app/dice3d/throwSeed';
-import { qAngle, qRotate, vLength } from '../../../src/app/dice3d/vectorMath';
+import { faceMarks } from '../../../src/app/dice3d/faceMarks';
+import { faceOutline } from '../../../src/app/dice3d/faceFrame';
+import { fitNumeral } from '../../../src/app/dice3d/numeralFit';
+import { sceneFromRolls } from '../../../src/app/dice3d/diceScene';
+import { beginThrow, burstOf } from '../../../src/app/dice3d/throwChain';
+
+const ALL: DieSides[] = [4, 6, 8, 10, 12, 20];
 
 /** A die without chance: the same throw every time. */
 function fixedRng(...values: number[]): () => number {
@@ -27,6 +27,140 @@ function runUntilRest(die: DieAnim, rng: () => number, maxSeconds = 8): number {
   }
   return t;
 }
+
+const CELL = 256;
+
+const d6 = (value: number, more: object = {}): { max: number; value: number } => ({ max: 6, value, ...more });
+
+it('die bodies', () => {
+  // every die has exactly as many faces as sides
+  {
+    for (const sides of ALL) {
+      expect(dieGeometry(sides).faces).toHaveLength(sides);
+    }
+  }
+
+  // every die carries every number exactly once
+  {
+    for (const sides of ALL) {
+      const { values } = dieGeometry(sides);
+      expect([...values].sort((a, b) => a - b)).toEqual(
+        Array.from({ length: sides }, (_, i) => i + 1),
+      );
+    }
+  }
+
+  // all normals of every die point outwards
+  {
+    for (const sides of ALL) {
+      const { normals, centers } = dieGeometry(sides);
+      for (let i = 0; i < normals.length; i++) {
+        expect(vDot(normals[i]!, centers[i]!)).toBeGreaterThan(0);
+      }
+    }
+  }
+
+  // all vertices of a face lie in one plane, on every die
+  {
+    for (const sides of ALL) {
+      const { faces, vertices, normals, centers } = dieGeometry(sides);
+      for (let i = 0; i < faces.length; i++) {
+        for (const v of faces[i]!) {
+          expect(Math.abs(vDot(vSub(vertices[v]!, centers[i]!), normals[i]!))).toBeLessThan(1e-6);
+        }
+      }
+    }
+  }
+
+  // the numeral up of every die is perpendicular to the normal
+  {
+    for (const sides of ALL) {
+      const { ups, normals } = dieGeometry(sides);
+      for (let i = 0; i < ups.length; i++) {
+        expect(Math.abs(vDot(ups[i]!, normals[i]!))).toBeLessThan(1e-9);
+        expect(vLength(ups[i]!)).toBeCloseTo(1, 9);
+      }
+    }
+  }
+
+  // opposite faces add up to n+1 on the dice that have them
+  {
+    for (const sides of [6, 8, 10, 12, 20] as DieSides[]) {
+        const { normals, values } = dieGeometry(sides);
+        for (let i = 0; i < normals.length; i++) {
+          const opposite = normals.findIndex((n, j) => j !== i && vDot(normals[i]!, n) < -0.999);
+          expect(opposite).toBeGreaterThanOrEqual(0);
+          expect(values[i]! + values[opposite]!).toBe(sides + 1);
+        }
+      }
+  }
+});
+
+it('target orientation', () => {
+  // puts the target face of every die on top, numeral readable
+  {
+    for (const sides of ALL) {
+      const geometry = dieGeometry(sides);
+      for (let value = 1; value <= sides; value++) {
+        const face = faceIndexForValue(geometry, value);
+        const q = faceQuaternion(geometry, face);
+        const normal = qRotate(q, geometry.normals[face]!);
+        const up = qRotate(q, geometry.ups[face]!);
+
+        // Seen from above: the face is on top and the numeral's head points to
+        // −Z, up on screen.
+        expect(normal[1]).toBeCloseTo(1, 9);
+        expect(up[2]).toBeCloseTo(-1, 9);
+      }
+    }
+  }
+
+  // every die comes to rest lying on a face
+  {
+    for (const sides of ALL) {
+      const geometry = dieGeometry(sides);
+      for (let face = 0; face < sides; face++) {
+        for (const yaw of [0, 0.3, -0.3]) {
+          const q = restingQuaternion(geometry, face, yaw);
+          const heights = geometry.vertices.map((v) => qRotate(q, v)[1]);
+          const lowest = Math.min(...heights);
+          expect(heights.filter((y) => y - lowest < 1e-6).length).toBeGreaterThanOrEqual(3);
+          expect(-lowest).toBeCloseTo(lyingHeight(geometry), 6);
+        }
+      }
+    }
+  }
+
+  // the rolled face of every resting die is the one on top
+  {
+    for (const sides of [6, 8, 10, 12, 20] as DieSides[]) {
+      const geometry = dieGeometry(sides);
+      for (let face = 0; face < sides; face++) {
+        expect(qRotate(restingQuaternion(geometry, face, 0.2), geometry.normals[face]!)[1]).toBeCloseTo(1, 9);
+      }
+    }
+  }
+
+  // a resting d4 lies on its rolled face, one face turned to the viewer
+  {
+    const geometry = dieGeometry(4);
+    for (let face = 0; face < 4; face++) {
+      const q = restingQuaternion(geometry, face);
+      expect(qRotate(q, geometry.normals[face]!)[1]).toBeCloseTo(-1, 9);
+      const front = geometry.normals.map((n) => qRotate(q, n)).sort((a, b) => b[2] - a[2])[0]!;
+      expect(front[0]).toBeCloseTo(0, 9);
+      expect(front[2]).toBeGreaterThan(0.9);
+    }
+  }
+
+  // finds the face of every number
+  {
+    const geometry = dieGeometry(20);
+    for (let value = 1; value <= 20; value++) {
+      expect(geometry.values[faceIndexForValue(geometry, value)]).toBe(value);
+    }
+  }
+});
 
 it('the throw', () => {
   // lies ready and only shoots off at launch
@@ -303,5 +437,100 @@ it('the throw', () => {
     die.phase = 'rest';
     stepDie(die, 0.25, rng);
     expect(die.restFor).toBeCloseTo(0.25, 6);
+  }
+});
+
+describe('faceMarks', () => {
+  it('gives each face of every die its own number, centred and upright', () => {
+    for (const sides of [6, 8, 10, 12, 20] as DieSides[]) {
+      const geometry = dieGeometry(sides);
+      for (let face = 0; face < sides; face++) {
+        expect(faceMarks(geometry, face, CELL)).toEqual([
+          { value: geometry.values[face], at: [0, 0], up: [0, 1], room: faceOutline(geometry, face, CELL) },
+        ]);
+      }
+    }
+  });
+
+  it('on the d4', () => {
+    const geometry = dieGeometry(4);
+
+    // writes at each corner the number of the face that lies down when that corner is the tip
+    {
+      for (let face = 0; face < 4; face++) {
+        const marks = faceMarks(geometry, face, CELL);
+        expect(marks).toHaveLength(3);
+        geometry.faces[face]!.forEach((vertex, i) => {
+          const lyingDown = geometry.faces.findIndex((corners) => !corners.includes(vertex));
+          expect(marks[i]!.value).toBe(geometry.values[lyingDown]);
+        });
+      }
+    }
+
+    // turns each number head first to its corner
+    {
+      for (let face = 0; face < 4; face++) {
+        const outline = faceOutline(geometry, face, CELL);
+        faceMarks(geometry, face, CELL).forEach((mark, i) => {
+          const [cx, cy] = outline[i]!;
+          const reach = Math.hypot(cx, cy);
+          expect(mark.up[0]).toBeCloseTo(cx / reach, 9);
+          expect(mark.up[1]).toBeCloseTo(cy / reach, 9);
+          // Between the centre and the corner.
+          expect(Math.hypot(...mark.at)).toBeLessThan(reach);
+          expect(mark.at[0] * cx + mark.at[1] * cy).toBeGreaterThan(0);
+        });
+      }
+    }
+
+    // leaves each number room of its own
+    {
+      for (const mark of faceMarks(geometry, 0, CELL)) {
+        // A numeral a sixth of the cell high still fits its corner of the face.
+        expect(fitNumeral(mark.room, CELL * 0.11, CELL * 0.16)).toBe(1);
+        // The corner itself lies straight above the numeral, in its own frame.
+        const top = mark.room.reduce((a, b) => (b[1] > a[1] ? b : a));
+        expect(top[0]).toBeCloseTo(0, 9);
+      }
+    }
+  });
+});
+
+it('a throw with exploding dice', () => {
+  const scene = sceneFromRolls([d6(6), d6(6, { exploded: true }), d6(2, { exploded: true }), d6(3)])!;
+
+  const geometry = dieGeometry(6);
+
+  const targets = scene.faces.map((face) => restingQuaternion(geometry, faceIndexForValue(geometry, face)));
+
+  // throws the dice of the roll at once and each extra die after the die before it has landed
+  {
+    const anims = scene.plan.map((_, i) => makeDie(throwRandom('roll', -1 - i)));
+    beginThrow(anims, scene.plan, targets, (i) => throwRandom('roll', i));
+
+    const [first, second, third, beside] = anims as [DieAnim, DieAnim, DieAnim, DieAnim];
+    // The two dice of the roll leave together, a beat apart; the extra dice wait.
+    expect(first.delay).toBe(0);
+    expect(beside.delay).toBeGreaterThan(0);
+    expect(beside.delay).toBeLessThan(0.2);
+    expect(second.delay).toBeGreaterThan(first.tour.duration);
+    expect(third.delay).toBeGreaterThan(second.delay + second.tour.duration);
+
+    // Run the throw: no extra die moves before its die lies.
+    const rng = throwRandom('roll', 99);
+    for (let frame = 0; frame < 60 * 30 && anims.some((anim) => anim.phase !== 'rest'); frame++) {
+      const restingBefore = anims.map((anim) => anim.phase === 'rest');
+      for (const anim of anims) stepDie(anim, 1 / 60, rng);
+      if (second.delay <= 0) expect(restingBefore[0]).toBe(true);
+      if (third.delay <= 0) expect(restingBefore[1]).toBe(true);
+    }
+    expect(anims.every((anim) => anim.phase === 'rest')).toBe(true);
+  }
+
+  // bursts where a die exploded: as a success upwards, as a failure downwards
+  {
+    expect(scene.plan.map((_, i) => burstOf(scene.plan, i))).toEqual(['high', 'high', null, null]);
+    const fumble = sceneFromRolls([{ max: 10, value: 1 }, { max: 10, value: 7, exploded: true, negative: true }])!;
+    expect(fumble.plan.map((_, i) => burstOf(fumble.plan, i))).toEqual(['low', null]);
   }
 });
