@@ -1,0 +1,206 @@
+import { describe, it, expect } from 'vitest';
+import { getDiceCrit } from '../diceCrit';
+import type { RolledDie } from '../diceFormula';
+import type { DiceRules, ExplodeRule } from '../../types/diceRulesTypes';
+import { MAX_EXPLOSIONS, explodes, rollExplosions, type Explosion } from '../diceExplosion';
+import { rollTestFormula as rollFormula } from './rollTestFormula';
+
+function die(sides: number, value: number, negative = false): RolledDie {
+  return { die: `d${sides}`, value, max: sides, ...(negative && { negative: true as const }) };
+}
+
+const D20: DiceRules = { defaultRoll: '1d20', crit: 'natural' };
+
+/** A random source that makes dice of `sides` show `faces`, one after the other. */
+function showing(sides: number, ...faces: number[]): () => number {
+  let i = 0;
+  return (): number => (faces[i++ % faces.length]! - 0.5) / sides;
+}
+
+const d = (sides: number, value: number, more: Partial<RolledDie> = {}): RolledDie =>
+  ({ die: `d${sides}`, value, max: sides, ...more });
+
+const AGAIN_AND_AGAIN: Explosion = { highFaces: 1, lowFaces: 0, limit: MAX_EXPLOSIONS };
+const ONCE_BOTH_WAYS: Explosion = { highFaces: 1, lowFaces: 1, limit: 1 };
+
+describe('getDiceCrit', () => {
+  it('natural: a 20 on the default d20 is high, a 1 low, whatever the modifier', () => {
+    expect(getDiceCrit([die(20, 20)], D20)).toBe('high');
+    expect(getDiceCrit([die(20, 1)], D20)).toBe('low');
+    expect(getDiceCrit([die(20, 15)], D20)).toBeNull();
+  });
+
+  it('only looks at the default dice', () => {
+    expect(getDiceCrit([die(6, 6)], D20)).toBeNull();
+    // The second d20 of 2d20 is not a default die of a 1d20 rule.
+    expect(getDiceCrit([die(20, 10), die(20, 20)], D20)).toBeNull();
+    expect(getDiceCrit([die(20, 20, true)], D20)).toBeNull();
+  });
+
+  it('is never critical for a mixed pool: only the default dice alone, with constants, can be', () => {
+    expect(getDiceCrit([die(8, 8), die(20, 20)], D20)).toBeNull();
+    expect(getDiceCrit([die(20, 1), die(4, 3)], D20)).toBeNull();
+    expect(getDiceCrit([die(20, 20), die(4, 2, true)], D20)).toBeNull();
+    const fate: RolledDie = { die: 'dF', value: 1, max: 1, min: -1 };
+    expect(getDiceCrit([die(20, 20), fate], D20)).toBeNull();
+    expect(getDiceCrit([die(12, 7), die(12, 7), die(6, 2)], { defaultRoll: '2d12', crit: 'doubles' })).toBeNull();
+  });
+
+  it('counts what the default die brings along as part of it: a dropped die, an exploded one, one rolled again, an advantage die', () => {
+    expect(getDiceCrit([{ ...die(20, 4), dropped: true }, die(20, 20)], D20)).toBe('high');
+    expect(getDiceCrit([{ ...die(20, 20), rerolled: true }, die(20, 1)], D20)).toBe('low');
+    expect(getDiceCrit([die(20, 20), { ...die(6, 4), advantage: true }], D20)).toBe('high');
+    const d10: DiceRules = { defaultRoll: '1d10', crit: 'natural' };
+    expect(getDiceCrit([die(10, 10), { ...die(10, 7), exploded: true }], d10)).toBe('high');
+  });
+
+  it('roll-under: 01 is high and the highest face low', () => {
+    const rules: DiceRules = { defaultRoll: '1d100', crit: 'roll-under' };
+    expect(getDiceCrit([die(100, 1)], rules)).toBe('high');
+    expect(getDiceCrit([die(100, 100)], rules)).toBe('low');
+    expect(getDiceCrit([die(100, 50)], rules)).toBeNull();
+  });
+
+  it('doubles: matching default dice are high, never low', () => {
+    const rules: DiceRules = { defaultRoll: '2d12', crit: 'doubles' };
+    expect(getDiceCrit([die(12, 7), die(12, 7)], rules)).toBe('high');
+    expect(getDiceCrit([die(12, 1), die(12, 1)], rules)).toBe('high');
+    expect(getDiceCrit([die(12, 7), die(12, 3)], rules)).toBeNull();
+    expect(getDiceCrit([die(12, 7)], rules)).toBeNull();
+  });
+
+  it('high-total: the highest total of the default dice or one below it is high, never low', () => {
+    const rules: DiceRules = { defaultRoll: '2d10', crit: 'high-total' };
+    expect(getDiceCrit([die(10, 10), die(10, 10)], rules)).toBe('high');
+    expect(getDiceCrit([die(10, 10), die(10, 9)], rules)).toBe('high');
+    expect(getDiceCrit([die(10, 9), die(10, 9)], rules)).toBeNull();
+    expect(getDiceCrit([die(10, 1), die(10, 1)], rules)).toBeNull();
+    // A third d10 is no default die of 2d10, and one d10 is too few.
+    expect(getDiceCrit([die(10, 4), die(10, 5), die(10, 10)], rules)).toBeNull();
+    expect(getDiceCrit([die(10, 10)], rules)).toBeNull();
+    expect(getDiceCrit([die(20, 19)], { defaultRoll: '1d20', crit: 'high-total' })).toBe('high');
+  });
+
+  it('none: never critical', () => {
+    expect(getDiceCrit([die(20, 20)], { defaultRoll: '1d20', crit: 'none' })).toBeNull();
+  });
+});
+
+it('rollExplosions', () => {
+  // rolls nothing for a die that shows no exploding face
+  {
+    expect(rollExplosions(d(6, 5), AGAIN_AND_AGAIN, showing(6, 6))).toEqual([]);
+  }
+
+  // rolls again for as long as the highest face comes up
+  {
+    expect(rollExplosions(d(6, 6), AGAIN_AND_AGAIN, showing(6, 6, 6, 2))).toEqual([
+      d(6, 6, { exploded: true }), d(6, 6, { exploded: true }), d(6, 2, { exploded: true }),
+    ]);
+  }
+
+  // stops at its limit, and never rolls more than the cap
+  {
+    expect(rollExplosions(d(10, 10), ONCE_BOTH_WAYS, showing(10, 10))).toHaveLength(1);
+    expect(rollExplosions(d(4, 4), AGAIN_AND_AGAIN, showing(4, 4))).toHaveLength(MAX_EXPLOSIONS);
+  }
+
+  // rolls again and subtracts on a low face
+  {
+    expect(rollExplosions(d(10, 1), ONCE_BOTH_WAYS, showing(10, 7))).toEqual([d(10, 7, { exploded: true, negative: true })]);
+  }
+
+  // keeps a chain going downwards on high faces only
+  {
+    const repeating: Explosion = { highFaces: 1, lowFaces: 1, limit: MAX_EXPLOSIONS };
+    expect(rollExplosions(d(10, 1), repeating, showing(10, 10, 1, 4)).map((die) => [die.value, die.negative])).toEqual([[10, true], [1, true]]);
+  }
+
+  // turns the sign of a subtracted die around
+  {
+    const subtracted = d(6, 6, { negative: true });
+    expect(rollExplosions(subtracted, AGAIN_AND_AGAIN, showing(6, 3))).toEqual([d(6, 3, { exploded: true, negative: true })]);
+    expect(rollExplosions(d(6, 1, { negative: true }), ONCE_BOTH_WAYS, showing(6, 3))).toEqual([d(6, 3, { exploded: true })]);
+  }
+
+  // counts several high and low faces, but always leaves a face that does not explode
+  {
+    expect(rollExplosions(d(10, 9), { highFaces: 2, lowFaces: 0, limit: 1 }, showing(10, 3))).toHaveLength(1);
+    expect(rollExplosions(d(10, 8), { highFaces: 2, lowFaces: 0, limit: 1 }, showing(10, 3))).toHaveLength(0);
+    // A d2 with "two high faces" explodes on its 2 only, and has no face left for a low explosion.
+    expect(rollExplosions(d(2, 1), { highFaces: 2, lowFaces: 1, limit: 1 }, showing(2, 2))).toHaveLength(0);
+    expect(rollExplosions(d(2, 2), { highFaces: 2, lowFaces: 1, limit: 1 }, showing(2, 1))).toHaveLength(1);
+  }
+
+  // tells which dice of a roll exploded
+  {
+    const rolls = [d(6, 6), d(6, 2, { exploded: true }), d(6, 4)];
+    expect(rolls.map((_, i) => explodes(rolls, i))).toEqual([true, false, false]);
+  }
+});
+
+it('rollFormula with exploding dice', () => {
+  const rule = (explode: Partial<ExplodeRule>, defaultRoll = '1d20'): Pick<DiceRules, 'defaultRoll' | 'explode'> =>
+    ({ defaultRoll, explode: { dice: 'all', repeats: true, highFaces: 1, lowFaces: 0, ...explode } });
+
+  // does not explode without a rule or notation
+  {
+    expect(rollFormula('2d6', showing(6, 6)).rolls).toHaveLength(2);
+  }
+
+  // explodes every die under an all-dice rule and adds the extra dice
+  {
+    const result = rollFormula('1d8+1d6+2', showing(8, 8, 3, 6, 6), rule({}));
+    // d8: 8, then 3. d6: 6 (the random source above is read per die size), then more.
+    expect(result.rolls[0]).toEqual(d(8, 8));
+    expect(result.rolls[1]).toEqual(d(8, 3, { exploded: true }));
+    expect(result.total).toBe(result.rolls.reduce((sum, die) => sum + die.value, 0) + 2);
+  }
+
+  // explodes only the default dice under a default-dice rule
+  {
+    const result = rollFormula('1d10+2d6+4', showing(10, 10, 7, 10, 10), rule({ dice: 'default', repeats: false, lowFaces: 1 }, '1d10'));
+    expect(result.rolls.map((die) => [die.die, die.exploded ?? false])).toEqual([
+      ['d10', false], ['d10', true], ['d6', false], ['d6', false],
+    ]);
+  }
+
+  // subtracts the extra die of a low explosion
+  {
+    const result = rollFormula('1d10+4', showing(10, 1, 7), rule({ dice: 'default', repeats: false, lowFaces: 1 }, '1d10'));
+    expect(result.rolls).toEqual([d(10, 1), d(10, 7, { exploded: true, negative: true })]);
+    expect(result.total).toBe(1 - 7 + 4);
+  }
+
+  // reads the exploding notation of a term: once, a number of times, again and again
+  {
+    expect(rollFormula('1d6!', showing(6, 6)).rolls).toHaveLength(2);
+    expect(rollFormula('1d6!!', showing(6, 6)).rolls).toHaveLength(2);
+    expect(rollFormula('1d6!3', showing(6, 6)).rolls).toHaveLength(4);
+    expect(rollFormula('1d6!i', showing(6, 6)).rolls).toHaveLength(1 + MAX_EXPLOSIONS);
+    expect(rollFormula('2d6! + 1d4', showing(6, 6, 2, 3, 4)).rolls.map((die) => die.exploded ?? false)).toEqual([false, true, false, false]);
+  }
+
+  // bounds numeric explosions even at the maximum dice count
+  {
+    const result = rollFormula('100d6!99', () => 0.999);
+    expect(result.rolls).toHaveLength(100 * (1 + MAX_EXPLOSIONS));
+    expect(rollFormula('d6!0', () => 0.999).rolls).toHaveLength(1);
+  }
+
+  // lets the notation of a term win over the rule
+  {
+    const result = rollFormula('1d6!', showing(6, 6), rule({}));
+    expect(result.rolls).toHaveLength(2);
+  }
+});
+
+describe('criticals of exploded rolls', () => {
+  it('judges the original dice only', () => {
+    const rules: DiceRules = { defaultRoll: '1d10', crit: 'natural' };
+    expect(getDiceCrit([d(10, 10), d(10, 1, { exploded: true })], rules)).toBe('high');
+    expect(getDiceCrit([d(10, 5), d(10, 10, { exploded: true })], rules)).toBeNull();
+    // Two default dice: the second original die counts, not the extra die between them.
+    expect(getDiceCrit([d(12, 12), d(12, 3, { exploded: true }), d(12, 12)], { defaultRoll: '2d12', crit: 'doubles' })).toBe('high');
+  });
+});

@@ -13,25 +13,12 @@ const alias = {
 };
 
 /**
- * Test files that take a CI runner ten seconds or more each (the dungeon generator's invariants over
- * hundreds of seeded dungeons, the Spectral Engine on drawn maps, visibility sweeps, wall sealing on
- * hostile inputs, property and fuzz tests): the `slow` project, run only by hand (`npm run test:slow`)
+ * Test files that take a CI runner ten seconds or more each (the rooms mode's carving fuzz, the eraser
+ * on large fills): the `slow` project, run only by hand (`npm run test:slow`)
  * when the code they cover changes. Never in CI: they held the unit shards at their 15 minute limit.
  */
 const SLOW_TEST_FILES = [
-  'tests/unit/dungeons/**/*.test.{ts,tsx}',
-  'tests/unit/dungeonWizard.test.tsx',
-  'tests/unit/spectralEngine/{drawnGrids,irregularGrids,askewMaps,detectGridInImage,printedMaps}.test.ts',
-  'tests/unit/visibility{Culling,CullingLarge,CullingControls,Timing,Rules}.test.ts',
-  'tests/unit/sceneModelControls.test.ts',
-  'tests/unit/mapTokenReadsLint.test.ts',
-  'tests/unit/dependencyBoundaryEnforcement.test.ts',
-  'tests/unit/historyParityFixtures.test.ts',
-  'tests/unit/levels/artRaster.test.ts',
-  'tests/unit/online/movement/wallCollision.test.ts',
-  'tests/unit/measuredDistanceAcrossMap.test.ts',
-  'tests/unit/statblocks/notes/frontmatterPatch.{property,corpus}.test.ts',
-  'src/app/lighting/__tests__/sealWalls{Rays,Hostile,Crowded}.test.ts',
+  'tests/unit/wallCarvingFuzz.test.ts',
   'src/app/annotations/__tests__/{eraseCutLarge,fillWindowCut}.test.ts',
 ];
 
@@ -130,7 +117,7 @@ export default defineConfig({
         test: {
           name: 'sound-webkit',
           setupFiles: ['./tests/setup/obsidianDom.ts', './tests/setup/domHost.ts'],
-          include: ['tests/gpu/sound/{soundSeams,soundTransitions,soundFiles,soundRealTime}.gpu.test.ts'],
+          include: ['tests/gpu/sound/{soundSeams,soundTransitions,soundFiles}.gpu.test.ts'],
           testTimeout: 600_000,
           browser: {
             enabled: true,
