@@ -130,7 +130,7 @@ Their list is in folders by book, then by kind; the notes the GM links to their 
 
 ## The compendium on a character sheet
 
-A 5e sheet picks from the campaign's books (`src/app/characterSheets/sheetCompendium.ts`): the campaign
+A 5e sheet picks from the campaign's books (`src/app/compendium/sheetPicks.ts`): the campaign
 played, else the one played last, else every installed book.
 
 - **Class**: **+ Classe** adds a class at level 1 with its hit die; a character may have several. The sheet's

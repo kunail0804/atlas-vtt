@@ -101,7 +101,7 @@ of the *Tâche* template, or the labels `review:claude`, `review:glm`, `review:d
 - A single fix may still be taken alone: a branch from develop, `git cherry-pick <commit>`, a pull request into develop.
   Never open a pull request from an `upstream-*` branch: it holds upstream's workflows, which would run on it.
 
-Locally the remote `upstream` points at it: `git fetch upstream`, then `git log develop..upstream/main`.
+Locally the remote `atlas-upstream` points at it: `git fetch atlas-upstream`, then `git log develop..atlas-upstream/main`.
 
 ## Secrets
 
