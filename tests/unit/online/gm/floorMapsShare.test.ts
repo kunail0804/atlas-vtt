@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { AssetStoring, FloorMaps } from '../../../../src/app/online/gm/assets/assetUses.ts';
+import type { AssetRef } from '../../../../src/app/online/protocol/asset.ts';
 import { sha256Hex } from '../../../../src/app/online/gm/assetServe.ts';
 import type { SceneState } from '../../../../src/app/online/gm/atlasView.ts';
 import { floorMaps } from '../../../../src/app/online/gm/floorMaps.ts';
@@ -32,7 +33,11 @@ function scene(benOn: string): SceneState {
 /** References without a store, and every report of the floors' maps. */
 function storing(): { stored: AssetStoring; reports: FloorMaps[] } {
   const reports: FloorMaps[] = [];
-  const plain = async (bytes: Uint8Array<ArrayBuffer>, mime: string): Promise<{ hash: string; size: number; mime: string }> => ({ hash: await sha256Hex(bytes), size: bytes.length, mime });
+  const plain = async (bytes: Uint8Array<ArrayBuffer>, mime: string): Promise<AssetRef> => {
+    const hash = await sha256Hex(bytes);
+    // Without a store no id is worked out with a salt: the hash stands for it.
+    return { hash, size: bytes.length, mime, id: hash };
+  };
   return {
     reports,
     stored: { refOf: plain, mapRef: plain, fileRef: () => Promise.resolve(null), release: () => undefined, floorMaps: (maps) => void reports.push(maps) },

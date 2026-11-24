@@ -116,7 +116,7 @@ describe('light that reaches a room a party token stands in', () => {
     const store = createViewAtlasStore(createInMemoryApp().app, `light-reach-${Math.random()}`);
     store.getState().setPersistenceEnabled(false);
     store.getState().setMapPath('maps/light-reach.atlasmap');
-    store.setState((state) => ({ grid: { ...state.grid, size: 50 }, objects: { ...state.objects, ...objects } }));
+    store.setState((state) => ({ grid: { ...state.grid!, size: 50 }, objects: { ...state.objects, ...objects } }));
     store.getState().setSceneLighting({ enabled: true, ambient: 0, ...lighting });
     const view = new LightingRenderer({ viewport, app, store, measurement: () => MEASUREMENT, bounds: () => ({ width: MAP, height: MAP }), albedo: () => null });
     cleanup.push(() => {

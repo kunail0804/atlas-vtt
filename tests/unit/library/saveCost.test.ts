@@ -68,7 +68,7 @@ async function device(): Promise<Device> {
 const recordIn = (vault: InMemoryApp, path: string): Record<string, unknown> => JSON.parse(vault.files.get(path)!)[RECORD_KEY];
 
 /** Counts the records a step serializes and the texts it hashes. */
-async function workOf(step: () => Promise<void>): Promise<{ serialized: number; hashed: number }> {
+async function workOf(step: () => Promise<unknown>): Promise<{ serialized: number; hashed: number }> {
   vi.mocked(serializeRecord).mockClear();
   vi.mocked(hashText).mockClear();
   await step();

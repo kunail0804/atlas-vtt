@@ -22,7 +22,7 @@ async function threeFloors(): Promise<{ store: PublisherHarness; hashes: Map<str
   return { store, hashes };
 }
 
-const mapRef = (store: PublisherHarness, path: string): Promise<AssetRef> => store.publisher.storing.mapRef(store.files.get(path)!, 'image/png', path);
+const mapRef = async (store: PublisherHarness, path: string): Promise<AssetRef> => (await store.publisher.storing.mapRef(store.files.get(path)!, 'image/png', path))!;
 
 /** The tile batches that went up, as `<map>:<level>` (`*` where it carried the manifest). */
 function batchesSent(store: PublisherHarness, names: Map<string, string>): string[] {
@@ -75,7 +75,7 @@ describe('the pyramids of a scene\'s floors', () => {
     store.publisher.storing.floorMaps?.({ presented: GROUND, watched: [CELLAR], rest: [VAULT] });
     const ground = await mapRef(store, GROUND);
     const cellar = await mapRef(store, CELLAR);
-    const art = await store.publisher.storing.refOf(bytesOf(60, 5), 'image/png', ASSET_USES.art);
+    const art = (await store.publisher.storing.refOf(bytesOf(60, 5), 'image/png', ASSET_USES.art))!;
     await drain(store);
     const vault = store.client.offers.flat().find((offered) => offered.kind === 'tiles' && offered.id !== ground.id && offered.id !== cellar.id);
     const names = new Map([[ground.id!, 'ground'], [cellar.id!, 'cellar'], [vault?.id ?? '', 'vault']]);
@@ -189,7 +189,7 @@ describe('the pyramids of a scene\'s floors', () => {
     store.client.hold = true;
     store.publisher.storing.floorMaps?.({ presented: GROUND, watched: [], rest: [] });
     const ground = await mapRef(store, GROUND);
-    const world = await store.publisher.storing.mapRef(store.files.get(VAULT)!, 'image/png', VAULT, 'book');
+    const world = (await store.publisher.storing.mapRef(store.files.get(VAULT)!, 'image/png', VAULT, 'book'))!;
     expect(world.tiles).toBe(true);
     await drain(store);
     const names = new Map([[ground.id!, 'ground'], [world.id!, 'world']]);
@@ -198,7 +198,7 @@ describe('the pyramids of a scene\'s floors', () => {
     // The cellar's file is no image the tile worker can build: handed again, it goes as an image of the book.
     await store.publisher.storing.mapRef(store.files.get(CELLAR)!, 'image/png', CELLAR, 'book');
     await store.advance(1000);
-    const image = await store.publisher.storing.mapRef(store.files.get(CELLAR)!, 'image/png', CELLAR, 'book');
+    const image = (await store.publisher.storing.mapRef(store.files.get(CELLAR)!, 'image/png', CELLAR, 'book'))!;
     expect(image).not.toHaveProperty('tiles');
   });
 });

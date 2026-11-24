@@ -51,7 +51,7 @@ describe('a roll with a dice set', () => {
   it('rolls dice written out as written, without names', () => {
     const result = rollDiceFormula('1d8 + 3', duality, inputs([5, 8]))!;
     expect(result.rolls).toEqual([{ die: 'd8', value: 5, max: 8 }]);
-    expect(namedDiceLine(result.rolls, result.modifiers)).toBeNull();
+    expect(namedDiceLine(result.rolls, result)).toBeNull();
     expect(rollLine(result)).toBe('1d8 + 3');
   });
 

@@ -5,6 +5,7 @@ import { BUILT_IN_SYSTEM_PRESETS } from '../../../src/app/gameSystems/builtInPre
 import { sceneShowsSecondaryBar, storeLegacyResources } from '../../../src/app/resources/legacyResourcesMigration';
 import { STR } from '../../mocks/resourceFixtures';
 import type { CollectionSettings } from '../../../src/app/types/collectionSettingsTypes';
+import type { TokenEntity } from '../../../src/app/types';
 import { sceneFromFile, sceneToFile, tokenFromFile, tokenSettingsFromFile, tokenSettingsToFile, tokenToFile } from '../../../src/app/resources/resourceFileFormat';
 
 /** A scene file as 0.4.2 writes it. */
@@ -59,14 +60,14 @@ describe('legacyCollectionResources', () => {
   });
 
   it('reads a collection that never stored resources the same way', () => {
-    expect(collectionResources({ conditions: [], systemPresetId: 'builtin:daggerheart' }).map((d) => d.key)).toEqual(['hp', 'stress']);
-    expect(collectionResources({ conditions: [] }).map((d) => d.key)).toEqual(['hp']);
-    expect(collectionResources({ conditions: [], resources: [] })).toEqual([]);
+    expect(collectionResources({ systemPresetId: 'builtin:daggerheart' }).map((d) => d.key)).toEqual(['hp', 'stress']);
+    expect(collectionResources({}).map((d) => d.key)).toEqual(['hp']);
+    expect(collectionResources({ resources: [] })).toEqual([]);
   });
 
   it('never reads more resources than a token shows, wherever the settings came from', () => {
     const seven = ['hp', 'str', 'ammo', 'luck', 'mana', 'grit', 'fuel'].map((key) => ({ key, name: key, field: key, direction: 'drains' as const, color: '#22c55e', visibleToPlayers: false }));
-    expect(collectionResources({ conditions: [], resources: seven }).map((d) => d.key)).toEqual(['hp', 'str', 'ammo', 'luck', 'mana', 'grit']);
+    expect(collectionResources({ resources: seven }).map((d) => d.key)).toEqual(['hp', 'str', 'ammo', 'luck', 'mana', 'grit']);
   });
 
   it('gives a map outside every collection the two bars every map had', () => {
@@ -258,7 +259,7 @@ it('tokenToFile', () => {
 
   // leaves a token without resources alone
   {
-    const plain = { id: 't2', kind: 'token' };
+    const plain = { id: 't2', kind: 'token' } as TokenEntity;
     expect(tokenToFile(plain)).toBe(plain);
   }
 

@@ -22,7 +22,7 @@ async function withMap(add: (store: PublisherHarness, hash: string) => void): Pr
 describe('a map\'s pyramid', () => {
   it('goes up where the image was turned by its EXIF data, with the sides it was built with', async () => {
     const { store, bytes } = await withMap((store, hash) => store.cache.add(PATH, hash, 2000, 3000));
-    const ref = await store.publisher.storing.mapRef(bytes, 'image/png', PATH);
+    const ref = (await store.publisher.storing.mapRef(bytes, 'image/png', PATH))!;
     await store.advance(5000);
     expect(ref.tiles).toBe(true);
     expect(store.withdrawn).toBe(0);
@@ -32,7 +32,7 @@ describe('a map\'s pyramid', () => {
 
   it('is handed again under the new hash where the file changed between hashing and building', async () => {
     const { store, hash, bytes } = await withMap((store) => store.cache.add(PATH, 'f'.repeat(64), 3000, 2000));
-    const first = await store.publisher.storing.mapRef(bytes, 'image/png', PATH);
+    const first = (await store.publisher.storing.mapRef(bytes, 'image/png', PATH))!;
     expect(first.id).toBe(await assetIdOf(SALT, pyramidKey(hash, 2)));
     await store.advance(1000);
     expect(store.withdrawn).toBe(1);
@@ -42,7 +42,7 @@ describe('a map\'s pyramid', () => {
     store.files.set(PATH, changed);
     store.stats.set(PATH, { mtime: 2, size: changed.length });
     store.cache.add(PATH, newHash, 3000, 2000);
-    const again = await store.publisher.storing.mapRef(changed, 'image/png', PATH);
+    const again = (await store.publisher.storing.mapRef(changed, 'image/png', PATH))!;
     expect(again).toMatchObject({ hash: newHash, id: await assetIdOf(SALT, pyramidKey(newHash, 2)), tiles: true });
     await store.advance(5000);
     expect(store.client.batches.every((batch) => batch.id === again.id)).toBe(true);
@@ -61,7 +61,7 @@ describe('a map\'s pyramid', () => {
   it('releases what the store reserved for it once given up, once', async () => {
     const { store, bytes } = await withMap((store, hash) => store.cache.add(PATH, hash, 3000, 2000, { decodedScale: 2, stored: [] }));
     store.cache.manual = true;
-    const ref = await store.publisher.storing.mapRef(bytes, 'image/png', PATH);
+    const ref = (await store.publisher.storing.mapRef(bytes, 'image/png', PATH))!;
     await store.advance(1000);
     // Offered and wanted: then the first level stored shows a pyramid built at a reduced scale.
     store.cache.endBuild(PATH);
@@ -76,7 +76,7 @@ describe('a map\'s pyramid', () => {
     const { store, bytes } = await withMap((store, hash) => store.cache.add(PATH, hash, 3000, 2000, { stored: [] }));
     store.cache.manual = true;
     store.client.holdOffers = true;
-    const ref = await store.publisher.storing.mapRef(bytes, 'image/png', PATH);
+    const ref = (await store.publisher.storing.mapRef(bytes, 'image/png', PATH))!;
     await store.advance(300);
     expect(store.client.offers).toHaveLength(1);
     store.cache.endBuild(PATH, 'failed');
@@ -92,7 +92,7 @@ describe('a map\'s pyramid', () => {
   it('is released and goes no further where its build fails after its overview went up', async () => {
     const { store, bytes } = await withMap((store, hash) => store.cache.add(PATH, hash, 3000, 2000, { stored: [] }));
     store.cache.manual = true;
-    const ref = await store.publisher.storing.mapRef(bytes, 'image/png', PATH);
+    const ref = (await store.publisher.storing.mapRef(bytes, 'image/png', PATH))!;
     store.cache.storeLevel(PATH, 3);
     store.cache.storeLevel(PATH, 2);
     store.cache.storeLevel(PATH, 1);
@@ -110,7 +110,7 @@ describe('a map\'s pyramid', () => {
     const { store, bytes } = await withMap((store, hash) => store.cache.add(PATH, hash, 3000, 2000, { stored: [] }));
     store.cache.manual = true;
     store.client.hold = true;
-    const ref = await store.publisher.storing.mapRef(bytes, 'image/png', PATH);
+    const ref = (await store.publisher.storing.mapRef(bytes, 'image/png', PATH))!;
     await store.advance(1000);
     const bound = pyramidBound(pyramidOf(3000, 2000));
     expect(store.client.offers.flat().map((offered) => offered.size)).toEqual([bound]);

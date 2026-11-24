@@ -87,7 +87,7 @@ const WRITE_METHODS = {
  */
 export function forbidWrites(app: App): ReturnType<typeof vi.fn>[] {
   const refusals: ReturnType<typeof vi.fn>[] = [];
-  const targets = { vault: app.vault, adapter: app.vault.adapter, fileManager: app.fileManager } as Record<keyof typeof WRITE_METHODS, Record<string, unknown>>;
+  const targets = { vault: app.vault, adapter: app.vault.adapter, fileManager: app.fileManager } as unknown as Record<keyof typeof WRITE_METHODS, Record<string, unknown>>;
   for (const [target, methods] of Object.entries(WRITE_METHODS) as [keyof typeof WRITE_METHODS, readonly string[]][]) {
     for (const method of methods) {
       const refusal = vi.fn(() => { throw new Error(`${target}.${method} writes, but viewing must not write.`); });

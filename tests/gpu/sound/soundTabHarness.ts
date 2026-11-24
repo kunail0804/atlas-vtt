@@ -248,7 +248,8 @@ export async function openSoundTab(theme: string, viewport: HTMLElement, appId =
   const root: Root = createRoot(ui);
   act(() => {
     root.render(React.createElement(AtlasUIContext.Provider, { value: { app, view, pixiApp: null, renderer: null } },
-      React.createElement(ViewStoreProvider, { store },
+      // Its children are the arguments after the props.
+      React.createElement(ViewStoreProvider, { store } as React.ComponentProps<typeof ViewStoreProvider>,
         React.createElement(TooltipProvider, null,
           React.createElement(ContextMenuProvider, null,
             React.createElement(Profiler, { id: 'dm', onRender: () => { commits.count++; } },

@@ -126,6 +126,7 @@ describe('grid auto-detect through the map image overview', () => {
           sizes.push([bitmap.width, bitmap.height]);
           return bitmap;
         },
+        window: (rect, maxSide) => tesserae.window(rect, maxSide),
       });
       tesserae.close();
 

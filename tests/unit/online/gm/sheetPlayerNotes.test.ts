@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { TFile, type App } from 'obsidian';
 import { playerNoteFiles } from '../../../../src/app/sheets/playerNotes';
+import { fileHandle } from '../../../mocks/obsidianHandles';
 
 const BARBARIAN = 'Compendium/D&D 5e 2014/SRD 5.1/Classes/Barbarian.md';
 const DIARY = 'Players/Mira diary.md';
 
 /** A vault of two notes: a compendium class and a plain note, found by name as Obsidian resolves a link. */
 function vault(): App {
-  const files = new Map([BARBARIAN, DIARY].map((path) => [path, new TFile(path)]));
+  const files = new Map([BARBARIAN, DIARY].map((path) => [path, fileHandle(path)]));
   const frontmatter: Record<string, Record<string, unknown>> = { [BARBARIAN]: { 'atlas-compendium': 'class', name: 'Barbarian' }, [DIARY]: { tags: ['diary'] } };
   return {
     metadataCache: {

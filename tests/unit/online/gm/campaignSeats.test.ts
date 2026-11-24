@@ -8,6 +8,7 @@ import { TablePlayers } from '../../../../src/app/campaigns/players/TablePlayers
 import { MAX_CAMPAIGN_PLAYERS } from '../../../../src/app/online/protocol/index.ts';
 import { admitNewcomer, campaignLink, linkRefusal, refusalText, renewLink, TableSeats } from '../../../../src/app/online/gm/campaignSeats.ts';
 import { createInMemoryApp } from '../../../mocks/inMemoryVault';
+import { fileHandle } from '../../../mocks/obsidianHandles';
 
 const notices = vi.hoisted(() => [] as string[]);
 vi.mock('obsidian', async (original) => ({
@@ -81,7 +82,7 @@ describe('the seats of the table', () => {
     const file = JSON.parse(vault.files.get(TABLE_PLAYERS_PATH) ?? '{}') as { players: Record<string, object> };
     file.players[NEW.id] = { name: 'Noor', code: '000002', characters: [], addedAt: 2 };
     await vault.app.vault.adapter.write(TABLE_PLAYERS_PATH, JSON.stringify(file));
-    vault.emit('modify', new TFile(TABLE_PLAYERS_PATH));
+    vault.emit('modify', fileHandle(TABLE_PLAYERS_PATH));
     for (let turn = 0; turn < 5; turn += 1) await new Promise((resolve) => setTimeout(resolve, 0));
     expect(heard).toBe(2);
     expect(seats.players().map((player) => player.name)).toEqual(['Ana', 'Noor']);

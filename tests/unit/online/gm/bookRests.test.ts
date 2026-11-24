@@ -7,6 +7,7 @@ import { setRestGate, type CheckedRest, type RestGate, type TakenRest } from '..
 import { restKey } from '../../../../src/app/online/gm/book/restRequests.ts';
 import { setStatblockGate } from '../../../../src/app/online/gm/book/statblockGate.ts';
 import type { RestSummary } from '../../../../src/app/recovery/restEvents';
+import { alwaysRef } from '../../../../src/app/recovery/restTypes';
 import { checkRest, type RestOffer, type RestRequest } from '../../../../src/app/recovery/restOffer';
 import type { TemplateBlock, TemplateField } from '../../../../src/app/statblocks/model/templateTypes';
 import { FakeSocket, workspace } from './fakeTable.ts';
@@ -53,7 +54,7 @@ const SUMMARY: RestSummary = {
     { character: BRANNOCH, target: { kind: 'resource', key: 'hp' }, label: 'Hit Points', from: 4, to: 13, rolls: [{ formula: '2d8+(2)', total: 9 }] },
     { character: BRANNOCH, target: { kind: 'counters', key: 'hitDice', row: 0 }, label: 'Hit Dice', from: 3, to: 1, rolls: [] },
   ],
-  skipped: [{ index: 2, rule: { target: { kind: 'condition', id: 'exhaustion' }, does: 'step', by: -1 }, label: 'Exhaustion', reason: { kind: 'no-token', id: 'exhaustion' } }],
+  skipped: [{ index: 2, ref: alwaysRef(2), rule: { target: { kind: 'condition', id: 'exhaustion' }, does: 'step', by: -1 }, label: 'Exhaustion', reason: { kind: 'no-token', id: 'exhaustion' } }],
   text: 'Short rest: Hit Points 4 → 13',
 };
 

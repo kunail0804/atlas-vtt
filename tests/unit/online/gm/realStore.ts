@@ -9,7 +9,7 @@ import { PlayerMoves, type MoveState, type MoveStore } from '../../../../src/app
 import { token } from './shareHarness.ts';
 
 /** The actions of Atlas's view store these tests use, besides what player moves read. */
-export type ViewState = MoveState & Pick<AtlasViewState, 'objects'> & {
+export type ViewState = MoveState & Pick<AtlasViewState, 'objects' | 'levels' | 'viewedLevel' | 'heldTokens'> & {
   setPersistenceEnabled(enabled: boolean): void;
   setIsDragging(dragging: boolean): void;
   setHeldTokens(held: HeldTokens): void;

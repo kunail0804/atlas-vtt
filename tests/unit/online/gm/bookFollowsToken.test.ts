@@ -54,7 +54,8 @@ function bookOf(table: OpenTable, player: string): PlayerBook | undefined {
 /** The shared scene's id and the id players know a token by, read from what the players were sent. */
 function listed(table: OpenTable, tokenId: string): { readonly scene: string; readonly token: string } {
   const scene = delivered(table.socket).flatMap(({ body }) => (body.t === 'scene' ? [(body.scene as { id: string }).id] : [])).at(-1);
-  const name = table.tab.store.getState().objects.tokens[tokenId]?.name;
+  const held = table.tab.store.getState().objects.tokens[tokenId];
+  const name = held && 'name' in held ? held.name : undefined;
   const token = delivered(table.socket).flatMap(({ body }) => (body.t === 'tokens' && Array.isArray(body.tokens) ? (body.tokens as { id: string; name?: string }[]) : [])).find((entry) => entry.name === name)?.id;
   if (scene === undefined || token === undefined) throw new Error(`${tokenId} is not listed`);
   return { scene, token };

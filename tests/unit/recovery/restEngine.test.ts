@@ -86,7 +86,7 @@ describe('spending', () => {
 
   it('offers what the source holds, up to the rule\'s cap', () => {
     expect(restPlan(button([spendRule]), character(state)).rules[0]!.spend).toEqual({ label: 'Hit Dice', max: 2, each: '1d8+(2)' });
-    const uncapped = { ...spendRule, most: undefined };
+    const { most: _most, ...uncapped } = spendRule;
     expect(restPlan(button([uncapped]), character(state)).rules[0]!.spend?.max).toBe(3);
   });
 

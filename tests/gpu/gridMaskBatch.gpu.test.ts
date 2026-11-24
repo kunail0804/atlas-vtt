@@ -51,7 +51,7 @@ describe('the grid while it is switched off', () => {
     const zoom = (scale: number): void => {
       viewport.scale.set(scale);
       viewport.position.set(SIZE / 2 - (MAP / 2) * scale, SIZE / 2 - (MAP / 2) * scale);
-      viewport.emit('zoomed', {});
+      viewport.emit('zoomed', { viewport: viewport as unknown as Viewport, type: 'wheel' });
     };
     const render = (): Uint8ClampedArray => {
       renderer.render({ container: stage, target, clear: true });

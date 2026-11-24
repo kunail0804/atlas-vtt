@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { GridState } from '../../../../src/app/types/gridTypes';
 import { sharedMoveSteps, sharedTokenMove, type MoveShareState, type TokenMoves } from '../../../../src/app/online/gm/moveShare.ts';
 import { sharedRules } from '../../../../src/app/online/gm/RulesShare.ts';
 import { parseRules } from '../../../../src/app/online/protocol/rules.ts';
@@ -14,7 +15,7 @@ const DASH = { name: 'Dash', multiple: 2, color: '#f59e0b' };
 const rules = (changes: Partial<MovementRules> = {}): MovementRules => ({ steps: [MOVE, DASH], countPerTurn: false, ...changes });
 const moves = (movement: MovementRules, speed: number | null): TokenMoves => ({ rules: () => movement, speedOf: () => speed, prepare: () => undefined });
 const ogre = { id: 'ogre' } as TokenEntity;
-const GRID = { type: 'square', size: 70, offsetX: 0, offsetY: 0 } as const;
+const GRID: GridState = { enabled: true, type: 'square', size: 70, offsetX: 0, offsetY: 0, opacity: 1 };
 
 describe('a token\'s move as players are sent it', () => {
   it('sends the steps in the page\'s spelling, and none where the page could not read them', () => {

@@ -10,7 +10,7 @@ import { resolvedOf } from './sheetKit';
 const FIVE_E_2024 = allBuiltInTemplates().find((each) => each.template.id === 'builtin:5e-2024-monster')!.template;
 const SKILLS = 'b5skill0';
 
-function sheetOf(fields: Record<string, unknown>): SheetNode[] {
+function sheetOf(fields: Record<string, unknown>): readonly SheetNode[] {
   return statblockSheet({ resolved: resolvedOf(FIVE_E_2024, fields), definitions: [], resources: undefined })!.blocks;
 }
 

@@ -22,13 +22,6 @@ const SLOW_TEST_FILES = [
   'src/app/annotations/__tests__/{eraseCutLarge,fillWindowCut}.test.ts',
 ];
 
-/**
- * Wall-clock budgets (the generator's percentiles, a cave outline's trace): the `perf` project, run
- * alone on one worker (`npm run test:perf`). Beside the parallel load of a whole suite they tripped
- * while passing alone, so no other project holds a timing assertion.
- */
-const PERF_TEST_FILES = ['tests/perf/**/*.perf.test.ts'];
-
 export default defineConfig({
   // Dev tooling (e.g. disk-backed template loading) is enabled under test so
   // the maintainer-facing code paths are exercised. Mirrors the Vite `define`.
@@ -53,7 +46,7 @@ export default defineConfig({
           setupFiles: ['./tests/setup/obsidianDom.ts', './tests/setup/domHost.ts'],
           // Agents' worktrees in `.claude/` hold whole copies of the repository. selfhost/ has its own suite
           // (npm test in selfhost/), which drives a built page in Chromium.
-          exclude: ['**/node_modules/**', '**/.claude/**', '**/*.gpu.test.ts', 'selfhost/**', ...SLOW_TEST_FILES, ...PERF_TEST_FILES],
+          exclude: ['**/node_modules/**', '**/.claude/**', '**/*.gpu.test.ts', 'selfhost/**', ...SLOW_TEST_FILES],
         },
       },
       {
@@ -67,21 +60,6 @@ export default defineConfig({
           setupFiles: ['./tests/setup/obsidianDom.ts', './tests/setup/domHost.ts'],
           include: SLOW_TEST_FILES,
           exclude: ['**/node_modules/**', '**/.claude/**', '**/*.gpu.test.ts'],
-        },
-      },
-      {
-        extends: true,
-        test: {
-          name: 'perf',
-          environment: 'node',
-          pool: 'threads',
-          maxWorkers: 1,
-          fileParallelism: false,
-          testTimeout: 300_000,
-          globals: true,
-          setupFiles: ['./tests/setup/obsidianDom.ts', './tests/setup/domHost.ts'],
-          include: PERF_TEST_FILES,
-          exclude: ['**/node_modules/**', '**/.claude/**'],
         },
       },
       {

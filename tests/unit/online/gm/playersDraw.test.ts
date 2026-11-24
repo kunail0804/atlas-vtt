@@ -11,6 +11,7 @@ import type { FogOperation } from '../../../../src/app/types/fogTypes';
 import type { SceneLevel } from '../../../../src/app/types/sceneLevelTypes';
 import { fakeLayers } from './fakeAtlasTab.ts';
 import { GENERIC_SOURCE, PLAYER_SETTINGS } from './gmLighting.ts';
+import type { AtlasPlayerSettings } from '../../../../src/app/online/gm/atlasLighting.ts';
 import { sceneState, shareHarness, token, type Sent, type ShareHarness } from './shareHarness.ts';
 
 const ANA = 'a'.repeat(20);
@@ -33,7 +34,7 @@ function seats(online: readonly string[] = [ANA, BEN]): SeatSource {
 }
 
 /** A table whose shared scene has a grid and nothing drawn; players may draw where `settings` say so. */
-async function started(settings = DRAWING, state = sceneState({ grid: GRID }), seated = seats()): Promise<ShareHarness> {
+async function started(settings: AtlasPlayerSettings = DRAWING, state = sceneState({ grid: GRID }), seated = seats()): Promise<ShareHarness> {
   const table = shareHarness(state, IMAGES, seated);
   table.settings = settings;
   table.layers = fakeLayers({ state: () => table.state(), source: GENERIC_SOURCE, bounds: { width: 2000, height: 2000 }, grid: () => null, collections: null });

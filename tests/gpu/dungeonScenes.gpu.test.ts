@@ -194,7 +194,7 @@ describe('a dungeon scene and its map image', () => {
     const view: DungeonView = { ...DEFAULT_VIEW, ...change };
     const label = `seed ${seed} [${tags.join(',')}], ${floors} floors, ${look}${view.monochrome ? ' monochrome' : ''}${view.smallTiles ? ', small tiles' : ''}`;
     it(`agree on walls, doors and grid: ${label}`, () => {
-      const model = generateDungeon({ seed, theme, tags, floors, ...(fiveRoom && { fiveRoom }) });
+      const model = generateDungeon({ seed, ...(theme && { theme }), tags, floors, ...(fiveRoom && { fiveRoom }) });
       const style = dungeonStyle(look);
       const palette = paletteOf(style, view);
       // Every floor's map has the same layout, round all floors: one scale fits them all. Tolerances in pixels stay as they are at any scale.
@@ -302,7 +302,7 @@ describe('the thumbnail a new dungeon scene gets', () => {
   it('is a JPEG of the thumbnail’s size, drawn by the real worker and covering it with the map', async () => {
     const client = DungeonWorkerClient.forApp(app);
     const bytes = await dungeonSceneThumbnail((job) => client.render(job), {
-      request: { seed: 7, tags: ['medium'], theme: 'fortress' },
+      request: { seed: 7, tags: ['medium'], theme: 'fortress', floors: 1 },
       style: dungeonStyle(DEFAULT_DUNGEON_GENERATOR_SETTINGS.style),
       view: DEFAULT_DUNGEON_GENERATOR_SETTINGS.view,
     }, MAP_THUMBNAIL_SIZE);
@@ -329,7 +329,7 @@ describe('a new dungeon growing into being', () => {
   /** A preview of a fortress as the wizard draws one, at the size of a large preview on a Retina screen. */
   async function drawn(): Promise<{ bitmap: ImageBitmap; plan: ReturnType<typeof revealPlan> }> {
     const result = await DungeonWorkerClient.forApp(app).render({
-      request: { seed: 7, tags: ['medium'], theme: 'fortress' },
+      request: { seed: 7, tags: ['medium'], theme: 'fortress', floors: 1 },
       style: dungeonStyle(style),
       view,
       output: { kind: 'preview', width: 2400, height: 1800 },

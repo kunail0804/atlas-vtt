@@ -155,7 +155,8 @@ type SceneDeps = Pick<CanvasLightingDeps, 'store' | 'measurement' | 'rules'> & {
 export function openPictures(renderers: Record<Kind, Renderer>, { bounds, ...deps }: SceneDeps): Pictures {
   const all = { ...deps, bounds: () => bounds };
   const exactViewport = new Container();
-  const exact = new ExactFallback({ viewport: exactViewport as unknown as Viewport, ...all });
+  // The baseline names the whole view store, which it reads only as the scene store it is handed here.
+  const exact = new ExactFallback({ viewport: exactViewport as unknown as Viewport, ...all } as unknown as ConstructorParameters<typeof ExactFallback>[0]);
   const shown = KINDS.map((kind) => {
     const stage = new Container();
     const viewport = new Container();

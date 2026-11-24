@@ -1,5 +1,6 @@
 import { vi } from 'vitest';
 import { App, TFile, TFolder, type TAbstractFile } from 'obsidian';
+import { fileHandle, folderHandle } from './obsidianHandles';
 
 export interface InMemoryVaultSeed {
   /** Vault-relative path → text content. */
@@ -69,14 +70,14 @@ export function createInMemoryApp(seed: InMemoryVaultSeed = {}): InMemoryApp {
     setFile(path, new TextDecoder().decode(content));
     binaries.set(path, content.slice(0));
   };
-  const bytesAt = (path: string): ArrayBuffer => binaries.get(path)?.slice(0) ?? new TextEncoder().encode(files.get(path) ?? '').buffer;
+  const bytesAt = (path: string): ArrayBuffer => binaries.get(path)?.slice(0) ?? new TextEncoder().encode(files.get(path) ?? '').buffer as ArrayBuffer;
   const writeFile = (path: string, content: string): void => {
     addParentFolders(path);
     setFile(path, content);
   };
   /** A file handle with the stat Obsidian keeps: size and modification time. */
   const fileAt = (path: string): TFile => {
-    const file = new TFile(path);
+    const file = fileHandle(path);
     file.stat = { ctime: 0, mtime: mtimes.get(path) ?? 0, size: binaries.get(path)?.byteLength ?? (files.get(path) ?? '').length };
     return file;
   };
@@ -88,7 +89,7 @@ export function createInMemoryApp(seed: InMemoryVaultSeed = {}): InMemoryApp {
   }
   /** A folder handle whose `children` list what lies directly inside it, as Obsidian's does. */
   const folderAt = (path: string): TFolder => {
-    const folder = new TFolder(path);
+    const folder = folderHandle(path);
     const inside = (candidate: string): boolean => parentOf(candidate) === path;
     folder.children = [
       ...[...folders].filter(inside).map(folderAt),
@@ -170,10 +171,10 @@ export function createInMemoryApp(seed: InMemoryVaultSeed = {}): InMemoryApp {
       trashLocal: vi.fn(async (path: string) => removeWithin(path)),
       getResourcePath: vi.fn((path: string) => `app://local/${path}`),
       stat: vi.fn(async (path: string) => {
-        if (files.has(path)) return { type: 'file', size: binaries.get(path)?.byteLength ?? (files.get(path) ?? '').length, ctime: 0, mtime: 0 };
-        return folders.has(path) ? { type: 'folder', size: 0, ctime: 0, mtime: 0 } : null;
+        if (files.has(path)) return { type: 'file' as const, size: binaries.get(path)?.byteLength ?? (files.get(path) ?? '').length, ctime: 0, mtime: 0 };
+        return folders.has(path) ? { type: 'folder' as const, size: 0, ctime: 0, mtime: 0 } : null;
       }),
-    },
+    } as unknown as App['vault']['adapter'],
     on: vi.fn((name: string, callback: (...args: unknown[]) => void) => {
       const ref = { name, callback };
       handlers.add(ref);
@@ -191,19 +192,20 @@ export function createInMemoryApp(seed: InMemoryVaultSeed = {}): InMemoryApp {
     getFileByPath: vi.fn((path: string): TFile | null => (files.has(path) && !isHiddenPath(path) ? fileAt(path) : null)),
     getFolderByPath: vi.fn((path: string): TFolder | null => (folders.has(path) && !isHiddenPath(path) ? folderAt(path) : null)),
     getRoot: vi.fn((): TFolder => {
-      const root = new TFolder('/');
+      const root = folderHandle('/');
       const atTop = (path: string): boolean => !path.includes('/');
       root.children = [...[...folders].filter(atTop).map(folderAt), ...[...files.keys()].filter(atTop).map(fileAt)];
       return root;
     }),
     getAllFolders: vi.fn((includeRoot = false): TFolder[] => [
-      ...(includeRoot ? [new TFolder('/')] : []),
+      ...(includeRoot ? [folderHandle('/')] : []),
       ...[...folders].filter((path) => !isHiddenPath(path)).map(folderAt),
     ]),
     rename: vi.fn(moveFile),
     createFolder: vi.fn(async (path: string) => {
       assertFree(path);
       folders.add(path);
+      return folderAt(path);
     }),
     create: vi.fn(async (path: string, content: string) => {
       assertFree(path);
@@ -227,7 +229,7 @@ export function createInMemoryApp(seed: InMemoryVaultSeed = {}): InMemoryApp {
     modifyBinary: vi.fn(async (file: TFile, content: ArrayBuffer) => {
       setBinary(file.path, content);
     }),
-  };
+  } as unknown as App['vault'];
 
   app.fileManager = {
     renameFile: vi.fn(moveFile),
@@ -240,7 +242,7 @@ export function createInMemoryApp(seed: InMemoryVaultSeed = {}): InMemoryApp {
       const yaml = Object.entries(frontmatter).map(([key, value]) => `${key}: ${String(value)}`).join('\n');
       setFile(file.path, `---\n${yaml}\n---\n${body}`);
     }),
-  };
+  } as unknown as App['fileManager'];
 
   app.workspace = {
     layoutReady: true,
@@ -250,7 +252,7 @@ export function createInMemoryApp(seed: InMemoryVaultSeed = {}): InMemoryApp {
     on: vi.fn(() => ({})),
     offref: vi.fn(),
     trigger: vi.fn(),
-  };
+  } as unknown as App['workspace'];
 
   const linkDestination = (linkpath: string): string | undefined =>
     [...files.keys()].find((candidate) => candidate === linkpath || candidate.endsWith(`/${linkpath}`));
@@ -261,7 +263,7 @@ export function createInMemoryApp(seed: InMemoryVaultSeed = {}): InMemoryApp {
     getFileCache: vi.fn(() => null),
     getFirstLinkpathDest: vi.fn((linkpath: string): TFile | null => {
       const path = linkDestination(linkpath);
-      return path ? new TFile(path) : null;
+      return path ? fileHandle(path) : null;
     }),
     /** The wikilinks of every note, resolved as Obsidian does: by name or by the end of the path. */
     get resolvedLinks(): Record<string, Record<string, number>> {
@@ -277,7 +279,7 @@ export function createInMemoryApp(seed: InMemoryVaultSeed = {}): InMemoryApp {
       }
       return links;
     },
-  };
+  } as unknown as App['metadataCache'];
 
   const emit = (name: string, ...args: unknown[]): void => {
     for (const handler of [...handlers]) if (handler.name === name) handler.callback(...args);

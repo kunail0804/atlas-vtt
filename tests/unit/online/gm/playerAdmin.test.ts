@@ -20,7 +20,7 @@ const snapshot = (over: Partial<OnlineSnapshot> = {}): OnlineSnapshot => ({ stat
 
 function actions(): PanelActions {
   return {
-    selectToken: vi.fn(), assign: vi.fn(), release: vi.fn(), unmark: vi.fn(), mark: vi.fn(), kick: vi.fn(), drawingsOf: () => 0, clearDrawings: vi.fn(), selected: () => [], imageSrc: (path) => path,
+    selectToken: vi.fn(), assign: vi.fn(), release: vi.fn(), unmark: vi.fn(), mark: vi.fn(), kick: vi.fn(), drawingsOf: () => 0, clearDrawings: vi.fn(), selected: () => [], imageSrc: (path: string) => path,
     playerCode: () => '482193', newPlayerCode: vi.fn(), renamePlayer: vi.fn(), removeFromCampaign: vi.fn(), addPlayer: vi.fn(() => ({ id: 'd'.repeat(20), name: 'Dora', code: '731904' })), newLink: vi.fn(),
     start: vi.fn(), choose: vi.fn(), chooseWorld: vi.fn(), search: vi.fn(), openCampaigns: vi.fn(), stop: vi.fn(), share: vi.fn(), copy: () => Promise.resolve(true), toggleQr: vi.fn(), close: vi.fn(), hideImage: vi.fn(), openAccountPage: vi.fn(),
     newCode: vi.fn(), setRequireCode: vi.fn(), setAskToJoin: vi.fn(),
@@ -250,7 +250,7 @@ describe('stopping the table', () => {
   it('stops at once from the menu, where nobody is at the table yet; "…" shows only with something in it', () => {
     const layer = document.body.createDiv();
     const does = actions();
-    renderMenu(layer, menuModel(snapshot({ players: [] }), SCENE, { kind: 'signed-out' }), does as unknown as MenuActions);
+    renderMenu(layer, menuModel(snapshot({ players: [] }), SCENE, { kind: 'signed-out', notice: null }), does as unknown as MenuActions);
     expect(header(layer)).toEqual(['Stop table']);
     layer.querySelector<HTMLButtonElement>('.atlas-online-header__stop')?.click();
     expect(does.stop).toHaveBeenCalledTimes(1);
@@ -258,7 +258,7 @@ describe('stopping the table', () => {
 });
 
 describe('the world the table plays', () => {
-  const WORLDS: CampaignPick = { list: [{ id: 'strahd', name: 'Curse of Strahd', activity: '', art: null, hue: 0 }, { id: 'caves', name: 'Blue Mouth Caves', activity: '', art: null, hue: 0 }], players: 0, chosen: null, query: '' };
+  const WORLDS: CampaignPick = { list: [{ id: 'strahd', name: 'Curse of Strahd', activity: '', art: null, hue: 0, ownSystem: false }, { id: 'caves', name: 'Blue Mouth Caves', activity: '', art: null, hue: 0, ownSystem: false }], players: 0, chosen: null, query: '' };
   const worldRow = (layer: HTMLElement): HTMLButtonElement | null => layer.querySelector('.atlas-online-world');
 
   it('is named in the panel, and its menu offers No world and every world, the one played ticked', () => {
@@ -280,7 +280,7 @@ describe('the world the table plays', () => {
     renderPanel(layer, panelView(snapshot({ campaignId: 'strahd' }), SCENE, feedback, worldRowOf('strahd', WORLDS)), actions());
     expect(layer.querySelector('.atlas-online-title')?.textContent).toBe('Table');
     const menu = document.body.createDiv();
-    renderMenu(menu, menuModel(snapshot({ players: [], campaignId: 'strahd' }), SCENE, { kind: 'signed-out' }, false, WORLDS), actions() as unknown as MenuActions);
+    renderMenu(menu, menuModel(snapshot({ players: [], campaignId: 'strahd' }), SCENE, { kind: 'signed-out', notice: null }, false, WORLDS), actions() as unknown as MenuActions);
     expect(menu.querySelector('.atlas-online-title')?.textContent).toBe('Table');
     expect(worldRow(menu)?.textContent).toBe('World: Curse of Strahd');
   });
@@ -290,7 +290,7 @@ describe('the world the table plays', () => {
     renderPanel(layer, panelView(snapshot({ campaignId: 'strahd' }), SCENE, feedback, worldRowOf('strahd', NO_CAMPAIGNS)), actions());
     expect(worldRow(layer)?.textContent).toBe('…');
     const menu = document.body.createDiv();
-    renderMenu(menu, menuModel(snapshot({ players: [], campaignId: 'strahd' }), SCENE, { kind: 'signed-out' }, false, NO_CAMPAIGNS), actions() as unknown as MenuActions);
+    renderMenu(menu, menuModel(snapshot({ players: [], campaignId: 'strahd' }), SCENE, { kind: 'signed-out', notice: null }, false, NO_CAMPAIGNS), actions() as unknown as MenuActions);
     expect(worldRow(menu)?.textContent).toBe('…');
     // A table that plays none says so whether the worlds are read or not.
     renderPanel(layer, panelView(snapshot(), SCENE, feedback, worldRowOf(null, NO_CAMPAIGNS)), actions());
@@ -313,7 +313,7 @@ describe('the world the table plays', () => {
   it('says No world in the menu before anyone joined, while the table plays none', () => {
     const layer = document.body.createDiv();
     const does = actions() as unknown as MenuActions;
-    renderMenu(layer, menuModel(snapshot({ players: [] }), SCENE, { kind: 'signed-out' }, false, WORLDS), does);
+    renderMenu(layer, menuModel(snapshot({ players: [] }), SCENE, { kind: 'signed-out', notice: null }, false, WORLDS), does);
     expect(worldRow(layer)?.textContent).toBe('No world');
     worldRow(layer)?.click();
     expect(menus.opened.at(-1)!.map((entry) => [entry.title, entry.checked])).toEqual([['No world', true], ['Curse of Strahd', false], ['Blue Mouth Caves', false]]);

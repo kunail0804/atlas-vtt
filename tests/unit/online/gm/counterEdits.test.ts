@@ -129,14 +129,14 @@ describe('a player\'s change of their Counters', () => {
 
   it('takes rows whatever recovery button they name, and never changes a note whose rows regain what Atlas does not roll', () => {
     const other = NOTE.replace('reset: Long rest', 'reset: dawn');
-    expect(slotsAfter(other, checkFieldEdit(inputsOf(other), edit([{ ...SENT[0]!, reset: 'dawn', used: 2 }, SENT[1]!], { was: [{ ...ROWS[0], reset: 'dawn' }, ROWS[1]] }))))
+    expect(slotsAfter(other, checkFieldEdit(inputsOf(other), edit([{ ...SENT[0]!, reset: 'dawn', used: 2 }, SENT[1]!], { was: [{ ...ROWS[0]!, reset: 'dawn' }, ROWS[1]!] }))))
       .toEqual([{ ...ROWS[0], reset: 'dawn', used: 2 }, ROWS[1]]);
     const unrolled = NOTE.replace('regain: 1d4', 'regain: some');
-    expect(checkFieldEdit(inputsOf(unrolled), edit([{ ...SENT[0]!, used: 2 }, { ...SENT[1]!, regain: 'some' }], { was: [ROWS[0], { ...ROWS[1], regain: 'some' }] }))).toBeNull();
+    expect(checkFieldEdit(inputsOf(unrolled), edit([{ ...SENT[0]!, used: 2 }, { ...SENT[1]!, regain: 'some' }], { was: [ROWS[0]!, { ...ROWS[1]!, regain: 'some' }] }))).toBeNull();
   });
 
   it('refuses an edit made against an older value, and one of a field players may only read', () => {
-    expect(checkFieldEdit(inputs, edit(withUsed([2, 3]), { was: [{ ...ROWS[0], used: 0 }, ROWS[1]] }))).toBeNull();
+    expect(checkFieldEdit(inputs, edit(withUsed([2, 3]), { was: [{ ...ROWS[0]!, used: 0 }, ROWS[1]!] }))).toBeNull();
     const readOnly = inputsOf(NOTE, { ...TEMPLATE, players: { slots: 'read' } });
     expect(checkFieldEdit(readOnly, edit(withUsed([2, 3])))).toBeNull();
   });

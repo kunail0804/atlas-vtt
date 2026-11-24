@@ -127,7 +127,7 @@ describe('generated dungeons', () => {
     let model = models.get(name);
     if (!model) {
       const spec = CASES.find(c => c.name === name)!;
-      model = generateDungeon({ seed: spec.seed, theme: spec.theme, tags: spec.tags, floors: 1 });
+      model = generateDungeon({ seed: spec.seed, ...(spec.theme && { theme: spec.theme }), tags: spec.tags, floors: 1 });
       models.set(name, model);
     }
     return model;
@@ -253,7 +253,7 @@ describe('the dungeon styles', () => {
     let model = models.get(name);
     if (!model) {
       const spec = DUNGEONS.find(d => d.name === name)!;
-      model = generateDungeon({ seed: spec.seed, theme: spec.theme, tags: spec.tags, floors: 1 });
+      model = generateDungeon({ seed: spec.seed, ...(spec.theme && { theme: spec.theme }), tags: spec.tags, floors: 1 });
       models.set(name, model);
     }
     return model;
@@ -362,7 +362,7 @@ describe('the map as SVG', () => {
 
   for (const { name, seed, theme, tags, styleId } of CASES) {
     it(`draws the ${name} map in ${styleId} as the canvas does`, async () => {
-      const model = generateDungeon({ seed, theme, tags, floors: 1 });
+      const model = generateDungeon({ seed, ...(theme && { theme }), tags, floors: 1 });
       const style = dungeonStyle(styleId);
       const size = mapLayout(model, PX_PER_CELL, DEFAULT_VIEW);
       const canvas = new OffscreenCanvas(size.widthPx, size.heightPx);
@@ -408,7 +408,7 @@ describe('dungeons with terrain, for judging by eye', () => {
     ...[1, 2, 3, 4].flatMap((floors) =>
       [11, 23, 37].map((seed) => ({ name: `sweep-${floors}f-${seed}`, request: { seed: seed * 1013 + floors, tags: [], floors, bossRoom: seed !== 23 }, look: 'parchment' as const })),
     ),
-    ...[7, 8, 9, 10].map((seed) => ({ name: `sweep-five-room-${seed}`, request: { seed: seed * 977, theme: seed % 2 ? 'fortress' : undefined, tags: seed % 2 ? ['colonnades'] : ['wet'], floors: 1, fiveRoom: true }, look: 'masonry' as const })),
+    ...[7, 8, 9, 10].map((seed) => ({ name: `sweep-five-room-${seed}`, request: { seed: seed * 977, ...(seed % 2 ? { theme: 'fortress' as const } : {}), tags: seed % 2 ? ['colonnades'] : ['wet'], floors: 1, fiveRoom: true }, look: 'masonry' as const })),
   ];
 
   function floorCanvas(model: DungeonModel, look: DungeonStyleId, view: DungeonView, floor: number): OffscreenCanvas {

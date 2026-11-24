@@ -38,7 +38,7 @@ class Rig {
   players: string[] = ['p1', 'p2', 'p3'];
   on = true;
   noted = 0;
-  snapshot: SoundSnapshot = { mix: { ...EMPTY_MIX }, lifecycle: 'off', lastMix: null, previewing: null, output: null, audience: null, audienceDetail: null, waitingKeys: [], shelfRevision: 0, playersRevision: 0 };
+  snapshot: SoundSnapshot = { mix: { ...EMPTY_MIX }, levels: { musicDb: 0, ambienceDb: 0, masterDb: 0 }, lifecycle: 'off', lastMix: null, previewing: null, output: null, audience: null, audienceDetail: null, waitingKeys: [], played: [], shelfRevision: 0, playersRevision: 0 };
   clock: TableClock | null = null;
   clockSteps: number[] = [];
   audience: AudienceLine | null = null;

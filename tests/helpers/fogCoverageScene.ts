@@ -12,6 +12,7 @@ import { watchGl } from '../../src/app/pixi/lighting/engine/__tests__/strictGl';
 import type { FogOperation, FogRectangleFill } from '../../src/app/types/fogTypes';
 import type { MapRect } from '../../src/app/grid/cellNumbering';
 import { createInMemoryApp } from '../mocks/inMemoryVault';
+import { getHistoryStore } from '../../src/app/stores/history';
 
 export function fogRect(id = 'paint', timestamp = 1, isErasing = false): FogRectangleFill {
   return { id, timestamp, kind: 'fog', type: 'rectangle', isErasing, x: 16, y: 16, width: 64, height: 64 };
@@ -77,11 +78,12 @@ export function fogScenes({ fades = false } = {}): { scene: (ops?: Record<string
     store.getState().setPersistenceEnabled(false);
     store.setState(state => ({ mapPath: 'maps/a.atlasmap', isMapLoading: false, isGMView: true,
       objects: { ...state.objects, fog: ops } }));
-    store.temporal.getState().clear();
+    getHistoryStore(store)!.getState().clear();
     const unsubscribe = beforeRenderer?.(store);
     const events = new EventEmitter();
     let mapRect: MapRect | null = null;
-    const fog = new FogOfWarRenderer(viewport, app, events, store, () => mapRect);
+    // The renderer names Node's emitter; eventemitter3's (which runs in the browser) has all it uses of it.
+    const fog = new FogOfWarRenderer(viewport, app, events as unknown as ConstructorParameters<typeof FogOfWarRenderer>[2], store, () => mapRect);
     viewport.addChild(fog.getContainer());
     const target = RenderTexture.create({ width: 128, height: 128 });
     const pixels = (): Uint8ClampedArray => {
@@ -103,7 +105,7 @@ export function fogScenes({ fades = false } = {}): { scene: (ops?: Record<string
       app, store, fog, events, viewport,
       rgba(layers?: readonly LayerVisibility[]): Uint8ClampedArray {
         if (!layers) return pixels();
-        let all = new Uint8ClampedArray();
+        let all: Uint8ClampedArray = new Uint8ClampedArray();
         captureWithLayerVisibility(layers, () => {}, () => { all = pixels(); });
         return all;
       },

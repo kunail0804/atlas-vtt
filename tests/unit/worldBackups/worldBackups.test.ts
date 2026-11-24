@@ -26,7 +26,7 @@ function setup(files: Record<string, string> = ORIGINAL, disk: DiskFiles | null 
   let now = Date.UTC(2026, 10, 12, 20, 0, 0);
   const settle = vi.fn(async () => undefined);
   const quiet = vi.fn(<T>(work: () => Promise<T>): Promise<T> => work());
-  const backups = new WorldBackups({ vault: obsidianWorldVault(memory.app), vaultId: 'vault-a', folder: () => backupFolderOf(memory.app, disk?.node ?? null, null), now: () => now, settle, quiet, reload: async () => undefined });
+  const backups = new WorldBackups({ vault: obsidianWorldVault(memory.app), vaultId: 'vault-a', folder: () => backupFolderOf(memory.app, disk?.node ?? null, null), now: () => now, settle, quiet: quiet as <T>(work: () => Promise<T>) => Promise<T>, reload: async () => undefined });
   return { files: memory.files, app: memory.app, backups, quiet, settle, tick: (ms = 1000) => void (now += ms) };
 }
 

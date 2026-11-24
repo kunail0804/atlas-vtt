@@ -84,7 +84,7 @@ describe('the rim of a light over explored memory (#139)', () => {
     store.getState().setPersistenceEnabled(false);
     store.getState().setMapPath('maps/rim.atlasmap');
     const exploredMask = await wholeMapMask();
-    store.setState((state) => ({ grid: { ...state.grid, size: 70 }, objects: { ...state.objects, walls: { w: WALL }, lights, tokens: { hero: HERO } }, exploredMask }));
+    store.setState((state) => ({ grid: { ...state.grid!, size: 70 }, objects: { ...state.objects, walls: { w: WALL }, lights, tokens: { hero: HERO } }, exploredMask }));
     store.getState().setSceneLighting({ enabled: true, ambient: 0, ...lighting });
     const view = new LightingRenderer({ viewport, app, store, measurement: () => MEASUREMENT, bounds: () => ({ width: W, height: H }), albedo: () => null });
     cleanup.push(() => {

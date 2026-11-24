@@ -58,7 +58,7 @@ describe('a thumbnail of a tiled map while the GM is zoomed into a corner', () =
     const { pyramid } = source;
     const ticker = new Ticker();
     const cache = new TesseraTextureCache({ ticker, renderer, requestRender: () => undefined });
-    const layer = new MosaicCanvasLayer({ source, cache, ticker, requestRender: () => undefined, reducedMotion: () => true, picture: MAP_THUMBNAIL_SIZE });
+    const layer = new MosaicCanvasLayer({ source, cache, ticker, requestRender: () => undefined, drawAtOnce: () => true, picture: MAP_THUMBNAIL_SIZE });
     const viewport = new Container();
     viewport.addChild(layer.container);
     // 400 %: the GM sees 64 × 64 world pixels at the map's top left corner, from level 0.
