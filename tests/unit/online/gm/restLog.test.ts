@@ -4,7 +4,7 @@ import { restChangeOwners, restRecordOf } from '../../../../src/app/online/gm/lo
 import { restPicksText, restRulesText } from '../../../../src/app/online/gm/book/restRules.ts';
 import type { RecoveryButton } from '../../../../src/app/recovery/recoveryTypes';
 import type { RestSummary } from '../../../../src/app/recovery/restEvents';
-import type { RestChange, RestPlan } from '../../../../src/app/recovery/restTypes';
+import { alwaysRef, type RestChange, type RestPlan } from '../../../../src/app/recovery/restTypes';
 
 const change = (label: string, rolls: RestChange['rolls'] = []): RestChange => ({ character: { id: 'pc', name: 'Mira' }, target: { kind: 'resource', key: 'hp' }, label, from: 4, to: 13, rolls });
 
@@ -15,15 +15,15 @@ describe('a rest in the table\'s log', () => {
     const summary: RestSummary = {
       characterId: 'pc', characterName: long, notePath: 'n.md', button: { id: 'long', name: long }, picks: [],
       changes: [change(long, rolls), ...Array.from({ length: 20 }, (_, index) => change(`Row ${index}`))],
-      skipped: [{ index: 0, rule: { target: { kind: 'condition', id: 'x' }, does: 'clear' }, label: '  ', reason: { kind: 'no-token', id: 'x' } }],
+      skipped: [{ index: 0, ref: alwaysRef(0), rule: { target: { kind: 'condition', id: 'x' }, does: 'clear' }, label: '  ', reason: { kind: 'no-token', id: 'x' } }],
       text: '',
     };
     const record = restRecordOf(summary);
     expect([...record.character]).toHaveLength(MAX_REST_TEXT);
     expect(record.character.endsWith('…')).toBe(true);
     expect(record.changes).toHaveLength(MAX_REST_CHANGES);
-    expect([...(record.changes[0]?.roll ?? '')].length).toBeLessThanOrEqual(MAX_REST_ROLL);
-    expect(record.changes[0]?.roll?.startsWith('1d8+2 = 7, 1d8+2 = 7')).toBe(true);
+    expect([...(record.changes![0]?.roll ?? '')].length).toBeLessThanOrEqual(MAX_REST_ROLL);
+    expect(record.changes![0]?.roll?.startsWith('1d8+2 = 7, 1d8+2 = 7')).toBe(true);
     // A skipped rule whose name shows nothing is left out.
     expect(record.skipped).toBeUndefined();
     const entry = { id: 'e'.repeat(24), at: 1, who: 'gm', name: 'GM', kind: 'rest', ...record };

@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import type { TFile } from 'obsidian';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AssetService } from '../../../src/app/services/AssetService';
 import { RECORD_KEY } from '../../../src/app/services/library/recordFile';
@@ -29,10 +30,10 @@ describe('what the user makes while Atlas checks the vault', () => {
     const a = await device({});
     await a.assets.createCollection('Fen');
     await a.app.vault.create(`${FEN}/tokens/hag.webp`, 'IMG');
-    const read = a.app.vault.read.getMockImplementation()!;
+    const read = vi.mocked(a.app.vault.read).getMockImplementation()!;
     let release = (): void => {};
     const paused = new Promise<void>((started) => {
-      a.app.vault.read = vi.fn(async (file: { path: string }) => {
+      a.app.vault.read = vi.fn(async (file: TFile) => {
         started();
         await new Promise<void>((resolve) => { release = resolve; });
         a.app.vault.read = vi.fn(read);

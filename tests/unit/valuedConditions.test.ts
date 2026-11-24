@@ -129,7 +129,8 @@ describe('valued conditions in presets and cleanup', () => {
       id: 'p', name: 'P', rules: { gridDefaults: { unitType: 'feet', unitDistance: 5, measurementMode: 'metric' }, conditions: [frightened] },
     });
     expect(preset?.rules.conditions[0]).toMatchObject({ valued: true });
-    const plain = { ...preset!.rules, conditions: [{ ...frightened, valued: undefined }] };
+    const { valued: _valued, ...unflagged } = frightened;
+    const plain = { ...preset!.rules, conditions: [unflagged] };
     expect(sameSystemRules(preset!.rules, plain)).toBe(false);
   });
 });

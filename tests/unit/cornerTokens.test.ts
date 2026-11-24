@@ -32,7 +32,7 @@ function offenders(pattern: RegExp, accept: (value: string) => boolean): string[
     const name = path.relative(root, file);
     if (name === TOKENS) return [];
     const text = withoutComments(fs.readFileSync(file, 'utf8'));
-    return [...text.matchAll(pattern)].map((match) => match[match.length - 1].trim()).filter((value) => !accept(value)).map((value) => `${name}: ${value}`);
+    return [...text.matchAll(pattern)].map((match) => match[match.length - 1]!.trim()).filter((value) => !accept(value)).map((value) => `${name}: ${value}`);
   });
 }
 

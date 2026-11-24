@@ -95,6 +95,11 @@ class UplinkStore {
     return Promise.resolve({ ok: true, value: null });
   }
 
+  /** The maps these tests pace are images: no video's segments are ever sent. */
+  putSegments(): Promise<StoreResult<TilesProgress>> {
+    return Promise.reject(new Error('no video in these tests'));
+  }
+
   async putTiles(id: string, body: ArrayBuffer): Promise<StoreResult<TilesProgress>> {
     await this.uplink.request(body.byteLength);
     const parts = Buffer.from(body).toString('latin1').split('; name="').length - 1;

@@ -2,6 +2,7 @@ import { TFile, type App } from 'obsidian';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { InstalledSource } from '../../../../src/app/compendium/installedSources';
 import type { GmMessage } from '../../../../src/app/online/protocol/index';
+import { fileHandle } from '../../../mocks/obsidianHandles';
 
 const state = vi.hoisted(() => ({ campaigns: [] as unknown[], installed: [] as unknown[], playing: null as string | null }));
 
@@ -29,7 +30,7 @@ function vault(template: string): App {
     [SPELL_2014]: { 'atlas-compendium': 'spell', name: 'Fireball' },
     [SPELL_2024]: { 'atlas-compendium': 'spell', name: 'Fireball' },
   };
-  const files = new Map(Object.keys(frontmatter).map((path) => [path, new TFile(path)]));
+  const files = new Map(Object.keys(frontmatter).map((path) => [path, fileHandle(path)]));
   return {
     vault: {
       getFileByPath: (path: string) => files.get(path) ?? null,

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { MAX_MOOD_LAYERS } from '../../../src/app/sound/soundTypes';
 import { getPinIconDefinition, PIN_TONES } from '../../../src/app/types/pinIcons';
+import type { PinIconId } from '../../../src/app/types/pinIconPaths';
 import { DEFAULT_MOOD_ICON, moodIcon, moodTone } from '../../../src/app/soundLibrary/moodLook';
 import { DEFAULT_FADE_SECONDS, isNewerMood, MOOD_FORMAT, MOOD_LIMITS, moodFileText, moodOf, readStoredMood } from '../../../src/app/soundLibrary/moodFile';
 
@@ -44,7 +45,7 @@ describe('reading a mood file', () => {
     for (const icon of ['nothing-like-it', 7, null, {}, '__proto__', 'toString']) expect(read({ ...VALID, icon })).not.toHaveProperty('icon');
     for (const tone of ['fuchsia', 7, null, {}, 'constructor']) expect(read({ ...VALID, tone })).not.toHaveProperty('tone');
     expect(moodIcon({})).toBe(DEFAULT_MOOD_ICON);
-    expect(moodTone({})).toEqual(getPinIconDefinition(DEFAULT_MOOD_ICON).tone);
+    expect(moodTone({})).toEqual(getPinIconDefinition(DEFAULT_MOOD_ICON as PinIconId).tone);
     expect(moodTone({ icon: 'inn', tone: 'azure' })).toEqual(PIN_TONES.azure);
   });
 

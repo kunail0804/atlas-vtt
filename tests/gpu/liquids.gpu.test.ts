@@ -152,7 +152,7 @@ describe('lava playback and light coherence', () => {
   };
 
   function glow(mesh: LiquidMesh): number {
-    const group = mesh.mesh.shader.resources.liquid;
+    const group = mesh.mesh.shader?.resources.liquid;
     if (!(group instanceof UniformGroup)) throw new Error('No liquid uniforms');
     return group.uniforms.uLavaGlow as number;
   }
@@ -186,7 +186,8 @@ describe('lava playback and light coherence', () => {
       ticker.autoStart = false;
       let now = 100000;
       let requests = 0;
-      const state = { grid: { size: 90 }, objects: { liquids: { lava } } } as ReturnType<LiquidLayerDeps['store']['getState']>;
+      // The layer reads the cell size and the liquids alone.
+      const state = { grid: { size: 90 }, objects: { liquids: { lava } } } as unknown as ReturnType<LiquidLayerDeps['store']['getState']>;
       const layer = new LiquidLayer({ store: { getState: () => state, subscribe: () => () => undefined }, ticker, now: () => now, inView: () => true, drawable: true, fps: () => fps, detail: () => liquidDetail(fps), requestRender: () => { requests++; } });
       const target = RenderTexture.create({ width: 240, height: 240 });
       const picture = (): Uint8ClampedArray => {

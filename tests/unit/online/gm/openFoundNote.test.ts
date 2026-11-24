@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { TFile, type Plugin } from 'obsidian';
 import { OnlineFeature } from '../../../../src/app/online/gm/OnlineFeature.ts';
 import { createInMemoryApp } from '../../../mocks/inMemoryVault';
+import { fileHandle } from '../../../mocks/obsidianHandles';
 
 type OpenNote = (link: string, sourcePath: string) => void;
 
@@ -45,7 +46,7 @@ describe('the found entry of the table log', () => {
 
   it('opens the very heading players read, where the link counts past the first of its name', async () => {
     const { app } = createInMemoryApp({ files: { [NOTE]: '' } });
-    app.vault.getAbstractFileByPath = (path: string): TFile | null => (path === NOTE ? new TFile(NOTE) : null);
+    app.vault.getAbstractFileByPath = (path: string): TFile | null => (path === NOTE ? fileHandle(NOTE) : null);
     app.metadataCache.getFileCache = () => ({ headings: HEADINGS }) as never;
     const openLinkText = vi.fn(() => Promise.resolve());
     app.workspace.openLinkText = openLinkText;

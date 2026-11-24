@@ -20,11 +20,11 @@ const DARK = { ambient: 0 };
 const MEASUREMENT = resolveMeasurementSettings(undefined, null);
 
 function hero(id: string, x: number, extra: Partial<TokenEntity> = {}): TokenEntity {
-  return { id, kind: 'token', imagePath: `${id}.png`, x, y: 500, vision: { enabled: true }, resources: { hp: { current: 10, max: 10 } }, ...extra };
+  return { id, kind: 'token', imagePath: `${id}.png`, x, y: 500, vision: { enabled: true }, resources: { hp: { current: 10, max: 10 } }, ...extra } as TokenEntity;
 }
 
-const killed = (token: TokenEntity): TokenEntity => ({ ...token, resources: defeatedResources(token, RESOURCES) });
-const revived = (token: TokenEntity): TokenEntity => ({ ...token, resources: restedResources(token, RESOURCES) });
+const killed = (token: TokenEntity): TokenEntity => ({ ...token, resources: defeatedResources(token, RESOURCES)! });
+const revived = (token: TokenEntity): TokenEntity => ({ ...token, resources: restedResources(token, RESOURCES)! });
 
 describe('a defeated token under dynamic lighting', () => {
   it('gives no sight, to the players or the GM, and sees again once revived', () => {

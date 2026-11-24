@@ -2,6 +2,7 @@ import { vi } from 'vitest';
 import { getFrontMatterInfo, stringifyYaml, TFile, TFolder, type App, type TAbstractFile } from 'obsidian';
 import { parse } from 'yaml';
 import { createInMemoryApp, type InMemoryApp } from './inMemoryVault';
+import { fileHandle, folderHandle } from './obsidianHandles';
 
 export interface QuestVault extends InMemoryApp {
   app: App;
@@ -55,13 +56,13 @@ export function questVault(files: Record<string, string>, created: Record<string
   const handleOf = (path: string): TFile => {
     let file = handles.get(path);
     if (file === undefined) {
-      file = new TFile(path);
+      file = fileHandle(path);
       handles.set(path, file);
     }
     file.stat = { ...file.stat, ctime: ctimes.get(path) ?? 0, mtime: mtimes.get(path) ?? 0 };
     return file;
   };
-  const dated = <T extends TAbstractFile | null>(file: T): T => (file instanceof TFile ? (handleOf(file.path) as T) : file);
+  const dated = <T extends TAbstractFile | null>(file: T): T => (file instanceof TFile ? (handleOf(file.path) as TAbstractFile as T) : file);
 
   const getMarkdownFiles = app.vault.getMarkdownFiles as () => TFile[];
   const getAbstractFileByPath = app.vault.getAbstractFileByPath as (path: string) => TAbstractFile | null;
@@ -90,7 +91,7 @@ export function questVault(files: Record<string, string>, created: Record<string
       handles.set(now, handle);
       moveHandle(handle, now);
     }
-    const moved = file instanceof TFile ? handleOf(to) : new TFolder(to);
+    const moved = file instanceof TFile ? handleOf(to) : folderHandle(to);
     vault.emit('rename', moved, from);
   };
   app.fileManager.renameFile = vi.fn(rename);

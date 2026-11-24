@@ -39,7 +39,7 @@ function sheetValues(nodes: readonly SheetNode[]): SheetValue[] {
       case 'section': case 'row': return sheetValues(node.nodes);
       case 'tabs': return node.tabs.flatMap((tab) => sheetValues(tab.nodes));
       case 'value': return [node.value];
-      case 'metric': return node.values;
+      case 'metric': return [...node.values];
       default: return [];
     }
   });
@@ -47,7 +47,7 @@ function sheetValues(nodes: readonly SheetNode[]): SheetValue[] {
 
 /** What the sheet writes for each value: its text, and a pairs list's pairs as the page lists them. */
 function sheetValueTexts(statblock: BookStatblock): Set<string> {
-  const values = [...Object.values(statblock.sigils), ...sheetValues(statblock.blocks)];
+  const values: SheetValue[] = [...(Object.values(statblock.sigils) as SheetValue[]), ...sheetValues(statblock.blocks)];
   return new Set(values.flatMap((value) => [collapsed(value.text.opening), ...(value.pairs ? [value.pairs.map((pair) => `${pair.label} ${pair.value}`).join(', ')] : [])]));
 }
 

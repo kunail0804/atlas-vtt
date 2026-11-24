@@ -87,7 +87,7 @@ describe('the fires of a lived-in dungeon at night', () => {
     const tokens: Record<string, TokenEntity> = hero ? { hero: { id: 'hero', kind: 'token', imagePath: '', x: hero.x, y: hero.y, level: b.levels[0]!.id, vision: { enabled: true } } as TokenEntity } : {};
     view.store.setState({
       mapLoaded: true, isMapLoading: false, levels: b.levels, viewedLevel: b.levels[0]!.id,
-      grid: { ...view.store.getState().grid, ...b.parts.scene.grid },
+      grid: { ...view.store.getState().grid!, ...b.parts.scene.grid },
       objects: { ...view.store.getState().objects, walls: b.parts.scene.walls, lights, tokens },
     });
     view.store.getState().setSceneLighting({ enabled: true, ambient: NIGHT });
@@ -140,7 +140,7 @@ describe('the fires of a lived-in dungeon at night', () => {
     await playersView({ seed: 808, theme: 'cavern', tags: ['inhabited', 'wet'], floors: 1 }, 'cave-fire-pit', [12]);
     // The map image's lit fire, close up: the house's fireplace and the cave's fire pit at 300 px a cell.
     for (const [request, kind, look] of [[MANSION, 'hearth', 'parchment'], [MANSION, 'hearth', 'night'], [{ seed: 808, theme: 'cavern', tags: ['inhabited', 'wet'], floors: 1 }, 'campfire', 'parchment']] as const) {
-      const model = generateDungeon(request);
+      const model = generateDungeon({ ...request, tags: [...request.tags] });
       const prop = model.floors[0]!.props.find(p => p.kind === kind)!;
       const drawn = drawWindow(model, dungeonStyle(look), DEFAULT_VIEW, 300, { x: Math.floor(prop.x) - 1, y: Math.floor(prop.y) - 1, cells: 3, rows: 3 });
       await savePng(drawn.canvas, `${OUT}/embers-${kind}-${look}`);
@@ -203,7 +203,7 @@ describe("a lived-in dungeon's wall lights at night", () => {
     const view = await openLevelsView({ map: Math.max(b.width, b.height), pane: PANE, paneHeight: PANE_HEIGHT, quality: LIGHTING_QUALITY[quality], levels: b.levels, maps: { 'floor0.png': map }, viewedLevel: b.levels[0]!.id });
     view.store.setState({
       mapLoaded: true, isMapLoading: false, levels: b.levels, viewedLevel: b.levels[0]!.id,
-      grid: { ...view.store.getState().grid, ...b.parts.scene.grid },
+      grid: { ...view.store.getState().grid!, ...b.parts.scene.grid },
       objects: { ...view.store.getState().objects, walls: b.parts.scene.walls, lights, tokens: {} },
     });
     view.store.getState().setSceneLighting({ enabled: true, ambient: NIGHT });
@@ -272,7 +272,7 @@ describe("a lived-in dungeon's wall lights at night", () => {
     const sheet = new OffscreenCanvas(fires.length * TILE, 2 * TILE);
     const ctx = sheet.getContext('2d')!;
     for (const [i, [request, kind]] of fires.entries()) {
-      const model = generateDungeon(request);
+      const model = generateDungeon({ ...request, tags: [...request.tags] });
       const prop = model.floors[0]!.props.find(p => p.kind === kind)!;
       for (const [row, look] of (['parchment', 'print'] as const).entries()) {
         const drawn = drawWindow(model, dungeonStyle(look), DEFAULT_VIEW, 300, { x: Math.floor(prop.x) - 1, y: Math.floor(prop.y) - 1, cells: 3, rows: 3 });

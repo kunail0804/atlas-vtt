@@ -129,7 +129,7 @@ describe('map save flushing', () => {
       vi.useFakeTimers();
       const content = JSON.stringify({ version: 4, state: { revision: 0 } });
       const { app, files } = createInMemoryApp({ files: { [path]: content } });
-      app.vault.getFileByPath = app.vault.getAbstractFileByPath;
+      app.vault.getFileByPath = app.vault.getAbstractFileByPath as typeof app.vault.getFileByPath;
       const process = vi.mocked(app.vault.process).getMockImplementation()!;
       const stuck = deferred();
       // Obsidian gets to the stuck write's file only later

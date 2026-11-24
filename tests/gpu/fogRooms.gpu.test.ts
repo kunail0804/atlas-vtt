@@ -32,9 +32,9 @@ const WALLS: WallInput[] = [
 
 /** The scene's walls and a 16 px grid, as part of its setup: no undo step. */
 function withWalls(store: ViewAtlasStore): void {
-  store.setState((state) => ({ grid: { ...state.grid, type: 'square', size: 16, offsetX: 0, offsetY: 0 } }));
+  store.setState((state) => ({ grid: { ...state.grid!, type: 'square', size: 16, offsetX: 0, offsetY: 0 } }));
   for (const wall of WALLS) store.getState().addWall(wall);
-  store.temporal.getState().clear();
+  getHistoryStore(store)!.getState().clear();
 }
 
 const click = (s: Scene, x: number, y: number): void => {
@@ -110,9 +110,9 @@ describe('the fog tool\'s Room shape on the map', () => {
   it('hides and reveals a corridor that runs all round rooms without the rooms inside it', async () => {
     const s = await scene();
     s.showMapImage(MAP);
-    s.store.setState((state) => ({ grid: { ...state.grid, type: 'square', size: 16, offsetX: 0, offsetY: 0 } }));
+    s.store.setState((state) => ({ grid: { ...state.grid!, type: 'square', size: 16, offsetX: 0, offsetY: 0 } }));
     for (const wall of RING_WALLS) s.store.getState().addWall(wall);
-    s.store.temporal.getState().clear();
+    getHistoryStore(s.store)!.getState().clear();
     s.store.getState().setFogTool({ shape: 'room' });
     s.store.getState().setActiveTool('fog');
     const history = getHistoryStore(s.store)!;
@@ -139,7 +139,7 @@ describe('the fog tool\'s Room shape on the map', () => {
   it('outlines a corridor round rooms along its walls and theirs, with no line across it', async () => {
     const s = await scene();
     s.showMapImage(MAP);
-    s.store.setState((state) => ({ grid: { ...state.grid, type: 'square', size: 16, offsetX: 0, offsetY: 0 } }));
+    s.store.setState((state) => ({ grid: { ...state.grid!, type: 'square', size: 16, offsetX: 0, offsetY: 0 } }));
     for (const wall of RING_WALLS) s.store.getState().addWall(wall);
     s.store.getState().setFogTool({ shape: 'room' });
     s.store.getState().setActiveTool('fog');

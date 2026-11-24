@@ -34,7 +34,7 @@ describe('the picture of the line-of-sight fallback against the exact black', { 
   });
   afterAll(() => stop());
 
-  function custom(bounds: MapBounds, scene: CustomScene): Pictures {
+  function custom(bounds: MapBounds, scene: CustomScene): ReturnType<typeof customPictures> {
     return customPictures(renderers, bounds, scene);
   }
 

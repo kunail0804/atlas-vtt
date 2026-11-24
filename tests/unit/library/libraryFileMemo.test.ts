@@ -8,6 +8,7 @@ import { collectionFilePath, LIBRARY_FILE, recordFilePath } from '../../../src/a
 import { assetKey, collectionIdentity, collectionKey, LIBRARY_KEY } from '../../../src/app/services/library/libraryState';
 import { isPayloadUnread, serializeRecord } from '../../../src/app/services/library/recordFile';
 import { hashText } from '../../../src/app/utils/hashing';
+import type { ConditionDefinition } from '../../../src/app/types/collectionSettingsTypes';
 import { seededRandom } from './fakeSync';
 
 /**
@@ -105,7 +106,7 @@ function changeSomething(metadata: AssetMetadata, random: () => number, step: nu
   const changes: Array<() => void> = [
     () => { if (asset) asset.name = `Renamed ${step}`; },
     () => { if (asset) asset.tags.push(`tag-${step}`); },
-    () => { if (asset) asset.thumbnailPath = undefined; },
+    () => { if (asset) (asset as Loose).thumbnailPath = undefined; },
     () => { if (asset) delete asset.thumbnailPath; },
     () => { if (asset) asset.thumbnailPath = `thumbs/${step}.webp`; },
     () => { if (asset) asset.size = Number.NaN; },
@@ -114,24 +115,24 @@ function changeSomething(metadata: AssetMetadata, random: () => number, step: nu
     () => { if (asset?.type === 'encounter' && asset.tokens?.[0]) asset.tokens[0].imagePath = `moved/${step}.webp`; },
     () => { if (asset?.type === 'encounter' && asset.data?.tokens?.[0]) asset.data.tokens[0].imagePath = `moved/${step}.webp`; },
     () => { if (asset?.type === 'encounter') asset.data = { ...asset.data, tokens: structuredClone(asset.tokens) }; },
-    () => { if (asset?.type === 'encounter') asset.data = { ...asset.data, tokens: undefined }; },
+    () => { if (asset?.type === 'encounter') (asset as Loose).data = { ...asset.data, tokens: undefined }; },
     () => { if (asset?.type === 'encounter') (asset as Loose).tokens = undefined; },
     () => { if (asset?.type === 'encounter') asset.tokens = []; },
-    () => { if (asset?.type === 'encounter' || asset?.type === 'scene') asset.data = undefined; },
+    () => { if (asset?.type === 'encounter' || asset?.type === 'scene') (asset as Loose).data = undefined; },
     () => { if (asset?.type === 'scene') asset.data = { mapPath: `${folderOf(asset.collection)}/scenes/${step}.atlasmap` }; },
     () => { if (asset && asset.type !== 'token') asset.filePath = `${folderOf(asset.collection)}/${asset.type}s/deep/${step}.json`; },
-    () => { if (asset && asset.type !== 'token') asset.filePath = undefined; },
+    () => { if (asset && asset.type !== 'token') (asset as Loose).filePath = undefined; },
     () => { if (asset) asset.collection = pick(collections); },
     () => { if (ids.length > 4) delete metadata.assets[id]; },
     () => { metadata.assets[`token-new-${step}`] = token(`token-new-${step}`, pick(collections)); },
     () => { metadata.assets[String(step)] = scene(String(step), pick(collections)); },
-    () => { metadata.collections[pick(collections)]!.settings.conditions.push({ id: `c-${step}`, name: `Condition ${step}` }); },
-    () => { metadata.collections[pick(collections)]!.description = step % 2 === 0 ? undefined : `Described ${step}`; },
+    () => { metadata.collections[pick(collections)]!.settings.conditions.push({ id: `c-${step}`, name: `Condition ${step}` } as ConditionDefinition); },
+    () => { (metadata.collections[pick(collections)] as unknown as Loose).description = step % 2 === 0 ? undefined : `Described ${step}`; },
     () => { metadata.collections[`Made ${step}`] = step % 2 === 0 ? collection(`Made ${step}`) : derivedCollectionRecord(`Made ${step}`); },
     () => { if (collections.length > 1) delete metadata.collections[pick(collections)]; },
-    () => { metadata.defaultCollectionId = pick([...collections, undefined]); },
-    () => { metadata.vaultId = pick(['vault-a', 'vault-b', undefined]); },
-    () => { metadata.starterTokensAdded = pick([true, false, undefined]); },
+    () => { (metadata as unknown as Loose).defaultCollectionId = pick([...collections, undefined]); },
+    () => { (metadata as unknown as Loose).vaultId = pick(['vault-a', 'vault-b', undefined]); },
+    () => { (metadata as unknown as Loose).starterTokensAdded = pick([true, false, undefined]); },
     () => { (metadata as unknown as Loose).fromALaterVersion = pick([{ kept: step }, undefined]); },
   ];
   pick(changes)();
@@ -167,7 +168,7 @@ describe('the files a save asks for', () => {
     metadata.assets['token-0']!.name = 'Changed while the save waited';
     metadata.assets['encounter-1']!.tags.push('late');
     delete metadata.assets['scene-2'];
-    metadata.collections.Fen!.settings.conditions.push({ id: 'late', name: 'Late' });
+    metadata.collections.Fen!.settings.conditions.push({ id: 'late', name: 'Late' } as ConditionDefinition);
     metadata.defaultCollectionId = 'Barrow';
 
     expect(asWritten(new LibraryFileMemo().files(snapshot))).toEqual(before);

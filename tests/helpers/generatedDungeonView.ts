@@ -77,7 +77,7 @@ export function generatedDungeon({ seed = 4, pxPerCell: wanted, outlines = 'as-g
   const pxPerCell = wanted ?? suggestedPxPerCell(model);
   const layout = mapLayout(model, pxPerCell, DEFAULT_VIEW);
   const image = { width: layout.widthPx, height: layout.heightPx };
-  const scene = dungeonScene(model, dungeonStyle('parchment'), DEFAULT_VIEW, { originCell: layout.originCell, pxPerCell }, image, { unitType: 'ft', ruleDistance: 5 })!;
+  const scene = dungeonScene(model, dungeonStyle('parchment'), DEFAULT_VIEW, { originCell: layout.originCell, pxPerCell }, image, { unitType: 'feet', ruleDistance: 5 })!;
   const ids = scene.levelIds!;
   // The tall objects of the entry floor, from their outlines as generated.
   const chains = new Map<string, Point[]>();
@@ -147,7 +147,7 @@ export async function openDungeonView(built: GeneratedDungeon, { quality: initia
   const surfaces: Record<string, LevelSurface> = openings ? scene.scene.levelSurfaces ?? {} : {};
   view.store.setState({
     mapLoaded: true, isMapLoading: false, levels: built.levels, viewedLevel: built.viewed,
-    grid: { ...view.store.getState().grid, ...scene.scene.grid },
+    grid: { ...view.store.getState().grid!, ...scene.scene.grid },
     objects: {
       ...view.store.getState().objects,
       walls: scene.scene.walls ?? {}, lights: { ...scene.scene.lights, ...built.torches }, tokens: { hero },

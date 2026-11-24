@@ -126,7 +126,11 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/node-deps
-      - run: ./node_modules/.bin/tsc --noEmit
+      - name: Plugin sources
+        run: ./node_modules/.bin/tsc --noEmit
+      # The tests (tests/), with Vitest's aliases and globals; the root project leaves them out.
+      - name: Tests
+        run: ./node_modules/.bin/tsc --noEmit -p tests/tsconfig.json
 
   lint:
     name: Plugin lint

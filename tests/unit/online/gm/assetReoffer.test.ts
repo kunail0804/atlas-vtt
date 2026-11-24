@@ -26,17 +26,17 @@ describe('a stored asset handed to players again', () => {
     const store = publisherHarness();
     const art = bytesOf(300, 2);
     store.files.set('art/a.png', art);
-    const ref = await store.publisher.storing.refOf(art, 'image/png', ASSET_USES.art, 'art/a.png');
+    const ref = (await store.publisher.storing.refOf(art, 'image/png', ASSET_USES.art, 'art/a.png'))!;
     store.hand(ref);
     await store.advance(1000);
     expect(store.client.calls.map((call) => call.id)).toEqual([ref.id]);
     await store.advance(6 * HOUR);
-    store.hand(await store.publisher.storing.refOf(art, 'image/png', ASSET_USES.art, 'art/a.png'));
+    store.hand((await store.publisher.storing.refOf(art, 'image/png', ASSET_USES.art, 'art/a.png'))!);
     await store.advance(1000);
     expect(store.client.offers).toHaveLength(1);
     await store.advance(7 * HOUR);
     store.client.answer = () => ({ answer: 'have' });
-    store.hand(await store.publisher.storing.refOf(art, 'image/png', ASSET_USES.art, 'art/a.png'));
+    store.hand((await store.publisher.storing.refOf(art, 'image/png', ASSET_USES.art, 'art/a.png'))!);
     await store.advance(1000);
     expect(store.client.offers).toHaveLength(2);
     expect(store.client.calls).toHaveLength(1);
@@ -48,7 +48,7 @@ describe('a stored asset handed to players again', () => {
     const store = publisherHarness();
     const art = bytesOf(300, 2);
     store.files.set('art/a.png', art);
-    const ref = await store.publisher.storing.refOf(art, 'image/png', ASSET_USES.art, 'art/a.png');
+    const ref = (await store.publisher.storing.refOf(art, 'image/png', ASSET_USES.art, 'art/a.png'))!;
     await store.advance(1000);
     await store.advance(13 * HOUR);
     await store.publisher.storing.refOf(art, 'image/png', ASSET_USES.art, 'art/a.png');
@@ -65,7 +65,7 @@ describe('a pyramid the store settled at its true size, offered again at its bou
     store.files.set(PATH, bytes);
     store.cache.manual = true;
     store.cache.add(PATH, await sha256Hex(bytes), 3000, 2000, { stored: [] });
-    const ref = await store.publisher.storing.mapRef(bytes, 'image/png', PATH);
+    const ref = (await store.publisher.storing.mapRef(bytes, 'image/png', PATH))!;
     await store.advance(60_000);
     // Refused once at its bound, then left alone while it is cut; players keep its id.
     expect(store.client.offers.flat().map((offered) => offered.size)).toHaveLength(1);
@@ -104,7 +104,7 @@ describe('a pyramid the store settled at its true size, offered again at its bou
     const bytes = pngOf(3000, 2000);
     store.files.set(PATH, bytes);
     store.cache.add(PATH, await sha256Hex(bytes), 3000, 2000);
-    const ref = await store.publisher.storing.mapRef(bytes, 'image/png', PATH);
+    const ref = (await store.publisher.storing.mapRef(bytes, 'image/png', PATH))!;
     store.hand(ref);
     await store.advance(5000);
     expect(store.withdrawn).toBe(1);

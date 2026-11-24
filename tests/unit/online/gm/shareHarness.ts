@@ -1,4 +1,5 @@
 import { DeltaReader, parseGmMessage, type DeltaOf, type GmMessage, type RollRequestAnswer } from '../../../../src/app/online/protocol/index.ts';
+import type { SharedScene } from '../../../../src/app/online/protocol/game.ts';
 import type { LoggedRoll, RollRequest } from '../../../../src/app/online/gm/log/TableLog.ts';
 import { produce } from 'immer';
 import type { NotePin, TokenEntity } from '../../../../src/app/types';
@@ -27,7 +28,7 @@ export function sceneState(changes: Partial<SceneState> = {}): SceneState {
   return {
     mapPath: 'Scenes/Cave.atlasmap', mapLoaded: true, isMapLoading: false, background: 'maps/cave.webp', grid: null, isDragging: false, _audioDirty: false,
     lighting: { enabled: false, ambient: 1 }, heldTokens: {}, exploredMask: null, exploredEdits: 0, objects: { tokens: {}, fog: {}, pins: {}, texts: {}, drawings: {}, walls: {}, lights: {}, audios: {} },
-    tokenSettings: { showNameplates: true } as SceneState['tokenSettings'],
+    tokenSettings: { showNameplates: true } as NonNullable<SceneState['tokenSettings']>,
     ...changes,
   };
 }
@@ -196,7 +197,7 @@ export function shareHarness(initial: SceneState, images: ReadonlyMap<string, Ui
 }
 
 /** The scenes sent, in order. */
-export const scenes = (sent: readonly Sent[]): unknown[] => sent.flatMap(({ body }) => (body.t === 'scene' ? [body.scene] : []));
+export const scenes = (sent: readonly Sent[]): (SharedScene | null)[] => sent.flatMap(({ body }) => (body.t === 'scene' ? [body.scene] : []));
 
 /**
  * The messages of a sequenced kind players hold after each one sent of it, in order: a whole one as

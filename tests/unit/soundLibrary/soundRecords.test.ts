@@ -6,6 +6,7 @@ import { TFile } from 'obsidian';
 import { recordIdFor } from '../../../src/app/soundLibrary/libraryRecords';
 import { SoundRecordStore } from '../../../src/app/soundLibrary/SoundRecordStore';
 import { createInMemoryApp, type InMemoryApp } from '../../mocks/inMemoryVault';
+import { fileHandle } from '../../mocks/obsidianHandles';
 
 // A record an earlier build wrote, with the licence and credit Atlas no longer reads.
 const SOUND = {
@@ -34,7 +35,7 @@ async function open(files: Record<string, string> = {}): Promise<{ vault: InMemo
 const stored = (vault: InMemoryApp, id: string): Record<string, unknown> => JSON.parse(vault.files.get(pathOf(id))!) as Record<string, unknown>;
 
 function fileAt(path: string): TFile {
-  const target = new TFile(path);
+  const target = fileHandle(path);
   target.stat = { ctime: 0, mtime: 0, size: 0 };
   return target;
 }

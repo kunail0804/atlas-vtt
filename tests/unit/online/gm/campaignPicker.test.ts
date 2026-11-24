@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi, type Mock } from 'vitest';
 import type { CampaignChoice } from '../../../../src/app/online/gm/campaignChoices.ts';
 import { campaignPick, matchesQuery, renderCampaignPicker, type CampaignPickerActions } from '../../../../src/app/online/gm/dock/campaignPicker.ts';
 
@@ -8,8 +8,13 @@ const STRAHD = choice('strahd', { name: 'Curse of Strahd' });
 const CAVES = choice('caves', { name: 'Blue Mouth Caves' });
 const LIST = [STRAHD, CAVES];
 
-function actions(): CampaignPickerActions & { [K in keyof CampaignPickerActions]: ReturnType<typeof vi.fn> } {
-  return { choose: vi.fn(), search: vi.fn(), start: vi.fn(), openCampaigns: vi.fn() };
+function actions(): { [K in keyof CampaignPickerActions]: Mock<CampaignPickerActions[K]> } {
+  return {
+    choose: vi.fn<CampaignPickerActions['choose']>(),
+    search: vi.fn<CampaignPickerActions['search']>(),
+    start: vi.fn<CampaignPickerActions['start']>(),
+    openCampaigns: vi.fn<CampaignPickerActions['openCampaigns']>(),
+  };
 }
 
 /** The picker with the caves picked, unless a test picks another. */

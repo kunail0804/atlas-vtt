@@ -8,6 +8,8 @@ import { createInMemoryApp, type InMemoryApp } from '../mocks/inMemoryVault';
 import { isHiddenVaultPath } from '../../src/app/utils/hiddenVaultFiles';
 import { AssetService } from '../../src/app/services/AssetService';
 import { FileReferenceService } from '../../src/app/services/FileReferenceService';
+import { fileHandle } from '../mocks/obsidianHandles';
+import type { PersistedMapEnvelope } from '../../src/app/services/MapPersistence';
 
 const MAP_PATH = 'atlas-vtt/collections/c/scenes/Cave.atlasmap';
 const SCENES = 'atlas-vtt/collections/c/scenes';
@@ -35,18 +37,28 @@ const encounterReady: MapState = {
   objects: { tokens: { goblin: { id: 'goblin', x: 10, y: 20, imagePath: 'atlas-vtt/assets/goblin.webp', hp: 7, conditions: ['poisoned'] } } },
 };
 
+/** A map file's envelope, its state as this test writes map files: a token's hit points as files hold them. */
+function envelope(state: object, version = 4): PersistedMapEnvelope {
+  return { version, state } as PersistedMapEnvelope;
+}
+
+/** A thumbnail's bytes. */
+function bytesOf(text: string): ArrayBuffer {
+  return new TextEncoder().encode(text).buffer as ArrayBuffer;
+}
+
 function readMap(vault: InMemoryApp): MapState {
   return (JSON.parse(vault.files.get(MAP_PATH) ?? '{}') as { state: MapState }).state;
 }
 
 async function seed(): Promise<{ vault: InMemoryApp; snapshots: SceneSnapshotService; mapFile: TFile }> {
   const vault = createInMemoryApp({ files: { [MAP_PATH]: mapEnvelope(encounterReady) } });
-  return { vault, snapshots: new SceneSnapshotService(vault.app), mapFile: new TFile(MAP_PATH) };
+  return { vault, snapshots: new SceneSnapshotService(vault.app), mapFile: fileHandle(MAP_PATH) };
 }
 
 describe('scene snapshot format', () => {
   it('stores the scene state without the map path, camera and dice log', () => {
-    const snapshot = createSnapshot({ version: 4, state: { ...encounterReady } }, 's1', 'Ambush', 1000);
+    const snapshot = createSnapshot(envelope({ ...encounterReady }), 's1', 'Ambush', 1000);
     expect(snapshot).toMatchObject({ id: 's1', name: 'Ambush', createdAt: 1000, version: 4 });
     expect(snapshot.state).not.toHaveProperty('mapPath');
     expect(snapshot.state).not.toHaveProperty('camera');
@@ -56,13 +68,13 @@ describe('scene snapshot format', () => {
   });
 
   it('leaves the loot roller out, as it belongs to the session', () => {
-    const snapshot = createSnapshot({ version: 4, state: { ...encounterReady, lootRoller: { open: true, history: [] } } }, 's1', 'Ambush', 1000);
+    const snapshot = createSnapshot(envelope({ ...encounterReady, lootRoller: { open: true, history: [] } }), 's1', 'Ambush', 1000);
     expect(snapshot.state).not.toHaveProperty('lootRoller');
   });
 
   it('restores the scene state but keeps the session state of the map it is restored into', () => {
-    const snapshot = createSnapshot({ version: 4, state: { ...encounterReady } }, 's1', 'Ambush', 1000);
-    const played = { version: 4, state: { mapPath: 'old/path.atlasmap', camera: { x: 9, y: 9, scale: 1 }, diceLog: ['d6: 3'], objects: { tokens: {} } } };
+    const snapshot = createSnapshot(envelope({ ...encounterReady }), 's1', 'Ambush', 1000);
+    const played = envelope({ mapPath: 'old/path.atlasmap', camera: { x: 9, y: 9, scale: 1 }, diceLog: ['d6: 3'], objects: { tokens: {} } });
     const restored = restoreSnapshot(played, snapshot, MAP_PATH);
     expect(restored.state).toMatchObject({
       mapPath: MAP_PATH,
@@ -78,8 +90,8 @@ describe('scene snapshot format', () => {
       { id: 'ground', name: 'Ground', elevation: { bottom: 0, top: 10 }, background: encounterReady.background },
       { id: 'upper', name: 'Upper', elevation: { bottom: 10, top: 20 }, background: 'atlas-vtt/assets/upper.webm' },
     ];
-    const withFloors = { version: 5, state: { ...encounterReady, levels, exploredMasks: { upper: 'data:image/png;base64,AAAA' } } };
-    const oneFloor = createSnapshot({ version: 4, state: { ...encounterReady } }, 's1', 'Before the tower', 1000);
+    const withFloors = envelope({ ...encounterReady, levels, exploredMasks: { upper: 'data:image/png;base64,AAAA' } }, 5);
+    const oneFloor = createSnapshot(envelope({ ...encounterReady }), 's1', 'Before the tower', 1000);
 
     const restored = restoreSnapshot(withFloors, oneFloor, MAP_PATH);
     expect(restored.version).toBe(4);
@@ -119,7 +131,7 @@ describe('scene snapshot format', () => {
 describe('SceneSnapshotService', () => {
   it('saves snapshots with a thumbnail and lists them newest first', async () => {
     const { vault, snapshots, mapFile } = await seed();
-    const first = await snapshots.create(FOLDER, mapFile, 'Before the ambush', new TextEncoder().encode('JPG').buffer);
+    const first = await snapshots.create(FOLDER, mapFile, 'Before the ambush', bytesOf('JPG'));
     await new Promise((resolve) => setTimeout(resolve, 2));
     await snapshots.create(FOLDER, mapFile, 'After round one', null);
 
@@ -133,7 +145,7 @@ describe('SceneSnapshotService', () => {
 
   it('writes visible files through the vault, so sync tools carry them', async () => {
     const { vault, snapshots, mapFile } = await seed();
-    await snapshots.create(FOLDER, mapFile, 'Ambush', new TextEncoder().encode('JPG').buffer);
+    await snapshots.create(FOLDER, mapFile, 'Ambush', bytesOf('JPG'));
 
     const created = [...vault.files.keys()].filter((path) => path.startsWith(`${FOLDER}/`));
     expect(created).toHaveLength(2);
@@ -145,13 +157,13 @@ describe('SceneSnapshotService', () => {
 
   it('builds thumbnail URLs that change when the snapshot is overwritten', async () => {
     const { snapshots, mapFile } = await seed();
-    await snapshots.create(FOLDER, mapFile, 'Ambush', new TextEncoder().encode('JPG').buffer);
+    await snapshots.create(FOLDER, mapFile, 'Ambush', bytesOf('JPG'));
     const [entry] = await snapshots.list(FOLDER);
     const before = snapshots.thumbnailUrl(entry!);
     expect(before).toMatch(new RegExp(`^app://vault/${FOLDER}/.*\\.jpg\\?v=\\d+$`));
 
     await new Promise((resolve) => setTimeout(resolve, 2));
-    await snapshots.overwrite(entry!, mapFile, new TextEncoder().encode('NEW').buffer);
+    await snapshots.overwrite(entry!, mapFile, bytesOf('NEW'));
     const [overwritten] = await snapshots.list(FOLDER);
     expect(snapshots.thumbnailUrl(overwritten!)).not.toBe(before);
   });
@@ -171,11 +183,11 @@ describe('SceneSnapshotService', () => {
 
   it('overwrites a snapshot with the current map, keeping its id, name and place', async () => {
     const { vault, snapshots, mapFile } = await seed();
-    const original = await snapshots.create(FOLDER, mapFile, 'Ambush', new TextEncoder().encode('OLD').buffer);
+    const original = await snapshots.create(FOLDER, mapFile, 'Ambush', bytesOf('OLD'));
     const [entry] = await snapshots.list(FOLDER);
 
     vault.files.set(MAP_PATH, mapEnvelope({ ...encounterReady, objects: { tokens: { goblin: { id: 'goblin', x: 50, y: 60, imagePath: 'atlas-vtt/assets/goblin.webp', hp: 2 } } } }));
-    await snapshots.overwrite(entry!, mapFile, new TextEncoder().encode('NEW').buffer);
+    await snapshots.overwrite(entry!, mapFile, bytesOf('NEW'));
 
     const [overwritten] = await snapshots.list(FOLDER);
     expect(overwritten?.snapshot).toMatchObject({ id: original.id, name: 'Ambush', createdAt: original.createdAt });
@@ -196,7 +208,7 @@ describe('SceneSnapshotService', () => {
 
   it('deletes a snapshot with its thumbnail and removes the emptied folder', async () => {
     const { vault, snapshots, mapFile } = await seed();
-    await snapshots.create(FOLDER, mapFile, 'One', new TextEncoder().encode('JPG').buffer);
+    await snapshots.create(FOLDER, mapFile, 'One', bytesOf('JPG'));
     await snapshots.create(FOLDER, mapFile, 'Two', null);
     const entries = await snapshots.list(FOLDER);
     const one = entries.find((entry) => entry.snapshot.name === 'One');
@@ -231,7 +243,7 @@ describe('snapshots of a scene record', () => {
     const [scene] = await assets.getAssets('c', 'scene');
     expect(scene?.data?.mapPath).toBe(MAP_PATH);
     const folder = (await snapshotFolderForMap(assets, MAP_PATH))!;
-    await snapshots.create(folder, new TFile(MAP_PATH), 'Ambush', new TextEncoder().encode('JPG').buffer);
+    await snapshots.create(folder, fileHandle(MAP_PATH), 'Ambush', bytesOf('JPG'));
     return { vault, assets, snapshots, folder, sceneId: scene!.id };
   }
 
@@ -250,7 +262,7 @@ describe('snapshots of a scene record', () => {
     const renamed = `${SCENES}/Dungeons/Goblin cave.atlasmap`;
     const before = new Map([...vault.files].filter(([path]) => path.startsWith(`${folder}/`)));
 
-    await vault.app.fileManager.renameFile(new TFile(MAP_PATH), renamed);
+    await vault.app.fileManager.renameFile(fileHandle(MAP_PATH), renamed);
     await new FileReferenceService(vault.app).handleFileRenamed(MAP_PATH, renamed);
 
     expect(await snapshotFolderForMap(assets, renamed)).toBe(folder);
@@ -285,7 +297,7 @@ describe('snapshots of a map outside every collection', () => {
     const service = new Service(vault.app);
     const folder = 'Elsewhere/.snapshots/Loose';
 
-    const snapshot = await service.create(folder, vault.app.vault.getFileByPath('Elsewhere/Loose.atlasmap'), 'Before the fight', null);
+    const snapshot = await service.create(folder, vault.app.vault.getFileByPath('Elsewhere/Loose.atlasmap')!, 'Before the fight', null);
     expect(vault.files.has(`${folder}/${snapshot.id}.json`)).toBe(true);
     expect((await service.list(folder)).map((entry) => entry.snapshot.name)).toEqual(['Before the fight']);
 
@@ -303,7 +315,7 @@ describe('snapshots of a map outside every collection', () => {
     const vault = createInMemoryApp({ files: { [loose]: mapEnvelope({ ...encounterReady, mapPath: loose }) } });
     const service = new SceneSnapshotService(vault.app);
     const folder = legacySnapshotFolderFor(loose);
-    await service.create(folder, vault.app.vault.getFileByPath(loose), 'Ambush', null);
+    await service.create(folder, vault.app.vault.getFileByPath(loose)!, 'Ambush', null);
 
     await new FileReferenceService(vault.app).handleFileRenamed('atlas-vtt/assets/goblin.webp', 'atlas-vtt/assets/goblin-boss.webp');
 

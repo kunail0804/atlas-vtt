@@ -855,7 +855,7 @@ describe('the ways between caves as drawn', () => {
       model.floors[0]!.terrain = model.floors[0]!.terrain.filter((piece) => piece.kind !== 'aven');
       return draw(model, look);
     } finally {
-      for (const [part, painter] of kept) CAVE_WAYS[part] = painter;
+      for (const [part, painter] of kept) CAVE_WAYS[part] = painter!;
     }
   }
 

@@ -97,7 +97,7 @@ describe('online play behind its experimental switch', () => {
 describe('online play paused for a restore', () => {
   it('is unloaded while the work runs, stays unloaded if the switch is flipped meanwhile, and loads again after', async () => {
     const { plugin, settings, children, flip } = host();
-    const online = registerOnlinePlay(plugin, settings);
+    const online = registerOnlinePlay(plugin, settings, ACCOUNT);
     flip(true);
     const [before] = children;
     const seen = await online.paused(async () => {
@@ -112,7 +112,7 @@ describe('online play paused for a restore', () => {
 
   it('only runs the work while online play is off', async () => {
     const { plugin, settings, children } = host();
-    const online = registerOnlinePlay(plugin, settings);
+    const online = registerOnlinePlay(plugin, settings, ACCOUNT);
     expect(await online.paused(async () => 'done')).toBe('done');
     expect(children.size).toBe(0);
   });

@@ -4,6 +4,7 @@ import type { GameUnit } from '../../../src/app/grid/statedDistance';
 import { sceneFromFile, sceneToFile, tokenFromFile, tokenToFile } from '../../../src/app/resources/resourceFileFormat';
 import { meaningsOf } from '../../../src/app/statblocks/resolve/fieldMeanings';
 import { BUILT_IN_TEMPLATES } from '../../../src/app/statblocks/presets';
+import type { TokenEntity } from '../../../src/app/types';
 
 const FEET: GameUnit = { unitType: 'feet', ruleDistance: 5 };
 const METRES: GameUnit = { unitType: 'meters', ruleDistance: 1.5 };
@@ -224,7 +225,7 @@ describe('the speed a token picked of those its statblock states', () => {
   });
 
   it('goes through a scene file with the token and is left out once cleared', () => {
-    const token = { id: 't', kind: 'character', name: 'Wyrm', x: 1, y: 2, imagePath: 'w.png', statblockPath: 'Dragon.md', speedKind: 'fly' };
+    const token: TokenEntity = { id: 't', kind: 'character', name: 'Wyrm', x: 1, y: 2, imagePath: 'w.png', statblockPath: 'Dragon.md', speedKind: 'fly' };
     expect(tokenToFile(token)).toMatchObject({ speedKind: 'fly' });
     expect(tokenFromFile(JSON.parse(JSON.stringify(tokenToFile(token))) as Record<string, unknown>)).toEqual(token);
     const scene = { objects: { tokens: { t: token } }, tokenSettings: { hiddenResources: [] }, initiative: { entries: [] } };
@@ -241,7 +242,7 @@ describe('a token\'s speed in a scene file', () => {
     const file = tokenToFile(token) as Record<string, unknown>;
     expect(file).toMatchObject({ speed: 30, hp: { current: 4, max: 9 } });
     expect(tokenFromFile(file)).toEqual(token);
-    const plain = { id: 'p', kind: 'token', x: 0, y: 0, imagePath: 'p.png', speed: 12.5 };
+    const plain: TokenEntity = { id: 'p', kind: 'token', x: 0, y: 0, imagePath: 'p.png', speed: 12.5 };
     expect(tokenFromFile(tokenToFile(plain))).toEqual(plain);
   });
 

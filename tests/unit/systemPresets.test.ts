@@ -18,9 +18,16 @@ import { visionDefaultsForm, visionDefaultsFromForm } from '../../src/app/lighti
 import { visionCone } from '../../src/app/vision/visionCone';
 import { BUILT_IN_SENSES, GENERIC_SENSES } from '../../src/app/gameSystems/senses';
 import type { SenseDefinition } from '../../src/app/types/senseTypes';
+import type { ConditionDefinition } from '../../src/app/types/collectionSettingsTypes';
+import { appliedRules } from '../helpers/appliedRules';
 import { conditionEffect } from '../../src/app/gameSystems/conditionEffects';
 
 const [daggerheart, dnd5e] = BUILT_IN_SYSTEM_PRESETS as [SystemPreset, SystemPreset];
+
+/** A whole condition, as a collection stores it, for `conditionEffect`, which reads only part of it. */
+function condition(definition: ConditionDefinition): ConditionDefinition {
+  return definition;
+}
 
 function rules(conditions: SystemRules['conditions']): SystemRules {
   return { gridDefaults: structuredClone(dnd5e.rules.gridDefaults), conditions };
@@ -60,7 +67,7 @@ describe('built-in presets', () => {
     expect(cairn.rules.conditions.find((c) => c.name === 'Fatigue')?.valued).toBe(true);
     expect(cairn.rules.conditions.map((c) => c.id)).toContain('cairn-critical-damage');
     // Saves roll under an attribute: a 1 always succeeds, a 20 always fails.
-    const save = (value: number): ReturnType<typeof getDiceCrit> => getDiceCrit([{ die: 'd20', value, max: 20 }], cairn.rules.dice!);
+    const save = (value: number): ReturnType<typeof getDiceCrit> => getDiceCrit([{ value, max: 20 }], cairn.rules.dice!);
     expect([save(1), save(20), save(10)]).toEqual(['high', 'low', null]);
   });
 
@@ -80,7 +87,7 @@ describe('built-in presets', () => {
 
   it('count a changed resource list as an edited system', () => {
     const cairn = BUILT_IN_SYSTEM_PRESETS.find((p) => p.name === 'Cairn')!;
-    const rules = rulesOfPreset(cairn);
+    const rules = appliedRules(cairn);
     expect(sameSystemRules(rules, rules)).toBe(true);
     expect(sameSystemRules(rules, { ...rules, resources: rules.resources.slice(0, 1) })).toBe(false);
   });
@@ -95,7 +102,7 @@ describe('built-in presets', () => {
 
   it('does not count the old bar switches or what players see as an edit of the system', () => {
     const daggerheart = BUILT_IN_SYSTEM_PRESETS.find((preset) => preset.id === 'builtin:daggerheart')!;
-    const rules = rulesOfPreset(daggerheart);
+    const rules = appliedRules(daggerheart);
     expect(sameSystemRules(daggerheart.rules, { ...rules, defaultWidgets: { hpBar: true, stressBar: true } })).toBe(true);
     expect(sameSystemRules(daggerheart.rules, { ...rules, resources: rules.resources.map((r) => ({ ...r, visibleToPlayers: true })) })).toBe(true);
     expect(sameSystemRules(daggerheart.rules, { ...rules, resources: rules.resources.map((r) => ({ ...r, direction: 'fills' as const })) })).toBe(false);
@@ -140,7 +147,7 @@ describe('built-in presets', () => {
     const { coneAngle: _, ...older } = dnd5e.rules.gridDefaults;
     expect(collectionConeAngle(older, dnd5e.id)).toBe(dnd5e.rules.gridDefaults.coneAngle);
     expect(collectionConeAngle(older, undefined)).toBe(90);
-    expect(sameSystemRules(dnd5e.rules, { ...rulesOfPreset(dnd5e), gridDefaults: older })).toBe(true);
+    expect(sameSystemRules(dnd5e.rules, { ...appliedRules(dnd5e), gridDefaults: older })).toBe(true);
   });
 
   it('keep a valid cone angle of a stored user preset and count it as part of the system', () => {
@@ -151,7 +158,7 @@ describe('built-in presets', () => {
     ]);
     expect(narrow?.rules.gridDefaults.coneAngle).toBe(60);
     expect(broken?.rules.gridDefaults.coneAngle).toBeUndefined();
-    expect(sameSystemRules(broken!.rules, rulesOfPreset(narrow!))).toBe(false);
+    expect(sameSystemRules(broken!.rules, appliedRules(narrow!))).toBe(false);
   });
 
   it('measure Cyberpunk RED in 2-metre squares where a diagonal step costs one square', () => {
@@ -193,7 +200,7 @@ describe('built-in presets', () => {
     const drawSteel = BUILT_IN_SYSTEM_PRESETS.find((preset) => preset.name === 'Draw Steel')!;
     expect(drawSteel.rules.dice).toEqual({ defaultRoll: '2d10', crit: 'high-total' });
     const power = (first: number, second: number): ReturnType<typeof getDiceCrit> =>
-      getDiceCrit([{ die: 'd10', value: first, max: 10 }, { die: 'd10', value: second, max: 10 }], drawSteel.rules.dice!);
+      getDiceCrit([{ value: first, max: 10 }, { value: second, max: 10 }], drawSteel.rules.dice!);
     // A 10 on one die is no critical hit, and no roll is a critical failure.
     expect([power(10, 10), power(9, 10), power(9, 9), power(10, 1), power(1, 1)]).toEqual(['high', 'high', null, null, null]);
     expect(drawSteel.rules.resources?.map((r) => [r.key, r.name, r.field, r.direction])).toEqual([['hp', 'Stamina', 'stamina', 'drains']]);
@@ -413,9 +420,9 @@ describe('default token vision', () => {
     for (const angle of [0.5, 1, 90, 359.5, 360, 400, 0, -30]) {
       const [parsed] = parseUserPresets([stored({ angle, range: 30 })]);
       const vision = parsed?.rules.defaultTokenVision;
-      const typed = visionDefaultsFromForm(visionDefaultsForm({ range: 30, angle }));
+      const typed = visionDefaultsFromForm(visionDefaultsForm({ range: 30, angle }, GENERIC_SENSES));
       expect(vision).toEqual(typed);
-      expect(visionDefaultsFromForm(visionDefaultsForm(vision))).toEqual(vision);
+      expect(visionDefaultsFromForm(visionDefaultsForm(vision, GENERIC_SENSES))).toEqual(vision);
       const cone = visionCone(0, angle);
       expect(cone === undefined ? undefined : Math.round((cone.angle * 180) / Math.PI * 1e6) / 1e6).toBe(vision?.angle);
     }
@@ -483,8 +490,8 @@ describe('senses', () => {
     const { senses: _senses, ...following } = structuredClone(dnd5e.rules);
     expect(sameSystemRules(dnd5e.rules, following)).toBe(true);
     expect(sameSystemRules(dnd5e.rules, { ...following, senses: structuredClone(BUILT_IN_SENSES[dnd5e.id]!) })).toBe(true);
-    expect(sameSystemRules(dnd5e.rules, rulesOfPreset(dnd5e))).toBe(true);
-    expect(findActivePreset(BUILT_IN_SYSTEM_PRESETS, undefined, rulesOfPreset(dnd5e))?.id).toBe(dnd5e.id);
+    expect(sameSystemRules(dnd5e.rules, appliedRules(dnd5e))).toBe(true);
+    expect(findActivePreset(BUILT_IN_SYSTEM_PRESETS, undefined, appliedRules(dnd5e))?.id).toBe(dnd5e.id);
   });
 
   it('are read sense by sense from stored presets: an unusable one is left out and the rest of the preset stays', () => {
@@ -554,15 +561,15 @@ describe('conditions that change sight', () => {
   it('apply to a collection that copied the conditions before they were marked, by the condition\'s id', () => {
     const { effect: _effect, ...copied } = dnd5e.rules.conditions.find((condition) => condition.name === 'Blinded')!;
     expect(conditionEffect(copied)).toBe('blinded');
-    expect(conditionEffect({ ...copied, name: 'Renamed by the GM' })).toBe('blinded');
-    expect(conditionEffect({ id: 'pathfinder2e-unnoticed', name: 'Unnoticed', color: '#000000' })).toBe('undetected');
-    expect(conditionEffect({ id: 'c1', name: 'Blinded', color: '#000000' })).toBeUndefined();
-    expect(conditionEffect({ id: 'dnd5e-prone', name: 'Prone', color: '#000000' })).toBeUndefined();
+    expect(conditionEffect(condition({ ...copied, name: 'Renamed by the GM' }))).toBe('blinded');
+    expect(conditionEffect(condition({ id: 'pathfinder2e-unnoticed', name: 'Unnoticed', color: '#000000' }))).toBe('undetected');
+    expect(conditionEffect(condition({ id: 'c1', name: 'Blinded', color: '#000000' }))).toBeUndefined();
+    expect(conditionEffect(condition({ id: 'dnd5e-prone', name: 'Prone', color: '#000000' }))).toBeUndefined();
   });
 
   it('take the effect a condition sets itself before the one of its id', () => {
-    expect(conditionEffect({ id: 'dnd5e-blinded', name: 'Blinded', color: '#000000', effect: 'invisible' })).toBe('invisible');
-    expect(conditionEffect({ id: 'c1', name: 'Flying', color: '#000000', effect: 'airborne' })).toBe('airborne');
+    expect(conditionEffect(condition({ id: 'dnd5e-blinded', name: 'Blinded', color: '#000000', effect: 'invisible' }))).toBe('invisible');
+    expect(conditionEffect(condition({ id: 'c1', name: 'Flying', color: '#000000', effect: 'airborne' }))).toBe('airborne');
   });
 
   it('leave a collection that copied the conditions before they were marked unedited', () => {

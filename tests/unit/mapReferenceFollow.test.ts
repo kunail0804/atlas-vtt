@@ -36,9 +36,9 @@ describe('following moved files into saved maps', () => {
 
     await new FileReferenceService(app).handleFilesMoved([{ from: art, to: moved }]);
 
-    expect(map(files, 'Raw').state.objects.tokens.t.imagePath).toBe(moved);
-    expect(map(files, 'Url').state.objects.tokens.t.imagePath).toBe(moved);
-    expect(map(files, 'Pin').state.objects.pins.p.notePath).toBe(`${moved}#Face`);
+    expect(map(files, 'Raw').state.objects.tokens.t!.imagePath).toBe(moved);
+    expect(map(files, 'Url').state.objects.tokens.t!.imagePath).toBe(moved);
+    expect(map(files, 'Pin').state.objects.pins.p!.notePath).toBe(`${moved}#Face`);
     expect(files.get(`${scenes}/Other.atlasmap`)).toBe(untouched);
     // A map that cannot name the file is never parsed.
     expect(parse.mock.calls.some(([text]) => text === untouched)).toBe(false);
@@ -51,7 +51,7 @@ describe('following moved files into saved maps', () => {
 
     await new FileReferenceService(app).followMovedFolders([{ from: 'Encounters/Caves', to: 'Encounters/Underdark' }]);
 
-    expect(map(files, 'Keep').state.objects.pins.p.notePath).toBe('Encounters/Underdark/Deep');
+    expect(map(files, 'Keep').state.objects.pins.p!.notePath).toBe('Encounters/Underdark/Deep');
   });
 
   it('gives the browser a turn between slices of a long run of maps', async () => {
@@ -67,7 +67,7 @@ describe('following moved files into saved maps', () => {
     clearInterval(timer);
 
     expect(turns).toBeGreaterThan(0);
-    for (let i = 0; i < 12; i += 3) expect(map(files, `Map ${i}`).state.objects.tokens.t.imagePath).toBe(moved);
+    for (let i = 0; i < 12; i += 3) expect(map(files, `Map ${i}`).state.objects.tokens.t!.imagePath).toBe(moved);
   });
 });
 

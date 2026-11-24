@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { TFile } from 'obsidian';
+import type { App, TAbstractFile } from 'obsidian';
 import { createInMemoryApp } from '../mocks/inMemoryVault';
 import { createAtlasStorage, migrateMapFile } from '../../src/app/services/MapPersistence';
 
@@ -10,11 +10,11 @@ function createStorage(content: string): {
   files: Map<string, string>;
 } {
   const { app, files } = createInMemoryApp({ files: { [MAP_PATH]: content } });
-  app.vault.getFileByPath = app.vault.getAbstractFileByPath;
-  app.vault.copy = vi.fn(async (file: TFile, newPath: string) => {
+  app.vault.getFileByPath = app.vault.getAbstractFileByPath as typeof app.vault.getFileByPath;
+  app.vault.copy = vi.fn(async (file: TAbstractFile, newPath: string) => {
     files.set(newPath, files.get(file.path) ?? '');
     return file;
-  });
+  }) as unknown as App['vault']['copy'];
   vi.spyOn(console, 'error').mockImplementation(() => {});
   return { storage: createAtlasStorage(app, { getState: () => ({ mapPath: MAP_PATH }) }), files };
 }
@@ -61,7 +61,7 @@ describe('map files read in another shape than written', () => {
 
     it('refuses a file that cannot be read', async () => {
       const { app } = createInMemoryApp({ files: { [MAP_PATH]: '{}' } });
-      app.vault.getFileByPath = app.vault.getAbstractFileByPath;
+      app.vault.getFileByPath = app.vault.getAbstractFileByPath as typeof app.vault.getFileByPath;
       vi.spyOn(app.vault, 'read').mockRejectedValue(new Error('EIO: i/o error'));
       vi.spyOn(console, 'error').mockImplementation(() => {});
       const storage = createAtlasStorage(app, { getState: () => ({ mapPath: MAP_PATH }) });
@@ -71,7 +71,7 @@ describe('map files read in another shape than written', () => {
 
     it('starts a map without a file empty', async () => {
       const { app } = createInMemoryApp();
-      app.vault.getFileByPath = app.vault.getAbstractFileByPath;
+      app.vault.getFileByPath = app.vault.getAbstractFileByPath as typeof app.vault.getFileByPath;
       const storage = createAtlasStorage(app, { getState: () => ({ mapPath: MAP_PATH }) });
 
       expect(await storage.getItem('atlas')).toBeNull();

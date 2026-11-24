@@ -1,6 +1,7 @@
 import { Container, RenderTexture, Sprite, Texture, Ticker, WebGLRenderer } from 'pixi.js';
 import { commands } from 'vitest/browser';
 import { generateDungeon } from '../../src/app/dungeons/generate';
+import type { DungeonRequest } from '../../src/app/dungeons/model';
 import { mapLayout } from '../../src/app/dungeons/render/layoutSize';
 import { renderMap } from '../../src/app/dungeons/render/renderMap';
 import { visibleDungeon } from '../../src/app/dungeons/render/visibleDungeon';
@@ -13,7 +14,7 @@ import { centreOf } from './liquidHarness';
 export const ACID_SIZE = { width: 800, height: 600 };
 export const ACID_CELL = 100;
 export const ACID_OUT = 'out/liquids-acid';
-export const ACID_REQUEST = { seed: 1, theme: 'cavern', tags: ['acid', 'large'], floors: 1 } as const;
+export const ACID_REQUEST: DungeonRequest = { seed: 1, theme: 'cavern', tags: ['acid', 'large'], floors: 1 };
 
 /** The actual generator, painter, scene converter, file reader and runtime layer together. */
 export async function acidScene(look: DungeonStyleId, monochrome = false): Promise<{
@@ -25,7 +26,7 @@ export async function acidScene(look: DungeonStyleId, monochrome = false): Promi
   const style = dungeonStyle(look);
   const layout = mapLayout(model, ACID_CELL, view);
   const placement = { originCell: layout.originCell, pxPerCell: ACID_CELL };
-  const { liquids } = floorLiquids(visibleDungeon(model, view), style, view, placement, { unitType: 'ft', ruleDistance: 5 }, 'acid-proof');
+  const { liquids } = floorLiquids(visibleDungeon(model, view), style, view, placement, { unitType: 'feet', ruleDistance: 5 }, 'acid-proof');
   const acids = Object.fromEntries(Object.entries(liquids).filter(([, surface]) => surface.liquid === 'acid'));
   const largest = Object.values(acids).sort((a, b) => b.polygon.length - a.polygon.length)[0];
   if (!largest) throw new Error('The proof seed must generate real acid terrain');

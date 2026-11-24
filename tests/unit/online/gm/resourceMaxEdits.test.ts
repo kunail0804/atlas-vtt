@@ -43,7 +43,7 @@ const sheetFor = (resolved = RESOLVED, held = LINKED): PlayedCharacter['sheet'] 
   sheetOf({ name: 'Ana', imagePath: 'ana.png', showRing: false } as never, held, [HP], () => null, trackedSheetValues(resolved, [HP], held.resources), (definition) => resourceMaxRoute(resolved, definition, held, PATH) !== null)!;
 
 const ana = (sheet = sheetFor()): PlayedCharacter => ({
-  collection: 'c', key: 'lib-ana', imagePath: 'ana.png', tokenId: 'ana', placed: { assetId: 'lib-ana', imagePath: 'ana.png' }, sheet, statblockPath: PATH, drawnWith: { definitions: [HP], resources: LINKED.resources },
+  collection: 'c', key: 'lib-ana', imagePath: 'ana.png', shownName: 'Ana', tokenId: 'ana', placed: { assetId: 'lib-ana', imagePath: 'ana.png' }, sheet, statblockPath: PATH, drawnWith: { definitions: [HP], resources: LINKED.resources },
 });
 const sceneOf = (held = LINKED): BookScene => ({ mapPath: 'map', collection: 'c', resources: [HP], tokens: { ana: held }, shown: () => new Map(), listedToken: () => undefined });
 const message = (key: string, current: number, max: number): BookResourceMessage => ({ t: 'book-resource', key, current, max });

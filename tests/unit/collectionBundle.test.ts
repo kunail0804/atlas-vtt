@@ -1,6 +1,6 @@
 // JSZip needs Node's ArrayBuffer realm; jsdom's differs and its Blob support is absent.
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { TFile } from 'obsidian';
+import { TFile, type WorkspaceLeaf } from 'obsidian';
 import { ATLAS_VIEW_TYPE } from '../../src/app/atlasViewType';
 import { AssetService } from '../../src/app/services/AssetService';
 import { transferAssets } from '../../src/app/services/assetTransfer/assetTransfer';
@@ -11,7 +11,7 @@ import { openCollectionImport, type ImportDecision } from '../../src/app/service
 import type { ImportReview } from '../../src/app/services/collectionBundle/importReview';
 import { readInstallRecord } from '../../src/app/services/collectionBundle/installRecord';
 import { noteTree } from '../../src/app/services/collectionBundle/noteTree';
-import { createSnapshot } from '../../src/app/snapshots/sceneSnapshotFormat';
+import { createSnapshot, type SceneSnapshot } from '../../src/app/snapshots/sceneSnapshotFormat';
 import { sceneSnapshotFolder } from '../../src/app/snapshots/snapshotPaths';
 import { createInMemoryApp, parseFrontmatter, type InMemoryApp } from '../mocks/inMemoryVault';
 
@@ -135,7 +135,7 @@ async function withOgreSnapshot({ vault, assets }: Vault, ogreImage: string): Pr
   const folder = sceneSnapshotFolder('source', scene!.id);
   const snapshot = createSnapshot({ version: 4, state: {
     schema: 'atlas-vtt', version: 4, background: BACKGROUND, grid: null,
-    objects: { tokens: { o1: { id: 'o1', kind: 'character', x: 0, y: 0, imagePath: ogreImage, statblockPath: NOTE_PATH, name: 'Ogre', hp: 30 } } },
+    objects: { tokens: { o1: { id: 'o1', kind: 'character', x: 0, y: 0, imagePath: ogreImage, statblockPath: NOTE_PATH, name: 'Ogre' } } },
   } }, 'snap1', 'Ogre ambush', 1000);
   await vault.app.vault.create(ogreImage, 'OGRE');
   await vault.app.vault.create(`${folder}/snap1.json`, JSON.stringify(snapshot));
@@ -323,7 +323,7 @@ describe('installing', () => {
     expect(packed.map((file) => file.vaultPath).sort()).toEqual([`${snapshotFolder}/snap1.jpg`, `${snapshotFolder}/snap1.json`]);
     const fan = await emptyVault();
     await importInto(fan, blob);
-    const restored = JSON.parse(fan.vault.files.get(`${snapshotFolder}/snap1.json`)!) as typeof snapshot;
+    const restored = JSON.parse(fan.vault.files.get(`${snapshotFolder}/snap1.json`)!) as SceneSnapshot;
     expect(restored).toMatchObject({ id: 'snap1', name: 'Ogre ambush' });
     expect(restored.state.objects?.tokens?.o1).toMatchObject({ imagePath: ogreImage, statblockPath: 'atlas-vtt/collections/source/statblocks/Goblin.md' });
     expect(fan.vault.files.get(`${snapshotFolder}/snap1.jpg`)).toBe('SNAPJPG');
@@ -576,7 +576,7 @@ describe('updating', () => {
       saveMap: vi.fn(async () => { steps.push('save'); }),
     };
     const leaf = { view, detach: vi.fn(() => { steps.push('detach'); }) };
-    fan.vault.app.workspace.getLeavesOfType = vi.fn(() => [leaf]);
+    fan.vault.app.workspace.getLeavesOfType = vi.fn(() => [leaf as unknown as WorkspaceLeaf]);
     const modifyBinary = fan.vault.app.vault.modifyBinary.bind(fan.vault.app.vault);
     fan.vault.app.vault.modifyBinary = vi.fn(async (file: TFile, data: ArrayBuffer) => {
       if (file.path === MAP_PATH) steps.push('write');
@@ -751,7 +751,7 @@ describe('second review findings', () => {
     expect(fan.vault.files.get(lair)).toBe('MY LAIR');
     const scene = (await fan.assets.getAssets('source', 'scene')).find((asset) => asset.name === 'Lair');
     expect(scene?.data?.mapPath).toBe('atlas-vtt/collections/source/scenes/Lair-2.atlasmap');
-    expect(fan.vault.files.get(scene!.data!.mapPath)).toBe('{"creator":true}');
+    expect(fan.vault.files.get(scene!.data!.mapPath!)).toBe('{"creator":true}');
   });
 
   it('lists only Markdown notes as pinned notes: a pin to a scene\'s map leaves that map with its scene', async () => {

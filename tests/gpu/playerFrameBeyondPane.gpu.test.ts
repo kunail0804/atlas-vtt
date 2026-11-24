@@ -85,7 +85,7 @@ function mirrored(s: PlayerViewScene): { pixels: Uint8ClampedArray; frame: { sca
 /** The players' picture on a GM screen of the window's size, as the mirror took it until now: the players' layers on, one render. */
 function onGmScreen(s: PlayerViewScene): Uint8ClampedArray {
   const target = RenderTexture.create({ ...WINDOW, antialias: true });
-  let pixels = new Uint8ClampedArray();
+  let pixels: Uint8ClampedArray = new Uint8ClampedArray();
   captureWithLayerVisibility(s.frameLayers(), () => undefined, () => {
     s.renderer.render({ container: s.app.stage, target, clear: true, clearColor: s.renderer.background.colorRgba });
     pixels = s.renderer.extract.pixels({ target }).pixels;

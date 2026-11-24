@@ -7,6 +7,7 @@ import { closeMapTab } from '../../../src/app/plugin/atlasLeaves';
 import { SceneFileWriter } from '../../../src/app/services/sceneFileWriter';
 import { showNotice } from '../../../src/app/ui/notice';
 import { createInMemoryApp, type InMemoryApp } from '../../mocks/inMemoryVault';
+import { fileHandle, folderHandle } from '../../mocks/obsidianHandles';
 
 // The check runs at once instead of after the vault went quiet.
 vi.mock('obsidian', async (importOriginal) => ({
@@ -99,7 +100,7 @@ async function moveInObsidian(vault: InMemoryApp, from: string, to: string): Pro
   await vault.app.vault.adapter.rename(from, to);
   for (const path of [from, ...inside]) {
     const target = to + path.slice(from.length);
-    vault.emit('rename', folders.has(path) ? new TFolder(target) : new TFile(target), path);
+    vault.emit('rename', folders.has(path) ? folderHandle(target) : fileHandle(target), path);
   }
   await settled();
 }
@@ -109,7 +110,7 @@ async function deleteInObsidian(vault: InMemoryApp, folder: string): Promise<voi
   const inside = [...vault.folders, ...vault.files.keys()].filter((path) => path.startsWith(`${folder}/`) && !isHidden(path)).sort().reverse();
   const folders = new Set([folder, ...inside].filter((path) => vault.folders.has(path)));
   await vault.app.vault.adapter.rmdir(folder, true);
-  for (const path of [...inside, folder]) vault.emit('delete', folders.has(path) ? new TFolder(path) : new TFile(path));
+  for (const path of [...inside, folder]) vault.emit('delete', folders.has(path) ? folderHandle(path) : fileHandle(path));
   await settled();
 }
 

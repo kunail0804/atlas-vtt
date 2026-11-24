@@ -24,9 +24,12 @@ export function emptyFloor(): DungeonFloor {
   return { rooms: [], doors: [], columns: [], props: [], rubble: [], cracks: [], water: [], waterCells: [], stairs: [], terrain: [], growth: [] };
 }
 
-/** A dungeon of one empty floor; build it through `entryFloor`. */
+/**
+ * A dungeon of one empty floor; build it through `entryFloor`. It names no theme, which readers take as an unknown one
+ * (`stackOf`, like a model of an older export); a test that needs one spreads it in.
+ */
 export function emptyModel(seed: number): DungeonModel {
-  return { version: DUNGEON_GENERATOR_VERSION, seed, tags: [], floors: [emptyFloor()] };
+  return { version: DUNGEON_GENERATOR_VERSION, seed, tags: [], floors: [emptyFloor()] } as Omit<DungeonModel, 'theme'> as DungeonModel;
 }
 
 export function entryFloor(model: DungeonModel): DungeonFloor {

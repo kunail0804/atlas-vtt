@@ -67,7 +67,7 @@ function fortress(): { t: Table; stair: DungeonStair; at: (c: CellPoint) => { x:
     // The scene's grid is the dungeon's, so a token put down ends on a cell of it.
     if (draft.grid !== null) Object.assign(draft.grid, { size: FORTRESS_PX, offsetX: -placement.originCell.x * FORTRESS_PX, offsetY: -placement.originCell.y * FORTRESS_PX });
     (draft as unknown as { levels: SceneLevel[] }).levels = levels;
-    draft.objects.levelLinks = parts.scene.levelLinks;
+    if (parts.scene.levelLinks) draft.objects.levelLinks = parts.scene.levelLinks;
     Object.assign(draft.objects.tokens.ogre!, { level: levels[0]!.id });
   }));
   const at = (c: CellPoint): { x: number; y: number } => ({ x: (c.x + 0.5 - placement.originCell.x) * FORTRESS_PX, y: (c.y + 0.5 - placement.originCell.y) * FORTRESS_PX });

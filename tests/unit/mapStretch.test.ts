@@ -4,6 +4,7 @@ import { objectsMovedWithMap } from '../../src/app/grid/mapStretchObjects';
 import { createViewAtlasStore, type ViewAtlasStore } from '../../src/app/storeFactory';
 import { createInMemoryApp } from '../mocks/inMemoryVault';
 import type { GridState } from '../../src/app/types/gridTypes';
+import { getHistoryStore } from '../../src/app/stores/history';
 
 const GRID: GridState = { enabled: true, visible: true, type: 'square', size: 70, offsetX: 0, offsetY: 0, opacity: 0.5 };
 /** A map drawn 10 % wider: every point's x grows by a tenth. */
@@ -137,7 +138,7 @@ describe('objects on a map that is drawn another way', () => {
 
     store.getState().alignGrid({ ...GRID, mapStretch: { x: 1.1, y: 1 } }, WIDER);
     expect(store.getState().objects.lights[light]!.area![1]!.x).toBeCloseTo(440, 9);
-    store.temporal.getState().undo();
+    getHistoryStore(store)!.getState().undo();
     expect(store.getState().objects.lights[light]).toMatchObject({ x: 300, area });
   });
 
@@ -148,20 +149,20 @@ describe('objects on a map that is drawn another way', () => {
   it('aligns the grid and moves the objects in one undo step', () => {
     const s = store.getState();
     const token = s.addToken({ x: 100, y: 200, imagePath: 'a.png' } as Parameters<typeof s.addToken>[0]);
-    const before = store.temporal.getState().pastStates.length;
+    const before = getHistoryStore(store)!.getState().pastStates.length;
     const aligned: GridState = { ...GRID, type: 'hex-vertical', size: 64, mapStretch: { x: 1.1, y: 1 } };
 
     store.getState().alignGrid(aligned, WIDER);
 
     expect(store.getState().grid).toEqual(aligned);
     expect(store.getState().objects.tokens[token]).toMatchObject({ x: 110, y: 200 });
-    expect(store.temporal.getState().pastStates.length).toBe(before + 1);
+    expect(getHistoryStore(store)!.getState().pastStates.length).toBe(before + 1);
 
-    store.temporal.getState().undo();
+    getHistoryStore(store)!.getState().undo();
     expect(store.getState().grid).toEqual(GRID);
     expect(store.getState().objects.tokens[token]).toMatchObject({ x: 100, y: 200 });
 
-    store.temporal.getState().redo();
+    getHistoryStore(store)!.getState().redo();
     expect(store.getState().grid).toEqual(aligned);
     expect(store.getState().objects.tokens[token]).toMatchObject({ x: 110, y: 200 });
   });

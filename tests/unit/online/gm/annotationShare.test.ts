@@ -186,15 +186,15 @@ describe('what players are told of drawings and texts', () => {
     const reader = new ToldAnnotations();
     const first = reader.read(told, true);
     const again = reader.read(JSON.parse(JSON.stringify(told)) as SharedAnnotations, true);
-    expect(Object.values(again.drawings)).toHaveLength(Object.values(first.drawings).length);
-    for (const [id, record] of Object.entries(again.drawings)) expect(first.drawings[id]).toBe(record);
-    for (const [id, record] of Object.entries(again.texts)) expect(first.texts[id]).toBe(record);
+    expect(Object.values(again.drawings!)).toHaveLength(Object.values(first.drawings!).length);
+    for (const [id, record] of Object.entries(again.drawings!)) expect(first.drawings![id]).toBe(record);
+    for (const [id, record] of Object.entries(again.texts!)) expect(first.texts![id]).toBe(record);
     const moved = { ...told, drawings: told.drawings.map((entry, index) => (index === 0 ? { ...entry, colour: '#00ff00' } : entry)) };
     const next = reader.read(moved, true);
-    expect(Object.values(next.drawings).filter((record) => !Object.values(first.drawings).includes(record))).toHaveLength(1);
+    expect(Object.values(next.drawings!).filter((record) => !Object.values(first.drawings!).includes(record))).toHaveLength(1);
     // Two that say the same are two drawings still.
     const twice = new ToldAnnotations().read({ drawings: [told.drawings[0]!, told.drawings[0]!], texts: [] }, true);
-    expect(Object.keys(twice.drawings)).toHaveLength(2);
+    expect(Object.keys(twice.drawings!)).toHaveLength(2);
   });
 
   it('draws a stroke told by a GM of before as that GM draws it: the line through its points', () => {

@@ -14,6 +14,7 @@ import { createInMemoryApp } from '../../../mocks/inMemoryVault';
 import { app as fakeApp, atlasTab, FakeSocket, workspace } from './fakeTable.ts';
 import { sceneState } from './shareHarness.ts';
 import { advanceSettled as advance } from './settled.ts';
+import { fileHandle } from '../../../mocks/obsidianHandles';
 
 const seen = vi.hoisted(() => ({
   notices: [] as string[],
@@ -338,7 +339,7 @@ describe('a player\'s code', () => {
 describe('a table that comes back', () => {
   it('gets a new join code where its saved one is now a player\'s own code', async () => {
     const { online, saves } = await gm();
-    const saved: SavedTable = { code: LINK, secret: 's'.repeat(43), maxPlayers: 12, campaignId: 'c1', mapPath: null, gate: { code: '000001', requireCode: true, askToJoin: true } };
+    const saved: SavedTable = { code: LINK, secret: 's'.repeat(43), maxPlayers: 12, campaignId: 'c1', playerOrigin: 'https://name2-vtt.kunlab.cc', mapPath: null, gate: { code: '000001', requireCode: true, askToJoin: true } };
     const table = await online.resume(saved);
     expect(table?.gate.settings.code).toMatch(/^\d{6}$/);
     expect(table?.gate.settings.code).not.toBe('000001');
@@ -370,7 +371,7 @@ describe('a player taken off the campaign', () => {
     // Another device's write removes Ana from the file.
     await files.flush();
     await vault.app.vault.adapter.write(PLAYERS, playersText({}));
-    vault.emit('modify', new TFile(PLAYERS));
+    vault.emit('modify', fileHandle(PLAYERS));
     await advance(0);
     expect(files.roster().players).toEqual([]);
     socket.relay({ t: 'player-joined', id: ANA, name: 'Ana' });
@@ -415,7 +416,7 @@ describe('a new link', () => {
 });
 
 describe('the played campaign', () => {
-  const SAVED: SavedTable = { code: LINK, secret: 's'.repeat(43), maxPlayers: 12, campaignId: 'c1', mapPath: null, gate: { code: '123456', requireCode: true, askToJoin: true } };
+  const SAVED: SavedTable = { code: LINK, secret: 's'.repeat(43), maxPlayers: 12, campaignId: 'c1', playerOrigin: 'https://name2-vtt.kunlab.cc', mapPath: null, gate: { code: '123456', requireCode: true, askToJoin: true } };
   const playing = (app: App): string | null => CampaignPlay.forApp(app).playing();
 
   it('is the campaign chosen for the table from its start, and none once the GM stops it', async () => {

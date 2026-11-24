@@ -8,6 +8,7 @@ import { createViewAtlasStore, type ViewAtlasStore } from '../../src/app/storeFa
 import type { WallInput, WallSegment } from '../../src/app/types/wallTypes';
 import { createInMemoryApp } from '../mocks/inMemoryVault';
 import { stubJsdomGraphics } from '../mocks/jsdomGraphics';
+import { getHistoryStore } from '../../src/app/stores/history';
 
 type P = { x: number; y: number };
 
@@ -31,14 +32,14 @@ function setup(walls: readonly WallInput[], offset: P = { x: 0, y: 0 }): { store
   const store = createViewAtlasStore(createInMemoryApp({ files: {} }).app, `room-door-${Math.random()}`);
   store.getState().setPersistenceEnabled(false);
   store.getState().setActiveTool('wall');
-  store.getState().setGrid({ ...store.getState().grid, type: 'square', size: CELL, offsetX: offset.x, offsetY: offset.y });
+  store.getState().setGrid({ ...store.getState().grid!, type: 'square', size: CELL, offsetX: offset.x, offsetY: offset.y });
   for (const wall of walls) store.getState().addWall(wall);
   const bus = new EventEmitter();
   const editor = new RoomEditor({ viewport, store, eventBus: bus, bounds: () => ({ width: 2000, height: 2000 }), onActiveChange: () => undefined, canvas });
   bus.emit('wall-submode-changed', 'rooms');
   editor.view.visible = true;
   store.getState().setRoomTool({ action: 'door' });
-  store.temporal.getState().clear();
+  getHistoryStore(store)!.getState().clear();
   cleanup = () => {
     editor.destroy();
     viewport.destroy();
@@ -91,7 +92,7 @@ describe('a door drawn in the rooms mode', () => {
       span({ p1: at(o, 0, 3), p2: at(o, 2, 3) }),
     ].sort());
     // One undo step puts the wall back whole.
-    store.temporal.getState().undo();
+    getHistoryStore(store)!.getState().undo();
     expect(walls(store).map(span).sort()).toEqual(lShape(o, 3).map(span).sort());
   });
 

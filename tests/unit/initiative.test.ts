@@ -2,7 +2,7 @@ import { describe, expect, it, afterEach, vi } from 'vitest';
 import { BUILT_IN_SYSTEM_PRESETS } from '../../src/app/gameSystems/builtInPresets';
 import { DEFAULT_INITIATIVE_RULES, collectionInitiativeRules, isValidInitiativeRules, parseInitiativeRules, sameInitiativeRules, savedInitiativeRules } from '../../src/app/gameSystems/initiativeRules';
 import { parseUserPreset } from '../../src/app/gameSystems/presetValidation';
-import { rulesOfPreset, sameSystemRules, vanillaSystemSettings } from '../../src/app/gameSystems/systemRules';
+import { sameSystemRules, vanillaSystemSettings } from '../../src/app/gameSystems/systemRules';
 import { sideOf } from '../../src/app/initiative/sides';
 import { sidesOfRules } from '../../src/app/gameSystems/initiativeSideRules';
 import type { InitiativeRules } from '../../src/app/types/initiativeRulesTypes';
@@ -12,6 +12,7 @@ import { produce } from 'immer';
 import { createInitiativeActions } from '../../src/app/stores/initiativeSlice';
 import { createDefaultInitiativeState, type InitiativeEntry } from '../../src/app/types/initiativeTypes';
 import type { TokenEntity } from '../../src/app/types';
+import { appliedRules } from '../helpers/appliedRules';
 import { givenTokens } from '../../src/app/campaigns/players/givenTokens';
 import type { CampaignPlayer } from '../../src/app/campaigns/players/playersFile';
 import { KnownPlayerTokens, type PlayerTokenFacts } from '../../src/app/characters/knownPlayerTokens';
@@ -92,7 +93,7 @@ describe('initiative rules of a collection', () => {
 describe('initiative rules and game system presets', () => {
   it('leaves a collection set from a preset without rules of its own, and counts it as unedited', () => {
     const cairn = preset('Cairn');
-    const applied = rulesOfPreset(cairn);
+    const applied = appliedRules(cairn);
     expect(applied).not.toHaveProperty('initiative');
     expect(sameSystemRules(cairn.rules, applied)).toBe(true);
     expect(sameSystemRules(cairn.rules, { ...applied, initiative: SIDES })).toBe(true);

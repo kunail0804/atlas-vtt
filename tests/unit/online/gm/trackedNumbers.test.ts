@@ -97,7 +97,7 @@ describe('tracked numbers on a player\'s sheet', () => {
   it('are taken from their player with the value the sheet offered, also where the token holds none yet', () => {
     const sheet = sheetOf({ id: 'ana', name: 'Ana', imagePath: 'ana.png', showRing: false } as never, {}, [HP], () => null, tracked)!;
     const ana: PlayedCharacter = {
-      collection: 'c', key: 'lib-ana', imagePath: 'ana.png', tokenId: 'ana', placed: { assetId: 'lib-ana', imagePath: 'ana.png' },
+      collection: 'c', key: 'lib-ana', imagePath: 'ana.png', shownName: 'Ana', tokenId: 'ana', placed: { assetId: 'lib-ana', imagePath: 'ana.png' },
       sheet, statblockPath: 'Characters/Ana.md', drawnWith: { definitions: [HP], resources: {} },
     };
     const scene: BookScene = { mapPath: 'map', collection: 'c', resources: [HP], tokens: { ana: token('ana') }, shown: () => new Map(), listedToken: () => undefined };

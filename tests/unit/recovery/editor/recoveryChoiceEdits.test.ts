@@ -60,7 +60,7 @@ describe('scopes', () => {
   });
 
   it('hold an action to the rules a button may hold', () => {
-    const many = Array.from({ length: MAX_RECOVERY_RULES }, (_, index): RecoveryRule => ({ target: { kind: 'resource', key: `r${index}` }, does: 'full' }));
+    const many = Array.from({ length: MAX_RECOVERY_RULES }, (_, index): RecoveryRule => ({ target: { kind: 'resource', field: `r${index}` }, does: 'full' }));
     const full = withScopeRules(REST, TEND, many);
     expect(withRule(full, { target: { kind: 'resource', field: 'one-more' }, does: 'full' }, TEND)).toBeNull();
   });

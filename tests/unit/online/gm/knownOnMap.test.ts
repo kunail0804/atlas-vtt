@@ -166,13 +166,14 @@ describe('what players are told of the map by what they remember', () => {
     const telling = new AnnotationTelling({ now: () => 0, map: () => MAP, changed: () => undefined });
     let edge = 1000;
     const source: MapLayerSource = { grid: () => null, doorsSeen: () => new Set(), pointsSeen: (points) => points.map(({ x }) => x < edge), sensed: () => [], rules: () => null };
-    const above = { layer: 'above' } as const;
+    // Above the tokens is a drawing without `layer`.
+    const above = <T extends { layer?: 'map' }>({ layer: _, ...rest }: T): T => rest as T;
     const drawings = {
-      near: line('near', { x: 100, y: 100 }, { x: 200, y: 100 }, above),
-      far: line('far', { x: 1500, y: 100 }, { x: 1600, y: 100 }, { ...above, color: '#ab1234' }),
-      theirs: line('theirs', { x: 1500, y: 300 }, { x: 1600, y: 300 }, { ...above, color: '#0000ff', by: 'player-1' }),
+      near: above(line('near', { x: 100, y: 100 }, { x: 200, y: 100 })),
+      far: above(line('far', { x: 1500, y: 100 }, { x: 1600, y: 100 }, { color: '#ab1234' })),
+      theirs: above(line('theirs', { x: 1500, y: 300 }, { x: 1600, y: 300 }, { color: '#0000ff', by: 'player-1' })),
     };
-    const texts = { secret: { ...label('secret', { x: 1700, y: 500 }, 'Secret door'), ...above } };
+    const texts = { secret: above(label('secret', { x: 1700, y: 500 }, 'Secret door')) };
     const state = sceneState({ lighting: { enabled: true, ambient: 0 }, objects: { ...sceneState().objects, drawings, texts } });
     const first = telling.lists(state, NO_FOG, true, source);
     expect(first.shared.drawings.map(({ colour }) => colour)).toEqual(['#12ab34', '#0000ff']);

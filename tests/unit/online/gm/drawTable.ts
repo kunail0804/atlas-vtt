@@ -3,13 +3,16 @@ import type { SceneState, SceneStore } from '../../../../src/app/online/gm/atlas
 import { PlayerDrawings, type ToldIds } from '../../../../src/app/online/gm/playerDrawings.ts';
 import { parsePlayerMessage, type DrawLook, type DrawTextLook, type GmMessage, type PlayerDrawMessage, type PlayerStroke } from '../../../../src/app/online/protocol/index.ts';
 import { getHistoryStore, runUntracked, type HistoryState } from '../../../../src/app/stores/history';
+import type { DrawingInput } from '../../../../src/app/annotations/annotationTypes';
 import type { DrawingStroke, TextElement } from '../../../../src/app/types';
 import { ANA, BEN, SCENE, STORE_FACTORY } from './realStore.ts';
 
 /** A table where players draw, for the tests of the GM's side of it: a real Atlas view store and `PlayerDrawings` on it. */
 
 export type Request = Exclude<PlayerDrawMessage, PlayerStroke>;
-export type DrawStore = SceneStore & { getState(): SceneState & { setSelection(ids: string[]): void; selectedIds: string[]; setPersistenceEnabled(enabled: boolean): void } };
+/** The view store's state with the actions these tests use besides what `PlayerDrawings` reads. */
+export type DrawState = SceneState & { addDrawing(data: DrawingInput): string; setSelection(ids: string[]): void; selectedIds: string[]; setPersistenceEnabled(enabled: boolean): void };
+export type DrawStore = Omit<SceneStore, 'getState'> & { getState(): DrawState };
 
 const { createViewAtlasStore } = (await import(/* @vite-ignore */ STORE_FACTORY)) as { createViewAtlasStore: (app: unknown, viewId: string) => DrawStore };
 

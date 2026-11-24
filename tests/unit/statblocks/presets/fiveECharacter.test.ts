@@ -205,7 +205,7 @@ describe('hit point maximum from the classes (2024 rules)', () => {
     // 10 + 2, then 2 × (6 + 2), then Dwarven Toughness.
     const dwarf = sheet([FIGHTER(3)], { hp_bonus: 3, hp: 31 });
     expect(derivedValues(template, dwarf).get('hp')).toBe(31);
-    expect(derivedPatches(template, dwarf).filter((patch) => patch.path[0] === 'hp')).toEqual([]);
+    expect(derivedPatches(template, dwarf).filter((patch) => 'path' in patch && patch.path[0] === 'hp')).toEqual([]);
     expect(derivedValues(template, sheet([FIGHTER(3)])).get('hp')).toBe(28);
   });
 

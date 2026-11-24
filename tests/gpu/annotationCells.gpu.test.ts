@@ -94,7 +94,7 @@ async function open(type: GridType, options: { dark?: boolean; plain?: number; g
   const store = createViewAtlasStore(createInMemoryApp().app, `cells-${Math.random()}`);
   store.getState().setPersistenceEnabled(false);
   store.getState().setMapPath('maps/cells.atlasmap');
-  store.setState({ grid: { ...store.getState().grid, enabled: true, visible: true, type, size: CELL, offsetX: 0, offsetY: 0 } });
+  store.setState({ grid: { ...store.getState().grid!, enabled: true, visible: true, type, size: CELL, offsetX: 0, offsetY: 0 } });
   const annotations = new AnnotationsRenderer({ viewport, store, grid: () => grid.getOptions(), mapRect: () => ({ x: 0, y: 0, width: WIDTH, height: HEIGHT }) });
   const boundary = new EventBoundary(viewport);
   const pointer = (kind: 'pointerdown' | 'pointermove' | 'pointerup', x: number, y: number): void => {

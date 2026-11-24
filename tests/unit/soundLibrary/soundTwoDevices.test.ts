@@ -18,6 +18,7 @@ import { SoundRecordStore } from '../../../src/app/soundLibrary/SoundRecordStore
 import { FakeSoundLocation } from '../../helpers/fakeSoundLocation';
 import { createInMemoryApp, type InMemoryApp } from '../../mocks/inMemoryVault';
 import { FakeSync, seededRandom } from '../library/fakeSync';
+import { fileHandle } from '../../mocks/obsidianHandles';
 
 /**
  * Two devices use one set of moods and sound records while a file sync carries their files between
@@ -52,7 +53,7 @@ function device(): Device {
 }
 
 function fileOf(path: string): TFile {
-  const file = new TFile(path);
+  const file = fileHandle(path);
   file.stat = { ctime: 0, mtime: 0, size: 0 };
   return file;
 }
@@ -386,7 +387,7 @@ describe('sound records on two devices', () => {
       const maker = {
         run: async (job: SoundImportJob): Promise<SoundImportResult> => {
           made.push(job);
-          return { bytes: await taggedCopy({ key: job.key, from: job.from }), frames: 144_000, channels: 1, lufs: -20, truePeakDb: -3, peaks: null };
+          return { bytes: await taggedCopy({ key: job.key, from: job.from }), frames: 144_000, channels: 1, lufs: -20, truePeakDb: -3, peaks: new Uint8Array(0) };
         },
       };
       const files = {
