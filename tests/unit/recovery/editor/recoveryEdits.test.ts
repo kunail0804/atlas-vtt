@@ -51,7 +51,7 @@ describe('editing a button\'s rules', () => {
     const replaced = withRule(long, { target: HP, does: 'amount', formula: '2d8' })!;
     expect(replaced.rules).toHaveLength(long.rules.length);
     expect(ruleFor(replaced, HP)).toEqual({ target: HP, does: 'amount', formula: '2d8' });
-    expect(withoutRule(long, HP).rules.some((rule) => rule.target.kind === 'resource' && rule.target.key === 'hp')).toBe(false);
+    expect(withoutRule(long, HP).rules.some((rule) => rule.target.kind === 'resource' && rule.target.field === 'hp')).toBe(false);
   });
 
   it('refuses a rule past the limit, but a metric already held may change', () => {

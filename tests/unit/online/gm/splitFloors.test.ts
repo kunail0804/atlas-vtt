@@ -72,7 +72,7 @@ describe('players climbing a generated Fortress', () => {
     const paths = ids.map((_, floor) => `maps/floor-${floor}.webp`);
     const levels = floorLevels(ids, paths, stackOf(model));
     const images = new Map(paths.map((path, floor) => [path, new Uint8Array(64).map((_, index) => (index * (floor + 3)) % 256)]));
-    const state = sceneState({ levels, viewedLevel: ids[0], background: paths[0] });
+    const state = sceneState({ levels, viewedLevel: ids[0]!, background: paths[0]! });
     const tokens = { ana: token('ana', { x: 100, y: 100, level: ids[1] }), ben: token('ben', { x: 100, y: 100, level: ids[2] }) };
     const climbing = { ...state, objects: { ...state.objects, tokens } };
     const table = shareHarness(climbing, images, seats());
@@ -134,7 +134,7 @@ describe('players on different floors of one scene', () => {
   });
 
   it('keeps the tokens of another floor from a player, and works out what they see upstairs while the GM looks at the ground', async () => {
-    const wall: WallSegment = { id: 'w', p1: { x: 200, y: 0 }, p2: { x: 200, y: 400 }, type: 'wall', levels: ['upper'] } as WallSegment;
+    const wall: WallSegment = { id: 'w', p1: { x: 200, y: 0 }, p2: { x: 200, y: 400 }, kind: 'wall', type: 'solid', levels: ['upper'] };
     const lit = { lighting: { enabled: true, ambient: 1 } } as Partial<SceneState>;
     const vision = { vision: { enabled: true } } as Partial<TokenEntity>;
     const table = await started(floors({ ben: vision, ana: vision }, { ...lit, objects: { ...sceneState().objects, walls: { w: wall } } }));
@@ -149,7 +149,7 @@ describe('players on different floors of one scene', () => {
   });
 
   it('stops a player\'s token at the walls of its own floor, whichever floor the GM looks at', async () => {
-    const wall = (id: string, x: number, level: string): WallSegment => ({ id, p1: { x, y: 0 }, p2: { x, y: 400 }, type: 'wall', levels: [level] }) as WallSegment;
+    const wall = (id: string, x: number, level: string): WallSegment => ({ id, p1: { x, y: 0 }, p2: { x, y: 400 }, kind: 'wall', type: 'solid', levels: [level] });
     const lit = { lighting: { enabled: true, ambient: 1 }, objects: { ...sceneState().objects, walls: { low: wall('low', 150, 'ground'), high: wall('high', 200, 'upper') } } } as Partial<SceneState>;
     const vision = { vision: { enabled: true } } as Partial<TokenEntity>;
     const table = await started(floors({ ana: vision, ben: vision }, lit));

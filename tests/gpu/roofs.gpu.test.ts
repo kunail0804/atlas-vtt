@@ -15,8 +15,8 @@ const PANE = 256;
 /** World pixels to screen pixels: the whole map in the pane. */
 const SCALE = PANE / MAP;
 /** Two roofs: the scout's house over the first, a stranger under the second. */
-const HOUSE = [50, 50, 200, 200] as const;
-const BARN = [300, 300, 450, 450] as const;
+const HOUSE: [number, number, number, number] = [50, 50, 200, 200];
+const BARN: [number, number, number, number] = [300, 300, 450, 450];
 
 const ROOFED: SceneLevel[] = LEVELS.map((level) => (level.id === 'upper' ? { ...level, foreground: 'roof.png' } : level));
 

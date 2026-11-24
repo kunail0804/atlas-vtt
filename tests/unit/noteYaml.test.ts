@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Document, parseDocument, visit } from 'yaml';
+import { fileHandle } from '../mocks/obsidianHandles';
 
 /** Counts what reaches the parser, so a test tells a refused text from a parsed one without timing either. */
 const parser = vi.hoisted(() => ({ calls: [] as string[] }));
@@ -338,10 +339,10 @@ describe('every reader of a note\'s YAML', () => {
   it('gives a token no name from a statblock whose frontmatter is beyond the limits', async () => {
     const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const noteOf = (frontmatter: string): App => ({
-      vault: { getAbstractFileByPath: (path: string) => new TFile(path), read: async () => `---\n${frontmatter}---\nBody\n` },
+      vault: { getAbstractFileByPath: (path: string) => fileHandle(path), read: async () => `---\n${frontmatter}---\nBody\n` },
     }) as unknown as App;
     const token = { id: 't1', kind: 'character', statblockPath: 'Bestiary/Goblin.md', x: 0, y: 0 } as TokenEntity;
-    const links = { getStatblockLinkedToToken: async () => null };
+    const links = { getStatblockLinkedToToken: async () => null, readStatblockRecord: async () => null };
 
     await expect(statblockTokenAppearance(noteOf(`name: Goblin\n${beyond}`), token, links, () => [])).resolves.toEqual(token);
     expect(parser.calls).toEqual([]);

@@ -251,6 +251,8 @@ function reference(node: FormulaNode, refs: Record<string, number>, value: numbe
       if (node.op === '*') return left * right;
       return right === 0 ? Number.NaN : left / right;
     }
+    // `randomTree` makes none of the others.
+    default: throw new Error(`no reference evaluation for ${node.kind}`);
   }
 }
 

@@ -13,7 +13,7 @@ function values(nodes: readonly SheetNode[]): SheetValue[] {
       case 'section': case 'row': return values(node.nodes);
       case 'tabs': return node.tabs.flatMap((tab) => values(tab.nodes));
       case 'value': return [node.value];
-      case 'metric': return node.values;
+      case 'metric': return [...node.values];
       default: return [];
     }
   });

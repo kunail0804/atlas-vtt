@@ -99,7 +99,7 @@ it('scene snapshots', () => {
 it('statblock templates, their notes and dice sets', () => {
   const template = { vaultPath: 'atlas-vtt/statblock-templates/Marsh creature.atlastemplate', role: 'statblock-template', sha256: 'b'.repeat(64) } as const;
 
-  const body = { vaultPath: 'atlas-vtt/statblock-templates/Marsh creature.md', role: 'statblock-template-body', linkedFrom: [template.vaultPath] } as const;
+  const body = { vaultPath: 'atlas-vtt/statblock-templates/Marsh creature.md', role: 'statblock-template-body' as const, linkedFrom: [template.vaultPath] };
 
   const diceSet = { vaultPath: 'atlas-vtt/dice-sets/Duality.json', role: 'dice-set' } as const;
 

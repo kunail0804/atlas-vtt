@@ -286,7 +286,7 @@ describe('the field a map text is typed in', () => {
         if (!rect) continue;
         if (rect.top > top + 2) lines.push('');
         if (!(rect.top <= top + 2)) top = rect.top;
-        lines[lines.length - 1] += text[i];
+        lines[lines.length - 1] = (lines.at(-1) ?? '') + text.charAt(i);
       }
       root.remove();
       return lines.map((line) => line.replace(/ +$/, ''));

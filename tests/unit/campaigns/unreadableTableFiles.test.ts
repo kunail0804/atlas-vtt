@@ -20,6 +20,7 @@ import { EMPTY_BOOK, type StoredBook } from '../../../src/app/online/gm/book/boo
 import { registerPartySync } from '../../../src/app/plugin/partySync';
 import { showNotice } from '../../../src/app/ui/notice';
 import { createInMemoryApp } from '../../mocks/inMemoryVault';
+import { fileHandle } from '../../mocks/obsidianHandles';
 
 vi.mock('../../../src/app/ui/notice', () => ({ showNotice: vi.fn() }));
 vi.mock('../../../src/app/services/AssetService', () => ({
@@ -47,13 +48,13 @@ function vaultWith(files: Record<string, string>): ReturnType<typeof createInMem
 /** What a sync tool does that writes the file in two steps: half of it first, the vault told. */
 async function halfWritten(vault: ReturnType<typeof createInMemoryApp>, path: string): Promise<void> {
   vault.files.set(path, vault.files.get(path)!.slice(0, 20));
-  vault.emit('modify', new TFile(path));
+  vault.emit('modify', fileHandle(path));
   await ticks();
 }
 
 async function mended(vault: ReturnType<typeof createInMemoryApp>, path: string, text: string): Promise<void> {
   vault.files.set(path, text);
-  vault.emit('modify', new TFile(path));
+  vault.emit('modify', fileHandle(path));
   await ticks();
 }
 
@@ -213,7 +214,7 @@ describe('the warning about an unreadable table file', () => {
     vi.advanceTimersByTime(UNREADABLE_WARNING_MS);
     expect(showNotice).toHaveBeenCalledOnce();
     expect(vi.mocked(showNotice).mock.calls[0]?.[0]).toContain(TABLE_BOOKS_PATH);
-    vault.emit('modify', new TFile(TABLE_BOOKS_PATH));
+    vault.emit('modify', fileHandle(TABLE_BOOKS_PATH));
     await ticks();
     vi.advanceTimersByTime(UNREADABLE_WARNING_MS);
     expect(showNotice).toHaveBeenCalledOnce();

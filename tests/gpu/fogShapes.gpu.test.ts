@@ -18,8 +18,8 @@ const at = (frame: readonly number[], x: number, y: number): number => frame[y *
 
 /** Gives the scene a grid, as part of its setup: no undo step. */
 function withGrid(store: ViewAtlasStore, type: 'square' | 'hex-vertical' | 'hex-horizontal', size: number, offset = 0): void {
-  store.setState((state) => ({ grid: { ...state.grid, type, size, offsetX: offset, offsetY: offset, snapToGrid: true } }));
-  store.temporal.getState().clear();
+  store.setState((state) => ({ grid: { ...state.grid!, type, size, offsetX: offset, offsetY: offset, snapToGrid: true } }));
+  getHistoryStore(store)!.getState().clear();
 }
 
 /** The map the scenes show: with one, the fog's canvas lies where the map does, whatever fog there is. */

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { fogRect, fogScenes } from '../helpers/fogCoverageScene';
 import { migrateMapFile } from '../../src/app/services/MapPersistence';
 import { fogCoverage, type FogCoverage } from '../../src/app/fog/fogCoverage';
+import { getHistoryStore } from '../../src/app/stores/history';
 
 vi.mock('../../src/app/fog/fogCoverage', { spy: true });
 
@@ -157,9 +158,9 @@ describe('fog renderer lifecycle', () => {
     const s = await scene({ paint: fogRect() });
     s.setFog({ ...s.store.getState().objects.fog, erase: { ...fogRect('erase', 2, true), x: 32, y: 32, width: 16, height: 16 } });
     expect(s.read(40, 40)).toBe(255);
-    s.store.temporal.getState().undo();
+    getHistoryStore(s.store)!.getState().undo();
     expect(s.read(40, 40)).toBe(0);
-    s.store.temporal.getState().redo();
+    getHistoryStore(s.store)!.getState().redo();
     expect(s.read(40, 40)).toBe(255);
     s.setFog({});
     expect(s.read(24, 24)).toBe(255);

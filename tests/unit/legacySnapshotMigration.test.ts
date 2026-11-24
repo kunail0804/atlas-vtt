@@ -13,7 +13,7 @@ interface Setup { vault: InMemoryApp; assets: AssetService; folder: string }
 /** A vault whose scene `Cave` has two snapshot files in the hidden folder earlier versions used. */
 async function legacyVault(extra: Record<string, string> = {}): Promise<Setup> {
   const vault = createInMemoryApp({ files: { [MAP_PATH]: MAP, ...extra } });
-  for (const [name, content] of [['s1.json', '{"id":"s1"}'], ['s1.jpg', 'JPG']]) {
+  for (const [name, content] of [['s1.json', '{"id":"s1"}'], ['s1.jpg', 'JPG']] as const) {
     await vault.app.vault.adapter.write(`${LEGACY}/${name}`, content);
   }
   AssetService.resetInstance();

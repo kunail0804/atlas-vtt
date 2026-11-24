@@ -23,7 +23,7 @@ vi.mock('obsidian', () => ({
   Setting: class {},
 }));
 
-const SAVED: SavedTable = { code: 'a'.repeat(26), secret: 's'.repeat(43), maxPlayers: 12, campaignId: 'c1', mapPath: null, gate: { code: '483912', requireCode: true, askToJoin: true } };
+const SAVED: SavedTable = { code: 'a'.repeat(26), secret: 's'.repeat(43), maxPlayers: 12, campaignId: 'c1', playerOrigin: 'https://name2-vtt.kunlab.cc', mapPath: null, gate: { code: '483912', requireCode: true, askToJoin: true } };
 
 describe('a GM whose Atlas is older than the player page needs', () => {
   let saves: (SavedTable | null)[] = [];

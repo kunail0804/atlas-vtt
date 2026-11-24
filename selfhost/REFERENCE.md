@@ -36,7 +36,7 @@ address.
 
 | Route | File | State |
 |---|---|---|
-| `GET /health` | `relay/server.ts` | Done. Answers `ok`. |
+| `GET /health` | `relay/relay.ts` | Done. Answers `ok`. |
 | `GET` any other path | `relay/staticFiles.ts` | Done. Serves `player/dist`. Unknown and malformed paths get `index.html`. |
 | Socket `/api/tables/<code>/socket` | `relay/tables.ts`, `relay/table.ts` | Done. Takes only players' hellos. |
 
@@ -238,7 +238,7 @@ A probe that imported eleven of these modules built and ran in Chromium on 2026-
 ## Settings that affect latency
 
 - The GM's socket uses loopback and never goes through Cloudflare.
-- `perMessageDeflate` is off (`relay/server.ts`): no frame waits for compression.
+- `perMessageDeflate` is off (`relay/relay.ts`): no frame waits for compression.
 - `ws` sets `TCP_NODELAY` on every socket, so small frames leave at once.
 - The relay reaches players through `cloudflared` on loopback, so a socket's `bufferedAmount` says nothing of a
   player's link. The parts of large messages go as frames the page acks (`relay/outbox.ts`), so a dragged token

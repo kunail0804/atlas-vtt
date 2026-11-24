@@ -41,7 +41,7 @@ async function painted(type: string): Promise<ArrayBuffer> {
 /** A vector image; `size` is what its root element says of its own size. */
 const drawn = (size: string): ArrayBuffer => new TextEncoder().encode(
   `<svg xmlns="http://www.w3.org/2000/svg" ${size}><rect width="100%" height="100%" fill="#b0a48e"/></svg>`,
-).buffer;
+).buffer as ArrayBuffer;
 
 const client = new TesseraDecoderClient({
   appId: APP_ID,
@@ -125,7 +125,7 @@ describe('opening a scene on a map image', () => {
   it('shows the placeholder and names the image when the file holds none', async () => {
     const reported = vi.spyOn(MosaicCanvasService.prototype, 'reportUnshown').mockImplementation(() => undefined);
 
-    const { mapImage } = await open('atlas-vtt/assets/Broken.webp', new TextEncoder().encode('not an image').buffer);
+    const { mapImage } = await open('atlas-vtt/assets/Broken.webp', new TextEncoder().encode('not an image').buffer as ArrayBuffer);
 
     expect(mapImage.worldRect).toEqual({ x: 0, y: 0, width: 128, height: 128 });
     expect(reported).toHaveBeenCalledTimes(1);

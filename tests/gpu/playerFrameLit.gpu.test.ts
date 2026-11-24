@@ -78,7 +78,7 @@ describe('a lit players\' frame of another size than the DM\'s pane', () => {
   function onScreen(view: LitView, antialias: boolean): Uint8ClampedArray {
     const { app, controller } = view;
     const target = RenderTexture.create({ ...WINDOW, antialias });
-    let pixels = new Uint8ClampedArray();
+    let pixels: Uint8ClampedArray = new Uint8ClampedArray();
     captureWithLayerVisibility(controller.playerLayers(), () => undefined, () => {
       app.renderer.render({ container: app.stage, target, clear: true, clearColor: app.renderer.background.colorRgba });
       pixels = app.renderer.extract.pixels({ target }).pixels;
@@ -91,7 +91,7 @@ describe('a lit players\' frame of another size than the DM\'s pane', () => {
   /** The players' picture on that screen's own canvas, as the mirror copied it until now. */
   function onCanvas(view: LitView): Uint8ClampedArray {
     const { app, controller } = view;
-    let pixels = new Uint8ClampedArray();
+    let pixels: Uint8ClampedArray = new Uint8ClampedArray();
     captureWithLayerVisibility(controller.playerLayers(), () => app.renderer.render({ container: app.stage }), () => {
       const copy = new OffscreenCanvas(app.canvas.width, app.canvas.height).getContext('2d', { willReadFrequently: true })!;
       copy.drawImage(app.canvas, 0, 0);

@@ -1,6 +1,5 @@
 import { Container } from 'pixi.js';
-import type { MosaicCanvasChange } from '../../src/app/pixi/mosaicCanvas/mosaicCanvasTypes';
-import type { MosaicCanvasView } from '../../src/app/pixi/mosaicCanvas/mosaicCanvasView';
+import type { MosaicCanvasChange, MosaicCanvasView } from '../../src/app/pixi/mosaicCanvas/mosaicCanvasView';
 import type { PixelRect } from '../../src/app/pixi/mosaicCanvas/pyramid';
 
 /** A map image for grid tests: `show` swaps the image (or takes it off) and tells the listeners, as `MosaicCanvas.load` does. */
@@ -13,6 +12,8 @@ export interface FakeMapImageOptions {
   layer?: Container;
   /** The image's pixels; none by default, so the automatic grid colour reads as white. */
   overview?: (maxSide: number) => Promise<ImageBitmap | null>;
+  /** A part of the image's pixels; none by default. */
+  window?: (rect: PixelRect, maxSide: number) => Promise<ImageBitmap | null>;
 }
 
 /** A map image showing a `width` × `height` image at the origin. */
@@ -28,6 +29,7 @@ export function fakeMapImageView(width: number, height: number, options: FakeMap
       return worldRect && { width: worldRect.width, height: worldRect.height };
     },
     overview: options.overview ?? ((): Promise<ImageBitmap | null> => Promise.resolve(null)),
+    window: options.window ?? ((): Promise<ImageBitmap | null> => Promise.resolve(null)),
     onChange(listener): () => void {
       listeners.add(listener);
       return (): void => {

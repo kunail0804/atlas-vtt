@@ -43,7 +43,7 @@ afterEach(() => { while (cleanup.length) cleanup.pop()!(); });
 /** The stage of `app` as it renders with `layers` set for the one render. */
 function picture(app: Application, layers: readonly LayerVisibility[], width: number, height: number): Uint8ClampedArray {
   const target = RenderTexture.create({ width, height });
-  let pixels = new Uint8ClampedArray();
+  let pixels: Uint8ClampedArray = new Uint8ClampedArray();
   captureWithLayerVisibility(layers, () => undefined, () => {
     app.renderer.render({ container: app.stage, target, clear: true, clearColor: app.renderer.background.colorRgba });
     pixels = app.renderer.extract.pixels({ target }).pixels;

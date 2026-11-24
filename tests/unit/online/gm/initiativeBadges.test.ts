@@ -37,7 +37,7 @@ async function shared(state: State, dock: 'left' | 'right' = 'right'): Promise<{
   await harness.advance(TOKEN_INTERVAL_MS);
   await harness.advance(MAP_LAYER_INTERVAL_MS);
   const list = last(harness.sent, 'initiative')?.list as SharedInitiative;
-  const badges = (tokenLists(harness.sent).at(-1)?.tokens ?? []).sort((a, b) => a.x - b.x).map((shown) => shown.badge);
+  const badges = [...(tokenLists(harness.sent).at(-1)?.tokens ?? [])].sort((a, b) => a.x - b.x).map((shown) => shown.badge);
   return { list, badges };
 }
 

@@ -5,6 +5,7 @@ import { SystemPresetService } from '../../src/app/services/SystemPresetService'
 import { SystemPresetFiles } from '../../src/app/services/systemPresets/SystemPresetFiles';
 import { SYSTEM_PRESET_FOLDER, freePresetPath, presetText, readPresetText } from '../../src/app/services/systemPresets/presetFiles';
 import { createInMemoryApp } from '../mocks/inMemoryVault';
+import { fileHandle, folderHandle } from '../mocks/obsidianHandles';
 
 const FOLDER = SYSTEM_PRESET_FOLDER;
 const rules = structuredClone(BUILT_IN_SYSTEM_PRESETS[1]!.rules);
@@ -21,10 +22,10 @@ function vault(seed: Record<string, string> = {}): {
 } {
   const { app, files } = createInMemoryApp({ files: seed });
   const handlers = new Map<string, Handler[]>();
-  vi.mocked(app.vault.on).mockImplementation((name: string, handler: Handler) => {
+  vi.mocked(app.vault.on).mockImplementation(((name: string, handler: Handler) => {
     handlers.set(name, [...(handlers.get(name) ?? []), handler]);
     return {};
-  });
+  }) as typeof app.vault.on);
   opened.push(app);
   const presets = SystemPresetFiles.open(app);
   return { app, files, presets, emit: (name, ...args) => { for (const handler of handlers.get(name) ?? []) handler(...args); } };
@@ -136,24 +137,24 @@ describe('SystemPresetFiles', () => {
     presets.onChange(heard);
 
     files.set(path, fileText({ id: 'p1', name: 'Synced', rules }));
-    emit('modify', new TFile(path));
+    emit('modify', fileHandle(path));
     await settle();
     expect(heard).toHaveBeenCalledTimes(1);
     expect(presets.entries()[0]).toMatchObject({ name: 'Synced' });
 
     const arrived = `${FOLDER}/Fen.json`;
     files.set(arrived, fileText({ id: 'p2', name: 'Fen', rules }));
-    emit('create', new TFile(arrived));
+    emit('create', fileHandle(arrived));
     await settle();
     expect(presets.entries().map((entry) => entry.id)).toEqual(['p2', 'p1']);
 
     files.delete(path);
-    emit('delete', new TFile(path));
+    emit('delete', fileHandle(path));
     expect(presets.entries().map((entry) => entry.id)).toEqual(['p2']);
 
-    emit('rename', new TFile(`${FOLDER}/Moor.json`), arrived);
+    emit('rename', fileHandle(`${FOLDER}/Moor.json`), arrived);
     expect(presets.pathOf('p2')).toBe(`${FOLDER}/Moor.json`);
-    emit('rename', new TFile('Elsewhere/Moor.json'), `${FOLDER}/Moor.json`);
+    emit('rename', fileHandle('Elsewhere/Moor.json'), `${FOLDER}/Moor.json`);
     expect(presets.entries()).toEqual([]);
     expect(heard).toHaveBeenCalledTimes(5);
   });
@@ -165,9 +166,9 @@ describe('SystemPresetFiles', () => {
     await presets.flush();
     const heard = vi.fn();
     presets.onChange(heard);
-    emit('create', new TFile(`${FOLDER}/Homebrew.json`));
+    emit('create', fileHandle(`${FOLDER}/Homebrew.json`));
     service.rename(preset.id, 'Homebrew');
-    emit('modify', new TFile(`${FOLDER}/Homebrew.json`));
+    emit('modify', fileHandle(`${FOLDER}/Homebrew.json`));
     await settle();
     await presets.flush();
     expect(heard).toHaveBeenCalledTimes(1);
@@ -177,11 +178,11 @@ describe('SystemPresetFiles', () => {
   it('forgets every preset of a deleted folder and reads a folder moved in', async () => {
     const { app, presets, files, emit } = vault({ [`${FOLDER}/Sub/Homebrew.json`]: fileText({ id: 'p1', name: 'Homebrew', rules }) });
     await presets.load();
-    emit('delete', new TFolder(`${FOLDER}/Sub`));
+    emit('delete', folderHandle(`${FOLDER}/Sub`));
     expect(presets.entries()).toEqual([]);
 
     files.set(`${FOLDER}/Moved/Fen.json`, fileText({ id: 'p2', name: 'Fen', rules }));
-    emit('rename', new TFolder(`${FOLDER}/Moved`), 'Elsewhere/Moved');
+    emit('rename', folderHandle(`${FOLDER}/Moved`), 'Elsewhere/Moved');
     await settle();
     expect(presets.entries().map((entry) => entry.id)).toEqual(['p2']);
     expect(app.vault.read).toHaveBeenCalled();

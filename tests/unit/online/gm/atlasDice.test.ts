@@ -3,6 +3,7 @@ import type { WorkspaceLeaf } from 'obsidian';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { diceSourceOf } from '../../../../src/app/online/gm/atlasDice.ts';
 import { setStatblockGate } from '../../../../src/app/online/gm/book/statblockGate.ts';
+import type { TokenEntity } from '../../../../src/app/types';
 import { token } from './shareHarness.ts';
 
 afterEach(() => { setStatblockGate(null); vi.clearAllMocks(); });
@@ -16,7 +17,7 @@ describe('character dice in the map adapter', () => {
     const library = vi.fn(() => 'Sheets/Library.md');
     setStatblockGate({ libraryStatblock: library, diceSet, read: async () => null, write: async () => ({ applied: [], conflicts: [], problem: null }), onChange: () => () => undefined });
     const dice = diceSourceOf(leaf);
-    const own = { ...token('hero'), kind: 'character' as const, statblockPath: 'Sheets/Hero.md' };
+    const own = { ...token('hero'), kind: 'character' as const, statblockPath: 'Sheets/Hero.md' } as TokenEntity;
     dice?.setFor?.(own);
     expect(diceSet).toHaveBeenLastCalledWith('Sheets/Hero.md');
     expect(library).not.toHaveBeenCalled();

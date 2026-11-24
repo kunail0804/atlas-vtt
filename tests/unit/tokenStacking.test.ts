@@ -210,7 +210,7 @@ describe('SpriteFactory', () => {
   it('gives a new token group the place its token has in the stack', async () => {
     const factory = new SpriteFactory({ getOptions: () => ({ size: 70, type: 'square' }) } as never, false);
     // The glass and the ring are painted on a canvas, which jsdom lacks.
-    vi.spyOn(factory as never, 'createGlassOverlay').mockImplementation(() => undefined as never);
+    vi.spyOn(factory as unknown as { createGlassOverlay: () => unknown }, 'createGlassOverlay').mockImplementation(() => undefined);
     vi.spyOn(factory, 'createTokenRing').mockReturnValue(null);
     const group = await factory.createTokenSprite(token('a', SQUARE, 12), Texture.EMPTY);
     expect(group.zIndex).toBe(12);

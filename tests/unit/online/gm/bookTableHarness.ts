@@ -4,6 +4,7 @@ import type { TokenEntity } from '../../../../src/app/types';
 import type { SceneState } from '../../../../src/app/online/gm/atlasView.ts';
 import type { BookShelf, BookSource } from '../../../../src/app/online/gm/book/BookShelf.ts';
 import { isEmptyBook, type StoredBook } from '../../../../src/app/online/gm/book/bookStore.ts';
+import type { Ownership } from '../../../../src/app/online/gm/ownership.ts';
 import { OnlineControl } from '../../../../src/app/online/gm/OnlineControl.ts';
 import { boundOwnership, fakeCampaigns } from './fakeSeats.ts';
 import type { SavedTable } from '../../../../src/app/online/gm/savedTable.ts';
@@ -97,7 +98,7 @@ export function keptBooks(): KeptBooks {
 export const DOOM = 31337;
 export const MIRA_DOOM = 27182;
 
-const SAVED: SavedTable = { code: 'a'.repeat(26), secret: 's'.repeat(43), maxPlayers: 12, campaignId: 'c1', mapPath: MAP, gate: { code: '483912', requireCode: false, askToJoin: false } };
+const SAVED: SavedTable = { code: 'a'.repeat(26), secret: 's'.repeat(43), maxPlayers: 12, campaignId: 'c1', playerOrigin: 'https://name2-vtt.kunlab.cc', mapPath: MAP, gate: { code: '483912', requireCode: false, askToJoin: false } };
 
 /** The collection's resources: hit points players see, and a doom track hidden from players: only a character's own player sees theirs. */
 const RESOURCES: readonly ResourceDefinition[] = [

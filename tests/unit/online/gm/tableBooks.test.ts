@@ -9,6 +9,7 @@ import { BOOK_WRITE_MS, BoundBookSource, tableBookSource } from '../../../../src
 import { EMPTY_BOOK, type StoredBook } from '../../../../src/app/online/gm/book/bookStore.ts';
 import type { Timers } from '../../../../src/app/online/gm/companionTimers.ts';
 import { createInMemoryApp } from '../../../mocks/inMemoryVault';
+import { fileHandle } from '../../../mocks/obsidianHandles';
 
 const FOLDER = `${CAMPAIGNS_FOLDER}/Witherwild`;
 const PATH = TABLE_BOOKS_PATH;
@@ -54,7 +55,7 @@ const ticks = async (): Promise<void> => { for (let i = 0; i < 5; i += 1) await 
 /** Writes `text` into the file as a sync tool would, the vault told. */
 async function synced(vault: ReturnType<typeof createInMemoryApp>, text: string): Promise<void> {
   vault.files.set(PATH, text);
-  vault.emit('modify', new TFile(PATH));
+  vault.emit('modify', fileHandle(PATH));
   await ticks();
 }
 

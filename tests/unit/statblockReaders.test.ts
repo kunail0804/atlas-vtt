@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { TFile } from 'obsidian';
+import { fileHandle } from '../mocks/obsidianHandles';
 
 /** What a note's YAML reads as, where a test hands a value over that no text could spell out here. */
 const parsed = vi.hoisted(() => ({ value: undefined as unknown }));
@@ -36,6 +37,7 @@ import { resolveCreatureFromFence } from '../../src/app/services/FantasyStatbloc
 import { imageReference } from '../../src/app/services/statblockImportCandidates';
 import { creatureVault, type CreatureVault } from '../mocks/creatureVault';
 import { HOSTILE_VALUES, counted, counts, resetCounts, selfHoldingList, sharedLists } from '../mocks/hostileValues';
+import { NO_MEANINGS } from '../../src/app/statblocks/resolve/fieldMeanings';
 
 const DEFINITIONS = [HP_RESOURCE, STRESS_RESOURCE];
 const note = 'Bestiary/Toad.md';
@@ -205,7 +207,7 @@ describe('the walks of the readers beside the renderer', () => {
     installBestiary([]);
     current.files.set('Other.md', '');
     current.frontmatter['Other.md'] = { hp: 9 };
-    Object.assign(current.app.metadataCache, { getFirstLinkpathDest: (link: string) => (link === 'Other' ? new TFile('Other.md') : null) });
+    Object.assign(current.app.metadataCache, { getFirstLinkpathDest: (link: string) => (link === 'Other' ? fileHandle('Other.md') : null) });
 
     await expect(resolveCreatureFromFence(current.app, { name: 'Toad', note: [['Other']] }, note)).resolves.toMatchObject({ name: 'Toad', hp: 9 });
     await expect(resolveCreatureFromFence(current.app, { name: 'Toad', note: selfHoldingList(3) }, note)).resolves.toMatchObject({ name: 'Toad' });
@@ -274,11 +276,11 @@ describe.each(['the bestiary entry of its note', 'a statblock fence', 'its front
       expect(sensesTextOf(creature)).toBe(sensesTextOf(statblock));
       expect(parseSenses(sensesTextOf(creature) ?? '', DND, FEET)).toEqual(parseSenses(sensesTextOf(statblock) ?? '', DND, FEET));
       const factsFrom = (read: Record<string, unknown>): unknown =>
-        factsOf({ statblockPath: note }, () => ({ path: note, layout: null, fields: read }), CATALOG_CREATURE_FILTERS);
+        factsOf({ statblockPath: note }, () => ({ path: note, templateId: null, meanings: NO_MEANINGS, lookName: null, fields: read }), CATALOG_CREATURE_FILTERS);
       const { creature: _read, ...facts } = factsFrom(fields) as { creature: unknown };
       const { creature: _given, ...factsBefore } = factsFrom(statblock) as { creature: unknown };
       expect(facts).toEqual(factsBefore);
-      expect(discoverCreatureFields([{ path: note, layout: null, fields }])).toEqual(discoverCreatureFields([{ path: note, layout: null, fields: statblock }]));
+      expect(discoverCreatureFields([{ path: note, templateId: null, meanings: NO_MEANINGS, lookName: null, fields }])).toEqual(discoverCreatureFields([{ path: note, templateId: null, meanings: NO_MEANINGS, lookName: null, fields: statblock }]));
     }
   });
 });

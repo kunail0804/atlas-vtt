@@ -7,6 +7,7 @@ import { renameAssetFolder } from '../../src/app/packages/components/asset-manag
 import { moveAssetsIntoFolder } from '../../src/app/packages/components/asset-manager/utils/assetFolderMove';
 import { moveFoldersIntoFolder, trashFolderIfEmpty } from '../../src/app/packages/components/asset-manager/utils/assetFolderTree';
 import { createInMemoryApp, type InMemoryApp } from '../mocks/inMemoryVault';
+import { fileHandle, folderHandle } from '../mocks/obsidianHandles';
 
 // The check runs at once instead of after the vault went quiet.
 vi.mock('obsidian', async (importOriginal) => ({
@@ -30,8 +31,8 @@ function reportRenames(vault: InMemoryApp): void {
     const from = file.path;
     const inside = [...vault.files.keys()].filter((path) => path.startsWith(`${from}/`));
     await move(file, newPath);
-    vault.emit('rename', file instanceof TFolder ? new TFolder(newPath) : new TFile(newPath), from);
-    for (const path of inside) vault.emit('rename', new TFile(newPath + path.slice(from.length)), path);
+    vault.emit('rename', file instanceof TFolder ? folderHandle(newPath) : fileHandle(newPath), from);
+    for (const path of inside) vault.emit('rename', fileHandle(newPath + path.slice(from.length)), path);
     if (asks.aboutLinks) await new Promise<void>(() => {});
   });
 }

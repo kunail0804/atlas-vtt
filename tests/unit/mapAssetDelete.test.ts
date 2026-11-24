@@ -19,7 +19,7 @@ const sceneFile = (state: Record<string, unknown>): string => JSON.stringify({
 });
 
 const addMap = (thumbnailPath?: string): Promise<MapAsset> => assets.addAsset({
-  type: 'map', name: 'Region', collection: AssetService.defaultCollectionId(), tags: [], mapFilePath: IMAGE, thumbnailPath,
+  type: 'map', name: 'Region', collection: AssetService.defaultCollectionId(), tags: [], mapFilePath: IMAGE, ...(thumbnailPath !== undefined && { thumbnailPath }),
 }) as Promise<MapAsset>;
 
 beforeEach(async () => {

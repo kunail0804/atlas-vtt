@@ -30,7 +30,7 @@ const stat = (field: string): TemplateBlock => ({ id: `stat-${field}`, type: 'st
 const TEMPLATE: StatblockTemplate = {
   ...templateOf(FIELDS, [
     ...['x', 'X_', 'FORT_', 'vow', 'agi', 'Bonus_', 'dmg', 'notes'].map(stat),
-    { id: 'gear0000', type: 'tags', field: 'gear' },
+    { id: 'gear0000', type: 'tags', field: 'gear', look: 'chips' },
     { id: 'saves000', type: 'scores', field: 'saves', orientation: 'row' },
     { id: 'actions0', type: 'entries', field: 'actions' },
   ]),

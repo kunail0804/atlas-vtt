@@ -22,7 +22,7 @@ const SIZES: Array<[number, number]> = [
 ];
 
 function tesseraeOf(p: Pyramid, level: number): TesseraRef[] {
-  const { cols, rows } = p.levels[level];
+  const { cols, rows } = p.levels[level]!;
   const tesserae: TesseraRef[] = [];
   for (let row = 0; row < rows; row++) for (let col = 0; col < cols; col++) tesserae.push({ level, col, row });
   return tesserae;
@@ -63,14 +63,14 @@ describe('pyramidOf levels', () => {
       expect(level.rows).toBe(Math.ceil(level.height / TESSERA_CONTENT));
       expect(level.scale).toBe(2 ** n);
     });
-    const last = p.levels[p.levels.length - 1];
+    const last = p.levels[p.levels.length - 1]!;
     expect(Math.max(last.width, last.height)).toBeLessThanOrEqual(TESSERA_CONTENT);
     expect(last.cols * last.rows).toBe(1);
     p.levels.slice(0, -1).forEach(level => expect(Math.max(level.width, level.height)).toBeGreaterThan(TESSERA_CONTENT));
-    const overview = p.levels[p.overview];
+    const overview = p.levels[p.overview]!;
     expect(Math.max(overview.width, overview.height)).toBeLessThanOrEqual(OVERVIEW_MAX_SIDE);
     if (p.overview > 0) {
-      const finer = p.levels[p.overview - 1];
+      const finer = p.levels[p.overview - 1]!;
       expect(Math.max(finer.width, finer.height)).toBeGreaterThan(OVERVIEW_MAX_SIDE);
     }
     expect(overview.cols * overview.rows).toBeLessThanOrEqual(16);
@@ -116,7 +116,7 @@ describe('decodedScale', () => {
   it('rounds the decoded size up and ends the last tesserae on the world edge', () => {
     const p = pyramidOf(16383, 8801, 4);
     expect(p.levels[0]).toMatchObject({ width: 4096, height: 2201, scale: 4 });
-    const level = p.levels[0];
+    const level = p.levels[0]!;
     const corner = tesseraWorldRect(p, { level: 0, col: level.cols - 1, row: level.rows - 1 });
     expect(corner.x + corner.width).toBeCloseTo(16383, 6);
     expect(corner.y + corner.height).toBeCloseTo(8801, 6);
@@ -146,7 +146,7 @@ describe('tessera rects', () => {
   it.each(SIZES)('%i × %i: overlap only on inner sides, clamped to the level', (w, h) => {
     const p = pyramidOf(w, h);
     for (const tessera of allTesserae(p)) {
-      const level = p.levels[tessera.level];
+      const level = p.levels[tessera.level]!;
       const content = tesseraContentRect(p, tessera);
       const source = tesseraSourceRect(p, tessera);
       expect(content.x - source.x).toBe(tessera.col > 0 ? TESSERA_OVERLAP : 0);
@@ -201,7 +201,7 @@ describe('tessera rects', () => {
   it.each(SIZES)('%i × %i: world rects scale content and cover the world edge to edge', (w, h) => {
     const p = pyramidOf(w, h);
     for (const tessera of allTesserae(p)) {
-      const { scaleX, scaleY, cols, rows } = p.levels[tessera.level];
+      const { scaleX, scaleY, cols, rows } = p.levels[tessera.level]!;
       const content = tesseraContentRect(p, tessera);
       const world = tesseraWorldRect(p, tessera);
       expect(world).toEqual({
@@ -253,8 +253,9 @@ describe('tessera family', () => {
       const right = Math.max(...rects.map(r => r.x + r.width));
       const bottom = Math.max(...rects.map(r => r.y + r.height));
       // Each level spans the world exactly, so a parent and its children differ by at most one finer texel.
-      const texel = Math.max(p.levels[tessera.level - 1].scaleX, p.levels[tessera.level - 1].scaleY);
-      for (const [a, b] of [[left, own.x], [top, own.y], [right, own.x + own.width], [bottom, own.y + own.height]]) {
+      const finer = p.levels[tessera.level - 1]!;
+      const texel = Math.max(finer.scaleX, finer.scaleY);
+      for (const [a, b] of [[left, own.x], [top, own.y], [right, own.x + own.width], [bottom, own.y + own.height]] as const) {
         expect(Math.abs(a - b)).toBeLessThanOrEqual(texel + 1e-9);
       }
       expect(area).toBeCloseTo((right - left) * (bottom - top), 3);

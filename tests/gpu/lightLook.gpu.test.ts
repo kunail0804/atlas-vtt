@@ -100,7 +100,7 @@ describe('the look of a light in the dark', () => {
       ? { light: { id: 'light', kind: 'light', x: 300, y: 500, emission: look.emission, ...(look.area && { x: 495, y: 505, area: look.area }), ...(look.rotation !== undefined && { rotation: look.rotation }) } }
       : {};
     const tokens = look.emission ? {} : { seer: SEER };
-    store.setState((state) => ({ grid: { ...state.grid, size: CELL }, objects: { ...state.objects, walls: Object.fromEntries(hall().map((w) => [w.id, w])), lights, tokens } }));
+    store.setState((state) => ({ grid: { ...state.grid!, size: CELL }, objects: { ...state.objects, walls: Object.fromEntries(hall().map((w) => [w.id, w])), lights, tokens } }));
     store.getState().setSceneLighting({ enabled: true, ambient: 0, tokenVision: !look.emission, exploredMemory: false });
     const view = new LightingRenderer({ viewport, app, store, measurement: () => MEASUREMENT, bounds: () => ({ width: WIDTH, height: HEIGHT }), albedo: () => null });
     cleanup.push(() => {

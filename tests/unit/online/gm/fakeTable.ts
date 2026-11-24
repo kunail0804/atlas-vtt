@@ -60,7 +60,7 @@ export class FakeSocket {
   }
 }
 
-export function png(width: number, height: number): Uint8Array {
+export function png(width: number, height: number): Uint8Array<ArrayBuffer> {
   const chunk = (type: string, data: Buffer): Buffer => {
     const length = Buffer.alloc(4);
     length.writeUInt32BE(data.length);

@@ -274,7 +274,7 @@ describe('the explored memory\'s overlay on the GM\'s canvas', () => {
 
     // What the players' frame hides and shows of the lighting; the overlay is the only GM overlay on this canvas.
     const other = { visible: false };
-    const gmOverlays = { wallEditor: other, lightZones: other, exploredMemory: brush.view, doorBadges: other, lightMarkers: other, rangeRings: other, sightAids: other };
+    const gmOverlays = { wallEditor: other, lightZones: other, levelSurfaces: other, rooms: other, exploredMemory: brush.view, doorBadges: other, lightMarkers: other, rangeRings: other, sightAids: other };
     const frames: ReturnType<typeof canvas>[] = [];
     captureWithLayerVisibility(playerLightingLayers({ enabled: true, modeLayer: lighting.modeLayer, gmOverlays }), () => undefined, () => frames.push(canvas()));
     const frame = frames[0]!;

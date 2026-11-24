@@ -3,7 +3,7 @@ import { TFile } from 'obsidian';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { MosaicCanvas } from '../../src/app/pixi/mosaicCanvas/MosaicCanvas';
 import type { MosaicCanvasOpener } from '../../src/app/pixi/mosaicCanvas/mosaicCanvasTypes';
-import { pyramidOf, tesseraSourceRect, type TesseraRef } from '../../src/app/pixi/mosaicCanvas/pyramid';
+import { pyramidOf, tesseraSourceRect, type PixelRect, type TesseraRef } from '../../src/app/pixi/mosaicCanvas/pyramid';
 import type { MapVideoDeps, MapVideoProblem } from '../../src/app/pixi/mosaicCanvas/video/MapVideoSlot';
 import { openVideoElement, type OpenedVideo } from '../../src/app/pixi/mosaicCanvas/video/videoElement';
 import { videoPoster } from '../../src/app/pixi/mosaicCanvas/video/videoPoster';
@@ -44,6 +44,10 @@ function posterService(poster: ImageBitmap): MosaicCanvasOpener {
       return createImageBitmap(levels[ref.level]!, rect.x, rect.y, rect.width, rect.height);
     },
     overview: () => createImageBitmap(levels[pyramid.overview]!),
+    window: (_handle: number, rect: PixelRect, maxSide: number) => {
+      const fit = Math.min(1, maxSide / Math.max(rect.width, rect.height));
+      return createImageBitmap(levels[0]!, rect.x, rect.y, rect.width, rect.height, { resizeWidth: Math.max(1, Math.round(rect.width * fit)), resizeHeight: Math.max(1, Math.round(rect.height * fit)) });
+    },
     close: () => undefined,
     reportUnshown: () => undefined,
     onRestart: () => () => undefined,

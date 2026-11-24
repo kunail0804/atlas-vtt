@@ -89,7 +89,7 @@ it('record files', () => {
 
   // tell a record whose payload only its file holds
   {
-    expect(isPayloadUnread({ ...encounter, data: undefined })).toBe(true);
+    expect(isPayloadUnread({ ...encounter, data: undefined } as unknown as Asset)).toBe(true);
     expect(isPayloadUnread(encounter)).toBe(false);
     expect(isPayloadUnread(token)).toBe(false);
   }

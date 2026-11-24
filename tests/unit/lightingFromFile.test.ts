@@ -4,7 +4,7 @@ import { lightList, readLight, readWall } from '../../src/app/lighting/lightingO
 import { MAX_LIGHT_ZONES, MAX_ZONE_CORNERS, lightZoneList } from '../../src/app/lighting/lightZones';
 import { activeLights, engineLight } from '../../src/app/vision/lightSources';
 import { migrateMapFile } from '../../src/app/services/MapPersistence';
-import { createViewAtlasStore, type ViewAtlasStore } from '../../src/app/storeFactory';
+import { createViewAtlasStore, type ViewAtlasState, type ViewAtlasStore } from '../../src/app/storeFactory';
 import { wallList } from '../../src/app/vision/wallList';
 import { createInMemoryApp } from '../mocks/inMemoryVault';
 
@@ -25,7 +25,8 @@ function storeWith(objects: ReturnType<typeof load>): ViewAtlasStore {
   const { app } = createInMemoryApp({ files: {} });
   const store = createViewAtlasStore(app, `lighting-from-file-${Math.random()}`);
   store.getState().setPersistenceEnabled(false);
-  store.setState({ objects });
+  // As a load: the file's objects replace the store's whole, without the collections the file has none of.
+  store.setState({ objects: objects as ViewAtlasState['objects'] });
   return store;
 }
 

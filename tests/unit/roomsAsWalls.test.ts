@@ -15,6 +15,7 @@ import { computeVisibility, pointInPolygon } from '../../src/app/vision/visibili
 import { wallList } from '../../src/app/vision/wallList';
 import { createInMemoryApp } from '../mocks/inMemoryVault';
 import { stubJsdomGraphics } from '../mocks/jsdomGraphics';
+import { getHistoryStore } from '../../src/app/stores/history';
 
 let cleanup: (() => void) | null = null;
 beforeEach(() => {
@@ -41,7 +42,7 @@ function setup(walls: readonly WallInput[] = []): { store: ViewAtlasStore; rect:
   const editor = new RoomEditor({ viewport, store, eventBus: bus, bounds: () => ({ width: 2000, height: 2000 }), onActiveChange: () => undefined, canvas });
   bus.emit('wall-submode-changed', 'rooms');
   editor.view.visible = true;
-  store.temporal.getState().clear();
+  getHistoryStore(store)!.getState().clear();
   cleanup = () => {
     editor.destroy();
     viewport.destroy();
@@ -74,9 +75,9 @@ describe('a room carved with the rooms mode', () => {
     expect(store.getState().objects).not.toHaveProperty('rooms');
     expect(rooms(store)).toBe(1);
     expect(sees(store, { x: 250, y: 200 }, { x: 600, y: 200 })).toBe(false);
-    store.temporal.getState().undo();
+    getHistoryStore(store)!.getState().undo();
     expect(walls(store)).toEqual([]);
-    expect(store.temporal.getState().pastStates).toHaveLength(0);
+    expect(getHistoryStore(store)!.getState().pastStates).toHaveLength(0);
   });
 
   it('opens into the room it is carved into, and the two are one', () => {
@@ -261,7 +262,7 @@ describe('the rock around the rooms', () => {
       expect(filled).toContain('rect 0,0 2000x2000');
       expect(filled[filled.length - 1]).toBe('poly 4');
       filled.length = 0;
-      store.temporal.getState().undo();
+      getHistoryStore(store)!.getState().undo();
       vi.advanceTimersByTime(200);
       expect(filled).toEqual(['rect 0,0 2000x2000']);
     } finally {
@@ -294,7 +295,7 @@ describe('rock filled back in', () => {
     const { store, rect } = setup();
     rect({ x: 100, y: 100 }, { x: 200, y: 200 }, { action: 'fill' });
     expect(walls(store)).toEqual([]);
-    expect(store.temporal.getState().pastStates).toHaveLength(0);
+    expect(getHistoryStore(store)!.getState().pastStates).toHaveLength(0);
   });
 });
 
@@ -315,12 +316,12 @@ describe('an edit of the walls', () => {
     rect({ x: 100, y: 100 }, { x: 300, y: 300 });
     rect({ x: 500, y: 100 }, { x: 700, y: 300 });
     const before = walls(store);
-    store.temporal.getState().clear();
+    getHistoryStore(store)!.getState().clear();
     // Across both rooms: walls of each go, pieces of them stay, and the rock between gets new ones.
     expect(wallWrites(store, () => rect({ x: 200, y: 150 }, { x: 600, y: 250 }))).toBe(1);
     expect(walls(store).length).toBeGreaterThan(before.length);
-    expect(store.temporal.getState().pastStates).toHaveLength(1);
-    store.temporal.getState().undo();
+    expect(getHistoryStore(store)!.getState().pastStates).toHaveLength(1);
+    getHistoryStore(store)!.getState().undo();
     expect(walls(store)).toEqual(before);
   });
 
@@ -337,13 +338,13 @@ describe('an edit of the walls', () => {
     expect(walls(store).map(({ id }) => id).sort()).toEqual([door!.id, ...ids].sort());
     expect(ids.map((id) => store.getState().objects.walls[id])).toEqual(add.map((data, index) => ({ id: ids[index], kind: 'wall', ...data })));
     expect(store.getState().selectedIds).toEqual([door!.id]);
-    store.temporal.getState().undo();
+    getHistoryStore(store)!.getState().undo();
     expect(walls(store).map(({ id }) => id).sort()).toEqual([wall!.id, door!.id].sort());
   });
 
   it('writes nothing for an edit without walls', () => {
     const { store } = setup();
     expect(wallWrites(store, () => expect(store.getState().editWalls([], [])).toEqual([]))).toBe(0);
-    expect(store.temporal.getState().pastStates).toHaveLength(0);
+    expect(getHistoryStore(store)!.getState().pastStates).toHaveLength(0);
   });
 });

@@ -72,7 +72,7 @@ describe('a map image drawn for several views', () => {
   }> {
     const ticker = new Ticker();
     const cache = new TesseraTextureCache({ ticker, renderer, requestRender: () => undefined });
-    const layer = new MosaicCanvasLayer({ source: levelColouredMap(), cache, ticker, requestRender: () => undefined, reducedMotion: () => true, camera: () => camera.view });
+    const layer = new MosaicCanvasLayer({ source: levelColouredMap(), cache, ticker, requestRender: () => undefined, drawAtOnce: () => true, camera: () => camera.view });
     const stage = new Container();
     stage.addChild(layer.container);
     let time = 0;

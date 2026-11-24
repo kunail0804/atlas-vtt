@@ -156,7 +156,7 @@ describe('the body of an aura under the lighting', () => {
     }
     displayFrames(30);
     const target = RenderTexture.create({ width: MAP, height: MAP });
-    let pixels = new Uint8ClampedArray();
+    let pixels: Uint8ClampedArray = new Uint8ClampedArray();
     captureWithLayerVisibility([...controller.playerLayers(), ...measure.getPlayerViewLayers(() => true)], () => undefined, () => {
       app.renderer.render({ container: app.stage, target, clear: true, clearColor: app.renderer.background.colorRgba });
       pixels = app.renderer.extract.pixels({ target }).pixels;

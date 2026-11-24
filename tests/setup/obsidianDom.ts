@@ -164,7 +164,7 @@ if (typeof Element !== 'undefined' && typeof Element.prototype.animate !== 'func
   const prototype = Element.prototype as unknown as Record<string, unknown>;
   prototype.animate = (): Partial<Animation> => ({
     cancel: () => undefined, finish: () => undefined, pause: () => undefined, play: () => undefined,
-    onfinish: null, finished: Promise.resolve() as Promise<Animation>,
+    onfinish: null, finished: Promise.resolve() as unknown as Promise<Animation>,
   });
 }
 // jsdom has no canvas: getContext answers null, as a browser does for a context it cannot make. jsdom
