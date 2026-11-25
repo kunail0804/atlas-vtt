@@ -45,7 +45,7 @@ export class WallEditor {
   ) {
     this.renderer = new WallRenderer(viewport, store);
     this.walls = new WallInteraction(store, this.renderer, onLightSelection);
-    this.doors = new DoorPlacement(store, this.renderer, this.walls);
+    this.doors = new DoorPlacement(store, this.walls);
     this.tool = new WallTool(eventBus);
     this.drawing = new WallDrawingSession(store);
     this.listen(eventBus);
@@ -69,10 +69,6 @@ export class WallEditor {
   /** Alt places a wall's corner freely, where it would otherwise land on a wall's end close by. */
   pointerDown(point: Point, shift: boolean, ctrl: boolean, alt: boolean = false): boolean {
     if (!this.shown) return false;
-    if (this.doors.active) {
-      this.doors.confirm();
-      return true;
-    }
     const settings = this.tool.getSettings();
     // A chain under way takes every press, also on a wall or its end: that is where it joins them.
     if (this.drawingChain && !ctrl) {
@@ -115,10 +111,6 @@ export class WallEditor {
   pointerMove(point: Point, alt: boolean = false): void {
     if (!this.shown) return;
     this.free = alt;
-    if (this.doors.active) {
-      this.doors.move(point);
-      return;
-    }
     if (this.walls.isDragging()) {
       this.walls.handlePointerMove(point.x, point.y, alt);
       return;
@@ -150,31 +142,30 @@ export class WallEditor {
 
   cursorAt(point: Point): string {
     if (!this.shown) return 'default';
-    if (this.doors.active || this.drawingChain) return 'crosshair';
+    if (this.drawingChain) return 'crosshair';
     if (this.renderer.hitTestVertices(point.x, point.y)) return 'grab';
     return this.renderer.hitTestWalls(point.x, point.y) ? 'pointer' : 'crosshair';
   }
 
-  /** A wall, a door or a wall's end lies at the point, or a door is being placed: a press there is the editor's in any mode of the tool. */
+  /** A wall, a door or a wall's end lies at the point: a press there is the editor's in any mode of the tool. */
   takesPress(point: Point): boolean {
-    return this.shown && (this.doors.active || this.renderer.hitTestVertices(point.x, point.y) !== null || this.renderer.hitTestWalls(point.x, point.y) !== null);
+    return this.shown && (this.renderer.hitTestVertices(point.x, point.y) !== null || this.renderer.hitTestWalls(point.x, point.y) !== null);
   }
 
-  /** A wall's end is held or a door is being placed: the pointer's moves are the editor's. */
+  /** A wall's end is held: the pointer's moves are the editor's. */
   get busy(): boolean {
-    return this.shown && (this.walls.isDragging() || this.doors.active);
+    return this.shown && this.walls.isDragging();
   }
 
-  /** The editor takes a press at the point before a light's marker beneath it: on a wall's handle, and anywhere while a chain is drawn or a door placed. */
+  /** The editor takes a press at the point before a light's marker beneath it: on a wall's handle, and anywhere while a chain is drawn. */
   handleAt(point: Point): boolean {
-    return this.shown && (this.doors.active || this.drawingChain || this.renderer.hitTestVertices(point.x, point.y) !== null);
+    return this.shown && (this.drawingChain || this.renderer.hitTestVertices(point.x, point.y) !== null);
   }
 
-  /** Escape: stop placing a door, drop the chain being drawn, or clear the wall selection. */
+  /** Escape: drop the chain being drawn, or clear the wall selection. */
   handleEscape(): boolean {
     if (!this.shown) return false;
-    if (this.doors.active) this.doors.cancel();
-    else if (this.tool.isCurrentlyDrawing()) this.tool.cancelDrawing();
+    if (this.tool.isCurrentlyDrawing()) this.tool.cancelDrawing();
     else if (this.walls.hasSelection()) this.walls.clearSelection();
     else return false;
     return true;
@@ -229,10 +220,9 @@ export class WallEditor {
     this.renderer.preview.clearStroke();
   }
 
-  /** Ends a drag, a door placement and the chain or stroke being drawn. */
+  /** Ends a drag and the chain or stroke being drawn. */
   private stop(): void {
     this.walls.handlePointerUp();
-    this.doors.cancel();
     if (this.store.getState().activeTool === 'wall') {
       // Only hidden (session view, the peek key): what was drawn so far is kept, as its one undo step.
       this.finishStroke();
