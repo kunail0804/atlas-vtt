@@ -5,11 +5,18 @@ import type { MeasurementSettings } from '../../../src/app/grid/measurementForma
 import { LIGHTING_Z_INDEX, LightingRenderer, type LightingState } from '../../../src/app/pixi/lighting/LightingRenderer.ts';
 import type { SightRules } from '../../../src/app/vision/sightRules.ts';
 import { LitSceneBuilder } from './litScene.ts';
-import type { Stage } from './stage.ts';
+import { PAGE_BACKGROUND, type Stage } from './stage.ts';
 
 /** Above the lighting layer, its door badges and sensed outlines: what covers the map while the players' picture cannot be trusted. */
 const CURTAIN_Z = LIGHTING_Z_INDEX + 9;
 const CURTAIN_MARGIN = 100_000;
+/**
+ * Just above the lighting, below the door badges and the tokens' nameplates and bars: the page's
+ * background over everything beyond the map. The lighting draws beyond the map as far as its tokens'
+ * sight reaches, so without it the page showed dark ground there and its own background past it,
+ * wherever walls cut that sight short (#186).
+ */
+const FRAME_Z = LIGHTING_Z_INDEX + 1;
 /** The players' picture holds no fog of its own: the page draws the GM's fog above it. */
 const NO_FOG = {};
 
@@ -27,6 +34,7 @@ export class PlayerLighting {
   private readonly stage: Stage;
   private readonly store: StoreApi<LightingState>;
   private readonly curtain: Graphics;
+  private readonly frame: Graphics;
   private readonly built = new LitSceneBuilder();
   private readonly unavailable: () => void;
   private renderer: LightingRenderer | null = null;
@@ -45,7 +53,10 @@ export class PlayerLighting {
     this.curtain = new Graphics().rect(-CURTAIN_MARGIN, -CURTAIN_MARGIN, CURTAIN_MARGIN * 2, CURTAIN_MARGIN * 2).fill({ color: 0x000000 });
     this.curtain.zIndex = CURTAIN_Z;
     this.curtain.eventMode = 'none';
-    stage.viewport.addChild(this.curtain);
+    this.frame = new Graphics();
+    this.frame.zIndex = FRAME_Z;
+    this.frame.eventMode = 'none';
+    stage.viewport.addChild(this.curtain, this.frame);
     this.store = createStore<LightingState>(() => ({
       objects: { tokens: {}, walls: {}, lights: {}, lightZones: {}, fog: NO_FOG },
       lighting: { enabled: true, ambient: 0 },
@@ -67,6 +78,7 @@ export class PlayerLighting {
   /** The map's size: the lighting covers the world `[0, width] × [0, height]`. */
   setBounds(width: number, height: number): void {
     this.bounds = { width, height };
+    drawFrame(this.frame, width, height);
     this.renderer?.refreshBounds();
     this.update();
   }
@@ -91,6 +103,7 @@ export class PlayerLighting {
     this.renderer?.destroy();
     this.renderer = null;
     this.curtain.destroy();
+    this.frame.destroy();
   }
 
   private update(): void {
@@ -125,4 +138,15 @@ export class PlayerLighting {
     this.renderer = null;
     this.unavailable();
   }
+}
+
+/** Four bands of the page's background around the world `[0, width] × [0, height]`, the map left open. */
+function drawFrame(frame: Graphics, width: number, height: number): void {
+  const m = CURTAIN_MARGIN;
+  frame.clear()
+    .rect(-m, -m, width + 2 * m, m)
+    .rect(-m, height, width + 2 * m, m)
+    .rect(-m, 0, m, height)
+    .rect(width, 0, m, height)
+    .fill({ color: PAGE_BACKGROUND });
 }

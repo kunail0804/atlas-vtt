@@ -190,6 +190,8 @@ export class Table {
       const seat = this.seatWithKey(hello.key);
       if (seat !== null) return this.seat(link, seat, hello.key, hello.name, hello.acks === true);
     }
+    // A page that came back by itself on its kept key asks for that seat alone: the player decides what to do next.
+    if (hello.resume === true) return closeSocket(link.socket, CLOSE.unknownKey, 'unknown key');
     if (hello.wait !== undefined && this.gate.resume(link.socket, hello.wait)) {
       link.onText(() => closeSocket(link.socket, CLOSE.protocol, 'waiting'));
       // The knock now holds this socket: an admission seats the newcomer on its link.
@@ -226,7 +228,7 @@ export class Table {
   /**
    * Seats a player of the campaign under the id the GM knows them by, with a new key for this device:
    * the seat keeps its id (the campaign's name, characters and tokens follow it), the key it had
-   * seats nobody any more, and a page still on the seat is closed as `replaced`.
+   * seats nobody any more, and a page still on the seat is closed as `movedAway`.
    */
   private seatCampaignPlayer(link: Link, player: CampaignSeat, acks: boolean): void {
     const known = this.seats.get(player.id);
@@ -234,7 +236,7 @@ export class Table {
     const key = newSecret();
     known.keyHash = hashOf(key);
     this.ports.changed();
-    this.seat(link, known, key, player.name, acks);
+    this.seat(link, known, key, player.name, acks, CLOSE.movedAway);
   }
 
   /** `seat`: the campaign player whose seat the newcomer asked for; one the campaign no longer has leaves them a newcomer. */
@@ -264,7 +266,8 @@ export class Table {
     this.seat(link, seat, key, name, acks);
   }
 
-  private seat(link: Link, seat: Seat, key: string, name: string, acks: boolean): void {
+  /** `closesPrevious`: how a page still on the seat is told: `replaced` for one on the same key, `movedAway` once the key moved. */
+  private seat(link: Link, seat: Seat, key: string, name: string, acks: boolean, closesPrevious: number = CLOSE.replaced): void {
     if (seat.link === null && this.connectedCount() >= this.maxPlayers) return closeSocket(link.socket, CLOSE.full, 'table full');
     const previous = seat.link;
     seat.link = link;
@@ -272,7 +275,7 @@ export class Table {
       seat.name = name;
       this.ports.changed();
     }
-    if (previous !== null) closeSocket(previous.socket, CLOSE.replaced, 'replaced');
+    if (previous !== null) closeSocket(previous.socket, closesPrevious, closesPrevious === CLOSE.movedAway ? 'moved away' : 'replaced');
     const outbox = new PlayerOutbox({ send: (text) => sendText(link.socket, text) }, acks);
     this.outboxes.set(link, outbox);
     const limits = { frames: new RateLimit(PLAYER_FRAMES_PER_SECOND, PLAYER_BURST), acks: new RateLimit(ACKS_PER_SECOND, ACK_BURST) };

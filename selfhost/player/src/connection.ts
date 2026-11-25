@@ -6,6 +6,8 @@ export interface JoinRequest {
   readonly name: string;
   /** The six-digit join code, or null when the GM asks for none. */
   readonly code: string | null;
+  /** The page comes back on the seat this browser keeps, without the player asking (`PlayerHello.resume`). */
+  readonly resume?: true;
 }
 
 export type ConnectionEvent =
@@ -22,11 +24,26 @@ const MAX_BACKOFF_MS = 15_000;
 const SILENCE_LIMIT_MS = KEEPALIVE_MS + 20_000;
 
 const keyName = (table: string): string => `atlas-vtt:key:${table}`;
+/** The name the seat of this table was taken under, kept beside its key. */
+const seatNameKey = (table: string): string => `atlas-vtt:seat-name:${table}`;
+
+/** Close codes after which the key this browser keeps seats nobody: it is forgotten, so a reload asks the player again. */
+const SEAT_GONE: readonly number[] = [CLOSE.kicked, CLOSE.ended, CLOSE.movedAway, CLOSE.unknownKey];
+
+/**
+ * The seat this browser keeps at `table`, as the request that takes it back: the name it was
+ * taken under, without a code. Null when it keeps none, so the player is asked.
+ */
+export function keptSeat(table: string): JoinRequest | null {
+  const key = window.localStorage.getItem(keyName(table));
+  const name = window.localStorage.getItem(seatNameKey(table));
+  return key === null || name === null ? null : { name, code: null, resume: true };
+}
 
 /**
  * The player's socket to the table on this same origin. The key the relay gives on the first
- * welcome is kept in the browser, so a reload or a new tab takes the same seat back without the
- * join code or the GM's answer.
+ * welcome is kept in the browser with the seat's name, so a reload or a new tab takes the same seat
+ * back without the player typing anything, the join code or the GM's answer (`keptSeat`).
  */
 export class PlayerConnection {
   private readonly table: string;
@@ -88,6 +105,7 @@ export class PlayerConnection {
       waits: true,
       ...(this.wait === null ? {} : { wait: this.wait }),
       acks: true,
+      ...(this.request.resume === true && key !== null ? { resume: true } : {}),
     };
   }
 
@@ -101,6 +119,7 @@ export class PlayerConnection {
         this.attempts = 0;
         this.wait = null;
         window.localStorage.setItem(keyName(this.table), frame.key);
+        window.localStorage.setItem(seatNameKey(this.table), this.request.name);
         this.listener({ kind: 'welcome', id: frame.id, gmOnline: frame.gmOnline });
         return;
       case 'waiting':
@@ -136,7 +155,10 @@ export class PlayerConnection {
     this.socket = null;
     const final = FINAL_CLOSE_CODES.includes(code);
     // A seat that is gone for good must not be tried again with its key.
-    if (code === CLOSE.kicked || code === CLOSE.ended) window.localStorage.removeItem(keyName(this.table));
+    if (SEAT_GONE.includes(code)) {
+      window.localStorage.removeItem(keyName(this.table));
+      window.localStorage.removeItem(seatNameKey(this.table));
+    }
     this.listener({ kind: 'closed', code, final });
     if (final || this.stopped) return;
     this.attempts += 1;
