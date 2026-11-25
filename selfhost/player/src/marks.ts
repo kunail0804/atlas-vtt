@@ -3,7 +3,7 @@ import type { PlayerMessage } from '../../../src/app/online/protocol/game.ts';
 import { MARKS_INTERVAL_MS, MAX_KEPT, MAX_MARK_LASER_NUMBERS, type MarkPoint, type MarkShape, type MarksMessage, type MeasureState, type SharedCursor, type SharedMeasure } from '../../../src/app/online/protocol/marks.ts';
 import type { RulesMessage } from '../../../src/app/online/protocol/rules.ts';
 import type { LivePlace } from '../../../src/app/online/protocol/live.ts';
-import { CursorOverlay, CursorTap, MarkOverlay, PointerTap, type MeasureRules, type RemoteDrag, type RemoteLaser, type RemoteMeasure } from '../../../src/app/online/marks/index.ts';
+import { CursorOverlay, CursorTap, MarkOverlay, PointerTap, tableColourOf, type MeasureRules, type RemoteDrag, type RemoteLaser, type RemoteMeasure } from '../../../src/app/online/marks/index.ts';
 import { formationGridFromOptions, snapTokenToGrid } from '../../../src/app/encounters/encounterFormation.ts';
 import type { OwnDrag } from './tokenLayer.ts';
 import type { PlayerTool, ToolSettingsStore } from './toolSettings.ts';
@@ -84,7 +84,7 @@ export class MarksView {
     this.kept = [];
     this.ownMeasure = this.measureStart === null ? null : this.ownMeasure;
     const scene = this.scene();
-    if (scene !== null) this.send({ t: 'measure', scene, color: this.accent, live: null, kept: [] });
+    if (scene !== null) this.send({ t: 'measure', scene, color: this.measureColour(), live: null, kept: [] });
     this.draw();
   }
 
@@ -151,7 +151,7 @@ export class MarksView {
   private draw(): void {
     const self = this.self() ?? 'me';
     const lasers = this.ownLaser === null ? this.remoteLasers : [...this.remoteLasers, this.ownLaser];
-    const own = this.ownMeasure ?? (this.kept.length > 0 ? { color: this.accent, live: null, kept: this.kept } : null);
+    const own = this.ownMeasure ?? (this.kept.length > 0 ? { color: this.measureColour(), live: null, kept: this.kept } : null);
     const measures = own === null ? this.remoteMeasures : [...this.remoteMeasures, { who: self, ...own }];
     const ownRuler = this.ownRuler();
     const drags = ownRuler === null ? this.dragRulers : [...this.dragRulers, ownRuler];
@@ -169,6 +169,12 @@ export class MarksView {
     return { key: drag.id, path: [snap(drag.from), snap(drag.at)], cells, snaps: this.snaps };
   }
 
+  /** The colour this player's measurements are told in: their colour at the table, as everyone draws them; the accent until the page knows who it is. */
+  private measureColour(): string {
+    const self = this.self();
+    return (self === null ? null : tableColourOf(self, this.canvas.ownerDocument)) ?? this.accent;
+  }
+
   private world(global: { x: number; y: number }): MarkPoint {
     const point = this.viewport.toWorld(global);
     return [point.x, point.y];
@@ -178,7 +184,7 @@ export class MarksView {
     const shape = SHAPES[this.tool];
     if (shape === undefined || button !== 0) return;
     this.measureStart = this.world(global);
-    this.ownMeasure = { color: this.accent, live: { shape, a: this.measureStart, b: this.measureStart }, kept: this.kept };
+    this.ownMeasure = { color: this.measureColour(), live: { shape, a: this.measureStart, b: this.measureStart }, kept: this.kept };
   }
 
   private measureMove(global: { x: number; y: number }): void {
@@ -192,7 +198,7 @@ export class MarksView {
     this.measureStart = null;
     // A measurement the player keeps stays on the map (the oldest goes past `MAX_KEPT`); a click without a drag keeps nothing.
     if (live !== null && this.settings.get().measure.persist && (live.a[0] !== live.b[0] || live.a[1] !== live.b[1])) this.kept = [...this.kept, live].slice(-MAX_KEPT);
-    this.ownMeasure = { color: this.accent, live: null, kept: this.kept };
+    this.ownMeasure = { color: this.measureColour(), live: null, kept: this.kept };
     this.sendMeasure();
     this.ownMeasure = null;
     this.draw();

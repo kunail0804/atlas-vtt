@@ -9,6 +9,7 @@ import { scenePrefillFromMap } from '../utils/sceneCreation';
 import { diceRandom } from '../../../../services/offlineDiceInputs';
 import { runInBackground } from '../../../../utils/backgroundTask';
 import { MapScenes, latestSceneOn } from '../utils/mapScenes';
+import { sceneOpeningLeaf } from '../../../../plugin/atlasLeaves';
 
 export interface OpenAssetDeps {
   app: App;
@@ -31,7 +32,7 @@ export async function openScene(deps: Omit<OpenAssetDeps, 'collectionId'>, asset
   const file = deps.app.vault.getAbstractFileByPath(serviceAsset.data.mapPath);
   if (!(file instanceof TFile)) return false;
   deps.onClose();
-  await deps.app.workspace.getLeaf(false).openFile(file);
+  await sceneOpeningLeaf(deps.app).openFile(file);
   return true;
 }
 

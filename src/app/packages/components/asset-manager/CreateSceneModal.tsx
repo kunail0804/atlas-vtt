@@ -12,6 +12,7 @@ import { TagPicker } from './token-creator/TagPicker';
 import { useAssetTags } from './token-creator/useAssetTags';
 import { t } from '../../../i18n';
 import { showNotice } from '../../../ui/notice';
+import { sceneOpeningLeaf } from '../../../plugin/atlasLeaves';
 
 interface CreateSceneModalProps {
   isOpen: boolean;
@@ -95,7 +96,7 @@ export default function CreateSceneModal({
         tags: selectedTags,
       });
 
-      await app.workspace.getLeaf(false).openFile(sceneFile);
+      await sceneOpeningLeaf(app).openFile(sceneFile);
       
       // Close the modal
       onClose();

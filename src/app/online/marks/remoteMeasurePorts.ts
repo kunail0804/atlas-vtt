@@ -52,4 +52,10 @@ export interface RemoteMeasurePorts {
    * The host says when tokens moved (`tokensMoved`). Without it no aura is drawn.
    */
   token?(id: string): AuraToken | null;
+  /**
+   * The colour a sender's measurements are drawn in on this page, `#rrggbb`: a player's colour at
+   * the table, whatever their messages say (`tableColourOf`); null for one whose told colour stands
+   * (the GM's accent). Without it every sender is drawn in the colour it is told in.
+   */
+  senderColour?(who: string): string | null;
 }

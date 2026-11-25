@@ -1,6 +1,7 @@
 import type { App, WorkspaceLeaf } from 'obsidian';
 import { t } from '../i18n';
 import { showNotice } from '../ui/notice';
+import { sceneOpeningLeaf } from '../plugin/atlasLeaves';
 
 /** Where a created scene opens: in `leaf` where one is given, on `level` where the scene should show one first. */
 export interface SceneOpening {
@@ -17,7 +18,7 @@ export async function openCreatedScene(app: App, scenePath: string, name: string
   const scene = app.vault.getFileByPath(scenePath);
   if (!scene) return false;
   try {
-    await (leaf ?? app.workspace.getLeaf(false)).openFile(scene, level ? { state: { level } } : undefined);
+    await (leaf ?? sceneOpeningLeaf(app)).openFile(scene, level ? { state: { level } } : undefined);
     return true;
   } catch (error) {
     console.error('[Atlas] A new scene could not be opened', error);

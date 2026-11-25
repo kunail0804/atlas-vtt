@@ -28,6 +28,17 @@ export async function loadAtlasView(app: App): Promise<AtlasView | null> {
 }
 
 /**
+ * The tab a scene opened "in the current tab" goes to: the Atlas view where it is the tab the GM
+ * works in, else the tab Obsidian opens files in. The Atlas view's own tab is named here because
+ * Obsidian opens files elsewhere while that view is shared with players (`holdNavigation`), and a
+ * scene opened from it is still one of its scene tabs.
+ */
+export function sceneOpeningLeaf(app: App): WorkspaceLeaf {
+  const recent = app.workspace.getMostRecentLeaf();
+  return recent !== null && recent.view.getViewType() === ATLAS_VIEW_TYPE ? recent : app.workspace.getLeaf(false);
+}
+
+/**
  * Opens a map in the Atlas view. Only one Atlas leaf exists at a time, so an
  * already open view receives the map as a scene tab instead of a new leaf.
  */

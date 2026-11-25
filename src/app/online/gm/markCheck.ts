@@ -74,15 +74,16 @@ function fullOnMap({ live, kept }: FullMeasures, map: MapSize | null): FullMeasu
 }
 
 /**
- * A player's measurements as the GM takes them, or null when they are refused: another scene, or a
- * colour that is not a swatch. Measurements off the map are left out, those told in full too, and
- * with the one being drawn its span. Every measurement is in the player's one colour and has
- * neither effect nor aura (`fullOnMap`).
+ * A player's measurements as the GM takes them, or null when they are refused: another scene.
+ * Measurements off the map are left out, those told in full too, and with the one being drawn its
+ * span. Every measurement is in the player's one colour and has neither effect nor aura
+ * (`fullOnMap`). That colour is no laser swatch: a page tells the player's colour at the table as
+ * its theme has it (`tableColourOf`), and whoever draws the measurement draws it in that player's
+ * colour as its own styles have it, whatever the message says (`RemoteMeasurePorts.senderColour`).
  */
 export function checkMeasure(message: PlayerMeasure, context: MarkContext): MeasureState | null {
   if (context.scene === null || message.scene !== context.scene) return null;
-  const color = swatchColour(message.color);
-  if (color === null) return null;
+  const { color } = message;
   const live = message.live !== null && measureNearMap(message.live, context.map) ? message.live : null;
   const kept = message.kept.filter((measure) => measureNearMap(measure, context.map));
   const full = message.full && fullOnMap(message.full, context.map);

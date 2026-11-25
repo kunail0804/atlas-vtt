@@ -36,6 +36,22 @@ export function isSameTab(tab: AtlasTab, open: readonly WorkspaceLeaf[]): boolea
 /** Whether a tab is the GM's own map, not a player view Atlas opened of it. */
 const isGmTab = (tab: AtlasTab): boolean => (tab.store.getState() as { isPlayerView?: boolean }).isPlayerView !== true;
 
+/**
+ * Keeps a shared tab on its map: while its view says it is no place to navigate to, Obsidian opens a
+ * note, a link or a file asked for there in another tab (`WorkspaceLeaf.canNavigate`), where it would
+ * replace the map and leave the players without one (#189). Returns what gives the view back the
+ * navigation it had.
+ */
+export function holdNavigation(view: object): () => void {
+  if (!('navigation' in view) || typeof view.navigation !== 'boolean') return () => undefined;
+  const held = view as { navigation: boolean };
+  const before = held.navigation;
+  held.navigation = false;
+  return () => {
+    held.navigation = before;
+  };
+}
+
 /** What a shared tab runs while it is shared. */
 export interface TabBinding {
   start(): void;
@@ -67,12 +83,15 @@ export interface TabWatchPorts<B extends TabBinding> {
  * switches. A view is bound once it shows the presented scene, and stays bound while its view, store and
  * renderer are the same objects; while the GM works on another tab its binding holds (players keep what
  * they saw). Once Atlas presents a tab of another view, that view is bound as soon as it shows it. A
- * binding whose tab is gone, or while Atlas presents nothing, is stopped at once.
+ * binding whose tab is gone, or while Atlas presents nothing, is stopped at once. While a view is
+ * bound, what Obsidian opens from its leaf opens in another tab (`holdNavigation`).
  */
 export class TabWatch<B extends TabBinding> {
   private readonly ports: TabWatchPorts<B>;
   private tab: AtlasTab | null = null;
   private shared: B | null = null;
+  /** Gives the shared tab's view its navigation back. */
+  private releaseNavigation: (() => void) | null = null;
   private target: PresentedTab | null = null;
   private path: string | null;
   private checking = false;
@@ -148,6 +167,7 @@ export class TabWatch<B extends TabBinding> {
     if (tab === null || !isGmTab(tab) || !showsPresented(tab.store.getState(), target)) return;
     this.unbind();
     this.tab = tab;
+    this.releaseNavigation = holdNavigation(tab.view);
     const binding = this.ports.bind(tab, target);
     this.shared = binding;
     binding.start();
@@ -162,6 +182,8 @@ export class TabWatch<B extends TabBinding> {
     const binding = this.shared;
     this.tab = null;
     this.shared = null;
+    this.releaseNavigation?.();
+    this.releaseNavigation = null;
     binding?.stop();
   }
 }

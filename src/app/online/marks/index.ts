@@ -12,3 +12,4 @@ export * from './RemoteStrokes.ts';
 export * from './toldAnnotations.ts';
 export * from './measureWords.ts';
 export * from './Pacer.ts';
+export * from './tableColours.ts';

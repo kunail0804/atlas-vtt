@@ -17,7 +17,7 @@ const NO_TOKENS = {};
 
 /**
  * Other people's measurements, each drawn as Atlas draws its own (`DrawnMeasure`) in its own
- * colour, else its sender's: a ruler with its corners, its length and each leg's; an area by its
+ * colour, else its sender's (a player's colour at the table where the host knows it, `senderColour`): a ruler with its corners, its length and each leg's; an area by its
  * body, which lies in a layer of its own under the map's tokens and lighting (`layBodies`) and so
  * is lit like the floor and hidden where a viewer does not see the map, and its size above
  * everything. An area stops at the walls the rules name unless its sender said that walls do not
@@ -83,7 +83,7 @@ export class RemoteMeasures {
         continue;
       }
       const sender = known ?? this.add(entry.who);
-      const colour = colourNumber(entry.color);
+      const colour = colourNumber(this.ports.senderColour?.(entry.who) ?? entry.color);
       const recoloured = colour !== sender.colour;
       sender.colour = colour;
       this.drawKept(sender, told.kept, recoloured, look);
