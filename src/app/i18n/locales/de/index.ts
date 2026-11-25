@@ -54,7 +54,6 @@ import { itemBundle } from './itemBundle';
 import { itemReview } from './itemReview';
 import { laser } from './laser';
 import { downloads } from './downloads';
-import { remote } from './remote';
 import { levels } from './levels';
 import { light } from './light';
 import { link } from './link';
@@ -183,7 +182,6 @@ export const de: Translation = {
   ...itemReview,
   ...laser,
   ...downloads,
-  ...remote,
   ...levels,
   ...light,
   ...link,

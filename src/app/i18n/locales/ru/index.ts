@@ -57,7 +57,6 @@ import { toolbarEdit } from './toolbarEdit';
 import { hotkey } from './hotkey';
 import { pin } from './pin';
 import { laser } from './laser';
-import { remote } from './remote';
 import { downloads } from './downloads';
 import { audio } from './audio';
 import { editToken } from './editToken';
@@ -172,7 +171,6 @@ export const ru: Translation = {
   ...transfer,
   ...view,
   ...widgets,
-  ...remote,
   ...sbImport,
   ...vaultImages,
   ...filters,

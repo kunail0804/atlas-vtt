@@ -53,7 +53,6 @@ import { issue } from './issue';
 import { itemBundle } from './itemBundle';
 import { itemReview } from './itemReview';
 import { laser } from './laser';
-import { remote } from './remote';
 import { downloads } from './downloads';
 import { levels } from './levels';
 import { light } from './light';
@@ -251,5 +250,4 @@ export const pt: Translation = {
   ...vision,
   ...wall,
   ...widgets,
-  ...remote,
 };

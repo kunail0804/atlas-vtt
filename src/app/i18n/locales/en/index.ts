@@ -76,7 +76,6 @@ import { hotkey } from './hotkey';
 import { pin } from './pin';
 import { laser } from './laser';
 import { downloads } from './downloads';
-import { remote } from './remote';
 import { audio } from './audio';
 import { draw } from './draw';
 import { dungeon } from './dungeon';
@@ -204,7 +203,6 @@ export const en = {
   ...pin,
   ...laser,
   ...downloads,
-  ...remote,
   ...audio,
   ...draw,
   ...dungeon,

@@ -47,7 +47,6 @@ import { importReview } from './importReview';
 import { initiative } from './initiative';
 import { issue } from './issue';
 import { laser } from './laser';
-import { remote } from './remote';
 import { downloads } from './downloads';
 import { levels } from './levels';
 import { light } from './light';
@@ -237,7 +236,6 @@ export const it = {
   ...vision,
   ...wall,
   ...widgets,
-  ...remote,
   ...account,
   ...assetGrid,
   ...deviceFiles,

@@ -49,7 +49,6 @@ import { toolbar } from './toolbar';
 import { hotkey } from './hotkey';
 import { pin } from './pin';
 import { laser } from './laser';
-import { remote } from './remote';
 import { downloads } from './downloads';
 import { audio } from './audio';
 import { editToken } from './editToken';
@@ -168,7 +167,6 @@ export const zh: Translation = {
   ...transfer,
   ...view,
   ...widgets,
-  ...remote,
   ...sbImport,
   ...filters,
   ...search,
