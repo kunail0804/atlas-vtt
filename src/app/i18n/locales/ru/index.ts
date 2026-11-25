@@ -57,6 +57,8 @@ import { toolbarEdit } from './toolbarEdit';
 import { hotkey } from './hotkey';
 import { pin } from './pin';
 import { laser } from './laser';
+import { remote } from './remote';
+import { downloads } from './downloads';
 import { audio } from './audio';
 import { editToken } from './editToken';
 import { templateEditor } from './templateEditor';
@@ -103,6 +105,24 @@ import { openings } from './openings';
 import { uvtt } from './uvtt';
 import { uvttFloors } from './uvttFloors';
 import { videoMap } from './videoMap';
+import { account } from './account';
+import { deviceFiles } from './deviceFiles';
+import { docs } from './docs';
+import { draw } from './draw';
+import { experimental } from './experimental';
+import { fog } from './fog';
+import { glass } from './glass';
+import { graphics } from './graphics';
+import { itemBundle } from './itemBundle';
+import { itemReview } from './itemReview';
+import { measure } from './measure';
+import { playerBar } from './playerBar';
+import { rooms } from './rooms';
+import { selection } from './selection';
+import { siteFrame } from './siteFrame';
+import { table } from './table';
+import { tableTv } from './tableTv';
+import { tabletDiag } from './tabletDiag';
 
 export const ru: Translation = {
   ...align,
@@ -152,6 +172,7 @@ export const ru: Translation = {
   ...transfer,
   ...view,
   ...widgets,
+  ...remote,
   ...sbImport,
   ...vaultImages,
   ...filters,
@@ -163,6 +184,7 @@ export const ru: Translation = {
   ...hotkey,
   ...pin,
   ...laser,
+  ...downloads,
   ...audio,
   ...editToken,
   ...hex,
@@ -212,4 +234,22 @@ export const ru: Translation = {
   ...uvtt,
   ...uvttFloors,
   ...videoMap,
+  ...account,
+  ...deviceFiles,
+  ...docs,
+  ...draw,
+  ...experimental,
+  ...fog,
+  ...glass,
+  ...graphics,
+  ...itemBundle,
+  ...itemReview,
+  ...measure,
+  ...playerBar,
+  ...rooms,
+  ...selection,
+  ...siteFrame,
+  ...table,
+  ...tableTv,
+  ...tabletDiag,
 };

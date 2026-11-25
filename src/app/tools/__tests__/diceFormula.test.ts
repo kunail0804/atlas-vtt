@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { FORMULA_LIMITS, parseFormula, type DiceTerm, type ParsedFormula } from '../parseFormula';
 import { MAX_EXPLOSIONS } from '../diceExplosion';
-import { EventEmitter } from 'events';
+import { EventEmitter } from '../../utils/typedEmitter';
 import { rollTestFormula as rollFormula } from './rollTestFormula';
 import { DiceTool, rollDiceFormula, type DiceRollInputs } from '../DiceTool';
 import { DEFAULT_DICE_RULES } from '../../gameSystems/diceRules';
@@ -10,7 +10,7 @@ import type { RolledDie } from '../diceFormula';
 import type { DiceRules } from '../../types/diceRulesTypes';
 import { BUILT_IN_DICE_SETS, D20_DICE_SET_ID } from '../../gameSystems/builtInDiceSets';
 import { namedDiceLine, rollLine, diceList, diceSum, dieLabel, dieStates } from '../diceLabels';
-import { formulaWithNamedTerms, keptModifiersText, labelledConstant, modifierSteps, modifiersText, namedModifiersOf, plainModifier, withoutConstantLabels } from '../namedModifiers';
+import { keptModifiersText, labelledConstant, modifierSteps, namedModifiersOf, plainModifier, withoutConstantLabels } from '../namedModifiers';
 
 function parsed(formula: string): ParsedFormula {
   const result = parseFormula(formula);
@@ -62,7 +62,7 @@ it('parseFormula', () => {
       '', ' ', 'hello d20', 'd20 hello', 'd20+garbage+d6', 'd20 d6', 'd20++2', 'd20-', 'd20\n', 'd20\r', 'd20 ', '1.5d6', 'd6!!!', 'd6!100',
       'd6!I', '10000', '00001', '0001d6', 'd00006', 'Infinity', '()', '(d20', 'd20)', '2*-3', 'd20*', '4d6 kh3', '2d6 [fire]', '4d6>3', '4d6<3',
       '4d6=3', '4d6cs', '4d6kh3r1', '4d6kh1kh1', '4d6!x', '4d6x6', '2d6[]', '2d6[fire!]', `2d6[${'a'.repeat(25)}]`, '1d6/0', '1d6/(0)', '4d6KH3',
-      '(1d6)[fire]', 'd20 / 0',
+      '(1d6) [fire]', 'd20 / 0',
     ]) {
       expect(parseFormula(formula)).toEqual({ ok: false, code: 'syntax' });
     }
@@ -140,6 +140,17 @@ it('parseFormula', () => {
   {
     expect(dice('2d6x[fire]')).toMatchObject({ label: 'fire' });
     expect(parsed('1d20+3[bonus]').terms[1]).toEqual({ kind: 'constant', value: 3, negative: false, label: 'bonus' });
+  }
+
+  // gives a parenthesis label to every term inside that has none of its own
+  {
+    const labels = (formula: string): (string | undefined)[] => parsed(formula).terms.map((term) => term.label);
+    expect(labels('2d6[slashing]+(1d10+12)[necrotic]')).toEqual(['slashing', 'necrotic', 'necrotic']);
+    expect(labels('(1d8[fire]+2)[cold] * 2')).toEqual(['fire', 'cold', undefined]);
+    expect(labels('-((1d4+1)[acid])')).toEqual(['acid', 'acid']);
+    expect(parsed('(1d10+12)[necrotic]').linear).toBe(true);
+    expect(parseFormula('(1d6)[]')).toMatchObject({ ok: false, code: 'syntax' });
+    expect(parseFormula('(1d6)[a]]')).toMatchObject({ ok: false, code: 'syntax' });
   }
 
   // marks every term an odd number of minus signs leads to
@@ -476,28 +487,17 @@ describe('modifiers with labels', () => {
   describe('how a roll writes its modifiers', () => {
     const roll = { formula: '1d20+3+2[Stealth]', modifiers: 5, namedModifiers: [{ label: 'Stealth', value: 2 }], rolls: [] };
 
-    it('names each labelled one after the plain sum, a subtracted one with a minus sign', () => {
+    it('writes the whole sum without labels, kept with the last die', () => {
       expect(plainModifier(roll)).toBe(3);
-      expect(modifiersText(roll)).toBe(' + 3 + 2 Stealth');
-      expect(modifiersText({ modifiers: -1, namedModifiers: [{ label: 'Bane', value: -1 }] })).toBe(' − 1 Bane');
-      expect(modifiersText({ modifiers: 0, namedModifiers: [{ label: 'Luck', value: 0 }] })).toBe(' + 0 Luck');
-      expect(modifiersText({ modifiers: 3 })).toBe(' + 3');
+      expect(keptModifiersText(roll)).toBe('\u00a0+\u00a05');
+      expect(keptModifiersText({ modifiers: -1, namedModifiers: [{ label: 'Bane', value: -1 }] })).toBe('\u00a0\u2212\u00a01');
+      expect(keptModifiersText({ modifiers: 0, namedModifiers: [{ label: 'Luck', value: 0 }] })).toBe('');
     });
 
-    it('breaks a line only before a labelled term\'s sign', () => {
-      expect(keptModifiersText(roll)).toBe(' + 3 + 2 Stealth');
-    });
-
-    it('rewrites the formula\'s labelled constants as terms of their own', () => {
-      expect(formulaWithNamedTerms(roll)).toBe('1d20+3 +\u00a02\u00a0Stealth');
-      expect(rollLine(roll)).toBe('1d20+3 +\u00a02\u00a0Stealth');
+    it('writes the formula without the labels of its constants', () => {
+      expect(rollLine(roll)).toBe('1d20+3+2');
       // Dice labels are no constants.
-      expect(formulaWithNamedTerms({ ...roll, formula: '2d6[fire]+2[Stealth]' })).toBe('2d6[fire] +\u00a02\u00a0Stealth');
-    });
-
-    it('keeps the formula where it does not end in the roll\'s labelled constants', () => {
-      expect(formulaWithNamedTerms({ ...roll, formula: '1d20+5' })).toBe('1d20+5');
-      expect(formulaWithNamedTerms({ ...roll, formula: '1d20+2[Stealth]+3' })).toBe('1d20+2[Stealth]+3');
+      expect(rollLine({ ...roll, formula: '2d6[fire]+2[Stealth]' })).toBe('2d6[fire]+2');
     });
 
     it('writes a labelled constant as a formula holds it', () => {
@@ -511,17 +511,16 @@ describe('modifiers with labels', () => {
       expect(modifierSteps({ modifiers: 5 }, 'Modifier')).toEqual([{ label: 'Modifier', value: 5 }]);
     });
 
-    it('names the labelled ones after dice a set named', () => {
+    it('adds the whole sum after dice a set named, without labels', () => {
       const rolls = [{ value: 9, name: 'Hope' }, { value: 4, name: 'Fear' }];
       expect(namedDiceLine(rolls, { modifiers: 3, namedModifiers: [{ label: 'Survival', value: 2 }] }))
-        .toBe('Hope 9 · Fear 4 + 1 + 2 Survival');
+        .toBe('Hope\u00a09 · Fear\u00a04\u00a0+\u00a03');
     });
 
     it('reads a saved log of an older version, and leaves out entries it cannot read', () => {
       expect(namedModifiersOf({ modifiers: 2 })).toEqual([]);
       const damaged = { modifiers: 4, namedModifiers: [{ label: 'Ok', value: 1 }, { label: '', value: 2 }, { label: 'NaN', value: Number.NaN }, null] };
       expect(namedModifiersOf(damaged as never)).toEqual([{ label: 'Ok', value: 1 }]);
-      expect(modifiersText(damaged as never)).toBe(' + 3 + 1 Ok');
     });
   });
 

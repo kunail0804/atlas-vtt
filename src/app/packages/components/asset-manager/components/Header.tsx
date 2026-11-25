@@ -18,6 +18,7 @@ import { CollectionGlyph } from './collectionGlyph';
 import { TokenIcon } from '../../../../react/components/TokenIcon';
 import { tabHasFolders } from '../utils/tabKinds';
 import { t } from '../../../../i18n';
+import type { MapPick } from '../mapPick';
 
 export interface HeaderProps {
   app: App;
@@ -47,6 +48,8 @@ export interface HeaderProps {
     SelectionState,
     'navigationHistory' | 'handleNavigateBack' | 'handleNavigateForward'
   >;
+  /** The window chooses a map: its purpose stands where the tabs do, and nothing is created. */
+  pick?: MapPick;
 }
 
 /**
@@ -75,6 +78,7 @@ export function Header({
   sidebarToggleLabel,
   onToggleSidebar,
   sel,
+  pick,
 }: HeaderProps): React.JSX.Element {
   const toolbarRef = useRef<HTMLDivElement>(null);
   useHeaderCompaction(toolbarRef);
@@ -119,19 +123,25 @@ export function Header({
         </div>
 
         <div className="atlas-am-toolbar-center">
-          <TabSwitcher
-            activeTab={activeTab}
-            onTabChange={onTabChange}
-            assetCounts={assetCounts}
-            countsFailed={countsFailed}
-            compendium={onOpenCompendium ? { open: false, onOpen: onOpenCompendium } : undefined}
-          />
+          {pick
+            ? <h2 className="atlas-am-pick-title">{pick.title}</h2>
+            : <TabSwitcher
+              activeTab={activeTab}
+              onTabChange={onTabChange}
+              assetCounts={assetCounts}
+              countsFailed={countsFailed}
+              compendium={onOpenCompendium ? { open: false, onOpen: onOpenCompendium } : undefined}
+            />}
         </div>
 
         <div className="atlas-am-toolbar-right">
           {/* Its Cmd/Ctrl+F lives in the manager's own key scope (`useAssetManagerShortcuts`), which a dialog over it lifts. */}
           <HeaderSearch app={app} search={search} onSearch={onSearch} query={query} shortcut={false} shortcutShown />
-          <HeaderMenu
+          {pick ? (
+            pick.noneLabel !== undefined && (
+              <Button variant="outline" className="atlas-am-pick-none" onClick={() => pick.onPick(null)}>{pick.noneLabel}</Button>
+            )
+          ) : <HeaderMenu
             label={t('am.header.create')}
             triggerClassName="atlas-asset-manager-create-btn"
             triggerVariant="default"
@@ -147,7 +157,7 @@ export function Header({
               { key: 'folder', label: t('am.header.newFolder'), icon: <FolderPlus />, disabled: !tabHasFolders(activeTab), onSelect: onCreateFolder },
               { key: 'collection', label: t('am.header.createCollection'), icon: <CollectionGlyph />, separated: true, onSelect: onCreateCollection },
             ]}
-          />
+          />}
         </div>
       </div>
     </header>

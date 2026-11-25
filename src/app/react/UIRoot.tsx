@@ -1,8 +1,9 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { LightPopoverHost } from '../pixi/lighting/LightPopover';
 import { LightZonePopoverHost } from '../pixi/lighting/LightZonePopover';
 import { SelectionBarHost } from '../packages/components/toolbar/SelectionBar';
+import { SelectionActionsBarHost } from '../packages/components/toolbar/SelectionActionsBar';
 import { LevelSurfacePopoverHost } from '../pixi/levelSurfaces/LevelSurfacePopover';
 import { MeasurePopoverHost } from './components/measure/MeasurePopover';
 import { App } from 'obsidian';
@@ -23,6 +24,7 @@ import { DrawToolBar } from '../packages/components/toolbar/DrawToolBar';
 import { LightingToolBar } from '../packages/components/toolbar/LightingToolBar';
 import { MeasureToolBar } from '../packages/components/toolbar/MeasureToolBar';
 import { FogToolBar } from '../packages/components/toolbar/FogToolBar';
+import { FloorPositionBar } from './components/levels/FloorPositionBar';
 import { DMScreenFromStore } from './components/DMScreen';
 import { DungeonGeneratorOverlay } from '../packages/components/dungeon-generator/DungeonGeneratorOverlay';
 import { InitiativeTracker } from './components/InitiativeTracker';
@@ -35,10 +37,12 @@ import { MapLoadingOverlay } from './components/MapLoadingOverlay';
 import { SceneTabBar } from './components/SceneTabBar';
 import { DevBuildBadge } from './components/dev-build/DevBuildBadge';
 import { LevelSwitcher } from './components/levels/LevelSwitcher';
+import { ZoomCluster } from './components/ZoomCluster';
 import { LevelLinkPopoverHost } from './components/levels/LevelLinkPopover';
 import { SceneSwitcher } from './components/scene-switcher/SceneSwitcher';
 import { presentTab as presentSceneTab } from '../services/PlayerWindowPresenter';
 import { usePresentedScene } from './hooks/usePresentedScene';
+import { OpenShapeStrip } from './components/OpenShapeStrip';
 import { PlacementHint } from './components/PlacementHint';
 import { canRunMapHotkeys, matchesMapHotkey } from '../keyboard/mapHotkeys';
 import { SettingsService } from '../services/SettingsService';
@@ -55,6 +59,7 @@ import { PanelBoundary } from './root/PanelBoundary';
 import { useMapNavigationHotkeys } from './useMapNavigationHotkeys';
 import type { AtlasView } from '../atlas-view';
 import { runInBackground } from '../utils/backgroundTask';
+import { useChromeAutoHide } from './components/chrome-auto-hide/useChromeAutoHide';
 
 interface UIRootProps {
   app: App;
@@ -107,6 +112,8 @@ export const UIRoot: React.FC<UIRootProps> = ({ app, view, pixiApp }) => {
   // Check if this is a player view - use store state which is authoritative
   const storeIsPlayerView = useAtlasStore(state => state.isPlayerView);
   const isPlayerView = storeIsPlayerView || view?.getViewType?.() === 'atlas-vtt-player';
+  const uiRef = useRef<HTMLDivElement>(null);
+  useChromeAutoHide(uiRef, isPlayerView, settings);
   // Get loading state from store
   const isMapLoading = useAtlasStore(state => state.isMapLoading);
   const mapLoadingProgress = useAtlasStore(state => state.mapLoadingProgress);
@@ -141,6 +148,13 @@ export const UIRoot: React.FC<UIRootProps> = ({ app, view, pixiApp }) => {
       }
 
       if (!isPlayerView) {
+        // The open DM screen takes the key itself (`DMScreen`): map shortcuts wait while it is open
+        if (matchesMapHotkey(e, 'soundPage', settings)) {
+          e.preventDefault();
+          store.getState().setDMScreenPage('sound');
+          store.getState().setDMScreenOpen(true);
+          return;
+        }
         if (matchesMapHotkey(e, 'nextMood', settings)) {
           e.preventDefault();
           SoundDirector.forApp(app).pressNext();
@@ -190,7 +204,7 @@ export const UIRoot: React.FC<UIRootProps> = ({ app, view, pixiApp }) => {
           )}
         </AnimatePresence>
         {!isPlayerView && <PanelBoundary name="the tours"><MapTours root={view?.containerEl ?? null} settings={settings} /></PanelBoundary>}
-        <div className="atlas-ui" style={{ position: 'relative', width: '100%', height: '100%' }}>
+        <div ref={uiRef} className="atlas-ui" style={{ position: 'relative', width: '100%', height: '100%' }}>
           {/* Every surface has its own boundary: one that fails must not take the others with it */}
           {/* Map chrome stays mounted while a scene loads; the loading overlay blocks input meanwhile */}
           {/* Top row — scene tabs (DM only) and widget bar share one flex row */}
@@ -243,6 +257,7 @@ export const UIRoot: React.FC<UIRootProps> = ({ app, view, pixiApp }) => {
               <>
                 <PanelBoundary name="the turn banner"><TurnAnnouncer /></PanelBoundary>
                 <PanelBoundary name="the placing hint"><PlacementHint /></PanelBoundary>
+                <PanelBoundary name="the open shape's buttons"><OpenShapeStrip /></PanelBoundary>
               </>
             )}
             options={(
@@ -251,6 +266,7 @@ export const UIRoot: React.FC<UIRootProps> = ({ app, view, pixiApp }) => {
                 {!isPlayerView && <PanelBoundary name="the lighting tools"><LightingToolBar /></PanelBoundary>}
                 <PanelBoundary name="the measure tools"><MeasureToolBar playerView={isPlayerView} /></PanelBoundary>
                 {!isPlayerView && <PanelBoundary name="the draw tools"><DrawToolBar /></PanelBoundary>}
+                {!isPlayerView && <PanelBoundary name="the floor positioning"><FloorPositionBar /></PanelBoundary>}
               </>
             )}
           >
@@ -260,6 +276,8 @@ export const UIRoot: React.FC<UIRootProps> = ({ app, view, pixiApp }) => {
           {!isPlayerView && !isMapLoading && (
             <PanelBoundary name="the level switcher"><LevelSwitcher /><LevelLinkPopoverHost /></PanelBoundary>
           )}
+
+          {!isPlayerView && !isMapLoading && <PanelBoundary name="the zoom buttons"><ZoomCluster /></PanelBoundary>}
 
           {!isPlayerView && !isMapLoading && (
             <PanelBoundary name="the scene switcher">
@@ -289,7 +307,7 @@ export const UIRoot: React.FC<UIRootProps> = ({ app, view, pixiApp }) => {
           {!isPlayerView && <PanelBoundary name="the dungeon generator"><DungeonGeneratorOverlay /></PanelBoundary>}
 
           {/* Dice Roll Log - left side panel */}
-          <PanelBoundary name="the dice log"><DiceRollLog isOpen={isDiceLogOpen} onClose={() => setDiceLogOpen(false)} /></PanelBoundary>
+          <PanelBoundary name="the table log"><DiceRollLog isOpen={isDiceLogOpen} onClose={() => setDiceLogOpen(false)} /></PanelBoundary>
 
           {/* Initiative Tracker - only for DM view */}
           {!isPlayerView && <PanelBoundary name="the initiative tracker"><InitiativeTracker /></PanelBoundary>}
@@ -300,6 +318,7 @@ export const UIRoot: React.FC<UIRootProps> = ({ app, view, pixiApp }) => {
           {!isPlayerView && <PanelBoundary name="the players' glass"><GlassChip view={view} /></PanelBoundary>}
           {!isPlayerView && <PanelBoundary name="the light settings"><LightPopoverHost /><LightZonePopoverHost /><LevelSurfacePopoverHost /></PanelBoundary>}
           {!isPlayerView && <PanelBoundary name="the selection bar"><SelectionBarHost /></PanelBoundary>}
+          {!isPlayerView && <PanelBoundary name="the selection's actions"><SelectionActionsBarHost /></PanelBoundary>}
           {!isPlayerView && <PanelBoundary name="the measurement's settings"><MeasurePopoverHost /></PanelBoundary>}
 
           {/* Player Character Sheet - REMOVED: Players should only edit via their character sheet file */}

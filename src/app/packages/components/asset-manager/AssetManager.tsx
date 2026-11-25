@@ -38,11 +38,15 @@ import { showDungeonGenerator } from '../dungeon-generator/openDungeonGenerator'
 import { runInBackground } from '../../../utils/backgroundTask';
 import { TabSwitcher } from './components/TabSwitcher';
 import { CompendiumPane } from './compendium/CompendiumPane';
+import { MapPickContext } from './mapPick';
 
-export default function AssetManager({ isOpen: isOpenProp, onClose, initialTab, onExitComplete }: AssetManagerProps): React.JSX.Element {
+/** What a window opened to choose a map does instead of editing: nothing. */
+const IGNORE = (): void => {};
+
+export default function AssetManager({ isOpen: isOpenProp, onClose, initialTab, onExitComplete, pick }: AssetManagerProps): React.JSX.Element {
   const isOpen = useOpenedAfterPress(isOpenProp);
   const [search, setSearch] = useState('');
-  const [activeTab, setActiveTab] = useState<Tab>('tokens');
+  const [activeTab, setActiveTab] = useState<Tab>(pick ? 'maps' : 'tokens');
   // The compendium takes the place of the library while it is open; the asset type stays as it was.
   const [compendiumOpen, setCompendiumOpen] = useState(false);
   const [compendiumDialogOpen, setCompendiumDialogOpen] = useState(false);
@@ -65,13 +69,15 @@ export default function AssetManager({ isOpen: isOpenProp, onClose, initialTab, 
 
   // Another tab or collection renders the whole window again: as a transition, in slices between frames.
   const changeTab = useCallback((tab: Tab): void => {
+    // Choosing a map keeps to the Maps tab, whatever key or control asks for another.
+    if (pick) return;
     setCompendiumOpen(false);
     if (tab === activeTab) return;
     startTransition(() => {
       setActiveTab(tab);
       sel.resetForTab();
     });
-  }, [activeTab, sel.resetForTab]);
+  }, [activeTab, sel.resetForTab, pick]);
 
   const openCompendium = useCallback((): void => {
     setCompendiumOpen(true);
@@ -79,7 +85,7 @@ export default function AssetManager({ isOpen: isOpenProp, onClose, initialTab, 
   }, [sel.resetForTab]);
 
   const memory = useRememberedPlace({
-    isOpen, initialTab, data, sel,
+    isOpen, initialTab: pick ? 'maps' : initialTab, data, sel, remember: !pick,
     place: { collection: selectedCollection, tab: activeTab, search, collapsedSections },
     apply: (place) => {
       setActiveTab(place.tab);
@@ -128,6 +134,8 @@ export default function AssetManager({ isOpen: isOpenProp, onClose, initialTab, 
 
   const { handleAssetContextMenu, handleAssetDelete, handleFolderContextMenu, handleContentContextMenu } =
     useContextMenus({ data, sel, crud, tags, statblock, selectedCollection, activeTab, onClose, openCollection: reveal.inCollection });
+  // Choosing a map edits nothing: no menus, no moves, no deletes.
+  const editing = pick ? null : { handleAssetContextMenu, handleAssetDelete, handleFolderContextMenu, handleContentContextMenu, setDraggedItems };
 
   useAssetManagerEffects({
     isOpen, onClose,
@@ -147,12 +155,12 @@ export default function AssetManager({ isOpen: isOpenProp, onClose, initialTab, 
   };
   const starterOffer = useStarterOfferDismissal(data.app, data.collections.find((option) => option.id === selectedCollection)?.uid);
 
-  const emptyAction = (
+  const emptyAction = pick ? null : (
     <EmptyTabAction tab={shown.tab} app={data.app} assetService={data.assetService} collection={selectedCollection} onCreate={onCreate} onShowMaps={() => changeTab('maps')} />
   );
 
   return (
-    <>
+    <MapPickContext.Provider value={pick ?? null}>
       <AssetManagerWindow isOpen={isOpen} onClose={onClose} onExitComplete={onExitComplete} overlayRef={overlayRef}>
         <div
           className={`atlas-asset-manager-container ${sidebar.isFloating && !compendiumOpen ? 'atlas-sidebar-floating' : ''}`}
@@ -177,11 +185,13 @@ export default function AssetManager({ isOpen: isOpenProp, onClose, initialTab, 
             collections={data.collections}
             selectedCollection={selectedCollection}
             onSelectCollection={changeCollection}
-            onManageTags={() => tags.setIsTagManagerOpen(true)}
-            onEditCollectionSettings={crud.setSettingsModalCollectionId}
-            onExportCollection={() => { void crud.handleExportCollection(); }}
-            onImportCollection={crud.handleImportCollection}
-            footer={activeTab === 'tokens' && data.assetService && data.assets.length > 0 ? <BestiaryTokensOffer app={data.app} assets={data.assetService} collection={selectedCollection} variant="sidebar" dismissed={starterOffer.dismissed} {...(starterOffer.dismiss && { onDismiss: starterOffer.dismiss })} /> : null}
+            {...(!pick && { onManageTags: () => tags.setIsTagManagerOpen(true) })}
+            {...(!pick && {
+              onEditCollectionSettings: crud.setSettingsModalCollectionId,
+              onExportCollection: () => { void crud.handleExportCollection(); },
+              onImportCollection: crud.handleImportCollection,
+            })}
+            footer={!pick && activeTab === 'tokens' && data.assetService && data.assets.length > 0 ? <BestiaryTokensOffer app={data.app} assets={data.assetService} collection={selectedCollection} variant="sidebar" dismissed={starterOffer.dismissed} {...(starterOffer.dismiss && { onDismiss: starterOffer.dismiss })} /> : null}
             layout={sidebar}
           />
           <Header
@@ -206,12 +216,12 @@ export default function AssetManager({ isOpen: isOpenProp, onClose, initialTab, 
             sidebarToggleLabel={sidebar.toggleLabel}
             onToggleSidebar={sidebar.toggle}
             sel={sel}
-            onOpenCompendium={openCompendium}
+            {...(pick ? { pick } : { onOpenCompendium: openCompendium })}
           />
           <div
             className="atlas-asset-manager-body"
-            onDragOver={(e) => { if (draggedItems && sel.selectedFolderId === null) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; } }}
-            onDrop={(e) => { if (draggedItems && sel.selectedFolderId === null) { e.preventDefault(); crud.handleDrop(null); } }}
+            onDragOver={(e) => { if (!pick && draggedItems && sel.selectedFolderId === null) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; } }}
+            onDrop={(e) => { if (!pick && draggedItems && sel.selectedFolderId === null) { e.preventDefault(); crud.handleDrop(null); } }}
           >
             <ActiveFilterBar groups={filterSearch.chips} onReset={filterSearch.reset} />
             {/* A filtered list holds the matches of every folder, so the location reads as the tab's root while it shows. */}
@@ -242,19 +252,20 @@ export default function AssetManager({ isOpen: isOpenProp, onClose, initialTab, 
                   scrollKey={`${shown.collection ?? 'default'}/${shown.tab}/${shown.folderId ?? ''}?${shown.refinement}`}
                   scrollMemory={memory}
                   onAssetSelect={sel.handleAssetSelect}
-                  onAssetContextMenu={handleAssetContextMenu}
-                  onAssetDelete={handleAssetDelete}
+                  onAssetContextMenu={editing?.handleAssetContextMenu ?? IGNORE}
+                  onAssetDelete={editing?.handleAssetDelete ?? IGNORE}
                   onLinkStatblock={statblock.openStatblockLinkModal}
                   onFolderSelection={sel.handleFolderSelection}
-                  onFolderContextMenu={handleFolderContextMenu}
+                  onFolderContextMenu={editing?.handleFolderContextMenu ?? IGNORE}
                   onFolderDoubleClick={sel.handleFolderDoubleClick}
-                  onContentContextMenu={handleContentContextMenu}
+                  onContentContextMenu={editing?.handleContentContextMenu ?? IGNORE}
                   onClearSelection={sel.handleClearSelection}
+                  onSelectAll={sel.handleSelectAll}
                   onClose={onClose}
                   collapsedSections={collapsedSections}
                   setCollapsedSections={setCollapsedSections}
                   draggedItems={draggedItems}
-                  setDraggedItems={setDraggedItems}
+                  setDraggedItems={editing?.setDraggedItems ?? IGNORE}
                   dropTarget={dropTarget}
                   setDropTarget={setDropTarget}
                   onDrop={crud.handleDrop}
@@ -274,9 +285,9 @@ export default function AssetManager({ isOpen: isOpenProp, onClose, initialTab, 
         </div>
       </AssetManagerWindow>
 
-      <AssetManagerTours isOpen={isOpen && !compendiumOpen} settings={settings} crud={crud} tags={tags} statblock={statblock} onShowMaps={() => changeTab('maps')} />
+      {!pick && <AssetManagerTours isOpen={isOpen && !compendiumOpen} settings={settings} crud={crud} tags={tags} statblock={statblock} onShowMaps={() => changeTab('maps')} />}
 
-      <ModalLayer
+      {!pick && <ModalLayer
         isOpen={isOpen}
         activeTab={activeTab}
         selectedCollection={selectedCollection}
@@ -286,7 +297,7 @@ export default function AssetManager({ isOpen: isOpenProp, onClose, initialTab, 
         crud={crud}
         tags={tags}
         statblock={statblock}
-      />
-    </>
+      />}
+    </MapPickContext.Provider>
   );
 }

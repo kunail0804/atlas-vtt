@@ -4,6 +4,7 @@ import type { CollectionMetadata, EncounterAsset as StoredEncounterAsset } from 
 import { ATLAS_NATIVE_MODAL_CLASSES } from '../../../ui/nativeModal';
 import { t } from '../../../i18n';
 import { createAtlasButton } from '../../../ui/atlasButton';
+import type { MapPick } from './mapPick';
 
 // ─── Tab / View Constants ───────────────────────────────────────────
 
@@ -142,6 +143,8 @@ export interface AssetManagerProps {
   initialTab?: Tab;
   /** Called once the closing animation has finished. */
   onExitComplete?: () => void;
+  /** Opens the window to choose one map instead of the library (`MapPick`). */
+  pick?: MapPick;
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────

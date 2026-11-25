@@ -5,6 +5,8 @@ import type { PixelRect } from '../../src/app/pixi/mosaicCanvas/pyramid';
 /** A map image for grid tests: `show` swaps the image (or takes it off) and tells the listeners, as `MosaicCanvas.load` does. */
 export interface FakeMapImageView extends MosaicCanvasView {
   show(rect: PixelRect | null): void;
+  /** Draws the same image at `rect` (`MosaicCanvas.setStretch`: a floor moved, another stretch). */
+  place(rect: PixelRect): void;
 }
 
 export interface FakeMapImageOptions {
@@ -39,6 +41,10 @@ export function fakeMapImageView(width: number, height: number, options: FakeMap
     show(rect): void {
       worldRect = rect;
       for (const listener of [...listeners]) listener('image');
+    },
+    place(rect): void {
+      worldRect = rect;
+      for (const listener of [...listeners]) listener('placement');
     },
   };
 }

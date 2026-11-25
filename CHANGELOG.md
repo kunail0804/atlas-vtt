@@ -2,13 +2,162 @@
 
 <!-- Generated from changelog/*.md. Run npm run changelog:generate. -->
 
-## 0.17.0 — Documentation and the dice tray
+## 0.19.0 — Music packs and Stream Deck
+
+2026-11-22
+
+### New
+
+**Music packs**
+- Atlas now ships with an optional, premium music collection of over 28 hours, 365 free, beautiful fantasy tracks by Swedish artist Vindsvept on the Sound page, in ten packs sorted by mood 
+- For streaming credits: You can copy a credit line from the Sound entry in Obsidian's Atlas settings
+
+**Native Atlas Stream Deck Support**
+- start or end combat, hide or reveal the local player view, switch the shared scene, play moods, pause, skip and change volume all directly from your stream deck 
+- hover your mouse over any image in obsidian and click the stream deck button to share the handout with players. clicking again will dismiss it. works with Atlas Online and the local player view
+- Configure under Settings → Stream Deck
+
+**Downloads**
+- a button at the bottom of the Sound page shows your downloads and lets you cancel or retry them
+
+### Improved
+
+- Improved performance for download of starter ambience pack
+- Improved performance of sound page with many tracks
+- You can hide the starter ambience and starter music offers
+- Sort the Sound library by name or length by clicking a column heading
+- Smoother dragging for initiative tracker entries
+- The dice tray only offers advantage and disadvantage where the collection's dice rules support it
+- When combatants act by sides, drag a side's heading to choose who goes first
+- Ranges from the measure tool now show in the player view and to online players
+
+### Fixed
+
+- Long translations no longer overlap in rows of buttons
+- Clicking a hex linked to a note works again when a drawing covers the hex
+- Clicking the map while a light's panel is open now only closes the panel
+- FLAC files no longer fail to import on the Sound page
+- Values written with `adv` or `dis` (`+7 adv`) now work in statblocks, references, sums and saved rolls
+- "Combat has started" and "Combat has ended" now show in the middle of the player view when the initiative list is vertical
+- The initiative list shows a fade at the bottom when there is more to scroll
+- Forget explored areas now forgets every floor of a scene
+- Sharing to the Armarium no longer fails when the server has a short hiccup
+- Fitting the grid of a moved floor no longer turns the map black
+- Position floor on a hex grid no longer jumps a row at the map's edge
+
+### Atlas Online
+
+- Players can roll and edit values written with `adv` or `dis`, in the dice tray and on the character sheet
+- The character sheet shows statblock text formatted as in Obsidian: bold, links, no raw HTML
+- Improved performance of lit scenes on Windows hybrid graphics laptops
+- The laser dot no longer stays on the map after a player lifts their finger on a phone or tablet
+- Pinch-zooming the world map in Safari on a Mac is now smooth
+- Numbers with a reference (`@dex.mod`) on the character sheet show their value
+- New modern/sci-fi theme available for Atlas Online
+
+
+Thanks to my Patreon supporters Aaron, Aaron W Scott, Aiden Hatcher, Andrew, Anna B. Meyer, basilisk, Bradley Bell, Carl Corneil, Chris Del Gigante, Daniel Mensinga, Daria Ambrose, Deus Ex Minima, Dewwww, Dom Bosco, Eskil Bolsøy, George Young, Giodude, Hannes Pingel, Ionazh, Jake kulig, Josh Zindler, Joshua Herrin, Kevin Hait, Krangal, LittleBlueShyGuy, Markus Baumann, Michael Breuer, MrEhm, Nick, Pau Benazet Montobbio, SamDark, Scaradeus, ShonkyMapCo, Tim, Tim Roddick-Hull, Tobias Redlich, Voider Elf, Xethgnur, z-lf and Zack Samuels. You mean everything to me :heart:
+
+Help me develop Atlas: https://www.patreon.com/cw/atlas_vtt
+
+## 0.18.0 — Initiative, dice and seven languages
+
+2026-11-21
+
+### New
+
+
+**Initiative Improvements** (contributed by ThatMattLatt)
+- Party tab in collection settings: add your players to the tracker without tokens
+- Add enemy adds a generic combatant without a token
+- Reset initiative clears numbers and conditions and keeps the combatants
+- Compact view for the tracker
+- Players' list as a column or a row (Horizontal initiative), and mirrored for both tables sides
+- Turn banners for the start and end of a fight
+- Player view settings for list size and maximum cards shown
+
+**Dice**
+- Click dice in your notes (2d6+3, d20, +4) to roll them in Atlas. Contributed by young-george
+- Write adv or dis after a roll to roll it with advantage or disadvantage (1d20+5 adv), also in statblocks (Stealth +5 adv)
+- Saved rolls: save a roll under a name and roll it with one click
+- Edit the tray's dice row: reorder, remove, add any die and pin saved rolls
+- Saved rolls can have their own dice look and rules, as in the Dice Lab
+- Saved rolls and the dice row belong to the collection
+- Atlas Online players will see the same pinned dice as the DM
+
+**Sound**
+- Loop points for music, set from the waveform or the library menu. Contributed by ThatMattLatt
+- Crossfade and start-at-loop buttons for each track. Contributed by ThatMattLatt
+- Hover the waveform to see the time
+- New Hotkey: S to open the soundboard directly and again to close it
+  
+**Position floor**
+- Drag a floor over the one below to line up maps of different sizes
+- Tokens, walls and lights move with the floor
+
+**Tokens**
+- Small and Tiny token sizes. Contributed by Jackson98Tomphson
+- Shift-drag a token to turn it towards the pointer
+- Kept measurements can follow a token (Follows token in their menu)
+
+**Armarium**
+- Share and install single statblock templates, game systems and dice sets
+- Share or export them from their menus
+- A shared template's page shows its statblock card, filled with sample values
+- My uploads shows everything you shared and whether a new version is still processing
+
+**Translations**
+- Atlas is now available in German, French, Spanish, Portuguese, Italian, Russian and Chinese. Italian contributed by Jackson98Tomphson
+
+**General**
+- Hold down shift while dragging a token to rotate it
+- New setting to only show toolbar on hover, in Customize toolbar
+- Initiative by sides can roll once at the start of a fight. Contributed by iviaxpow3r
+- Quests can be hidden from players. Contributed by young-george
+- Forget explored areas is now in the command palette. Contributed by CatapultTV
+
+### Improved
+
+- Redesigned Initiative Tracker with support for the Atlas VTT obsidian theme
+- Improved animations for measurements
+- Hold M and drag to measure without changing your equipped tool
+- Kept cones, squares and lines have a rotate handle. Contributed by aryistia
+- Condition badges grow with the token
+- Token height shows only on hover or selection
+- Images shown to players appear even while map is hidden on local player view
+- Dice labels cover whole brackets: (1d10+12)[necrotic]
+- The DM screen can show only the player characters' statblocks: pick Players beside This fight and All
+
+### Fixed
+
+- On Windows, converting linked music now moves the originals to the trash when you chose that
+- The asset manager sidebar shows the Armarium's tags while the Armarium is open
+- Roll results show only after the dice land in the log
+- Improved long track length display in the sounds view
+
+### Atlas Online
+
+- The character sheet shows every value a table works out (a 5E sheet's Save beside its Mod), and each one rolls
+- Rolls from the character sheet show the token's portrait, also for players with several tokens
+- Tokens that have to wait for their turn show a not-allowed pointer
+- Fixed issue where the page went black when the GM changed a statblock with counters
+- Fixed issue where text fields on the character sheet didn't grow with their text in older Safari
+
+
+Thanks to my Patreon supporters Aaron, Aaron W Scott, Aiden Hatcher, Andrew, Anna B. Meyer, basilisk, Bradley Bell, Carl Corneil, Chris Del Gigante, Daniel Mensinga, Daria Ambrose, Deus Ex Minima, Dewwww, Dom Bosco, Eskil Bolsøy, George Young, Giodude, Hannes Pingel, Ionazh, Jake kulig, Josh Zindler, Joshua Herrin, Kevin Hait, Krangal, LittleBlueShyGuy, Markus Baumann, Michael Breuer, MrEhm, Nick, Pau Benazet Montobbio, SamDark, Scaradeus, ShonkyMapCo, Tim, Tim Roddick-Hull, Tobias Redlich, Voider Elf, Xethgnur, z-lf and Zack Samuels. You mean everything to me :heart:
+
+Help me develop Atlas: https://www.patreon.com/cw/atlas_vtt
+
+## 0.17.0 — Armarium, documentation and the dice tray
 
 2026-11-18
 
 ### New
 
-**New Feature: Documentation directly within Atlas**
+**New Feature: Armarium and Documentation directly within Atlas**
+- Browse the Armarium right inside the asset manager: choose the shop icon at the end of the tabs, or Armarium in the command palette
+- Install a collection with one click. The import review shows what's included before anything is added
+- Share your own collections in the Armarium without leaving Atlas
 - Read the documentation inside Atlas: choose Documentation in the command palette
 
 **Updated: Dice tray**
@@ -673,7 +822,7 @@ Help me develop Atlas: https://www.patreon.com/cw/atlas_vtt
 ### Fixed
 
 - A collection's cover and the thumbnails of small images are saved as WebP, as their file names say, and an export no longer carries one that is a PNG or JPEG under a WebP name
-- Fixed a bug where too small cover images of exported collections weren't converted to .webp correctly
+- Fixed a bug where too small cover images of exported collections weren't converted to .webp correctly as expected by the Armarium parser
 - Fixed a bug where modifier rolls in FS statblock tables weren't clickable
 
 ## 0.7.0 — Huge sharp maps, gliding tokens and a lighting quality setting

@@ -129,8 +129,8 @@ export function useAssetManagerEffects({
         crud.setEditingToken(null);
       }
     };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    document.addEventListener('pointerdown', handler);
+    return () => document.removeEventListener('pointerdown', handler);
   }, [isOpen, onClose, isAnySubModalOpen]);
 
   useEffect(() => {
