@@ -1,6 +1,7 @@
-import { CURSOR_REST_MS, GM_MARKS, playerTone, type SharedCursor } from '../protocol/index.ts';
+import { CURSOR_REST_MS, type SharedCursor } from '../protocol/index.ts';
 import { getDomHost } from '../../host/dom';
 import { PointerTrack, type TrackPoint } from './PointerTrack.ts';
+import { colourClass } from './tableColours.ts';
 
 /** Where the world is on screen: the map's camera, in CSS pixels of the layer. */
 export interface CursorCamera {
@@ -33,9 +34,6 @@ interface Cursor {
   /** The transform last written, so a cursor at rest writes nothing. */
   transform: string;
 }
-
-/** The colour class of a cursor (`_player-colours.scss`). */
-const colourClass = (who: string): string => `atlas-online-colour-${who === GM_MARKS ? 'gm' : String(playerTone(who))}`;
 
 /** The places a cursor's message adds: those it passed, then the pointer where it is not the last of them. */
 function placesOf(cursor: SharedCursor, newest: TrackPoint | null): TrackPoint[] {

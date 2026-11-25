@@ -22,3 +22,10 @@
 .atlas-online-colour-3,
 .atlas-online-colour-4 { --atlas-online-player-ink: #1b1b1b; }
 .atlas-online-colour-gm { --atlas-online-player-ink: var(--text-on-accent); }
+
+// What a player's colour is read through where it is drawn on a canvas (`tableColourOf`), never shown.
+.atlas-online-colour-probe {
+  position: absolute;
+  display: none;
+  color: var(--atlas-online-player);
+}

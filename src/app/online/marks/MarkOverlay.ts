@@ -6,6 +6,7 @@ import { RemoteDrags, type RemoteDrag } from './RemoteDrags.ts';
 import { RemoteLasers, type RemoteLaser } from './RemoteLasers.ts';
 import { RemoteMeasures, type LayBodies, type MeasureRules, type RemoteMeasure } from './RemoteMeasures.ts';
 import { RemoteStrokes } from './RemoteStrokes.ts';
+import { tableColourOf } from './tableColours.ts';
 
 /** Marks to draw: lasers and measurements, each by its sender, and the rulers of drags made elsewhere. */
 export interface Marks {
@@ -131,7 +132,8 @@ export class MarkOverlay {
       const world = new Container({ sortableChildren: true });
       app.stage.addChild(world);
       this.lasers = new RemoteLasers(app.renderer, () => this.zoom, MARKS_INTERVAL_MS);
-      this.measures = new RemoteMeasures({ zoom: () => this.zoom, rules: this.rules, interval: MARKS_INTERVAL_MS, gmOutlines: true });
+      const doc = host.canvas.ownerDocument;
+      this.measures = new RemoteMeasures({ zoom: () => this.zoom, rules: this.rules, interval: MARKS_INTERVAL_MS, gmOutlines: true, senderColour: (who) => tableColourOf(who, doc) });
       this.drags = new RemoteDrags(() => this.zoom, this.rules);
       const strokeLayer = new Container({ label: 'remote-strokes' });
       this.strokes = new RemoteStrokes({ layer: () => strokeLayer, zoom: () => this.zoom, interval: MARKS_INTERVAL_MS });
