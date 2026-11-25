@@ -81,8 +81,8 @@ export function showWallMenu(context: LightingMenuContext, worldX: number, world
 
   if (segment?.type === 'solid') {
     entries.push(
-      { type: 'item', label: t('wall.placeDoor'), icon: 'door-open', onClick: () => context.doors.start(segment.id, 'door', at) },
-      { type: 'item', label: t('wall.placeSecretDoor'), icon: 'lock', onClick: () => context.doors.start(segment.id, 'secret-door', at) },
+      { type: 'item', label: t('wall.placeDoor'), icon: 'door-open', onClick: () => context.doors.place(segment.id, 'door', at) },
+      { type: 'item', label: t('wall.placeSecretDoor'), icon: 'lock', onClick: () => context.doors.place(segment.id, 'secret-door', at) },
     );
   }
 

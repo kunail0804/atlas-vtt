@@ -1,10 +1,9 @@
 import { Graphics } from 'pixi.js';
-import type { Point } from '../../types/visionTypes';
 import { drawDashedLine } from './wallKindLook';
 
 export const VERTEX_HANDLE_RADIUS = 4;
 
-/** What the wall editor shows before it is placed: the next wall of a chain, a freehand stroke, a door sliding along its wall. */
+/** What the wall editor shows before it is placed: the next wall of a chain, a freehand stroke. */
 export class WallPreview {
   readonly graphics = new Graphics();
 
@@ -13,9 +12,6 @@ export class WallPreview {
   private cursor: { x: number; y: number } | null = null;
   /** The preview's cursor end lies on a wall's end. */
   private joined = false;
-
-  /** Door placement preview state */
-  private door: { from: Point; to: Point; doorType: string } | null = null;
 
   /** Freeform drawing preview path */
   private stroke: Array<{ x: number; y: number }> = [];
@@ -95,52 +91,6 @@ export class WallPreview {
     const last = this.stroke[this.stroke.length - 1]!;
     g.circle(last.x, last.y, VERTEX_HANDLE_RADIUS);
     g.stroke({ width: 1.5, color: 0xffffff, alpha: 0.7 });
-  }
-
-  /** Show the door a click places, from `from` to `to`, sliding along its wall. */
-  showDoor(from: Point, to: Point, doorType: string): void {
-    this.door = { from, to, doorType };
-    this.drawDoor();
-  }
-
-  clearDoor(): void {
-    this.door = null;
-    this.graphics.clear();
-  }
-
-  private drawDoor(): void {
-    this.graphics.clear();
-    if (!this.door) return;
-
-    const { from, to, doorType } = this.door;
-    const g = this.graphics;
-    const dx = to.x - from.x;
-    const dy = to.y - from.y;
-    const len = Math.sqrt(dx * dx + dy * dy);
-    const midX = (from.x + to.x) / 2;
-    const midY = (from.y + to.y) / 2;
-
-    const color = doorType === 'secret-door' ? 0xff8844 : 0x44aaff;
-
-    // Door segment preview line
-    g.moveTo(from.x, from.y);
-    g.lineTo(to.x, to.y);
-    g.stroke({ width: 4, color, alpha: 0.8 });
-
-    // Door leaf preview at the midpoint, turned across the wall. Graphics.setTransform does not
-    // move drawing commands in PIXI 8, so the corners are rotated by hand.
-    const along = { x: dx / (len || 1), y: dy / (len || 1) };
-    const across = { x: -along.y, y: along.x };
-    const corner = (u: number, v: number): number[] => [midX + along.x * u + across.x * v, midY + along.y * u + across.y * v];
-    g.poly([...corner(-10, -8), ...corner(10, -8), ...corner(10, 8), ...corner(-10, 8)]);
-    g.fill({ color, alpha: 0.6 });
-    g.stroke({ width: 1.5, color: 0xffffff, alpha: 0.8 });
-
-    // Endpoint markers
-    g.circle(from.x, from.y, 3);
-    g.fill({ color: 0xffffff, alpha: 0.8 });
-    g.circle(to.x, to.y, 3);
-    g.fill({ color: 0xffffff, alpha: 0.8 });
   }
 
   private drawLine(): void {
