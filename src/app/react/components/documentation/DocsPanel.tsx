@@ -34,7 +34,7 @@ export function DocsWindow(): React.ReactElement {
 
 /**
  * The panel's page leaves as soon as the panel starts to close: it runs in a process of its own, and the closing
- * motion over it dropped most of the frames (as over the Armarium, `ArmariumPane`).
+ * motion over it dropped most of the frames.
  */
 function DocsPanel(): React.ReactElement {
   const { view } = useAtlasUI();

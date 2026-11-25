@@ -8,6 +8,7 @@ export const itemBundle: Translation = {
   'itemBundle.builtIn': 'Ce qui est intégré à Atlas se trouve déjà dans chaque coffre, il n\'est donc pas partagé.',
   'itemBundle.missing': 'Ceci n\'est plus dans votre coffre.',
   'itemBundle.unreadable': 'Impossible de lire ce modèle.',
+  'itemBundle.exportItem': 'Exporter…',
   'itemBundle.exported': '{name} enregistré sous {file}.',
   'itemBundle.exportFailed': 'Échec de l\'export : {reason}',
 };

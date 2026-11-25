@@ -9,6 +9,7 @@ export const itemBundle = {
   'itemBundle.builtIn': 'What is built into Atlas is in every vault already, so it is not shared.',
   'itemBundle.missing': 'This is no longer in your vault.',
   'itemBundle.unreadable': 'This template could not be read.',
+  'itemBundle.exportItem': 'Export…',
   'itemBundle.exported': 'Saved {name} as {file}.',
   'itemBundle.exportFailed': 'Exporting failed: {reason}',
 } as const satisfies Record<string, Message>;

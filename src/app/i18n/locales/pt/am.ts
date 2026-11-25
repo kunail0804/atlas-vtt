@@ -101,7 +101,6 @@ export const am: Translation = {
   'am.sidebar.searchTagsPlaceholder': 'Buscar tags…',
   'am.sidebar.noMatchingTags': 'Nenhuma tag corresponde',
   'am.sidebar.noTags': 'Nenhuma tag ainda',
-  'am.sidebar.noStoreTags': 'O Armarium não mostra tags aqui',
   'am.sidebar.manage': 'Gerenciar',
   'am.bestiary.get': 'Obter tokens iniciais',
   'am.bestiary.offer': { one: 'Obter {count} token grátis', other: 'Obter {count} tokens grátis' },

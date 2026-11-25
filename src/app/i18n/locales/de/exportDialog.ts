@@ -12,7 +12,6 @@ export const exportDialog: Translation = {
   'exportDialog.fromAuthor': ' von {author}',
   'exportDialog.includeHint': 'Wähle mindestens ein Element zum Exportieren aus',
   'exportDialog.includeOne': 'Wähle mindestens ein Element aus.',
-  'exportDialog.tooLargeToShare': 'Diese Auswahl ist {size} groß; das Armarium nimmt bis zu {limit}. Lass einige Elemente weg oder teile die Sammlung in zwei.',
   'exportDialog.missing': { one: '{count} referenzierte Datei fehlt und wird nicht aufgenommen:', other: '{count} referenzierte Dateien fehlen und werden nicht aufgenommen:' },
   'exportDialog.name': 'Name',
   'exportDialog.notes': 'Versionshinweise',
@@ -23,10 +22,5 @@ export const exportDialog: Translation = {
   'exportDialog.sameVersion': 'Gleich wie deine letzte Veröffentlichung. Wer v{version} installiert hat, sieht eine geänderte Kopie davon.',
   'exportDialog.version': 'Version',
   'exportDialog.versionInvalid': 'Die Version muss eine ganze Zahl von mindestens {min} sein.',
-  'exportDialog.shareInArmarium': 'Im Armarium teilen',
-  'exportDialog.shareIntro': 'Wähle, was das Armarium teilt. Atlas packt die Sammlung und lädt sie hoch; nichts wird als Datei gespeichert, und die Veröffentlichung wird hier erst festgehalten, wenn sie veröffentlicht ist.',
-  'exportDialog.uploadVersion': 'v{version} hochladen',
-  'exportDialog.uploadHint': 'Sammlung packen und ins Armarium hochladen',
-  'exportDialog.closeShareHint': 'Ohne Teilen schließen',
   'exportDialog.zipHint': 'Sammlung als .zip-Datei speichern, die du an andere weitergeben kannst',
 };

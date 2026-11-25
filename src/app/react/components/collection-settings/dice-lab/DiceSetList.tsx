@@ -9,7 +9,7 @@ import { scrollWithin } from '../../../../utils/scrollWithin';
 import { t } from '../../../../i18n';
 import { ActionsMenuButton } from '../../../../packages/components/shared/ActionsMenuButton';
 import { AtlasUIContext } from '../../../root/AtlasUIContext';
-import { itemShareEntries } from '../../../../armarium/share/openItemShare';
+import { itemExportEntries } from '../../../../services/itemBundle/itemExportEntry';
 
 interface DiceSetListProps {
   sets: readonly DiceSet[];
@@ -58,15 +58,14 @@ function moveFocus(event: React.KeyboardEvent<HTMLElement>): void {
 
 /**
  * The vault's dice sets in the lab's sidebar: built-in sets first, each with
- * a lock, then the vault's own, whose menu shares them in the Armarium or
- * exports them as a file. A row's actions show while it is hovered, focused
+ * a lock, then the vault's own, whose menu exports them as a file. A row's actions show while it is hovered, focused
  * or open; deleting asks a second press.
  */
 export function DiceSetList(props: DiceSetListProps): React.ReactElement {
   const { sets, selectedId, newSetName, canEdit, onSelect, onCreate, onDuplicate, onDelete } = props;
   const [confirming, setConfirming] = useState<string | null>(null);
   const list = useRef<HTMLUListElement>(null);
-  // Outside Atlas' UI (no app to share with) a set offers no Share or Export.
+  // Outside Atlas' UI (no app to export with) a set offers no Export.
   const app = useContext(AtlasUIContext)?.app ?? null;
 
   // The open set stays in view: a new set, a copy just made, the set the lab opened on
@@ -126,7 +125,7 @@ export function DiceSetList(props: DiceSetListProps): React.ReactElement {
                     </LabelTooltip>
                   )}
                   {shared && (
-                    <ActionsMenuButton label={t('diceLab.moreFor', { name: set.name })} entries={itemShareEntries(app, { kind: 'dice-set', id: set.id, name: set.name })} className="atlas-dice-lab__icon-btn" />
+                    <ActionsMenuButton label={t('diceLab.moreFor', { name: set.name })} entries={itemExportEntries(app, { kind: 'dice-set', id: set.id })} className="atlas-dice-lab__icon-btn" />
                   )}
                   {canEdit && !set.builtIn && (
                     <LabelTooltip label={asking ? t('diceLab.confirmDelete', { name: set.name }) : t('diceLab.deleteSet', { name: set.name })}>

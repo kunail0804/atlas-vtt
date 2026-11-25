@@ -8,6 +8,7 @@ export const itemBundle: Translation = {
   'itemBundle.builtIn': 'Atlas 内置的内容每个仓库都已具备，因此不会分享。',
   'itemBundle.missing': '它已不在你的仓库中。',
   'itemBundle.unreadable': '无法读取此模板。',
+  'itemBundle.exportItem': '导出…',
   'itemBundle.exported': '已将 {name} 保存为 {file}。',
   'itemBundle.exportFailed': '导出失败：{reason}',
 };

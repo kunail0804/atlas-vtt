@@ -101,7 +101,6 @@ export const am: Translation = {
   'am.sidebar.searchTagsPlaceholder': 'Rechercher des étiquettes…',
   'am.sidebar.noMatchingTags': 'Aucune étiquette correspondante',
   'am.sidebar.noTags': 'Aucune étiquette pour l\'instant',
-  'am.sidebar.noStoreTags': 'L\'Armarium n\'affiche aucune étiquette ici',
   'am.sidebar.manage': 'Gérer',
   'am.bestiary.get': 'Obtenir les jetons de départ',
   'am.bestiary.offer': { one: 'Obtenir {count} jeton gratuit', other: 'Obtenir {count} jetons gratuits' },

@@ -1,7 +1,7 @@
 /**
  * SystemTab — Choose the collection's game system from the vault's presets,
  * or save its current rules as a preset of your own, which its menu also
- * shares in the Armarium or exports as a file.
+ * exports as a file.
  */
 
 import React, { useContext, useState } from 'react';
@@ -18,7 +18,7 @@ import { PresetNameInput } from './PresetNameInput';
 import { SystemPresetRow } from './SystemPresetRow';
 import { t } from '../../../i18n';
 import { AtlasUIContext } from '../../root/AtlasUIContext';
-import { itemShareEntries } from '../../../armarium/share/openItemShare';
+import { itemExportEntries } from '../../../services/itemBundle/itemExportEntry';
 
 interface SystemTabProps {
   service: SystemPresetService;
@@ -45,7 +45,7 @@ export function SystemTab({
   service, presets, rules, presetId, onApplyPreset, onPresetIdChange, onDeletePreset, none,
 }: SystemTabProps): React.ReactElement {
   const [pending, setPending] = useState<PendingEdit | null>(null);
-  // Outside Atlas' UI (no app to share with) the menu offers no Share or Export.
+  // Outside Atlas' UI (no app to export with) the menu offers no Export.
   const app = useContext(AtlasUIContext)?.app ?? null;
   const hasNone = none?.isActive === true;
   const active = hasNone ? undefined : findActivePreset(presets, presetId, rules);
@@ -73,7 +73,7 @@ export function SystemTab({
       ? [{ type: 'item' as const, label: t('csm.system.saveChanges'), icon: 'save', onClick: () => service.update(preset.id, rules) }]
       : []),
     { type: 'item', label: t('common.rename'), icon: 'pencil', onClick: () => setPending({ kind: 'rename', presetId: preset.id }) },
-    ...(app === null ? [] : itemShareEntries(app, { kind: 'system-preset', id: preset.id, name: preset.name })),
+    ...(app === null ? [] : itemExportEntries(app, { kind: 'system-preset', id: preset.id })),
     { type: 'item', label: t('common.delete'), icon: 'trash-2', destructive: true, onClick: () => setPending({ kind: 'delete', presetId: preset.id }) },
   ];
 

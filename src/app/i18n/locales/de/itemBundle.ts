@@ -8,6 +8,7 @@ export const itemBundle: Translation = {
   'itemBundle.builtIn': 'Was in Atlas integriert ist, gibt es schon in jedem Tresor, daher wird es nicht geteilt.',
   'itemBundle.missing': 'Das ist nicht mehr in deinem Tresor.',
   'itemBundle.unreadable': 'Diese Vorlage konnte nicht gelesen werden.',
+  'itemBundle.exportItem': 'Exportieren…',
   'itemBundle.exported': '{name} als {file} gespeichert.',
   'itemBundle.exportFailed': 'Export fehlgeschlagen: {reason}',
 };

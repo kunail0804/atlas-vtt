@@ -236,7 +236,6 @@ export const am: Translation = {
   'am.menu.encounterBeside': '加入先攻但不放置',
   'am.besidePartial': '已把「{name}」中的 {count} / {expected} 个参战者加入先攻（部分缺少图片）',
   'am.beside': { other: '已把「{name}」中的 {count} 个参战者加入先攻' },
-  'am.sidebar.noStoreTags': 'Armarium 在这里不显示标签',
   'am.bestiary.get': '获取入门指示物',
   'am.bestiary.offer': { other: '获取 {count} 个免费指示物' },
   'am.bestiary.lead': '从免费指示物开始，或者添加你自己的。',

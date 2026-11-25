@@ -8,6 +8,7 @@ export const itemBundle: Translation = {
   'itemBundle.builtIn': 'Lo que viene integrado en Atlas ya está en todas las bóvedas, así que no se comparte.',
   'itemBundle.missing': 'Esto ya no está en tu bóveda.',
   'itemBundle.unreadable': 'No se pudo leer esta plantilla.',
+  'itemBundle.exportItem': 'Exportar…',
   'itemBundle.exported': '{name} se guardó como {file}.',
   'itemBundle.exportFailed': 'Falló la exportación: {reason}',
 };

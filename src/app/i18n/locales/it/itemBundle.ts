@@ -8,6 +8,7 @@ export const itemBundle: Translation = {
   'itemBundle.builtIn': 'Ciò che è incluso in Atlas è già in ogni vault, quindi non viene condiviso.',
   'itemBundle.missing': 'Non è più nel tuo vault.',
   'itemBundle.unreadable': 'Impossibile leggere questo modello.',
+  'itemBundle.exportItem': 'Esporta…',
   'itemBundle.exported': '{name} salvato come {file}.',
   'itemBundle.exportFailed': 'Esportazione non riuscita: {reason}',
 };

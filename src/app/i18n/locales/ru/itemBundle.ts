@@ -8,6 +8,7 @@ export const itemBundle: Translation = {
   'itemBundle.builtIn': 'Встроенное в Atlas уже есть в каждом хранилище, поэтому им не делятся.',
   'itemBundle.missing': 'Этого больше нет в хранилище.',
   'itemBundle.unreadable': 'Не удалось прочитать этот шаблон.',
+  'itemBundle.exportItem': 'Экспортировать…',
   'itemBundle.exported': '{name} — сохранено в {file}.',
   'itemBundle.exportFailed': 'Не удалось экспортировать: {reason}',
 };

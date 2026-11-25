@@ -2,7 +2,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { App, TFile } from 'obsidian';
 import { BUILT_IN_SYSTEM_PRESETS } from '../../../src/app/gameSystems/builtInPresets';
-import { installedListings } from '../../../src/app/armarium/installedListings';
 import type { AssetService } from '../../../src/app/services/AssetService';
 import { templateFingerprint } from '../../../src/app/services/collectionBundle/fingerprints';
 import { DICE_SET_FOLDER, DiceSetFiles } from '../../../src/app/services/diceSets/DiceSetFiles';
@@ -237,11 +236,6 @@ describe('installing an item', () => {
     expect(json(vault, MARSH_PATH)).toMatchObject({ armarium: { version: 1 } });
   });
 
-  it('refuses an Armarium download that names another listing', async () => {
-    const vault = await vaultWith();
-    await expect(openBundleImport(vault.app, {} as AssetService, new Blob([await bundleOf(await creatorVault())]), undefined, { listingUid: 'feedfacefeedfacefeedfacefeedface' })).rejects.toThrow();
-  });
-
   it('drops provenance a bundle carries in its dice set, and writes none for it', async () => {
     const vault = await vaultWith();
     await (await install(vault, await bundleOf(await creatorVault()))).apply();
@@ -289,14 +283,11 @@ describe('installing an item', () => {
     expect(SystemPresetFiles.forApp(vault.app)!.entries().find((entry) => entry.id === 'marsh-preset')).toMatchObject({ name: 'Marsh II', armarium: { version: 2 } });
   });
 
-  it('installs a dice set on its own and tells the Armarium which version the vault holds', async () => {
+  it('installs a dice set on its own', async () => {
     const creator = await creatorVault();
     const vault = await vaultWith();
     await (await install(vault, await bundleOf(creator, { kind: 'dice-set', id: 'boons' }, 4))).apply();
     expect(DiceSetFiles.forApp(vault.app)!.entries()[0]).toMatchObject({ id: 'boons', armarium: { uid: UID, version: 4 } });
-    const assets = { getCollections: async () => [] } as unknown as AssetService;
-    expect(await installedListings(vault.app, assets, new Set([UID, 'other-listing-uid']))).toEqual([{ uid: UID, version: 4 }]);
-    expect(await installedListings(vault.app, assets, new Set(['other-listing-uid']))).toEqual([]);
   });
 });
 

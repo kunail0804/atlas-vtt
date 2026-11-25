@@ -241,7 +241,6 @@ export const am: Translation = {
   'am.card.animated': 'Анимированная карта',
   'am.card.mapKind': 'Карта',
   'am.pick.choose': 'Выбрать',
-  'am.sidebar.noStoreTags': 'Armarium не показывает здесь меток',
   'am.bestiary.get': 'Получить стартовые токены',
   'am.bestiary.offer': { one: 'Получить {count} бесплатный токен', few: 'Получить {count} бесплатных токена', many: 'Получить {count} бесплатных токенов', other: 'Получить {count} бесплатного токена' },
   'am.bestiary.lead': 'Начните с бесплатных токенов или добавьте свои.',

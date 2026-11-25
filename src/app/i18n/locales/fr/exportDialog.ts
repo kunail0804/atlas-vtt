@@ -12,7 +12,6 @@ export const exportDialog: Translation = {
   'exportDialog.fromAuthor': ' de {author}',
   'exportDialog.includeHint': 'Incluez au moins un élément à exporter',
   'exportDialog.includeOne': 'Incluez au moins un élément.',
-  'exportDialog.tooLargeToShare': 'Cette sélection pèse {size} ; l\'Armarium accepte jusqu\'à {limit}. Laissez de côté quelques éléments, ou partagez la collection en deux.',
   'exportDialog.missing': { one: '{count} fichier référencé est introuvable et ne sera pas inclus :', other: '{count} fichiers référencés sont introuvables et ne seront pas inclus :' },
   'exportDialog.name': 'Nom',
   'exportDialog.notes': 'Notes de version',
@@ -23,10 +22,5 @@ export const exportDialog: Translation = {
   'exportDialog.sameVersion': 'Identique à votre dernière version publiée. Les personnes qui ont installé la v{version} en verront une copie modifiée.',
   'exportDialog.version': 'Version',
   'exportDialog.versionInvalid': 'La version doit être un nombre entier d\'au moins {min}.',
-  'exportDialog.shareInArmarium': 'Partager dans l\'Armarium',
-  'exportDialog.shareIntro': 'Choisissez ce que l\'Armarium partage. Atlas empaquette la collection et l\'envoie ; rien n\'est enregistré comme fichier, et la version publiée n\'est notée ici qu\'une fois publiée.',
-  'exportDialog.uploadVersion': 'Envoyer la v{version}',
-  'exportDialog.uploadHint': 'Empaqueter la collection et l\'envoyer à l\'Armarium',
-  'exportDialog.closeShareHint': 'Fermer sans partager',
   'exportDialog.zipHint': 'Enregistrer la collection dans un fichier .zip à donner à d\'autres',
 };

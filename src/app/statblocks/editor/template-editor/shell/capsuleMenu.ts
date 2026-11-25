@@ -23,7 +23,7 @@ export interface CapsuleMenuInput {
   diceRolls?: (() => void) | undefined;
   /** Copies a note's text in as the text new statblocks start with ("Start from a note…"); unset while read-only. */
   startFromNote?: (() => void) | undefined;
-  /** Share in the Armarium and Export…; unset where the template has no file of the vault's own to share. */
+  /** Export…; unset where the template has no file of the vault's own to export. */
   share?: readonly ContextMenuEntry[] | undefined;
   /** Unset where the template has no file to delete (a built-in, a template never saved). */
   deleteTemplate?: (() => void) | undefined;

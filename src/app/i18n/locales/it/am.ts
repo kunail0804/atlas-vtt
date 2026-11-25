@@ -258,7 +258,6 @@ export const am = {
   "am.sidebar.export": "Esporta collezione…",
   "am.sidebar.import": "Importa collezione…",
   "am.sidebar.settings": "Impostazioni della collezione…",
-  "am.sidebar.noStoreTags": "L’Armarium non mostra etichette qui",
   "am.header.selectAll": "Seleziona tutto",
   "am.header.generateDungeon": "Crea dungeon…",
   "am.header.createEncounter": "Crea incontro…",
