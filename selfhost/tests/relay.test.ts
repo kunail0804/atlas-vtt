@@ -136,6 +136,27 @@ describe('the relay with the plugin as GM', () => {
     await until(() => after.frame('welcome') !== undefined, 'new code admits');
   });
 
+  it('closes the first page as replaced when a second page of the same browser takes the seat with its key', async () => {
+    const { code } = await table();
+    const mira = player(code, { name: 'Mira' });
+    await until(() => mira.frame('welcome') !== undefined, 'welcome');
+    const { id, key } = mira.frame('welcome') as { id: string; key: string };
+    const tab = player(code, { name: 'Mira', key, resume: true });
+    await until(() => tab.frame('welcome') !== undefined, 'second tab seated');
+    expect(tab.frame('welcome')?.id).toBe(id);
+    await until(() => mira.closeCode !== null, 'first tab closed');
+    expect(mira.closeCode).toBe(CLOSE.replaced);
+  });
+
+  it('turns away a page that comes back on a key that seats nobody, without asking the GM or checking a code', async () => {
+    const { code, gm } = await table({ code: '483912', ask: true });
+    const back = player(code, { name: 'Mira', key: 'a'.repeat(43), resume: true });
+    await until(() => back.closeCode !== null, 'unknown key closed');
+    expect(back.closeCode).toBe(CLOSE.unknownKey);
+    expect(back.frame('waiting')).toBeUndefined();
+    expect(gm.knocks).toEqual([]);
+  });
+
   it('kicks a player, who cannot come back with their key', async () => {
     const { code, gm } = await table();
     const mira = player(code, { name: 'Mira' });
@@ -201,7 +222,8 @@ describe('the relay with the plugin as GM', () => {
     expect(welcome.id).toBe(id);
     expect(welcome.key).not.toBe(key);
     await until(() => ana.closeCode !== null, 'first page replaced');
-    expect(ana.closeCode).toBe(CLOSE.replaced);
+    // Not "another tab": the seat went to another browser, with the GM's agreement.
+    expect(ana.closeCode).toBe(CLOSE.movedAway);
     // The key of the first browser seats nobody now.
     const stale = player(code, { name: 'Ana', key });
     await until(() => stale.frame('waiting') !== undefined || stale.frame('welcome') !== undefined || stale.closeCode !== null, 'old key answered');
@@ -301,7 +323,7 @@ describe('the relay with the plugin as GM', () => {
     await until(() => back.frame('welcome') !== undefined, 'admitted page seated');
     expect(back.frame('welcome')?.id).toBe(id);
     await until(() => thief.closeCode !== null, 'old key put off the seat');
-    expect(thief.closeCode).toBe(CLOSE.replaced);
+    expect(thief.closeCode).toBe(CLOSE.movedAway);
     // The page put off the seat does not take the player who now sits in it off the GM's table.
     back.send({ t: 'ping-gm' });
     await until(() => gm.messages.some((message) => message.from === id), 'the seated page reaches the GM');

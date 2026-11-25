@@ -15,9 +15,12 @@ export interface Stage {
   readonly pins: Container;
 }
 
+/** The page's background: what shows where there is no map. */
+export const PAGE_BACKGROUND = 0x101114;
+
 export async function createStage(host: HTMLElement): Promise<Stage> {
   const app = new Application();
-  await app.init({ resizeTo: host, background: '#101114', antialias: true, autoDensity: true, resolution: window.devicePixelRatio });
+  await app.init({ resizeTo: host, background: PAGE_BACKGROUND, antialias: true, autoDensity: true, resolution: window.devicePixelRatio });
   host.appendChild(app.canvas);
   const viewport = new Viewport({ screenWidth: host.clientWidth, screenHeight: host.clientHeight, events: app.renderer.events });
   viewport.drag().pinch().wheel().decelerate();

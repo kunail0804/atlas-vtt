@@ -129,13 +129,11 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the compendium pag
     await page.waitForSelector('.cpd-list');
     expect(await page.locator('.cpd-entry').allTextContents()).toEqual(['Goblin']);
 
-    // A reload is the same place: the relay seats her there again, with the same pages, whatever name she types.
+    // A reload is the same place: the page takes the seat back by itself, and the relay seats her there again, with the same pages.
     await page.reload();
     // The table tells the pages a player left, as it does every part of the table.
     await until(() => gm.left.includes(anaId), 'left', 10_000);
     share.playerLeft(anaId);
-    await page.fill('.join-input >> nth=0', 'Ana (tablette)');
-    await page.click('.join-button');
     await until(() => gm.joined.length === 2, 'seated again', 10_000);
     expect(gm.joined[1]?.id).toBe(anaId);
     share.playerJoined(anaId);

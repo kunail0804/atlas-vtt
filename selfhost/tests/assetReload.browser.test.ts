@@ -35,10 +35,13 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('a reload of the pl
   let fetched = 0;
   const requests = (): number => fetched;
 
-  async function joinAndShow(map: AssetRef): Promise<string> {
+  /** `typed`: the player fills the join screen; a reload takes the seat the browser keeps back by itself. */
+  async function joinAndShow(map: AssetRef, typed = false): Promise<string> {
     const seated = gm.joined.length;
-    await page.fill('.join-input >> nth=0', 'Mira');
-    await page.click('.join-button');
+    if (typed) {
+      await page.fill('.join-input >> nth=0', 'Mira');
+      await page.click('.join-button');
+    }
     await until(() => gm.joined.length > seated, 'player seated', 10_000);
     const player = gm.joined.at(-1)?.id ?? '';
     gm.connection.send({ t: 'scene', scene: { id: 's1', map, lit: false } } as GmMessage, player);
@@ -59,7 +62,7 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('a reload of the pl
     const url = `http://127.0.0.1:${test.relay.publicPort}/#${created.code}`;
 
     await page.goto(url);
-    await joinAndShow(map);
+    await joinAndShow(map, true);
     await until(() => requests() === 1, 'map fetched', 10_000);
     await mapShown();
     await page.waitForFunction((hash) => (localStorage.getItem('atlas-vtt:asset-cache-v1') ?? '').includes(hash), map.hash, { timeout: 5_000 });

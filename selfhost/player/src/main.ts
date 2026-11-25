@@ -9,7 +9,7 @@ import type { AdvantageSide } from '../../../src/app/online/protocol/dice.ts';
 import { TABLE_CODE_PATTERN } from '../../../src/app/online/protocol/relay.ts';
 import { AssetLoader } from './assets.ts';
 import { AssetCache } from './assetCache.ts';
-import { PlayerConnection, type ConnectionEvent, type JoinRequest } from './connection.ts';
+import { PlayerConnection, keptSeat, type ConnectionEvent, type JoinRequest } from './connection.ts';
 import { installBrowserDomHost } from './domHost.ts';
 import { GameInbox } from './inbox.ts';
 import { LogPanel } from './logPanel.ts';
@@ -59,7 +59,8 @@ async function main(): Promise<void> {
   }
 
   const status = new StatusLine(app);
-  let request: JoinRequest = await askToJoin(app, null);
+  // A reload takes the seat this browser keeps back at once; only a page without one asks.
+  let request: JoinRequest = keptSeat(table) ?? await askToJoin(app, null);
   const canvasHost = document.createElement('div');
   canvasHost.className = 'canvas';
   app.prepend(canvasHost);

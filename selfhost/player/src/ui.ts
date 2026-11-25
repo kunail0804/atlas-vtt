@@ -15,6 +15,8 @@ const CLOSE_TEXT: Readonly<Record<number, string>> = {
   [CLOSE.ended]: 'Cette table est terminée. Demande un nouveau lien au MJ.',
   [CLOSE.superseded]: 'Cette table est terminée. Demande un nouveau lien au MJ.',
   [CLOSE.replaced]: 'Cette table est ouverte dans un autre onglet.',
+  [CLOSE.movedAway]: 'Ta place a été reprise depuis un autre navigateur ou appareil, avec l\'accord du MJ.',
+  [CLOSE.unknownKey]: 'Ta place n\'est plus gardée sur ce navigateur : entre à nouveau.',
   [CLOSE.version]: 'Cette page n\'est plus à jour : recharge-la.',
   [CLOSE.rateLimited]: 'Trop de messages envoyés d\'un coup.',
   [CLOSE.protocol]: 'Erreur de communication avec la table.',

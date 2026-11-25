@@ -56,13 +56,20 @@ export const CLOSE = {
   noAccess: 4015,
   /** The table ended because its account started another table. */
   superseded: 4016,
+  /**
+   * The GM gave this page's seat to its player on another browser or device, who asked for it back
+   * there. `replaced` is a second page that took the seat with this page's own key: another tab.
+   */
+  movedAway: 4017,
+  /** A hello that `resume`d on a key that seats nobody (any more). */
+  unknownKey: 4018,
 } as const;
 
 /** The close codes of the join gates: the player's page stops and says why; only a new try by the player connects again. */
 export const GATE_CLOSE_CODES: readonly number[] = [CLOSE.wrongCode, CLOSE.paused, CLOSE.declined, CLOSE.noAnswer, CLOSE.tooManyKnocks];
 
 /** Close codes after which a client gives up instead of reconnecting. */
-export const FINAL_CLOSE_CODES: readonly number[] = [CLOSE.badSecret, CLOSE.version, CLOSE.ended, CLOSE.replaced, CLOSE.kicked, CLOSE.noAccess, CLOSE.superseded, ...GATE_CLOSE_CODES];
+export const FINAL_CLOSE_CODES: readonly number[] = [CLOSE.badSecret, CLOSE.version, CLOSE.ended, CLOSE.replaced, CLOSE.kicked, CLOSE.noAccess, CLOSE.superseded, CLOSE.movedAway, CLOSE.unknownKey, ...GATE_CLOSE_CODES];
 
 /** A player as the GM knows them: the relay's id and the name they gave, shown as text only. */
 export interface PlayerInfo {
@@ -91,6 +98,8 @@ export interface KnockInfo extends PlayerInfo {
  * `acks`: the page answers frames marked `ack` with `ack`, so the relay sends paced and bulk frames
  * only as fast as they arrive; a page from before acks gets them at once.
  * `newcomer`: the page holds no code and is new here.
+ * `resume`: the page comes back on the key it keeps without the player asking (a reload): a key
+ * that seats nobody closes it with `CLOSE.unknownKey` instead of passing the gate or asking the GM.
  */
 export interface PlayerHello {
   readonly v: 1;
@@ -103,6 +112,7 @@ export interface PlayerHello {
   readonly wait?: string;
   readonly acks?: true;
   readonly newcomer?: true;
+  readonly resume?: true;
 }
 
 /** A GM's hello; `level`: what its Atlas serves (`GM_LEVEL`), a GM from before levels names none and serves level 1. */
@@ -234,6 +244,7 @@ export function parseClientFrame(text: string): ClientFrame | null {
     ...(value.waits === true ? { waits: true as const } : {}), ...(value.wait === undefined ? {} : { wait: value.wait }),
     ...(value.acks === true ? { acks: true as const } : {}),
     ...(value.newcomer === true ? { newcomer: true as const } : {}),
+    ...(value.resume === true ? { resume: true as const } : {}),
   };
 }
 
