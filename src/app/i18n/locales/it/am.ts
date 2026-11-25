@@ -1,22 +1,6 @@
 import type { Translation } from '../../types';
 
 export const am = {
-  'am.bestiary.get': 'Scarica i token iniziali',
-  'am.bestiary.offer': { one: 'Scarica {count} token gratuito', other: 'Scarica {count} token gratuiti' },
-  'am.bestiary.lead': 'Inizia con i token gratuiti oppure aggiungi i tuoi.',
-  'am.bestiary.fine': 'Illustrazioni di Oozejar e Sketch Studio · {size} MB',
-  'am.bestiary.optionNone': 'Solo token',
-  'am.bestiary.optionNoneHint': 'Senza statblock',
-  'am.bestiary.optionFiveE': '5E',
-  'am.bestiary.optionFiveEHint': 'Con {count} statblock dell’SRD 5.2.1',
-  'am.bestiary.optionCairn': 'Cairn',
-  'am.bestiary.optionCairnHint': 'Con {count} statblock dal bestiario di Cairn',
-  'am.bestiary.confirm': 'Scarica · {size} MB',
-  'am.bestiary.size': '{size} MB',
-  'am.bestiary.label': { one: 'Scarica {count} token gratuito, {size} MB', other: 'Scarica {count} token gratuiti, {size} MB' },
-  'am.bestiary.downloading': 'Download in corso…',
-  'am.bestiary.added': { one: 'Aggiunto {count} token a {collection}, organizzato per tag.', other: 'Aggiunti {count} token a {collection}, organizzati per tag.' },
-  'am.bestiary.failed': 'Impossibile scaricare i token iniziali. Controlla la connessione e riprova.',
   "am.folder.confirmDelete": "Vuoi eliminare la cartella \"{name}\"?",
   "am.folder.contains": {
     "one": "Questa cartella contiene {count} risorsa. Verrà spostata nella cartella superiore.",
@@ -121,7 +105,6 @@ export const am = {
   "am.sidebar.noMatchingTags": "Nessuna etichetta corrispondente",
   "am.sidebar.noTags": "Ancora nessuna etichetta",
   "am.sidebar.manage": "Gestisci",
-  "am.bestiary.statblocks": "Statblock",
   "am.header.forward": "Avanti",
   "am.header.selected": "selezionati",
   "am.header.newFolder": "Crea cartella…",
@@ -231,8 +214,6 @@ export const am = {
   "am.manage.characterTags": "Etichette dei token",
   "am.manage.collections": "Collezioni"
 ,
-  "am.bestiary.hide": "Nascondi per questa collezione",
-  "am.bestiary.hidden": "Token iniziali nascosti per questa collezione",
   "am.folder.containsFolders": { one: "Contiene {count} cartella, che verrà spostata nella cartella superiore con tutto il suo contenuto.", other: "Contiene {count} cartelle, che verranno spostate nella cartella superiore con tutto il loro contenuto." },
   "am.folder.renameFailed": "Impossibile rinominare la cartella",
   "am.folder.createFailed": "Impossibile creare la cartella",

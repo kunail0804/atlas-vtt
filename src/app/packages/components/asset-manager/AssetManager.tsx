@@ -7,8 +7,6 @@ import type { AssetManagerProps, Tab } from './types';
 import { Header } from './components/Header';
 import type { HeaderMenuHandle } from './components/HeaderMenu';
 import { Sidebar } from './components/Sidebar';
-import { BestiaryTokensOffer } from './components/BestiaryTokensOffer';
-import { useStarterOfferDismissal } from './hooks/useStarterOfferDismissal';
 import { EmptyTabAction, type CreatableTab } from './components/EmptyTabAction';
 import { Content } from './components/Content';
 import { LocationBar } from './components/LocationBar';
@@ -153,10 +151,9 @@ export default function AssetManager({ isOpen: isOpenProp, onClose, initialTab, 
     maps: crud.handleCreateMap,
     encounters: () => crud.setIsEncounterBuilderOpen(true),
   };
-  const starterOffer = useStarterOfferDismissal(data.app, data.collections.find((option) => option.id === selectedCollection)?.uid);
 
   const emptyAction = pick ? null : (
-    <EmptyTabAction tab={shown.tab} app={data.app} assetService={data.assetService} collection={selectedCollection} onCreate={onCreate} onShowMaps={() => changeTab('maps')} />
+    <EmptyTabAction tab={shown.tab} onCreate={onCreate} onShowMaps={() => changeTab('maps')} />
   );
 
   return (
@@ -191,7 +188,6 @@ export default function AssetManager({ isOpen: isOpenProp, onClose, initialTab, 
               onExportCollection: () => { void crud.handleExportCollection(); },
               onImportCollection: crud.handleImportCollection,
             })}
-            footer={!pick && activeTab === 'tokens' && data.assetService && data.assets.length > 0 ? <BestiaryTokensOffer app={data.app} assets={data.assetService} collection={selectedCollection} variant="sidebar" dismissed={starterOffer.dismissed} {...(starterOffer.dismiss && { onDismiss: starterOffer.dismiss })} /> : null}
             layout={sidebar}
           />
           <Header

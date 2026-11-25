@@ -19,7 +19,6 @@ import { LibraryHead } from './LibraryHead';
 import { LibraryRail } from './LibraryRail';
 import { rowsWithTags, searchRows, shelfOf, type LibraryRow, type RootShelf } from './rowModel';
 import { LibraryRows } from './LibraryRows';
-import { MusicPacksButton, StarterPackButton } from './PackOffers';
 import { useHeldInMix, useLibraryVersion } from './useLibrary';
 import { useLibraryActions, type LibraryActions } from './useLibraryActions';
 import { useRowSort } from './useRowSort';
@@ -27,7 +26,7 @@ import { useRowSort } from './useRowSort';
 /** Keys the library never keeps: Tab opens and closes the DM screen, and Escape closes what is open once nothing here uses it. */
 const PASSES_THROUGH: ReadonlySet<string> = new Set(['Tab', 'Escape']);
 
-function NoLink({ library, actions }: { library: SoundLibrary; actions: LibraryActions }): React.JSX.Element {
+function NoLink({ actions }: { actions: LibraryActions }): React.JSX.Element {
   const { link: onLink, pickLoose: onImport } = actions;
   const winOf = (event: React.MouseEvent<HTMLElement>): Window => event.currentTarget.ownerDocument.defaultView ?? window;
   return (
@@ -41,8 +40,6 @@ function NoLink({ library, actions }: { library: SoundLibrary; actions: LibraryA
           <Button type="button" className="atlas-sound-lib__btn" variant="secondary" onClick={(event) => onLink('ambience', winOf(event))}>{t('audio.library.linkAmbience')}</Button>
         </div>
         <div className="atlas-sound-lib__nolink-row">
-          <MusicPacksButton library={library} className="atlas-sound-lib__btn" />
-          <StarterPackButton library={library} actions={actions} className="atlas-sound-lib__btn" />
           <Button type="button" className="atlas-sound-lib__btn atlas-sound-lib__btn--quiet" variant="ghost" onClick={(event) => onImport(event.currentTarget.ownerDocument)}>{t('audio.library.importInstead')}</Button>
         </div>
       </div>
@@ -171,7 +168,7 @@ export function LibraryView({ query, onQuery: setQuery, railSlot }: LibraryViewP
   if (noRoots) {
     return (
       <div className="atlas-sound-lib" ref={root} onKeyDown={keep}>
-        <NoLink library={library} actions={actions} />
+        <NoLink actions={actions} />
       </div>
     );
   }

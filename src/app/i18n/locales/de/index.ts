@@ -53,7 +53,6 @@ import { issue } from './issue';
 import { itemBundle } from './itemBundle';
 import { itemReview } from './itemReview';
 import { laser } from './laser';
-import { downloads } from './downloads';
 import { levels } from './levels';
 import { light } from './light';
 import { link } from './link';
@@ -181,7 +180,6 @@ export const de: Translation = {
   ...itemBundle,
   ...itemReview,
   ...laser,
-  ...downloads,
   ...levels,
   ...light,
   ...link,

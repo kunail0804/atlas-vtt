@@ -55,7 +55,7 @@ describe('Atlas in Italian', () => {
   });
 
   it('covers the translated settings, command palette, senses and initiative sections', () => {
-    const groups = ['palette.', 'graphics.', 'levels.', 'experimental.', 'diceSettings.', 'am.bestiary.', 'senses.', 'initiative.', 'settings.', 'audio.settings.', 'audio.output'];
+    const groups = ['palette.', 'graphics.', 'levels.', 'experimental.', 'diceSettings.', 'senses.', 'initiative.', 'settings.', 'audio.settings.', 'audio.output'];
     const missing = Object.keys(en).filter((key) => groups.some((group) => key.startsWith(group)) && !(key in italian));
     expect(missing).toEqual([]);
   });

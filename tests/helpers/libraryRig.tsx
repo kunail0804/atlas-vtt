@@ -7,7 +7,6 @@ import { AtlasUIContext, type AtlasUIContextValue } from '../../src/app/react/ro
 import { ContextMenuProvider } from '../../src/app/react/root/ContextMenuContext';
 import { ViewStoreProvider } from '../../src/app/react/ViewStoreContext';
 import { SettingsService, type PluginDataStore } from '../../src/app/services/SettingsService';
-import { DownloadManager } from '../../src/app/downloads/DownloadManager';
 import type { SoundKind } from '../../src/app/sound/soundTypes';
 import { SoundDirector } from '../../src/app/soundDirector/SoundDirector';
 import { MoodStore } from '../../src/app/soundLibrary/MoodStore';
@@ -115,7 +114,6 @@ export async function libraryRig(options: LibraryRigOptions = {}): Promise<Libra
     unmount: () => {
       act(() => root?.unmount());
       SoundLibrary.release(app);
-      DownloadManager.release(app);
       SoundDirector.release(app);
       MoodStore.release(app);
       SoundRecordStore.release(app);

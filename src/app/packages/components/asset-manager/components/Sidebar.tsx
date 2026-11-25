@@ -36,8 +36,6 @@ export interface SidebarProps {
   onEditCollectionSettings?: (collectionId: string) => void;
   onExportCollection?: () => void;
   onImportCollection?: () => void;
-  /** Stands above the Manage button: what the open tab offers to add (the bestiary tokens). */
-  footer?: React.ReactNode;
   /** Floating behaviour from `useSidebarLayout`; omitted, the sidebar is docked. */
   layout?: Pick<SidebarLayout, 'isFloating' | 'isPeeking' | 'isNearEdge' | 'panelRef'>;
 }
@@ -71,7 +69,6 @@ export function Sidebar({
   onEditCollectionSettings,
   onExportCollection,
   onImportCollection,
-  footer,
   layout,
 }: SidebarProps): React.JSX.Element {
   const [isTagsSearchVisible, setIsTagsSearchVisible] = useState(false);
@@ -186,8 +183,6 @@ export function Sidebar({
           </div>
 
           <div className="atlas-sidebar-spacer" />
-
-          {footer}
 
           {onManageTags && (
             <div className="atlas-sidebar-actions">

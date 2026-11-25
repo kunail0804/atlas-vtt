@@ -47,7 +47,6 @@ import { importReview } from './importReview';
 import { initiative } from './initiative';
 import { issue } from './issue';
 import { laser } from './laser';
-import { downloads } from './downloads';
 import { levels } from './levels';
 import { light } from './light';
 import { link } from './link';
@@ -177,7 +176,6 @@ export const it = {
   ...initiative,
   ...issue,
   ...laser,
-  ...downloads,
   ...levels,
   ...light,
   ...link,

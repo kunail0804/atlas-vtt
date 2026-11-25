@@ -69,12 +69,12 @@ $open-window: 'body.atlas-asset-manager-open > .atlas-portal-host';
       [role='combobox'],
       input:not([type='checkbox'], [type='radio'], [type='range']),
       select
-    ):not([role='checkbox'], [role='switch']:not(button), [role='slider'], .atlas-asset-card-more, .atlas-bestiary-offer__dismiss) {
+    ):not([role='checkbox'], [role='switch']:not(button), [role='slider'], .atlas-asset-card-more) {
       min-height: $touch-target;
     }
 
     // A button with an icon or a short word alone is as wide as it is tall.
-    :is(button, .btn):not([role='checkbox'], .atlas-asset-card-more, .atlas-bestiary-offer__dismiss) {
+    :is(button, .btn):not([role='checkbox'], .atlas-asset-card-more) {
       min-width: $touch-target;
     }
   }

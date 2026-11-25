@@ -12,10 +12,7 @@ import { useLoadingReveal } from '../../../../../packages/components/primitives/
 import { useStagedList } from '../useStagedList';
 import { cn } from '../../../../../../utils/cn';
 import { ConvertingLine } from './ConvertingLine';
-import { DownloadsButton } from './DownloadsButton';
-import { MusicPacksButton, StarterPackButton } from './PackOffers';
 import { useContextMenu } from '../../../../root/ContextMenuContext';
-import { useDownloadManager } from './useDownloads';
 import { AmbienceGlyph, MusicGlyph, TagGlyph } from './libraryGlyphs';
 import { rootMenu } from './rootMenu';
 import type { RootShelf } from './rowModel';
@@ -160,7 +157,6 @@ function RailTagsWaiting({ library, kind, found }: { library: SoundLibrary; kind
 function RailRoot({ library, actions, shelves, kind, selected, shown, onRoot, onTag }: Omit<RailProps, 'kind' | 'director'> & { kind: SoundKind; shown: boolean }): React.JSX.Element {
   const root = library.rootOf(kind);
   const menu = useContextMenu();
-  const downloads = useDownloadManager();
   const linked = isLinked(root);
   const label = t(kind === 'music' ? 'audio.music' : 'audio.ambience');
   const count = linked ? library.countOf(kind, '') : null;
@@ -187,7 +183,7 @@ function RailRoot({ library, actions, shelves, kind, selected, shown, onRoot, on
             onClick={(event) => {
               const box = event.currentTarget.getBoundingClientRect();
               const win = event.currentTarget.ownerDocument.defaultView ?? window;
-              menu.open(rootMenu(library, actions, kind, win, downloads), { x: box.left, y: box.bottom }, { returnFocus: event.currentTarget, label: t('audio.library.rootMenu', { name: label }) });
+              menu.open(rootMenu(library, actions, kind, win), { x: box.left, y: box.bottom }, { returnFocus: event.currentTarget, label: t('audio.library.rootMenu', { name: label }) });
             }}
           >
             <MoreHorizontal aria-hidden="true" />
@@ -202,21 +198,18 @@ function RailRoot({ library, actions, shelves, kind, selected, shown, onRoot, on
         <RailTag key={tag.key} actions={actions} kind={kind} name={tag.name} count={tag.count} selected={shown && selected.has(tag.key)} onTag={onTag} />
       ))}
       <RailTagsWaiting library={library} kind={kind} found={shelves[kind].tags.length} />
-      {kind === 'music' && <MusicPacksButton library={library} className="atlas-sound-lib__link" />}
-      {kind === 'ambience' && <StarterPackButton library={library} actions={actions} className="atlas-sound-lib__link" />}
     </section>
   );
 }
 
-/** Each root with its count and where it lies, and the tags of its tracks; under them, the downloads and how far converting has come. */
+/** Each root with its count and where it lies, and the tags of its tracks; under them, how far converting has come. */
 export function LibraryRail({ kind, director, ...props }: RailProps): React.JSX.Element {
   return (
     <nav className="atlas-sound-lib__rail" aria-label={t('audio.library.rail')}>
       <RailRoot {...props} kind="music" shown={kind === 'music'} />
       <RailRoot {...props} kind="ambience" shown={kind === 'ambience'} />
-      {/* Downloads and conversion share the foot; it is empty (and takes no room) while neither has anything to say. */}
+      {/* Conversion has the foot; it is empty (and takes no room) while it has nothing to say. */}
       <div className="atlas-sound-lib__foot">
-        <DownloadsButton />
         <ConvertingLine director={director} />
       </div>
     </nav>

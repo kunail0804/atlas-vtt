@@ -40,12 +40,13 @@ export interface AtlasSettings {
   starterTokensAdded: boolean;
   /**
    * Uids of the collections whose sidebar no longer offers the starter tokens: a uid outlives a rename of the
-   * collection's folder. Absent while none is hidden. Read with `isStarterOfferHidden`.
+   * collection's folder. Absent while none is hidden. Upstream's; this fork offers no download, so it is only kept
+   * as the file has it for devices on another version.
    */
   hiddenStarterOffers?: readonly string[] | undefined;
   /**
    * Ids of the Sound page's download offers the GM dismissed (`starter-ambience`, `starter-music`; ids never
-   * change). Absent while none is. Read with `isSoundOfferHidden`; the root's ⋯ menu still offers them.
+   * change). Absent while none is. Upstream's; kept as the file has it, like `hiddenStarterOffers`.
    */
   hiddenSoundOffers?: readonly string[] | undefined;
   /** A fact about this device, kept in its local storage and never in the plugin's data (`deviceSettings.ts`). */
