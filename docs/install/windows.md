@@ -198,7 +198,7 @@ invite link).
 
 ## Check that everything works
 
-- The top of the menu shows « Campagne en cours : <name>. »
+- The top of the menu shows `Campagne en cours : <name>.`
 - Docker Desktop's **Containers** list shows `atlas-campaign-<name>` as running.
 - Open `http://127.0.0.1:8787/api/me` in a browser on the same machine. The relay answers
   `{"error":"signed-out"}`, because the browser is not Obsidian. That answer shows that the relay runs. The
