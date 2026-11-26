@@ -203,10 +203,13 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('the player toolbar
     await page.mouse.down();
     await page.mouse.move(700 + 140 * scale, 450, { steps: 6 });
     await page.mouse.up();
-    await until(() => sentOf('measure').some((message) => (message.kept as unknown[]).length === 1), 'kept circle sent', 5_000);
-    const kept = sentOf('measure').at(-1) as { kept: { shape: string }[]; live: unknown };
-    expect(kept.live).toBeNull();
-    expect(kept.kept[0]?.shape).toBe('circle');
+    // Kept, it is the scene's: the page asks the GM to keep it (GM level 17) and keeps no list of its own.
+    await until(() => sentOf('measure-keep').length === 1, 'kept circle sent', 5_000);
+    const kept = sentOf('measure-keep')[0] as { measure: { shape: string; pts: number[] } };
+    expect(kept.measure.shape).toBe('circle');
+    expect(kept.measure.pts).toHaveLength(4);
+    expect((sentOf('measure').at(-1) as { kept: unknown[]; live: unknown }).live).toBeNull();
+    expect((sentOf('measure').at(-1) as { kept: unknown[] }).kept).toEqual([]);
 
     // The laser in the colour the player chose.
     await page.locator('.player-toolbar .atlas-tool-group .atlas-dropdown-trigger').nth(0).click();

@@ -171,7 +171,7 @@ export class BookPanel {
   }
 
   toggle(): void {
-    this.setOpen(this.panel.hidden);
+    this.setOpen(this.panel.hidden !== false);
   }
 
   private setOpen(open: boolean): void {

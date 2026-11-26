@@ -1,6 +1,6 @@
 import type React from 'react';
 import { useEffect, useRef } from 'react';
-import { isTextEntryTarget } from '../../../keyboard/textEntry';
+import { isNodeOf, isTextEntryTarget } from '../../../keyboard/textEntry';
 
 /** Keys the map's shortcuts also use: on a control of the tray they keep their native work and never reach the map. */
 const MAP_KEYS = new Set([' ', 'Enter', 'Delete', 'Backspace']);
@@ -24,11 +24,8 @@ interface TrayKeys {
 /** Parts of the tray whose controls keep Enter for themselves: a saved roll's editor, a choice's menu, the save form. */
 const OWNS_ENTER = '.atlas-dice-preset-editor, .atlas-ctx-menu, .atlas-dice-presets__form';
 
-/** Whether a key's target lies in one of `selector`, in any window (a popout's elements are not `instanceof` this one's). */
-const within = (target: EventTarget | null, selector: string): boolean => {
-  const node = target as Node | null;
-  return node?.instanceOf?.(Element) === true && node.closest(selector) !== null;
-};
+/** Whether a key's target lies in one of `selector`, in any window (`isNodeOf`). */
+const within = (target: EventTarget | null, selector: string): boolean => isNodeOf(target, Element) && target.closest(selector) !== null;
 
 /** Enter in a text field, or in a part that keeps it, is that control's own; anywhere else in the tray it rolls. */
 const ownsEnter = (target: EventTarget | null): boolean => isTextEntryTarget(target) || within(target, OWNS_ENTER);
@@ -57,7 +54,7 @@ export function useDiceTrayKeys(root: React.RefObject<HTMLElement | null>, keys:
       if (isTextEntryTarget(event.target)) return;
       event.preventDefault();
       const focused = doc.activeElement;
-      if (focused?.instanceOf(HTMLElement) && surface.contains(focused)) focused.blur();
+      if (isNodeOf(focused, HTMLElement) && surface.contains(focused)) focused.blur();
     };
     const onKeyDown = (event: KeyboardEvent): void => {
       if (event.key === 'Escape') {

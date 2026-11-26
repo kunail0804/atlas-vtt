@@ -1,12 +1,17 @@
 import type { Viewport } from 'pixi-viewport';
 import type { PlayerMessage } from '../../../src/app/online/protocol/game.ts';
-import { MARKS_INTERVAL_MS, MAX_KEPT, MAX_MARK_LASER_NUMBERS, type MarkPoint, type MarkShape, type MarksMessage, type MeasureState, type SharedCursor, type SharedMeasure } from '../../../src/app/online/protocol/marks.ts';
+import { GM_MARKS, MARKS_INTERVAL_MS, MAX_MARK_LASER_NUMBERS, type FullMeasure, type MarkPoint, type MarkShape, type MarksMessage, type MeasureState, type SharedCursor, type SharedMeasure } from '../../../src/app/online/protocol/marks.ts';
 import type { RulesMessage } from '../../../src/app/online/protocol/rules.ts';
 import type { LivePlace } from '../../../src/app/online/protocol/live.ts';
 import { CursorOverlay, CursorTap, MarkOverlay, PointerTap, tableColourOf, type MeasureRules, type RemoteDrag, type RemoteLaser, type RemoteMeasure } from '../../../src/app/online/marks/index.ts';
 import { formationGridFromOptions, snapTokenToGrid } from '../../../src/app/encounters/encounterFormation.ts';
 import type { OwnDrag } from './tokenLayer.ts';
 import type { PlayerTool, ToolSettingsStore } from './toolSettings.ts';
+
+/** A measurement of the page's tools as the GM keeps it: a line is a ruler from its start to its end. */
+function fullOf({ shape, a, b }: SharedMeasure): FullMeasure {
+  return { shape: shape === 'line' ? 'ruler' : shape, pts: [a[0], a[1], b[0], b[1]] };
+}
 
 /** The shape each measure tool draws, as the GM's (`MEASURE_SHAPES`). */
 const SHAPES: Partial<Record<PlayerTool, MarkShape>> = { measure: 'line', 'measure-circle': 'circle', 'measure-cone': 'cone' };
@@ -22,6 +27,9 @@ const DRAG_SILENCE_MS = 1_500;
  * this player's own drag is drawn here from the token under the pointer, snapped as the GM snaps it
  * (`dragRulerPaths`), and the GM's late echoes of it are left out (`TokenLayer.echoes`).
  * What the GM sends back of this player's marks is left out; they are drawn here at once.
+ * A measurement the player keeps is the scene's (GM level 17): the page asks the GM to keep it
+ * (`measure-keep`), and it comes back among the GM's own with this player as its keeper (`by`),
+ * who lets it go by the id it came with (`measure-drop`).
  */
 export class MarksView {
   private readonly viewport: Viewport;
@@ -37,10 +45,10 @@ export class MarksView {
   private accent = FALLBACK_ACCENT;
   private tool: PlayerTool = 'move';
   private readonly settings: ToolSettingsStore;
-  /** The measurements the player keeps on the map while "Persist Measurements" is on. */
-  private kept: SharedMeasure[] = [];
   private remoteLasers: readonly RemoteLaser[] = [];
   private remoteMeasures: readonly RemoteMeasure[] = [];
+  /** Everyone's measurements as last told, the GM's with those this player kept. */
+  private gmMeasures: readonly RemoteMeasure[] = [];
   private dragRulers: readonly RemoteDrag[] = [];
   /** The player's own drag under way and its token's size (1 is one cell), or null. */
   private own: { readonly drag: OwnDrag; readonly cells: number } | null = null;
@@ -57,7 +65,7 @@ export class MarksView {
     this.settings = settings;
     // Kept measurements go when the player stops keeping them, as the GM's do.
     settings.subscribe(() => {
-      if (!settings.get().measure.persist && this.kept.length > 0) this.clearKept();
+      if (!settings.get().measure.persist && this.keptIds().length > 0) this.clearKept();
     });
     this.canvas = canvas;
     this.send = send;
@@ -79,13 +87,19 @@ export class MarksView {
     else this.viewport.plugins.pause('drag');
   }
 
-  /** Takes every kept measurement off the map. */
+  /** Asks the GM to take every measurement this player kept off the map. */
   clearKept(): void {
-    this.kept = [];
-    this.ownMeasure = this.measureStart === null ? null : this.ownMeasure;
     const scene = this.scene();
-    if (scene !== null) this.send({ t: 'measure', scene, color: this.measureColour(), live: null, kept: [] });
-    this.draw();
+    const ids = this.keptIds();
+    if (scene !== null && ids.length > 0) this.send({ t: 'measure-drop', scene, ids });
+  }
+
+  /** The ids of the measurements the GM tells as this player's (`FullMeasure.by`). */
+  private keptIds(): string[] {
+    const self = this.self();
+    const gm = this.gmMeasures.find((measure) => measure.who === GM_MARKS);
+    if (self === null || gm?.full === undefined) return [];
+    return gm.full.kept.flatMap((measure) => (measure.by === self && measure.id !== undefined ? [measure.id] : []));
   }
 
   rules(message: RulesMessage): void {
@@ -110,6 +124,7 @@ export class MarksView {
     const self = this.self();
     this.remoteLasers = message.lasers.filter((laser) => laser.who !== self);
     this.remoteMeasures = message.measures.filter((measure) => measure.who !== self);
+    this.gmMeasures = message.measures;
     this.draw();
     const cursors: SharedCursor[] = (message.cursors ?? []).filter((cursor) => cursor.who !== self);
     this.cursors.show(cursors, { canvas: this.canvas, viewport: this.viewport });
@@ -138,11 +153,11 @@ export class MarksView {
   clear(): void {
     this.remoteLasers = [];
     this.remoteMeasures = [];
+    this.gmMeasures = [];
     this.dragRulers = [];
     this.own = null;
     window.clearTimeout(this.dragSilence);
     this.ownMeasure = null;
-    this.kept = [];
     this.measureStart = null;
     this.draw();
     this.cursors.clear();
@@ -151,7 +166,7 @@ export class MarksView {
   private draw(): void {
     const self = this.self() ?? 'me';
     const lasers = this.ownLaser === null ? this.remoteLasers : [...this.remoteLasers, this.ownLaser];
-    const own = this.ownMeasure ?? (this.kept.length > 0 ? { color: this.measureColour(), live: null, kept: this.kept } : null);
+    const own = this.ownMeasure;
     const measures = own === null ? this.remoteMeasures : [...this.remoteMeasures, { who: self, ...own }];
     const ownRuler = this.ownRuler();
     const drags = ownRuler === null ? this.dragRulers : [...this.dragRulers, ownRuler];
@@ -184,7 +199,7 @@ export class MarksView {
     const shape = SHAPES[this.tool];
     if (shape === undefined || button !== 0) return;
     this.measureStart = this.world(global);
-    this.ownMeasure = { color: this.measureColour(), live: { shape, a: this.measureStart, b: this.measureStart }, kept: this.kept };
+    this.ownMeasure = { color: this.measureColour(), live: { shape, a: this.measureStart, b: this.measureStart }, kept: [] };
   }
 
   private measureMove(global: { x: number; y: number }): void {
@@ -196,10 +211,13 @@ export class MarksView {
     if (this.measureStart === null) return;
     const live = this.ownMeasure?.live ?? null;
     this.measureStart = null;
-    // A measurement the player keeps stays on the map (the oldest goes past `MAX_KEPT`); a click without a drag keeps nothing.
-    if (live !== null && this.settings.get().measure.persist && (live.a[0] !== live.b[0] || live.a[1] !== live.b[1])) this.kept = [...this.kept, live].slice(-MAX_KEPT);
-    this.ownMeasure = { color: this.measureColour(), live: null, kept: this.kept };
+    this.ownMeasure = { color: this.measureColour(), live: null, kept: [] };
     this.sendMeasure();
+    // A measurement the player keeps the GM keeps in the scene (at most `MAX_KEPT` each); a click without a drag keeps nothing.
+    const scene = this.scene();
+    if (scene !== null && live !== null && this.settings.get().measure.persist && (live.a[0] !== live.b[0] || live.a[1] !== live.b[1])) {
+      this.send({ t: 'measure-keep', scene, measure: fullOf(live) });
+    }
     this.ownMeasure = null;
     this.draw();
   }
@@ -207,7 +225,7 @@ export class MarksView {
   private sendMeasure(): void {
     const scene = this.scene();
     if (scene === null || this.ownMeasure === null) return;
-    this.send({ t: 'measure', scene, color: this.ownMeasure.color, live: this.ownMeasure.live, kept: this.kept });
+    this.send({ t: 'measure', scene, color: this.ownMeasure.color, live: this.ownMeasure.live, kept: [] });
   }
 
   private sendCursor(at: MarkPoint | null, pts: readonly number[], span: number | undefined): void {

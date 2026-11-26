@@ -19,6 +19,7 @@ import { InitiativePanel } from './initiative.ts';
 import { AnnotationsView } from './annotations.ts';
 import { WidgetBar } from './widgets.ts';
 import { DiceView } from './dice.tsx';
+import { designedFormula, shelfOfSharedRow } from './diceRow.ts';
 import { BookPanel } from './book.ts';
 import { deviceKey } from './deviceKey.ts';
 import { Notice } from './notice.ts';
@@ -104,13 +105,13 @@ async function main(): Promise<void> {
   let toolbarState: ToolbarState = { advantage: ['advantage', 'disadvantage'], dice: null, book: false };
   const reader = new Reader(app, assets);
   /** A roll of the player's, from the dice tray or the sheet; false while no scene is shared to roll in. */
-  const rollAs = (formula: string, how: { readonly flavor?: string; readonly advantage?: AdvantageSide | null } = {}): boolean => {
+  const rollAs = (formula: string, how: { readonly flavor?: string; readonly advantage?: AdvantageSide | null; readonly preset?: string } = {}): boolean => {
     const shared = scene.sceneId;
     if (shared === null) {
       notices.show(TEXT.rolls.noScene);
       return false;
     }
-    send({ t: 'roll', scene: shared, formula, token: null, ...(how.flavor !== undefined && { flavor: how.flavor.slice(0, 80) }), ...(how.advantage != null && { advantage: how.advantage }) });
+    send({ t: 'roll', scene: shared, formula, token: null, ...(how.flavor !== undefined && { flavor: how.flavor.slice(0, 80) }), ...(how.advantage != null && { advantage: how.advantage }), ...(how.preset !== undefined && { preset: how.preset }) });
     return true;
   };
   const book = new BookPanel(app, assets, send, (text) => notices.show(text), (has) => {
@@ -139,6 +140,7 @@ async function main(): Promise<void> {
       },
       deleteMyDrawings: () => drawTools.deleteMine(),
       roll: (formula, advantage) => rollAs(formula, { advantage }),
+      rollPreset: (preset, advantage) => rollAs(designedFormula(preset), { advantage, preset: preset.id }),
       toggleChat: () => log.toggle(),
       toggleBook: () => book.toggle(),
     });
@@ -157,7 +159,8 @@ async function main(): Promise<void> {
       drawCell = message.draw?.cell ?? null;
       drawTools.rulesChanged();
       if (message.scene !== scene.sceneId) return;
-      toolbarState = { ...toolbarState, advantage: message.dice?.sides ?? ['advantage', 'disadvantage'], dice: message.dice?.dice ?? null };
+      toolbarState = { ...toolbarState, advantage: message.dice?.sides ?? ['advantage', 'disadvantage'], dice: message.dice?.dice ?? null,
+        shelf: message.diceRow === undefined ? undefined : shelfOfSharedRow(message.diceRow) };
       return bar?.update(toolbarState);
     }
     if (message.t === 'shown-image') return viewer.fromGm(message);
