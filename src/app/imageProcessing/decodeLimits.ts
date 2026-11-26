@@ -26,6 +26,18 @@ export const DECODER_MAX_SIDE = 65535;
 export const BAND_MAX_PIXELS = 1_000_000_000;
 /** `convertToBlob` silently crops a WebP's sides to this. */
 export const WEBP_MAX_SIDE = 16383;
+/**
+ * The most pixels a 2D canvas is given the GPU's raster for. Larger ones came back blank without an
+ * error on an RTX 5070 (ANGLE on OpenGL; from about 110 MP, 2026-11-24, #209): a map scaled down to a
+ * long side or an SVG drawn at map size was imported empty. Larger canvases are rastered by the CPU
+ * (`willReadFrequently`), slower but whole. Below this, scene maps are drawn on the GPU too.
+ */
+export const GPU_CANVAS_MAX_PIXELS = 64_000_000;
+
+/** The 2D context settings for a canvas of `size`: the CPU's raster past `GPU_CANVAS_MAX_PIXELS`. */
+export function canvasRaster(size: Size): CanvasRenderingContext2DSettings {
+  return { willReadFrequently: size.width * size.height > GPU_CANVAS_MAX_PIXELS };
+}
 
 /** DCT scaling decodes a JPEG at n eighths of its size. */
 const JPEG_SCALE_STEPS = 8;

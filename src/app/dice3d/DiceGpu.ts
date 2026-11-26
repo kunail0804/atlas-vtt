@@ -67,6 +67,9 @@ export class DiceGpu {
     this.reserve(width, height);
     this.renderer.setViewport(0, 0, width, height);
     this.renderer.render(scene, camera);
+    // Handed to the GPU before the copy reads it: on an RTX 5070 (ANGLE on OpenGL) the copy sometimes
+    // took the frame half drawn, a die missing over its shadow once another stage had drawn (#209).
+    this.renderer.getContext().flush();
     const out = target.canvas;
     target.clearRect(0, 0, out.width, out.height);
     target.drawImage(this.canvas, 0, this.size.height - height, width, height, 0, out.height - height, width, height);

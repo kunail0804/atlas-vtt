@@ -3,6 +3,7 @@ import { polyPath, polysPath } from '../../art/paths';
 import type { Vec } from '../../geometry';
 import type { GlyphPen } from '../../glyphPen';
 import type { GlyphFit } from '../../propShapes';
+import { isDarkColour } from '../../stone/colours';
 import { drawClump, glint, moundPart } from './cones';
 import { calcite, calciteGrain, facing, fillOutline, fillPolys, fineRuns, outlineRuns, splitByLight, type Face, type Finish } from './finish';
 import { COLUMN, MOUND_PAD, MOUNDS, SHEET_TOP, closed, curtainFoot, curtainLine, flowLobes, flowSheet, ribbon } from './shapes';
@@ -17,6 +18,11 @@ import { COLUMN, MOUND_PAD, MOUNDS, SHEET_TOP, closed, curtainFoot, curtainLine,
 export function stalagmites(pen: GlyphPen, _fit: GlyphFit, finish: Finish): void {
   fillOutline(pen, MOUND_PAD, pen.palette.fill);
   drawClump(pen, MOUNDS.map(m => moundPart(pen, m)), finish);
+}
+
+/** Whether faint ink would read as a halo: a monochrome picture whose paper is dark and whose ink is light. */
+function faintOnDark(pen: GlyphPen): boolean {
+  return pen.hand.scene.env.view.monochrome && isDarkColour(pen.palette.paper);
 }
 
 /** A column: its rippled skirt, the cones at its foot, its fluted shaft standing round in the light. */
@@ -34,7 +40,9 @@ export function columnFormation(pen: GlyphPen, _fit: GlyphFit, finish: Finish): 
     lines: [...flutes, closed(core)],
     glints: [glint(pen, centre, 0.19, 0.9), glint(pen, centre, 0.1, 1.1)],
   };
-  fineRuns(pen, drips.map(closed), 0.7);
+  // In monochrome, light ink on a dark paper (night) draws the drips as a faint halo the column's edge dissolves in:
+  // its outline stood 23 levels from its floor against the stalagmites' 49 (#209). There it keeps the skirt's own edge.
+  if (!faintOnDark(pen)) fineRuns(pen, drips.map(closed), 0.7);
   drawClump(pen, [...foot.map(m => moundPart(pen, m)), column], finish);
 }
 
