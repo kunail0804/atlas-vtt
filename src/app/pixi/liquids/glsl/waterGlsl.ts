@@ -190,8 +190,9 @@ vec4 water(vec2 q, float d, float px, float near) {
     float lineDistance = (fract(phase + 0.5) - 0.5) / 4.0;
     float envelope = smoothstep(0.02, 0.2, body);
     float stroke = waterRibbon(lineDistance, (0.006 + 0.008 * depth) * envelope, px) * envelope;
-    // Light breaking the hatch: short level dashes of paper where the ripple lines cross it.
-    float open = waterRibbon(lineDistance, 0.04, px) * ripple * smoothstep(-0.12, 0.1, -body) * 0.92;
+    // Light breaking the hatch: short level dashes of paper where the ripple lines cross it, fewer the deeper the water,
+    // where the map's own hatch lies dense: there the dashes lay paper over its ink (8 % of it in a deep pool, #209).
+    float open = waterRibbon(lineDistance, 0.04, px) * ripple * smoothstep(-0.12, 0.1, -body) * 0.92 * (1.0 - depth);
     float ink = max(max(stroke * 0.55, lap * 0.9), rings * 0.85) * shown(0.08, px);
     float paper = max(open, glint) * (1.0 - ink);
     return vec4(uDeep * ink + uGlint * paper, ink + paper);

@@ -56,9 +56,10 @@ void main() {
   vec4 w = vec4((1.0 - f.x) * (1.0 - f.y), f.x * (1.0 - f.y), (1.0 - f.x) * f.y, f.x * f.y);
   vec4 e = vec4(shownOf(t00), shownOf(t10), shownOf(t01), shownOf(t11));
   // Only the texels the pixel takes anything of count towards the darkest.
-  // Not mix(big, e, ...): ANGLE turns mix into HLSL's lerp, x + a * (y - x), whose e - 1e9 drops e,
-  // so on Direct3D every counted texel read as 0 and the whole picture went black.
-  vec4 counted = e + (1.0 - step(1e-6, w)) * 1e9;
+  // Chosen, never worked out beside 1e9: ANGLE turns mix(big, e, ...) into HLSL's lerp, x + a * (y - x),
+  // whose e - 1e9 drops e, so on Direct3D every counted texel read as 0 and the whole picture went black
+  // (0.10.1); NVIDIA's OpenGL compiler did the same to e + (1.0 - step(1e-6, w)) * 1e9 (#209).
+  vec4 counted = vec4(w.x > 1e-6 ? e.x : 1e9, w.y > 1e-6 ? e.y : 1e9, w.z > 1e-6 ? e.z : 1e9, w.w > 1e-6 ? e.w : 1e9);
   float darkest = min(min(counted.x, counted.y), min(counted.z, counted.w));
   w *= vec4(keeps(e.x, darkest), keeps(e.y, darkest), keeps(e.z, darkest), keeps(e.w, darkest));
   vec3 color = (t00.rgb * w.x + t10.rgb * w.y + t01.rgb * w.z + t11.rgb * w.w) / max(dot(w, vec4(1.0)), 1e-6);

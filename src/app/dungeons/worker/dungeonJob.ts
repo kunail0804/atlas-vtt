@@ -58,9 +58,16 @@ export interface DungeonWorkerMessage {
 
 export type DungeonWorkerReply = { id: number; ok: true; result: DungeonRendered } | { id: number; ok: false; message: string };
 
-function canvasOf(width: number, height: number): { canvas: OffscreenCanvas; ctx: OffscreenCanvasRenderingContext2D } {
+/**
+ * A canvas to draw a dungeon on. `readBack` asks for one the CPU rasters (`willReadFrequently`), for
+ * an image whose every pixel is read back into a file: a GPU-rastered 2D canvas of more than about
+ * 110 MP came back blank without an error (RTX 5070, ANGLE on OpenGL ES; maps go up to
+ * `MAX_MAP_PIXELS`), and two drawings of one map differed by a few pixels. The CPU draws it whole
+ * and the same every time, five to eight times slower (#209).
+ */
+function canvasOf(width: number, height: number, readBack = false): { canvas: OffscreenCanvas; ctx: OffscreenCanvasRenderingContext2D } {
   const canvas = new OffscreenCanvas(Math.max(1, width), Math.max(1, height));
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext('2d', { willReadFrequently: readBack });
   if (!ctx) throw new Error('Could not draw the dungeon: no 2D canvas.');
   return { canvas, ctx };
 }
@@ -98,7 +105,8 @@ export async function runDungeonJob(job: DungeonJob): Promise<DungeonRendered> {
   }
   // The canvas must have the size of the layout renderMap draws
   const size = mapPixelSize(model, pxPerCell, view);
-  const { canvas, ctx } = canvasOf(size.width, size.height);
+  // A bitmap (a scene's map, at most `SCENE_MAP_PIXELS`) stays on the GPU; a PNG is read back whole.
+  const { canvas, ctx } = canvasOf(size.width, size.height, !output.bitmap);
   const map = renderMap(ctx, model, style, view, options);
   const image: RenderedImage = output.bitmap
     ? { type: 'bitmap', bitmap: canvas.transferToImageBitmap() }

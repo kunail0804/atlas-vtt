@@ -3,7 +3,7 @@ import type { ThemeChoice } from '../../src/app/dungeons/themes/themeTypes';
 import { generateDungeon } from '../../src/app/dungeons/generate';
 import { cellKey, doorMiddle, floorCellsOf } from '../../src/app/dungeons/geometry';
 import type { DungeonModel } from '../../src/app/dungeons/model';
-import { mapLayout } from '../../src/app/dungeons/render/layoutSize';
+import { mapLayout, maxPxPerCell } from '../../src/app/dungeons/render/layoutSize';
 import { paletteOf, parseHex } from '../../src/app/dungeons/render/palette';
 import { propTall } from '../../src/app/dungeons/render/propShapes';
 import { renderMap } from '../../src/app/dungeons/render/renderMap';
@@ -88,14 +88,15 @@ describe('a dungeon scene and its map image', () => {
     return { ...floor, rooms: floor.rooms.map(room => ({ ...room, cells: floorCellsOf(room).filter(c => !skipped.has(cellKey(c.x, c.y))) })) };
   }
 
+  // Since 0.11.0 Any may draw a Forest, whose walls follow its trees: seeds 202 and 282 keep the theme they drew before, cavern (#209).
   const CASES: readonly { seed: number; theme?: ThemeChoice; tags: string[]; floors: number; look: DungeonStyleId; view: Partial<DungeonView>; fiveRoom?: boolean }[] = [
     { seed: 101, tags: ['medium'], floors: 1, look: 'parchment', view: {} },
-    { seed: 202, tags: ['small', 'round'], floors: 2, look: 'night', view: { smallTiles: true } },
+    { seed: 202, theme: 'cavern', tags: ['small', 'round'], floors: 2, look: 'night', view: { smallTiles: true } },
     { seed: 303, theme: 'fortress', tags: ['small', 'secret', 'colonnades'], floors: 2, look: 'masonry', view: { monochrome: true } },
     { seed: 404, tags: ['small', 'winding'], floors: 3, look: 'stipple', view: { smallTiles: true, grid: 'solid' } },
     { seed: 505, tags: ['medium', 'colonnades'], floors: 1, look: 'blueprint', view: {} },
     // Terrain: a gallery over the arena and a bridged chasm onto the floor below, and a five-room dungeon.
-    { seed: 282, tags: ['small'], floors: 2, look: 'parchment', view: {} },
+    { seed: 282, theme: 'cavern', tags: ['small'], floors: 2, look: 'parchment', view: {} },
     { seed: 375, theme: 'cavern', tags: ['small', 'crumbling', 'dry'], floors: 2, look: 'sepia', view: { smallTiles: true } },
     { seed: 42, tags: [], floors: 1, look: 'masonry', view: {}, fiveRoom: true },
     // Ivy and moss lie over the walls' foot: the walls must still be found on the ink.
@@ -144,7 +145,9 @@ describe('a dungeon scene and its map image', () => {
   function draw(model: DungeonModel, look: DungeonStyleId, view: DungeonView, floor: number, px: number): Picture {
     const layout = mapLayout(model, px, view);
     const canvas = new OffscreenCanvas(layout.widthPx, layout.heightPx);
-    const ctx = canvas.getContext('2d')!;
+    // Drawn on the CPU, as every pixel is read back: with the GPU's 2D raster (\`REAL_GPU=1\`) a canvas of more than
+    // about 110 MP comes back blank, and two drawings of one map differ by a few pixels (RTX 5070, #209).
+    const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
     renderMap(ctx, model, dungeonStyle(look), view, { pxPerCell: px, floor });
     return { data: ctx.getImageData(0, 0, layout.widthPx, layout.heightPx).data, width: layout.widthPx, height: layout.heightPx };
   }
@@ -413,6 +416,29 @@ describe('dungeonWorker', () => {
       expect([width, height]).toEqual([result.map.widthPx, result.map.heightPx]);
       expect(result.model.seed).toBe(2);
       result.image.bitmap.close();
+    });
+
+    it('exports a whole map at the largest cell size the export offers', { timeout: 300_000 }, async () => {
+      // A medium cave at its largest cell size is 9636 × 14892 px (143 MP): drawn by the GPU's 2D raster it came back blank (#209).
+      const request = { seed: 90, theme: 'cavern' as const, tags: ['medium'], floors: 1 };
+      const model = generateDungeon(request);
+      const result = await client.render({ request, model, style: dungeonStyle('print'), view: DEFAULT_VIEW, output: { kind: 'map', pxPerCell: maxPxPerCell(model, DEFAULT_VIEW) } });
+      if (result.image.type !== 'png') throw new Error('No PNG');
+      expect(result.map.widthPx * result.map.heightPx).toBeGreaterThan(120_000_000);
+      const bitmap = await createImageBitmap(result.image.blob);
+      expect([bitmap.width, bitmap.height]).toEqual([result.map.widthPx, result.map.heightPx]);
+      const ctx = new OffscreenCanvas(bitmap.width, bitmap.height).getContext('2d', { willReadFrequently: true })!;
+      ctx.drawImage(bitmap, 0, 0);
+      bitmap.close();
+      const { data } = ctx.getImageData(0, 0, result.map.widthPx, result.map.heightPx);
+      let transparent = 0;
+      let ink = 0;
+      for (let i = 0; i < data.length; i += 4) {
+        if (data[i + 3]! < 255) transparent++;
+        if (data[i]! + data[i + 1]! + data[i + 2]! < 150) ink++;
+      }
+      expect(transparent).toBe(0);
+      expect(ink / (data.length / 4)).toBeGreaterThan(0.01);
     });
 
     it('leaves the paper out of a map asked for transparent', async () => {

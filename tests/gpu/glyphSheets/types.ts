@@ -31,5 +31,6 @@ export interface SpecimenScene {
   name: string;
   model: () => DungeonModel;
   floor: number;
-  window?: { x: number; y: number; cells: number; rows: number };
+  // A getter may work the window out once asked, and find none.
+  window?: { x: number; y: number; cells: number; rows: number } | undefined;
 }
