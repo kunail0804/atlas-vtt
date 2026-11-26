@@ -2,29 +2,13 @@
 
 <!-- Generated from changelog/*.md. Run npm run changelog:generate. -->
 
-## 0.19.0 — Music packs and Stream Deck
+## 0.19.0 — Sound library sorting and initiative sides
 
 2026-11-22
 
-### New
-
-**Music packs**
-- Atlas now ships with an optional, premium music collection of over 28 hours, 365 free, beautiful fantasy tracks by Swedish artist Vindsvept on the Sound page, in ten packs sorted by mood 
-- For streaming credits: You can copy a credit line from the Sound entry in Obsidian's Atlas settings
-
-**Native Atlas Stream Deck Support**
-- start or end combat, hide or reveal the local player view, switch the shared scene, play moods, pause, skip and change volume all directly from your stream deck 
-- hover your mouse over any image in obsidian and click the stream deck button to share the handout with players. clicking again will dismiss it. works with Atlas Online and the local player view
-- Configure under Settings → Stream Deck
-
-**Downloads**
-- a button at the bottom of the Sound page shows your downloads and lets you cancel or retry them
-
 ### Improved
 
-- Improved performance for download of starter ambience pack
 - Improved performance of sound page with many tracks
-- You can hide the starter ambience and starter music offers
 - Sort the Sound library by name or length by clicking a column heading
 - Smoother dragging for initiative tracker entries
 - The dice tray only offers advantage and disadvantage where the collection's dice rules support it
@@ -41,7 +25,6 @@
 - "Combat has started" and "Combat has ended" now show in the middle of the player view when the initiative list is vertical
 - The initiative list shows a fade at the bottom when there is more to scroll
 - Forget explored areas now forgets every floor of a scene
-- Sharing to the Armarium no longer fails when the server has a short hiccup
 - Fitting the grid of a moved floor no longer turns the map black
 - Position floor on a hex grid no longer jumps a row at the map's edge
 
@@ -100,11 +83,8 @@ Help me develop Atlas: https://www.patreon.com/cw/atlas_vtt
 - Shift-drag a token to turn it towards the pointer
 - Kept measurements can follow a token (Follows token in their menu)
 
-**Armarium**
-- Share and install single statblock templates, game systems and dice sets
-- Share or export them from their menus
-- A shared template's page shows its statblock card, filled with sample values
-- My uploads shows everything you shared and whether a new version is still processing
+**Templates, game systems and dice sets**
+- Export a single statblock template, game system or dice set from its menu, and import it like a collection
 
 **Translations**
 - Atlas is now available in German, French, Spanish, Portuguese, Italian, Russian and Chinese. Italian contributed by Jackson98Tomphson
@@ -131,7 +111,6 @@ Help me develop Atlas: https://www.patreon.com/cw/atlas_vtt
 ### Fixed
 
 - On Windows, converting linked music now moves the originals to the trash when you chose that
-- The asset manager sidebar shows the Armarium's tags while the Armarium is open
 - Roll results show only after the dice land in the log
 - Improved long track length display in the sounds view
 
@@ -148,16 +127,13 @@ Thanks to my Patreon supporters Aaron, Aaron W Scott, Aiden Hatcher, Andrew, Ann
 
 Help me develop Atlas: https://www.patreon.com/cw/atlas_vtt
 
-## 0.17.0 — Armarium, documentation and the dice tray
+## 0.17.0 — Documentation and the dice tray
 
 2026-11-18
 
 ### New
 
-**New Feature: Armarium and Documentation directly within Atlas**
-- Browse the Armarium right inside the asset manager: choose the shop icon at the end of the tabs, or Armarium in the command palette
-- Install a collection with one click. The import review shows what's included before anything is added
-- Share your own collections in the Armarium without leaving Atlas
+**New Feature: Documentation directly within Atlas**
 - Read the documentation inside Atlas: choose Documentation in the command palette
 
 **Updated: Dice tray**
@@ -439,7 +415,7 @@ Thanks to my Patreon supporters Aaron, Aaron W Scott, Aiden Hatcher, Andrew, Ann
 
 Help me develop Atlas: https://www.patreon.com/cw/atlas_vtt
 
-## 0.13.0 — Sound, free starter tokens and fog edges
+## 0.13.0 — Sound and fog edges
 
 2026-11-05
 
@@ -447,7 +423,6 @@ Help me develop Atlas: https://www.patreon.com/cw/atlas_vtt
 
 **New Feature: Sound**
 - A new Sound page on the DM screen for music and ambience, from folders in your vault or anywhere on your computer. It also opens in its own tab from the command palette, no map needed
-- Starter ambience: download six free loops (forest, campfire, thunderstorm, beach, night marsh, cave) to play right away
 - Moods: press a mood and the sound crossfades to it, while sounds both moods share keep playing. Save a mood from whatever is playing, and drag moods into the order you like
 - Mix up to 8 ambience layers beside the music, each with its own fader. Every track plays at an even loudness
 - Reverb on every layer. Each mood can sound like a room, a hall, a cave or a cathedral
@@ -455,9 +430,6 @@ Help me develop Atlas: https://www.patreon.com/cw/atlas_vtt
 - Search your tracks and moods with `/`, and filter by tags
 - Stop all fades everything out, and one more press brings it back
 - Link a mood to a scene or the initiative tracker for combat and it plays by itself
-
-**New Feature: Free starter tokens**
-- An empty collection offers 155 free creature and class tokens, sorted into tags, with 5E (SRD 5.2.1) or Cairn statblocks depending on what you choose
 
 **General**
 - Fog edges: in Atlas settings, Maps, make the edge of the fog soft or crackled, for you and your players. Contributed by ThatMattLatt
@@ -822,7 +794,7 @@ Help me develop Atlas: https://www.patreon.com/cw/atlas_vtt
 ### Fixed
 
 - A collection's cover and the thumbnails of small images are saved as WebP, as their file names say, and an export no longer carries one that is a PNG or JPEG under a WebP name
-- Fixed a bug where too small cover images of exported collections weren't converted to .webp correctly as expected by the Armarium parser
+- Fixed a bug where too small cover images of exported collections weren't converted to .webp correctly
 - Fixed a bug where modifier rolls in FS statblock tables weren't clickable
 
 ## 0.7.0 — Huge sharp maps, gliding tokens and a lighting quality setting
