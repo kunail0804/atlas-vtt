@@ -21,7 +21,6 @@ export const dashboard: Translation = {
   'dashboard.continue': 'Continue sua aventura',
   'dashboard.resume': 'Retomar',
   'dashboard.firstScene': 'Crie sua primeira cena',
-  'dashboard.firstSceneMeta': 'Escolha um mapa e comece sua campanha',
   'dashboard.recent': 'Cenas recentes',
   'dashboard.loadingScenes': 'Carregando cenas…',
   'dashboard.title': 'Painel do Atlas',

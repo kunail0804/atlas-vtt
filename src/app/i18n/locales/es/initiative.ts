@@ -32,7 +32,6 @@ export const initiative: Translation = {
   'initiative.modifierFromStatblock': 'auto',
   'initiative.modifierHint': 'El campo del bloque de estadísticas cuyo número se suma a cada tirada. Si un bloque no lo tiene, el campo que su plantilla de Atlas marca como iniciativa.',
   'initiative.modifierMissing': { one: '{count} combatiente tiró sin modificador: su bloque de estadísticas no tiene ningún número en "{field}". Elige el campo en Ajustes de la colección → Widgets predeterminados', other: '{count} combatientes tiraron sin modificador: sus bloques de estadísticas no tienen ningún número en "{field}". Elige el campo en Ajustes de la colección → Widgets predeterminados' },
-  'initiative.modifierMissingCampaign': { one: '{count} combatiente tiró sin modificador: su bloque de estadísticas no tiene ningún número en "{field}". La campaña {campaign} fija las reglas: elige el campo en su Sistema de juego → Iniciativa', other: '{count} combatientes tiraron sin modificador: sus bloques de estadísticas no tienen ningún número en "{field}". La campaña {campaign} fija las reglas: elige el campo en su Sistema de juego → Iniciativa' },
   'initiative.modifierPlaceholder': 'p. ej. iniciativa',
   'initiative.nextRound': 'Asalto {round}',
   'initiative.nextTurn': 'Turno siguiente',

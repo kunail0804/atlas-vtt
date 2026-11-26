@@ -28,7 +28,6 @@ export const initiative: Translation = {
   'initiative.modifierFromStatblock': 'auto',
   'initiative.modifierHint': 'Das Statblock-Feld, dessen Zahl zu jedem Wurf addiert wird. Fehlt es einem Statblock, gilt das Feld, das seine Atlas-Vorlage als Initiative markiert.',
   'initiative.modifierMissing': { one: '{count} Kampfteilnehmer hat ohne Modifikator gewürfelt: Sein Statblock hat unter „{field}“ keine Zahl. Wähle das Feld unter Sammlungseinstellungen → Standard-Widgets', other: '{count} Kampfteilnehmer haben ohne Modifikator gewürfelt: Ihre Statblöcke haben unter „{field}“ keine Zahl. Wähle das Feld unter Sammlungseinstellungen → Standard-Widgets' },
-  'initiative.modifierMissingCampaign': { one: '{count} Kampfteilnehmer hat ohne Modifikator gewürfelt: Sein Statblock hat unter „{field}“ keine Zahl. Die Kampagne {campaign} legt die Regeln fest: Wähle das Feld unter ihrem Spielsystem → Initiative', other: '{count} Kampfteilnehmer haben ohne Modifikator gewürfelt: Ihre Statblöcke haben unter „{field}“ keine Zahl. Die Kampagne {campaign} legt die Regeln fest: Wähle das Feld unter ihrem Spielsystem → Initiative' },
   'initiative.modifierPlaceholder': 'z. B. initiative',
   'initiative.nextRound': 'Runde {round}',
   'initiative.nextTurn': 'Nächster Zug',

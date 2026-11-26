@@ -24,7 +24,6 @@ export const rest: Translation = {
   'rest.skipped': 'Omitido: {list}',
   'rest.skipUnknown': '{label} (no está en la colección)',
   'rest.skipStatic': '{label} (un valor fijo)',
-  'rest.skipNoValue': '{label} (ninguna escena abierta ni campaña jugada lo contiene)',
   'rest.skipNoToken': '{label} (ningún token en un mapa abierto)',
   'rest.skipCounters': '{label} (no se pueden leer sus contadores)',
   'rest.skipMissingField': '{label} (el bloque de estadísticas no tiene {field})',

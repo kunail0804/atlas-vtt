@@ -41,8 +41,6 @@ export const tour = {
   "tour.dashboard.sceneBody": "Una scena è una mappa pronta per giocare, con i suoi token, la nebbia e i segnaposto. La crei da un’immagine della mappa, e l’ultima scena giocata ti aspetta qui.",
   "tour.dashboard.assetsTitle": "Gestione risorse",
   "tour.dashboard.assetsBody": "Le tue mappe, i token, le scene e gli incontri. Contiene già alcuni token iniziali con cui fare prove.",
-  "tour.dashboard.campaignsTitle": "Campagne",
-  "tour.dashboard.campaignsBody": "Una campagna riunisce i giocatori, le missioni e la mappa del mondo di una partita. Creane una quando inizia una nuova partita; le scene funzionano anche senza.",
   "tour.map.label": "La tua mappa",
   "tour.map.welcomeTitle": "La tua prima scena",
   "tour.map.welcomeMouse": "Usa la rotella per lo zoom e trascina con il pulsante destro del mouse per muoverti sulla mappa. Ecco a cosa servono i controlli intorno.",

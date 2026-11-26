@@ -1,16 +1,8 @@
 import type { Translation } from '../../types';
 
 export const campaign: Translation = {
-  'campaign.nameTaken': '已有同名战役。',
   'campaign.nameTooLong': '请使用更短的名称。',
-  'campaign.newerVersion': '此战役由更新版本的 Atlas 保存。请更新 Atlas 后再修改。',
-  'campaign.campaigns': '战役',
-  'campaign.new': '新建战役',
-  'campaign.search': '搜索战役',
-  'campaign.loading': '正在加载战役',
-  'campaign.noMatches': '没有符合搜索的战役。',
   'campaign.playing': '进行中',
-  'campaign.nameLabel': '战役名称',
   'campaign.playedJustNow': '刚刚玩过',
   'campaign.playedMinutesAgo': '{count} 分钟前玩过',
   'campaign.playedHoursAgo': '{count} 小时前玩过',
@@ -21,7 +13,6 @@ export const campaign: Translation = {
   'campaign.createdDaysAgo': '{count} 天前创建',
   'campaign.backToDashboard': '仪表盘',
   'campaign.description': '简介',
-  'campaign.descriptionPlaceholder': '这个战役讲的是什么？',
   'campaign.worldMap': '世界地图',
   'campaign.chooseWorldMap': '选择世界地图',
   'campaign.changeWorldMap': '更换',
@@ -38,8 +29,6 @@ export const campaign: Translation = {
   'campaign.systemTitle': '{name}：游戏系统',
   'campaign.closeSystem': '关闭游戏系统设置',
   'campaign.systemNoneSummary': '每张地图都按其合集的规则进行',
-  'campaign.systemWhenPlayed': '仅在此战役的在线游戏桌开启时，地图才按这些规则进行。',
-  'campaign.delete': '删除战役',
   'campaign.deleteTitle': '删除{name}？',
   'campaign.deleteMessage': '它用到的场景、地图和指示物会保留在你的素材库中。',
 };

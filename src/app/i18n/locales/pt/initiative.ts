@@ -32,7 +32,6 @@ export const initiative: Translation = {
   'initiative.modifierFromStatblock': 'auto',
   'initiative.modifierHint': 'O campo da ficha cujo número é somado a cada rolagem. Onde a ficha não o tem, vale o campo que o modelo do Atlas marca como iniciativa.',
   'initiative.modifierMissing': { one: '{count} combatente rolou sem modificador: a ficha dele não tem número em "{field}". Escolha o campo em Configurações da coleção → Widgets padrão', other: '{count} combatentes rolaram sem modificador: as fichas deles não têm número em "{field}". Escolha o campo em Configurações da coleção → Widgets padrão' },
-  'initiative.modifierMissingCampaign': { one: '{count} combatente rolou sem modificador: a ficha dele não tem número em "{field}". A campanha {campaign} define as regras: escolha o campo em Sistema de jogo → Iniciativa', other: '{count} combatentes rolaram sem modificador: as fichas deles não têm número em "{field}". A campanha {campaign} define as regras: escolha o campo em Sistema de jogo → Iniciativa' },
   'initiative.modifierPlaceholder': 'ex.: iniciativa',
   'initiative.nextRound': 'Rodada {round}',
   'initiative.nextTurn': 'Próximo turno',

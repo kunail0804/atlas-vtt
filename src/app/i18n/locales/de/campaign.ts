@@ -1,16 +1,8 @@
 import type { Translation } from '../../types';
 
 export const campaign: Translation = {
-  'campaign.nameTaken': 'Eine andere Kampagne hat bereits diesen Namen.',
   'campaign.nameTooLong': 'Wähle einen kürzeren Namen.',
-  'campaign.newerVersion': 'Diese Kampagne wurde mit einer neueren Version von Atlas gespeichert. Aktualisiere Atlas, um sie zu ändern.',
-  'campaign.campaigns': 'Kampagnen',
-  'campaign.new': 'Neue Kampagne',
-  'campaign.search': 'Kampagnen durchsuchen',
-  'campaign.loading': 'Kampagnen werden geladen',
-  'campaign.noMatches': 'Keine Kampagne passt zu deiner Suche.',
   'campaign.playing': 'Läuft',
-  'campaign.nameLabel': 'Name der Kampagne',
   'campaign.playedJustNow': 'Gerade gespielt',
   'campaign.playedMinutesAgo': 'Zuletzt gespielt vor {count} Min.',
   'campaign.playedHoursAgo': 'Zuletzt gespielt vor {count} Std.',
@@ -21,7 +13,6 @@ export const campaign: Translation = {
   'campaign.createdDaysAgo': 'Erstellt vor {count} T.',
   'campaign.backToDashboard': 'Übersicht',
   'campaign.description': 'Beschreibung',
-  'campaign.descriptionPlaceholder': 'Worum geht es in dieser Kampagne?',
   'campaign.worldMap': 'Weltkarte',
   'campaign.chooseWorldMap': 'Weltkarte wählen',
   'campaign.changeWorldMap': 'Ändern',
@@ -38,8 +29,6 @@ export const campaign: Translation = {
   'campaign.systemTitle': '{name}: Spielsystem',
   'campaign.closeSystem': 'Einstellungen des Spielsystems schließen',
   'campaign.systemNoneSummary': 'Jede Karte folgt den Regeln ihrer Sammlung',
-  'campaign.systemWhenPlayed': 'Karten folgen diesen Regeln nur, solange der Online-Tisch dieser Kampagne geöffnet ist.',
-  'campaign.delete': 'Kampagne löschen',
   'campaign.deleteTitle': '{name} löschen?',
   'campaign.deleteMessage': 'Die Szenen, Karten und Tokens, die sie genutzt hat, bleiben in deiner Bibliothek.',
 };

@@ -69,7 +69,6 @@ export const settings: Translation = {
   'settings.updates.featureOnly': 'Nur Funktionsupdates',
   'settings.updates.featureOnlyDesc': 'Funktionsversionen wie 1.2 und 1.3 zeigen. Patches wie 1.2.1 überspringen.',
   'settings.updates.heading': 'Updates',
-  'settings.updates.notice': 'Atlas {version} kann installiert werden.',
   'settings.updates.noticeTitle': 'Update verfügbar',
   'settings.updates.showAfterUpdates': 'Änderungsprotokoll nach Updates zeigen',
   'settings.updates.showAfterUpdatesDesc': 'Versionshinweise einmal nach einem Update von Atlas öffnen. Das Änderungsprotokoll kannst du hier jederzeit ansehen.',

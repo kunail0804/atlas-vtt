@@ -24,7 +24,6 @@ export const rest = {
   "rest.skipped": "Saltati: {list}",
   "rest.skipUnknown": "{label} (non presente nella collezione)",
   "rest.skipStatic": "{label} (un valore fisso)",
-  "rest.skipNoValue": "{label} (nessuna scena aperta o campagna giocata lo contiene)",
   "rest.skipNoToken": "{label} (nessun token su una mappa aperta)",
   "rest.skipCounters": "{label} (impossibile leggerne i contatori)",
   "rest.skipMissingField": "{label} (lo statblock non ha {field})",

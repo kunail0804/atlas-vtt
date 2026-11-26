@@ -28,7 +28,7 @@ export const initiative: Translation = {
   'initiative.modifierFromStatblock': 'auto',
   'initiative.modifierHint': 'Le champ de la fiche dont le nombre s\'ajoute à chaque jet. Si une fiche ne l\'a pas, le champ que son modèle Atlas désigne comme initiative.',
   'initiative.modifierMissing': { one: '{count} combattant a lancé sans modificateur : sa fiche n\'a pas de nombre sous « {field} ». Choisissez le champ dans Paramètres de la collection → Widgets par défaut', other: '{count} combattants ont lancé sans modificateur : leurs fiches n\'ont pas de nombre sous « {field} ». Choisissez le champ dans Paramètres de la collection → Widgets par défaut' },
-  'initiative.modifierMissingCampaign': { one: '{count} combattant a lancé sans modificateur : sa fiche n\'a pas de nombre sous « {field} ». La campagne {campaign} fixe les règles : choisissez le champ dans son Système de jeu → Initiative', other: '{count} combattants ont lancé sans modificateur : leurs fiches n\'ont pas de nombre sous « {field} ». La campagne {campaign} fixe les règles : choisissez le champ dans son Système de jeu → Initiative' },
+  'initiative.modifierMissingCampaign': { one: '{count} combattant a lancé sans modificateur : sa fiche n\'a pas de nombre sous « {field} ». Le monde {campaign} fixe les règles : choisissez le champ dans son Système de jeu → Initiative', other: '{count} combattants ont lancé sans modificateur : leurs fiches n\'ont pas de nombre sous « {field} ». Le monde {campaign} fixe les règles : choisissez le champ dans son Système de jeu → Initiative' },
   'initiative.modifierPlaceholder': 'p. ex. initiative',
   'initiative.nextRound': 'Round {round}',
   'initiative.nextTurn': 'Tour suivant',

@@ -30,7 +30,6 @@ export const statblock: Translation = {
   'statblock.counterRows': '行',
   'statblock.counterUses': '{name} 的次数',
   'statblock.countersNameFirst': '先给计数器命名：点击卡片上的标签。',
-  'statblock.trackedNowhere': '{label} 保存在角色的指示物或其进行中的战役里：把角色放到地图上，或开始它的战役',
   'statblock.players': '玩家',
   'statblock.playersEdit': '可编辑',
   'statblock.playersHidden': '隐藏',

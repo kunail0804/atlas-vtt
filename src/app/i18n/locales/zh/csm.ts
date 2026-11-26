@@ -122,7 +122,6 @@ export const csm: Translation = {
   'csm.widgets.title': '小组件',
   'csm.widgets.newMapsInfo': '在此合集的每张新地图中开启。',
   'csm.playedCampaign': '进行{name}时，每张地图都使用它的游戏系统。',
-  'csm.playedCampaignEdit': '编辑战役规则',
   'csm.conditions.column': '状态',
   'csm.conditions.effect': '对视野的影响',
   'csm.conditions.effectOf': '{name}对视野的影响',

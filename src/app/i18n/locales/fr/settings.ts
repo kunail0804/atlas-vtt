@@ -69,7 +69,7 @@ export const settings: Translation = {
   'settings.updates.featureOnly': 'Mises à jour de fonctionnalités uniquement',
   'settings.updates.featureOnlyDesc': 'Afficher les versions de fonctionnalités comme 1.2 et 1.3. Ignorer les correctifs comme 1.2.1.',
   'settings.updates.heading': 'Mises à jour',
-  'settings.updates.notice': 'Atlas {version} est prêt à être installé.',
+  'settings.updates.notice': 'Atlas {version} est dans l\'image de la campagne.',
   'settings.updates.noticeTitle': 'Mise à jour disponible',
   'settings.updates.showAfterUpdates': 'Afficher le journal des modifications après les mises à jour',
   'settings.updates.showAfterUpdatesDesc': 'Ouvrir les notes de version une fois après la mise à jour d\'Atlas. Vous pouvez toujours consulter le journal des modifications ici.',

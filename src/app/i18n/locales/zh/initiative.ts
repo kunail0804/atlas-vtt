@@ -53,7 +53,6 @@ export const initiative: Translation = {
   'initiative.modifierFromStatblock': '自动',
   'initiative.modifierHint': '其数值会加到每次掷骰上的数据卡字段。数据卡缺少它时，使用其 Atlas 模板标记为先攻的字段。',
   'initiative.modifierMissing': { other: '{count} 个参战者在没有调整值的情况下掷骰：其数据卡的「{field}」下没有数值。请在 合集设置 → 默认小组件 中选择字段' },
-  'initiative.modifierMissingCampaign': { other: '{count} 个参战者在没有调整值的情况下掷骰：其数据卡的「{field}」下没有数值。规则由战役 {campaign} 决定：请在它的 游戏系统 → 先攻 中选择字段' },
   'initiative.modifierPlaceholder': '例如 initiative',
   'initiative.nextRound': '第 {round} 轮',
   'initiative.nextTurn': '下一回合',

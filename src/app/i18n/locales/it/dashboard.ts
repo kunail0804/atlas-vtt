@@ -16,7 +16,6 @@ export const dashboard = {
   "dashboard.continue": "Continua la tua avventura",
   "dashboard.resume": "Riprendi",
   "dashboard.firstScene": "Crea la tua prima scena",
-  "dashboard.firstSceneMeta": "Scegli una mappa e inizia la tua campagna",
   "dashboard.recent": "Scene recenti",
   "dashboard.loadingScenes": "Caricamento delle scene…",
   "dashboard.title": "Bacheca di Atlas",

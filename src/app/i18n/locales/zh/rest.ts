@@ -24,7 +24,6 @@ export const rest: Translation = {
   'rest.skipped': '已跳过：{list}',
   'rest.skipUnknown': '{label}（不在合集中）',
   'rest.skipStatic': '{label}（固定值）',
-  'rest.skipNoValue': '{label}（没有打开的场景或进行中的战役包含它）',
   'rest.skipNoToken': '{label}（打开的地图上没有指示物）',
   'rest.skipCounters': '{label}（无法读取它的计数）',
   'rest.skipMissingField': '{label}（数据卡没有{field}）',

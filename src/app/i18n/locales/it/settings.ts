@@ -62,7 +62,6 @@ export const settings = {
   "settings.updates.checkForUpdatesDesc": "Controlla la versione più recente di Atlas all’avvio e ogni ora.",
   "settings.updates.checkNow": "Controlla ora",
   "settings.updates.checking": "Controllo in corso…",
-  "settings.updates.notice": "Atlas {version} è pronto per l’installazione.",
   "settings.updates.noticeTitle": "Aggiornamento disponibile",
   "settings.updates.upToDate": "Atlas è aggiornato",
   "settings.updates.update": "Aggiorna",

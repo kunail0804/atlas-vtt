@@ -41,8 +41,6 @@ export const tour: Translation = {
   'tour.dashboard.sceneBody': 'Eine Szene ist eine spielbereite Karte mit ihren Tokens, ihrem Nebel und ihren Pins. Du erstellst sie aus einem Kartenbild, und die zuletzt gespielte Szene wartet hier auf dich.',
   'tour.dashboard.assetsTitle': 'Asset-Manager',
   'tour.dashboard.assetsBody': 'Deine Karten, Tokens, Szenen und Encounter. Ein paar Start-Tokens sind schon darin, damit du gleich etwas ausprobieren kannst.',
-  'tour.dashboard.campaignsTitle': 'Kampagnen',
-  'tour.dashboard.campaignsBody': 'Eine Kampagne hält die Spieler, Quests und Weltkarte eines Spiels zusammen. Starte eine, wenn ein neues Spiel beginnt; Szenen funktionieren auch ohne.',
   'tour.map.label': 'Deine Karte',
   'tour.map.welcomeTitle': 'Deine erste Szene',
   'tour.map.welcomeMouse': 'Scrolle zum Zoomen und ziehe mit der rechten Maustaste, um dich auf der Karte zu bewegen. Hier siehst du, was die Bedienelemente drumherum tun.',

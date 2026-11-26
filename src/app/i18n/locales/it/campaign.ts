@@ -1,16 +1,8 @@
 import type { Translation } from '../../types';
 
 export const campaign = {
-  "campaign.nameTaken": "Un’altra campagna ha questo nome.",
   "campaign.nameTooLong": "Usa un nome più breve.",
-  "campaign.newerVersion": "Questa campagna è stata salvata da una versione più recente di Atlas. Aggiorna Atlas per modificarla.",
-  "campaign.campaigns": "Campagne",
-  "campaign.new": "Nuova campagna",
-  "campaign.search": "Cerca campagne",
-  "campaign.loading": "Caricamento delle campagne",
-  "campaign.noMatches": "Nessuna campagna corrisponde alla ricerca.",
   "campaign.playing": "In gioco",
-  "campaign.nameLabel": "Nome della campagna",
   "campaign.playedJustNow": "Giocata ora",
   "campaign.playedMinutesAgo": "Ultima partita {count} min fa",
   "campaign.playedHoursAgo": "Ultima partita {count} h fa",
@@ -21,7 +13,6 @@ export const campaign = {
   "campaign.createdDaysAgo": "Creata {count} g fa",
   "campaign.backToDashboard": "Bacheca",
   "campaign.description": "Descrizione",
-  "campaign.descriptionPlaceholder": "Di cosa parla questa campagna?",
   "campaign.worldMap": "Mappa del mondo",
   "campaign.chooseWorldMap": "Scegli una mappa del mondo",
   "campaign.changeWorldMap": "Cambia",
@@ -38,8 +29,6 @@ export const campaign = {
   "campaign.systemTitle": "{name}: sistema di gioco",
   "campaign.closeSystem": "Chiudi impostazioni del sistema di gioco",
   "campaign.systemNoneSummary": "Ogni mappa segue le regole della propria collezione",
-  "campaign.delete": "Elimina campagna",
   "campaign.deleteTitle": "Eliminare {name}?",
   "campaign.deleteMessage": "Le scene, le mappe e i token utilizzati restano nella tua libreria.",
-  "campaign.systemWhenPlayed": "Le mappe seguono queste regole solo mentre il tavolo online di questa campagna è aperto.",
 } satisfies Translation;

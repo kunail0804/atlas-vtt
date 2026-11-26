@@ -41,8 +41,6 @@ export const tour: Translation = {
   'tour.dashboard.sceneBody': 'Uma cena é um mapa pronto para jogar, com os tokens, a névoa e os alfinetes dele. Você cria uma a partir de uma imagem de mapa, e a última cena que você jogou espera por você aqui.',
   'tour.dashboard.assetsTitle': 'Gerenciador de assets',
   'tour.dashboard.assetsBody': 'Seus mapas, tokens, cenas e encontros. Alguns tokens iniciais já estão nele para você experimentar.',
-  'tour.dashboard.campaignsTitle': 'Campanhas',
-  'tour.dashboard.campaignsBody': 'Uma campanha mantém juntos os jogadores, as missões e o mapa-múndi de um jogo. Comece uma quando um novo jogo começar; as cenas funcionam sem campanha.',
   'tour.map.label': 'Seu mapa',
   'tour.map.welcomeTitle': 'Sua primeira cena',
   'tour.map.welcomeMouse': 'Role a roda do mouse para dar zoom e arraste com o botão direito para se mover pelo mapa. Veja o que fazem os controles ao redor dele.',

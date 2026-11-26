@@ -125,7 +125,6 @@ export const csm = {
     "other": "{count} viste"
   },
   "csm.playedCampaign": "Mentre si gioca {name}, ogni mappa usa il suo sistema di gioco.",
-  "csm.playedCampaignEdit": "Modifica le regole della campagna",
   "csm.conditions.effectOfThis": "Effetto di questa condizione sulla visione",
   "csm.conditions.intro.touch": "Definisci le condizioni da attivare sui token. Ciascuna appare come un contrassegno sul bordo del token. Tocca un contrassegno per assegnargli un’icona e attiva # per le condizioni con un valore numerico, come Spaventato 2.",
   "csm.filters.templateFilters": "Dai modelli degli statblock",

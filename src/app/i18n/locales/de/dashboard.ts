@@ -21,7 +21,6 @@ export const dashboard: Translation = {
   'dashboard.continue': 'Setze dein Abenteuer fort',
   'dashboard.resume': 'Fortsetzen',
   'dashboard.firstScene': 'Erstelle deine erste Szene',
-  'dashboard.firstSceneMeta': 'Wähle eine Karte und starte deine Kampagne',
   'dashboard.recent': 'Letzte Szenen',
   'dashboard.loadingScenes': 'Szenen werden geladen…',
   'dashboard.title': 'Atlas-Übersicht',

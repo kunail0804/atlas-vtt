@@ -3,7 +3,6 @@ import type { Translation } from '../../types';
 export const csm: Translation = {
   'csm.close': 'Cerrar ajustes',
   'csm.playedCampaign': 'Mientras se juega {name}, todos los mapas usan su sistema de juego.',
-  'csm.playedCampaignEdit': 'Editar reglas de la campaña',
   'csm.conditions.add': 'Añadir estado',
   'csm.conditions.chooseIcon': 'Elegir icono',
   'csm.conditions.column': 'Estado',

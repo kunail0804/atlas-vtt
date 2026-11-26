@@ -1,16 +1,8 @@
 import type { Translation } from '../../types';
 
 export const campaign: Translation = {
-  'campaign.nameTaken': 'Outra campanha já tem este nome.',
   'campaign.nameTooLong': 'Use um nome mais curto.',
-  'campaign.newerVersion': 'Esta campanha foi salva por uma versão mais nova do Atlas. Atualize o Atlas para alterá-la.',
-  'campaign.campaigns': 'Campanhas',
-  'campaign.new': 'Nova campanha',
-  'campaign.search': 'Buscar campanhas',
-  'campaign.loading': 'Carregando campanhas',
-  'campaign.noMatches': 'Nenhuma campanha corresponde à busca.',
   'campaign.playing': 'Em jogo',
-  'campaign.nameLabel': 'Nome da campanha',
   'campaign.playedJustNow': 'Jogada agora mesmo',
   'campaign.playedMinutesAgo': 'Jogada há {count} min',
   'campaign.playedHoursAgo': 'Jogada há {count} h',
@@ -21,7 +13,6 @@ export const campaign: Translation = {
   'campaign.createdDaysAgo': 'Criada há {count} d',
   'campaign.backToDashboard': 'Painel',
   'campaign.description': 'Descrição',
-  'campaign.descriptionPlaceholder': 'Sobre o que é esta campanha?',
   'campaign.worldMap': 'Mapa-múndi',
   'campaign.chooseWorldMap': 'Escolher um mapa-múndi',
   'campaign.changeWorldMap': 'Trocar',
@@ -38,8 +29,6 @@ export const campaign: Translation = {
   'campaign.systemTitle': '{name}: sistema de jogo',
   'campaign.closeSystem': 'Fechar configurações do sistema de jogo',
   'campaign.systemNoneSummary': 'Cada mapa segue as regras da sua coleção',
-  'campaign.systemWhenPlayed': 'Os mapas só seguem estas regras enquanto a mesa online desta campanha estiver aberta.',
-  'campaign.delete': 'Excluir campanha',
   'campaign.deleteTitle': 'Excluir {name}?',
   'campaign.deleteMessage': 'As cenas, mapas e tokens que ela usava continuam na sua biblioteca.',
 };

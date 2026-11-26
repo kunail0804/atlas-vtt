@@ -31,7 +31,6 @@ export const statblock = {
   "statblock.counterRows": "Righe",
   "statblock.counterUses": "Usi di {name}",
   "statblock.countersNameFirst": "Assegna prima un nome ai contatori: fai clic sulla loro etichetta nella scheda.",
-  "statblock.trackedNowhere": "{label} viene conservato con il token del personaggio o con la campagna che sta giocando: posiziona il personaggio su una mappa o gioca la sua campagna",
   "statblock.playersEdit": "Può modificare",
   "statblock.playersHidden": "Nascosto",
   "statblock.playersRead": "Può vedere",

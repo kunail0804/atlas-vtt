@@ -3,7 +3,7 @@ import type { Translation } from '../../types';
 export const csm: Translation = {
   'csm.close': 'Fermer les paramètres',
   'csm.playedCampaign': 'Tant que {name} est jouée, chaque carte utilise son système de jeu.',
-  'csm.playedCampaignEdit': 'Modifier les règles de la campagne',
+  'csm.playedCampaignEdit': 'Modifier les règles du monde',
   'csm.conditions.add': 'Ajouter un état',
   'csm.conditions.chooseIcon': 'Choisir une icône',
   'csm.conditions.column': 'État',

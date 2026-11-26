@@ -78,7 +78,6 @@ export const initiative = {
   "initiative.previewRead": {"one": "Legge un modificatore da {read} statblock su {count}, ad esempio {name} {modifier}", "other": "Legge un modificatore da {read} statblock su {count}, ad esempio {name} {modifier}"},
   "initiative.previewNone": {"one": "Lo statblock della collezione non contiene un numero in quel campo", "other": "Nessuno dei {count} statblock della collezione contiene un numero in quel campo"},
   "initiative.modifierMissing": {"one": "{count} combattente ha tirato senza modificatore: il suo statblock non contiene un numero nel campo \"{field}\". Scegli il campo in Impostazioni della collezione → Widget predefiniti", "other": "{count} combattenti hanno tirato senza modificatore: i loro statblock non contengono un numero nel campo \"{field}\". Scegli il campo in Impostazioni della collezione → Widget predefiniti"},
-  "initiative.modifierMissingCampaign": {"one": "{count} combattente ha tirato senza modificatore: il suo statblock non contiene un numero nel campo \"{field}\". La campagna {campaign} stabilisce le regole: scegli il campo in Sistema di gioco → Iniziativa", "other": "{count} combattenti hanno tirato senza modificatore: i loro statblock non contengono un numero nel campo \"{field}\". La campagna {campaign} stabilisce le regole: scegli il campo in Sistema di gioco → Iniziativa"},
 
 
   "initiative.rules.order": "Ordine",

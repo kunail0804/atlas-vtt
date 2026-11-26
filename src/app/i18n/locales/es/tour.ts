@@ -41,8 +41,6 @@ export const tour: Translation = {
   'tour.dashboard.sceneBody': 'Una escena es un mapa listo para jugar, con sus tokens, su niebla y sus chinchetas. Se crea a partir de la imagen de un mapa, y la última escena que jugaste te espera aquí.',
   'tour.dashboard.assetsTitle': 'Gestor de recursos',
   'tour.dashboard.assetsBody': 'Tus mapas, tokens, escenas y encuentros. Ya trae algunos tokens iniciales para que pruebes cosas.',
-  'tour.dashboard.campaignsTitle': 'Campañas',
-  'tour.dashboard.campaignsBody': 'Una campaña reúne los jugadores, las misiones y el mapa del mundo de una partida. Empieza una cuando comience una partida nueva; las escenas funcionan sin ella.',
   'tour.map.label': 'Tu mapa',
   'tour.map.welcomeTitle': 'Tu primera escena',
   'tour.map.welcomeMouse': 'Usa la rueda para hacer zoom y arrastra con el botón derecho del ratón para moverte por el mapa. Esto es lo que hacen los controles que lo rodean.',

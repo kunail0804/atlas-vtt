@@ -72,7 +72,6 @@ export const settings: Translation = {
   'settings.updates.checkForUpdatesDesc': '启动时和之后每小时查找一次最新的 Atlas 版本。',
   'settings.updates.checkNow': '立即检查',
   'settings.updates.checking': '正在检查…',
-  'settings.updates.notice': 'Atlas {version} 已可以安装。',
   'settings.updates.noticeTitle': '有可用更新',
   'settings.updates.upToDate': 'Atlas 已是最新版本',
   'settings.updates.update': '更新',

@@ -24,7 +24,6 @@ export const rest: Translation = {
   'rest.skipped': 'Ignorados: {list}',
   'rest.skipUnknown': '{label} (não está na coleção)',
   'rest.skipStatic': '{label} (um valor fixo)',
-  'rest.skipNoValue': '{label} (nenhuma cena aberta ou campanha jogada o guarda)',
   'rest.skipNoToken': '{label} (nenhum token em um mapa aberto)',
   'rest.skipCounters': '{label} (os contadores não podem ser lidos)',
   'rest.skipMissingField': '{label} (a ficha não tem {field})',

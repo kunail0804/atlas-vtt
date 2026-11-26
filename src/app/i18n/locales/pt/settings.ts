@@ -69,7 +69,6 @@ export const settings: Translation = {
   'settings.updates.featureOnly': 'Só atualizações de recursos',
   'settings.updates.featureOnlyDesc': 'Mostrar versões com recursos, como 1.2 e 1.3. Pular correções, como 1.2.1.',
   'settings.updates.heading': 'Atualizações',
-  'settings.updates.notice': 'O Atlas {version} está pronto para instalar.',
   'settings.updates.noticeTitle': 'Atualização disponível',
   'settings.updates.showAfterUpdates': 'Mostrar novidades após atualizar',
   'settings.updates.showAfterUpdatesDesc': 'Abrir as notas de lançamento uma vez após atualizar o Atlas. Você sempre pode ver as novidades aqui.',
