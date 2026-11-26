@@ -37,7 +37,7 @@ function scene(options: MemoryOptions & Partial<EngineScene>): EngineScene {
  * reports. `gm` was recorded anew when the GM's picture got its floor (`GM_FLOOR`, 2026-11-12);
  * `gmWithoutFloor` is the GM's hash from before, which the picture still has with the floor at 0.
  */
-const RECORDED = { player: '016b47bc', gm: '37927311', gmWithoutFloor: '62870fd9' } as const;
+const APPLE_RECORDED = { player: '016b47bc', gm: '37927311', gmWithoutFloor: '62870fd9' } as const;
 /**
  * The same scene without its lights, under an ambient light of 0.2: sight, darkvision, explored
  * memory and the GM's ghosted map. Recorded on beta before the light falloff changed (commit
@@ -46,7 +46,27 @@ const RECORDED = { player: '016b47bc', gm: '37927311', gmWithoutFloor: '62870fd9
  * as above: this floor under an ambient light of 0.2 shows darker than the GM's floor.
  */
 const UNLIT: Partial<EngineScene> = { lights: [], ambient: 0.2 };
-const UNLIT_RECORDED = { player: '6b7d35a6', gm: 'de697922', gmWithoutFloor: 'fe953c1b' } as const;
+const APPLE_UNLIT_RECORDED = { player: '6b7d35a6', gm: 'de697922', gmWithoutFloor: 'fe953c1b' } as const;
+type Recorded = { readonly player: string; readonly gm: string; readonly gmWithoutFloor: string };
+/**
+ * Both scenes' hashes on each GPU they were recorded on, by a part of its WebGL renderer's name; any
+ * other renderer is held to the maintainer's. The RTX 5070's (ANGLE on OpenGL ES, `REAL_GPU=1` on
+ * Linux) were taken from what the first test reports, the same at commit 3fd5d7d63 where the Apple
+ * ones were last recorded and on develop since: the picture did not change, the GPU rounds otherwise (#209).
+ */
+const RECORDINGS: readonly { renderer: string; lit: Recorded; unlit: Recorded }[] = [
+  { renderer: 'NVIDIA GeForce RTX 5070', lit: { player: '504e58ad', gm: '150f4893', gmWithoutFloor: 'dd6fd642' }, unlit: { player: 'bd53dbf2', gm: 'd3aedf8e', gmWithoutFloor: '8d9d017a' } },
+];
+
+function rendererName(): string {
+  const gl = document.createElement('canvas').getContext('webgl2');
+  const info = gl?.getExtension('WEBGL_debug_renderer_info');
+  return info ? String(gl!.getParameter(info.UNMASKED_RENDERER_WEBGL)) : '';
+}
+
+const recording = RECORDINGS.find(({ renderer }) => rendererName().includes(renderer));
+const RECORDED: Recorded = recording?.lit ?? APPLE_RECORDED;
+const UNLIT_RECORDED: Recorded = recording?.unlit ?? APPLE_UNLIT_RECORDED;
 const DEFAULTS: MemoryOptions = { exploredMemory: true, exploredColor: '#ffffff', unexploredColor: '#000000' };
 
 /** Screen points: remembered but unseen (world 100, 100), never seen (900, 900), seen by the token (780, 300). */

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import css from '../../src/app/services/player-window.scss?inline';
+import { removePlayerCurtain, showPlayerCurtain } from '../../src/app/services/playerCurtain';
 import { SCENE_DIP_MS } from '../../src/app/services/playerSceneFade';
 
 /**
@@ -53,16 +54,22 @@ describe('the player window\'s canvas', () => {
     expect(computed.objectPosition).toBe('50% 50%');
   });
 
-  it('fades the curtain\'s sheet in the time the dip to black waits for it', () => {
-    const sheet = document.createElement('div');
-    sheet.className = 'atlas-player-curtain';
-    document.body.appendChild(sheet);
+  // Since the curtain fades through Motion's WAAPI animator (0d526f994), the stylesheet only says where the sheet rests.
+  it('fades the curtain\'s sheet in the time the dip to black waits for it', async () => {
+    showPlayerCurtain(document, false);
+    const sheet = document.body.querySelector<HTMLElement>(':scope > .atlas-player-curtain')!;
     try {
-      const computed = getComputedStyle(sheet);
-      expect(computed.transitionProperty).toBe('opacity');
-      expect(parseFloat(computed.transitionDuration) * 1000).toBe(SCENE_DIP_MS);
+      expect(getComputedStyle(sheet).opacity).toBe('0');
+      showPlayerCurtain(document, true);
+      const [fade, ...others] = sheet.getAnimations();
+      expect(others).toEqual([]);
+      expect(fade!.effect!.getTiming().duration).toBe(SCENE_DIP_MS);
+      expect((fade!.effect as KeyframeEffect).getKeyframes().map((frame) => Number(frame.opacity))).toEqual([0, 1]);
+      fade!.finish();
+      await fade!.finished;
+      expect(getComputedStyle(sheet).opacity).toBe('1');
     } finally {
-      sheet.remove();
+      removePlayerCurtain(document);
     }
   });
 });

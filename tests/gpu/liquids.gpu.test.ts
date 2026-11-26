@@ -505,8 +505,8 @@ describe('water motion remains subordinate to the map illustration', () => {
   let renderer: Awaited<ReturnType<typeof createTestRenderer>>;
   beforeAll(async () => { renderer = await createTestRenderer(960); });
   afterAll(() => renderer.destroy());
-  it('keeps the engraved image free of luminous caustic washes', async () => {
-    const scene = await waterScene('print', false);
+  it.each(['pool', 'channel', 'river'] as const)('keeps the engraved image free of luminous caustic washes: %s', async (source) => {
+    const scene = await waterScene('print', false, source);
     try {
       scene.layer.container.visible = false;
       const art = waterPicture(renderer, scene);

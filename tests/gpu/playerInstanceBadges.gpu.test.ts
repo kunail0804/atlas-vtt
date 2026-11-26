@@ -29,12 +29,13 @@ const sameSpot = (a: Uint8ClampedArray, b: Uint8ClampedArray, { x, y }: Spot): b
 
 /**
  * The GM's picture of the tokens with the numbers given, all seen: what the players' picture must show
- * once their numbers are `numbers`. Look-alikes off the picture make up the missing numbers.
+ * once their numbers are `numbers`. Look-alikes off the picture make up the missing numbers, up to
+ * `count` (the highest given where unset), so a token whose look-alikes the players do not see still
+ * carries its badge.
  */
-async function showing(numbers: Array<[Spot, number]>): Promise<Uint8ClampedArray> {
+async function showing(numbers: Array<[Spot, number]>, count = Math.max(0, ...numbers.map(([, number]) => number))): Promise<Uint8ClampedArray> {
   const byNumber = new Map(numbers.map(([spot, number]) => [number, spot]));
-  const top = Math.max(0, ...byNumber.keys());
-  const spots = Array.from({ length: top }, (_, i) => byNumber.get(i + 1) ?? { id: `away${i}`, x: 1000 + 80 * i, y: 1000 });
+  const spots = Array.from({ length: count }, (_, i) => byNumber.get(i + 1) ?? { id: `away${i}`, x: 1000 + 80 * i, y: 1000 });
   const s = await build(spots.map((spot) => ({ ...spot, isHidden: false })));
   return s.canvas();
 }
@@ -45,33 +46,42 @@ function expectPlayersSee(s: PlayerViewScene, expected: Uint8ClampedArray): void
   expect(samePixels(s.frame(), expected)).toBe(true);
 }
 
+/**
+ * Since 0.10.2 (b600e3341) a token carries the GM's number on every screen: the players see it on
+ * every look-alike they see, whatever they see of the others, and on one they do not see they see
+ * nothing. Their own numbering of the look-alikes they saw, which these tests held before, is gone.
+ */
 describe('a look-alike the players do not see', () => {
   it.each([
     ['hidden', [A, { ...B, isHidden: true }], undefined],
     ['under fog', [A, B], (s: PlayerViewScene): void => s.setFog({ paint: fogRectangle({ x: 110, y: 30, width: 60, height: 60 }) })],
     ['out of their sight', [A, B], (s: PlayerViewScene): void => { s.lighting.perception = perceiving({ B: 'unseen' }); }],
-  ] as const)('changes no pixel of the players\' frame when %s', async (_case, tokens, arrange) => {
+  ] as const)('leaves the others the GM\'s numbers in the players\' frame, and itself nothing, when %s', async (_case, tokens, arrange) => {
     const s = await build([...tokens], arrange);
-    const reference = await build([A], arrange);
+    // A with the GM's 1, its look-alike off the picture, under the same fog and sight.
+    const reference = await build([A, { id: 'away', x: 1000, y: 1000 }], arrange);
     expect(samePixels(s.frame(), reference.frame())).toBe(true);
+    // A shows its badge: alone it would show none.
+    expect(samePixels(reference.frame(), (await build([A], arrange)).frame())).toBe(false);
     s.store.getState().setGMView(false);
     reference.store.getState().setGMView(false);
     s.tokens.refreshPlayerSight();
+    reference.tokens.refreshPlayerSight();
     expect(samePixels(s.canvas(), reference.canvas())).toBe(true);
   });
 
-  it('leaves the numbers of the others as if it were not there, while the GM view keeps its own', async () => {
+  it('gives the others the numbers the GM view shows', async () => {
     const s = await build([A, { ...B, isHidden: true }, C]);
-    const reference = await build([A, C]);
     const gm = s.canvas();
-    expect(samePixels(s.frame(), reference.frame())).toBe(true);
-    // The GM sees 1 and 3; the players 1 and 2.
-    expect(sameSpot(gm, await showing([[A, 1], [C, 3]]), C)).toBe(true);
-    expect(sameSpot(gm, reference.canvas(), C)).toBe(false);
+    const players = await showing([[A, 1], [C, 3]]);
+    expect(samePixels(s.frame(), players)).toBe(true);
+    // The GM sees 1 and 3 on A and C, the players the same.
+    expect(sameSpot(gm, players, A)).toBe(true);
+    expect(sameSpot(gm, players, C)).toBe(true);
     expect(samePixels(s.canvas(), gm)).toBe(true);
   });
 
-  it('takes its look-alike\'s badge while the players only sense it, and leaves its outline alone', async () => {
+  it('shows no badge on it while the players only sense it, leaves its outline alone, and its look-alike keeps the GM\'s number', async () => {
     // The outlines show as the lighting's list of the players' layers shows them.
     const sensed = (s: PlayerViewScene): void => {
       s.lighting.perception = perceiving({ B: 'sensed' });
@@ -79,12 +89,12 @@ describe('a look-alike the players do not see', () => {
     };
     const s = await build([A, B], sensed);
     const frame = s.frame();
-    expect(sameSpot(frame, (await build([A])).frame(), A)).toBe(true);
+    expect(sameSpot(frame, await showing([[A, 1]], 2), A)).toBe(true);
     expect(sameSpot(frame, (await build([B], sensed)).frame(), B)).toBe(true);
     expect(differingPixels(frame, (await build([A])).frame())).toBeGreaterThan(0);
   });
 
-  it('comes back with the smallest number free once the players see it again', async () => {
+  it('comes back with its own number once the players see it again', async () => {
     const s = await build([A, B]);
     s.frame();
     s.lighting.perception = perceiving({ B: 'sensed' });
@@ -92,10 +102,8 @@ describe('a look-alike the players do not see', () => {
     await s.add(C);
     s.frame();
     s.lighting.perception = undefined;
-    // A keeps 1, C came into view as 2, B comes back as 3.
-    const reference = await build([A, C, B]);
-    expect(samePixels(s.frame(), reference.frame())).toBe(true);
-    expect(samePixels(s.frame(), await showing([[A, 1], [C, 2], [B, 3]]))).toBe(true);
+    // A is 1 and B 2 on the GM's map, C came as 3: the players see the same.
+    expect(samePixels(s.frame(), await showing([[A, 1], [B, 2], [C, 3]]))).toBe(true);
   });
 });
 
@@ -106,7 +114,7 @@ describe('session view, the peek and pictures of the scene', () => {
     const thumbnail = s.thumbnail();
     s.store.getState().setGMView(false);
     expect(samePixels(s.canvas(), s.frame())).toBe(true);
-    expect(samePixels(s.canvas(), (await build([A, C])).frame())).toBe(true);
+    expect(samePixels(s.canvas(), await showing([[A, 1], [C, 3]]))).toBe(true);
     // A picture of the scene taken meanwhile is the GM's.
     expect(samePixels(s.thumbnail(), thumbnail)).toBe(true);
     s.store.getState().setGMView(true);
@@ -117,7 +125,7 @@ describe('session view, the peek and pictures of the scene', () => {
     const s = await build([A, B, C], (scene) => { scene.lighting.perception = perceiving({ B: 'unseen' }); });
     const gm = s.canvas();
     s.peek(true);
-    expect(samePixels(s.canvas(), await showing([[A, 1], [C, 2]]))).toBe(true);
+    expect(samePixels(s.canvas(), await showing([[A, 1], [C, 3]]))).toBe(true);
     s.peek(false);
     expect(samePixels(s.canvas(), gm)).toBe(true);
   });
@@ -127,13 +135,13 @@ describe('session view, the peek and pictures of the scene', () => {
     const gm = s.canvas();
     s.events.emit('player-mode-changed', true);
     expect(samePixels(s.canvas(), gm)).toBe(true);
-    expect(samePixels(s.frame(), await showing([[A, 1], [C, 2]]))).toBe(true);
+    expect(samePixels(s.frame(), await showing([[A, 1], [C, 3]]))).toBe(true);
     expect(samePixels(s.canvas(), gm)).toBe(true);
   });
 });
 
 describe('a scene loaded in session view', () => {
-  it('is numbered by its own sight in the window and on the canvas, not by the sight kept from the scene before', async () => {
+  it('is shown by its own sight in the window and on the canvas, not by the sight kept from the scene before', async () => {
     const s = await build([A, B, C]);
     s.store.getState().setGMView(false);
     s.tokens.refreshPlayerSight();
@@ -147,16 +155,16 @@ describe('a scene loaded in session view', () => {
     // The load ends: the loaded scene's sight leaves B in the dark.
     s.lighting.perception = perceiving({ B: 'unseen' });
     s.store.getState().setMapLoading(false);
-    expectPlayersSee(s, await showing([[A, 1], [C, 2]]));
+    expectPlayersSee(s, await showing([[A, 1], [C, 3]]));
   });
 });
 
 describe('session view while tokens are hidden and revealed', () => {
-  it('gives both badges back when the hidden look-alike is revealed', async () => {
+  it('gives the revealed look-alike its badge back', async () => {
     const s = await build([A, B]);
     s.store.getState().setGMView(false);
     hide(s, 'B', true);
-    expectPlayersSee(s, await showing([[A, 1]]));
+    expectPlayersSee(s, await showing([[A, 1]], 2));
     hide(s, 'B', false);
     const gmView = await showing([[A, 1], [B, 2]]);
     expectPlayersSee(s, gmView);
@@ -164,24 +172,24 @@ describe('session view while tokens are hidden and revealed', () => {
     expect(samePixels(s.canvas(), gmView)).toBe(true);
   });
 
-  it('gives a revealed token its disc with the players\' number, beside a token keeping the GM\'s', async () => {
+  it('gives a revealed token its disc with the GM\'s number, beside a token keeping its own', async () => {
     const s = await build([A, B, C]);
     s.store.getState().setGMView(false);
     hide(s, 'A', true);
     hide(s, 'B', true);
-    expectPlayersSee(s, await showing([[C, 1]]));
+    expectPlayersSee(s, await showing([[C, 3]]));
     hide(s, 'B', false);
-    expectPlayersSee(s, await showing([[B, 1], [C, 3]]));
+    expectPlayersSee(s, await showing([[B, 2], [C, 3]]));
   });
 
-  it('goes back to the GM\'s numbers once the players see what the GM sees', async () => {
+  it('shows the GM\'s numbers all along, up to what the GM sees', async () => {
     const s = await build([A, { ...B, isHidden: true }, C]);
     s.store.getState().setGMView(false);
-    expectPlayersSee(s, await showing([[A, 1], [C, 2]]));
+    expectPlayersSee(s, await showing([[A, 1], [C, 3]]));
     hide(s, 'C', true);
-    expectPlayersSee(s, await showing([[A, 1]]));
+    expectPlayersSee(s, await showing([[A, 1]], 3));
     hide(s, 'B', false);
-    expectPlayersSee(s, await showing([[A, 1], [B, 2]]));
+    expectPlayersSee(s, await showing([[A, 1], [B, 2]], 3));
     hide(s, 'C', false);
     const gmView = await showing([[A, 1], [B, 2], [C, 3]]);
     expectPlayersSee(s, gmView);

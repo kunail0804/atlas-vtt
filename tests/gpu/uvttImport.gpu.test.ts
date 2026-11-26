@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { imageDimensions, imageHeader } from '../../src/app/imageProcessing/imageDimensions';
-import { IMAGE_PRESETS, disposeImageProcessing, optimizeImage } from '../../src/app/imageProcessing/imageProcessing';
+import { IMAGE_PRESETS, disposeImageProcessing, optimizeImage, type ImagePreset } from '../../src/app/imageProcessing/imageProcessing';
 import { importUvttFile, type UvttImportDeps, type UvttImported } from '../../src/app/import/uvtt/importUvttFile';
 import { importUvttFloors, type UvttFloorsImported } from '../../src/app/import/uvtt/importUvttFloors';
 import { floorNaming } from '../../src/app/import/uvtt/uvttFloorNames';
@@ -26,7 +26,12 @@ interface Bench {
   binaries: Map<string, ArrayBuffer>;
 }
 
-async function bench(): Promise<Bench> {
+/**
+ * A vault and the image workers. `mapPreset` is how a map is stored: since 0.11.0 a map keeps up to
+ * 65535 px a side (`MAP_MAX_SIDE`), wider than a canvas can paint a test map, so the tests of a map
+ * larger than a map keeps lower the side to 32767, as `mapImport.gpu.test.ts` does.
+ */
+async function bench(mapPreset: ImagePreset = IMAGE_PRESETS.map): Promise<Bench> {
   const vault = createInMemoryApp();
   AssetService.resetInstance();
   const assets = AssetService.getInstance(vault.app);
@@ -42,11 +47,14 @@ async function bench(): Promise<Bench> {
     deps: {
       app: vault.app,
       assetService: assets,
-      convertImage: (image) => optimizeImage(image, IMAGE_PRESETS.map, { thumbnail: THUMBNAIL_SPEC }),
+      convertImage: (image) => optimizeImage(image, mapPreset, { thumbnail: THUMBNAIL_SPEC }),
       thumbnails: new AssetThumbnailService(vault.app, assets),
     },
   };
 }
+
+/** Maps of at most 32767 px a side: a canvas cannot paint a test map wider than a map may be (`bench`). */
+const NARROW_MAPS: ImagePreset = { ...IMAGE_PRESETS.map, maxWidth: 32767, maxHeight: 32767 };
 
 async function base64Of(blob: Blob): Promise<string> {
   const bytes = new Uint8Array(await blob.arrayBuffer());
@@ -116,9 +124,9 @@ describe('importing a Universal VTT file with the image workers', () => {
   });
 
   it('puts the walls on the image as it is saved when the image is larger than a map keeps', async () => {
-    const b = await bench();
+    const b = await bench(NARROW_MAPS);
 
-    // 34,000 px wide: more than a map's longest side, so the saved image is fit to 32,767 px and written as PNG.
+    // 34,000 px wide: more than the lowered longest side, so the saved image is fit to 32,767 px and written as PNG.
     const result = arrived(await importUvttFile(b.deps, await mapFile({ x: 340, y: 60 }, 100, 'image/jpeg'), COLLECTION));
 
     const scene = sceneOf(b, result);
@@ -196,7 +204,7 @@ describe('importing Universal VTT floors with the image workers', () => {
   });
 
   it('fits a floor whose image was larger than a map keeps to the scene\'s grid, its wall on its art', async () => {
-    const b = await bench();
+    const b = await bench(NARROW_MAPS);
     const cellar = await mapFile({ x: 10, y: 8 }, 100, 'image/jpeg', { name: 'Hall-_00.dd2vtt' });
     const hall = await mapFile({ x: 340, y: 60 }, 100, 'image/jpeg', { name: 'Hall-_01.dd2vtt' });
 
