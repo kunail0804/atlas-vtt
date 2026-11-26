@@ -7,7 +7,9 @@ const TESTEUR = 'a'.repeat(20);
 /**
  * A player's measurement reaches the GM and the other players (#181). A page tells it in the
  * player's colour at the table, read from the page's styles, which is no laser swatch: the GM took
- * only swatches and dropped every measurement a page sent.
+ * only swatches and dropped every measurement a page sent. Since upstream 0.19 the GM sends it on in
+ * its own accent (a measurement's colour says what it is for); every page still draws it in its
+ * maker's colour at the table (`RemoteMeasurePorts.senderColour`, `playerMeasure.browser.test.ts`).
  */
 describe('a player\'s measurement', () => {
   // The players' page's red (`page.css`), and the GM's accent the page told measurements in before.
@@ -21,7 +23,7 @@ describe('a player\'s measurement', () => {
       expect(harness.shown?.measures).toEqual([expect.objectContaining({ who: TESTEUR, live: { shape: 'circle', a: [100, 100], b: [240, 100] } })]);
       harness.advance(200);
       const sent = lastMarks(harness)?.measures.find((measure) => measure.who === TESTEUR);
-      expect(sent).toMatchObject({ color, live: { shape: 'circle', a: [100, 100], b: [240, 100] } });
+      expect(sent).toMatchObject({ color: '#123456', live: { shape: 'circle', a: [100, 100], b: [240, 100] } });
     });
   }
 });

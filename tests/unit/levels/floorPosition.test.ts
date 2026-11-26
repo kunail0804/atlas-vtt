@@ -173,7 +173,7 @@ describe('Position floor on the map', () => {
     expect(state.objects.walls.own?.p1).toEqual({ x: 140, y: 70 });
     expect(state.objects.walls.shared?.p1).toEqual({ x: 0, y: 0 });
 
-    store.temporal.getState().undo();
+    getHistoryStore(store)!.getState().undo();
     expect(store.getState().levelAlignments?.cellar).toBeUndefined();
     expect(store.getState().objects.tokens.down).toMatchObject({ x: 35, y: 35 });
   });
@@ -190,7 +190,7 @@ describe('Position floor on the map', () => {
 
     expect(store.getState().objects).toBe(before);
     expect(store.getState().levelAlignments).toBeUndefined();
-    expect(store.temporal.getState().pastStates).toHaveLength(0);
+    expect(getHistoryStore(store)!.getState().pastStates).toHaveLength(0);
     // That Escape only cancelled the drag; the next one ends Position floor
     expect(done.count).toBe(0);
     key('Escape');
@@ -205,7 +205,7 @@ describe('Position floor on the map', () => {
     tap('ArrowDown', true);
 
     expect(store.getState().levelAlignments?.cellar?.offset).toEqual({ x: 70, y: 350 });
-    expect(store.temporal.getState().pastStates).toHaveLength(2);
+    expect(getHistoryStore(store)!.getState().pastStates).toHaveLength(2);
   });
 
   it('draws a held arrow key\'s moves and writes them once, when it is let go', () => {
@@ -220,7 +220,7 @@ describe('Position floor on the map', () => {
 
     keyUp('ArrowRight');
     expect(store.getState().levelAlignments?.cellar?.offset).toEqual({ x: 210, y: 0 });
-    expect(store.temporal.getState().pastStates).toHaveLength(1);
+    expect(getHistoryStore(store)!.getState().pastStates).toHaveLength(1);
   });
 
   it('leaves the arrow keys and Enter to a control that uses them, such as a slider', () => {

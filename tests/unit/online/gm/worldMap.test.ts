@@ -138,6 +138,6 @@ describe('a world map whose image cannot be sent', () => {
   });
 
   it('has a sentence for every reason', () => {
-    expect(Object.keys(WORLD_MAP_PROBLEM_TEXT).sort()).toEqual(['missing', 'too-large', 'unreadable', 'unstored']);
+    expect(Object.keys(WORLD_MAP_PROBLEM_TEXT).sort()).toEqual(['missing', 'no-image', 'too-large', 'unreadable', 'unstored']);
   });
 });

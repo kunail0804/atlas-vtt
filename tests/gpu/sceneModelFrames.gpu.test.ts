@@ -15,7 +15,7 @@ const DARK = { ambient: 0, exploredMemory: false };
 const glow = (color: string, changes: Partial<LightEmission> = {}): LightEmission => ({ bright: 3, dim: 6, color, intensity: 1, animation: 'none', ...changes });
 const placed = (id: string, x: number, y: number, emission: LightEmission, changes: Partial<LightSource> = {}): LightSource => ({ id, kind: 'light', x, y, emission, ...changes });
 const carrying = (token: TokenEntity, light: LightEmission): TokenEntity => ({ ...token, light });
-const place = (store: Store, lights: Record<string, LightSource>, lightZones: Record<string, LightZone> = {}): void => store.setState((state) => ({ objects: { ...state.objects, lights, lightZones } }));
+const place = (store: Store, lights: Record<string, LightSource>, lightZones: Record<string, LightZone> = {}): void => void store.setState((state) => ({ objects: { ...state.objects, lights, lightZones } }));
 
 interface FrameCase {
   name: string;

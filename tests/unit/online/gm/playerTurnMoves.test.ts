@@ -17,7 +17,7 @@ function fight(): Table {
   const t = realTable(createViewAtlasStore, () => null, () => false, (_id, from, to) => (Math.abs(to.x - from.x) / 70) * 5);
   const initiative = { isActive: true, round: 1, entries: [{ id: 'e-ogre', tokenId: 'ogre', isActive: true }] } as unknown as InitiativeState;
   runUntracked(t.store, () => t.store.setState((draft) => {
-    (draft as { initiative?: InitiativeState }).initiative = initiative;
+    (draft as unknown as { initiative?: InitiativeState }).initiative = initiative;
   }));
   return t;
 }

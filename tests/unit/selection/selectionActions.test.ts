@@ -55,7 +55,7 @@ function scene(selected: (ids: { text: string; pen: string }) => string[] = () =
   const edited: string[] = [];
   const host: TokenActionHost = {
     store, app: app as unknown as App, grid: {} as GridSystem, isPlayerView: false, movement: undefined, touch: false,
-    conditions: () => [], resources: () => [HP], editToken: (token) => edited.push(token.id), changeResource: () => undefined, paste: () => undefined,
+    conditions: () => [], resources: () => [HP], editToken: (token) => edited.push(token.id), changeResource: () => undefined, paste: () => undefined, preview: () => undefined,
   };
   return {
     store, ids, edited,
@@ -84,7 +84,7 @@ describe('what can be done with a token', () => {
     const actions = ofToken('goblin');
     expect(ids(actions)).toEqual([
       'size', 'height', 'aura', 'visibility', 'vision', 'carry-light', 'duplicate', 'copy', 'save-encounter', 'edit', 'initiative',
-      'link-statblock', 'ring', 'reset', 'kill', 'delete',
+      'link-statblock', 'character-sheet', 'ring', 'reset', 'kill', 'delete',
     ]);
     expect(bar(actions)).toEqual(['edit:Edit', 'duplicate:Duplicate', 'delete:Delete']);
     expect(actions.every((action) => action.kind === 'row' || action.enabled)).toBe(true);

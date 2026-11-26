@@ -175,7 +175,7 @@ describe('effects and lights of kept areas, mounted', () => {
     const { store, displayFrames } = view;
     /** The mesh of the one effect drawn: built anew, it is another object. */
     const piece = (): Container => view.viewport.getChildByLabel('measure-effect-piece', true)!;
-    const place = (x: number): void => store.setState((state) => ({ objects: { ...state.objects, tokens: { hero: { id: 'hero', kind: 'token', imagePath: '', x, y: 224, size: 1 } as TokenEntity } } }));
+    const place = (x: number): void => void store.setState((state) => ({ objects: { ...state.objects, tokens: { hero: { id: 'hero', kind: 'token', imagePath: '', x, y: 224, size: 1 } as TokenEntity } } }));
     place(96);
     store.getState().setTokenAuras([{ tokenId: 'hero', aura: 5, points: [{ x: 96, y: 224 }, { x: 192, y: 224 }] }], { color: '#e0ac00' });
     const [aura] = Object.keys(store.getState().objects.measures ?? {});

@@ -94,7 +94,7 @@ describe('the players\' list', () => {
   const draw = (look: { pulse?: boolean; showNames?: boolean; turnFlash?: number; artViewBox?: (imagePath: string, apply: (viewBox: string) => void) => void }, entries: PlayerInitiativeEntry[]): HTMLElement => {
     document.body.empty();
     const list = playerInitiativeList({ entries, isActive: true, round: 1 }, () => ({ hp: null, showRing: false, side: 'opponents', defeated: false }), TURN_ORDER, false);
-    renderPlayerInitiative(document.body, list, { showNames: false, portraitSrc: () => 'art.webp', ...look });
+    renderPlayerInitiative(document.body, list, { showNames: false, portraitSrc: () => 'art.webp', ...look } as unknown as Parameters<typeof renderPlayerInitiative>[2]);
     return document.querySelector<HTMLElement>('.atlas-player-initiative')!;
   };
 

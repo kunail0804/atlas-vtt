@@ -75,11 +75,11 @@ describe('tokens that wait for their turn', () => {
     expect(await heldNow()).toEqual([105]);
     // The turn passes to the hero (the ogre waits now), back to the ogre, then the fight ends
     const heroTurn = { ...fight(), entries: [entry('ogre', 0, false), entry('hero', 1, true)] };
-    await share.set({ ...state, initiative: heroTurn });
+    await share.set({ ...state, initiative: heroTurn } as typeof state);
     expect(await heldNow()).toEqual([315]);
-    await share.set({ ...state, initiative: fight() });
+    await share.set({ ...state, initiative: fight() } as typeof state);
     expect(await heldNow()).toEqual([105]);
-    await share.set({ ...state, initiative: { ...fight(), isActive: false } });
+    await share.set({ ...state, initiative: { ...fight(), isActive: false } } as typeof state);
     expect(await heldNow()).toEqual([]);
   });
 

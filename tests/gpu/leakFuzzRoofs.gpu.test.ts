@@ -140,7 +140,7 @@ async function fuzz({ seed, trials, map = 2048, below = false, ignoreFading = fa
       view.controller.renderer.beforeMapUnload();
       store.getState().setMapPath(`maps/roofs-${seed}-${n}.atlasmap`);
       const objects = { ...store.getState().objects, tokens, walls: { ...wallsOn(room, 'v', 'upper'), ...wallsOn(lower, 'b', 'ground') }, lights, lightZones: zones, levelSurfaces: surfaces };
-      const scene = (roofs: boolean): void => store.setState({
+      const scene = (roofs: boolean): void => void store.setState({
         mapLoaded: true, isMapLoading: false, viewedLevel: 'upper', exploredMask: null, exploredMasks: undefined, objects,
         levels: levelsWith(roofs && upperRoof ? 'roof-upper.png' : null, roofs && groundRoof ? 'roof-ground.png' : null),
       });
