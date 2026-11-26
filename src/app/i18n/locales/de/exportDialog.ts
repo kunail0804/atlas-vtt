@@ -1,0 +1,26 @@
+import type { Translation } from '../../types';
+
+export const exportDialog: Translation = {
+  'exportDialog.author': 'Autor',
+  'exportDialog.authorPlaceholder': 'Wird allen angezeigt, die sie installieren',
+  'exportDialog.closeHint': 'Ohne Export schließen',
+  'exportDialog.enterName': 'Gib einen Namen für deine Sammlung ein.',
+  'exportDialog.exportCollection': 'Sammlung exportieren',
+  'exportDialog.exportNamed': '{name} exportieren',
+  'exportDialog.exportVersion': 'v{version} exportieren',
+  'exportDialog.forkIntro': 'Du hast diese Sammlung{from} installiert. Beim Veröffentlichen wird deine Kopie mit deinen Änderungen zu einer eigenen Sammlung, die bei v1 beginnt. Sie erhält keine Updates mehr vom Original.',
+  'exportDialog.fromAuthor': ' von {author}',
+  'exportDialog.includeHint': 'Wähle mindestens ein Element zum Exportieren aus',
+  'exportDialog.includeOne': 'Wähle mindestens ein Element aus.',
+  'exportDialog.missing': { one: '{count} referenzierte Datei fehlt und wird nicht aufgenommen:', other: '{count} referenzierte Dateien fehlen und werden nicht aufgenommen:' },
+  'exportDialog.name': 'Name',
+  'exportDialog.notes': 'Versionshinweise',
+  'exportDialog.notesPlaceholder': 'Was in dieser Version neu ist',
+  'exportDialog.publish': 'Veröffentlichen',
+  'exportDialog.publishNamed': '{name} als eigene veröffentlichen',
+  'exportDialog.publishOwn': 'Als eigene veröffentlichen',
+  'exportDialog.sameVersion': 'Gleich wie deine letzte Veröffentlichung. Wer v{version} installiert hat, sieht eine geänderte Kopie davon.',
+  'exportDialog.version': 'Version',
+  'exportDialog.versionInvalid': 'Die Version muss eine ganze Zahl von mindestens {min} sein.',
+  'exportDialog.zipHint': 'Sammlung als .zip-Datei speichern, die du an andere weitergeben kannst',
+};

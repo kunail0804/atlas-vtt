@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import React from 'react';
-import { act, cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { LightingSettingsPanel } from '../../src/app/react/components/command-palette/LightingSettingsPanel';
 import { AtlasUIContext, type AtlasUIContextValue } from '../../src/app/react/root/AtlasUIContext';
@@ -38,9 +38,10 @@ describe('the Lighting page\'s choice of who reveals explored memory', () => {
     expect('exploredBy' in store.getState().lighting).toBe(false);
   });
 
-  it('stays in place but cannot be set while the scene remembers nothing', () => {
+  it('stays in place but cannot be set while the scene remembers nothing', async () => {
     act(() => store.getState().setSceneLighting({ exploredMemory: false }));
-    expect((option('Players\' tokens') as HTMLButtonElement).disabled).toBe(true);
+    // A change of the store outside a React event reaches the page on React's next render.
+    await waitFor(() => expect((option('Players\' tokens') as HTMLButtonElement).disabled).toBe(true));
     act(() => option('Players\' tokens').click());
     expect(store.getState().lighting.exploredBy).toBeUndefined();
   });

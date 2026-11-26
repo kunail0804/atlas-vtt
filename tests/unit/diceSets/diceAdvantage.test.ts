@@ -10,7 +10,7 @@ import { memoryPresets } from '../../mocks/memoryPresets';
 describe('rolls with advantage', () => {
   const builtIn = (id: string): DiceSet => BUILT_IN_DICE_SETS.find((set) => set.id === id)!;
   const d20 = builtIn('builtin:d20');
-  const rollUnder = builtIn('builtin:d20-roll-under');
+  const rollUnder: DiceSet = { ...builtIn('builtin:d20-roll-under'), advantage: { kind: 'keep' }, disadvantage: { kind: 'keep' } };
   const percentile = builtIn('builtin:d100-roll-under');
   const powerRoll = builtIn('builtin:power-roll');
   const set = (fields: Partial<DiceSet>): DiceSet => ({ id: 'set', name: 'Set', builtIn: false, crit: 'natural', dice: [{ count: 1, sides: 20 }], ...fields });
@@ -225,7 +225,7 @@ describe('advantage rules', () => {
     // gives the built-in sets sensible rules
     {
       expect(builtIn('builtin:d20')).toMatchObject({ advantage: { kind: 'keep' }, disadvantage: { kind: 'keep' } });
-      expect(builtIn('builtin:d20-roll-under')).toMatchObject({ advantage: { kind: 'keep' }, disadvantage: { kind: 'keep' } });
+      expect(builtIn('builtin:d20-roll-under').advantage).toBeUndefined();
       expect(builtIn('builtin:d100-roll-under').advantage).toEqual({ kind: 'keep' });
       expect(builtIn('builtin:d10-exploding').advantage).toBeUndefined();
       expect(builtIn('builtin:d10-exploding').disadvantage).toBeUndefined();

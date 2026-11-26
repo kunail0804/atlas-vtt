@@ -177,4 +177,8 @@ export const online: Translation = {
   'online.assetsMapTooLarge': 'Эта карта слишком велика, чтобы показать её игрокам.',
   'online.mapUnreadable': 'Изображение карты этой сцены нельзя передать игрокам.',
   'online.assetsFailed': 'Не удалось передать файл игрокам.',
+  'online.account.hosting': 'Проведение игр',
+  'online.account.signInFirst': 'Войдите в аккаунт Atlas выше, чтобы проводить онлайн-столы.',
+  'online.clearDrawings': 'Стереть рисунки',
+  'online.fogTooMuch': 'На этой карте слишком много тумана для онлайн-игроков. Они видят её закрытой, пока вы не уберёте часть тумана.',
 };

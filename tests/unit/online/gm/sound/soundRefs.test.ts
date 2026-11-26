@@ -48,7 +48,7 @@ describe('how a sound goes up', () => {
     for (let index = 0; index < 4000; index++) writer.addPacket(packet);
     const long = new Uint8Array(await writer.finish(3990 * 960).arrayBuffer());
     const segmented: { key: string; kind: string; handed: boolean }[] = [];
-    const refs = (bytes: Uint8Array, growing: InstanceType<typeof GrowingCopy> | null): SoundRefs => new SoundRefs({
+    const refs = (bytes: Uint8Array<ArrayBuffer>, growing: InstanceType<typeof GrowingCopy> | null): SoundRefs => new SoundRefs({
       bytes: () => Promise.resolve({ byteLength: bytes.length, read: (start, end) => Promise.resolve(bytes.subarray(start, end)) }),
       growing: () => growing,
       copyRef: async (copy) => ({ ...copy, id: `whole-${copy.hash}` }),

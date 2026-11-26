@@ -51,8 +51,10 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('a player\'s measur
     };
 
     const mapRef = await storeAsset(test, png(MAP_W, MAP_H, () => [40, 40, 40]), 'image/png');
-    const join = async (name: string): Promise<{ page: Page; id: string }> => {
+    const join = async (name: string, persist = false): Promise<{ page: Page; id: string }> => {
       const page = await (await browser.newContext({ viewport: { width: 1200, height: 800 } })).newPage();
+      // "Persist Measurements" as the page stores it (`toolSettings.ts`).
+      if (persist) await page.addInitScript(() => window.localStorage.setItem('atlas-vtt:tools', JSON.stringify({ measure: { persist: true } })));
       const seated = gm.joined.length;
       await page.goto(`http://127.0.0.1:${test.relay.publicPort}/#${created.code}`);
       await page.fill('.join-input >> nth=0', name);
@@ -66,7 +68,7 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('a player\'s measur
       await page.waitForFunction(() => (document.querySelector('.status') as HTMLElement | null)?.hidden === true, null, { timeout: 10_000 });
       return { page, id };
     };
-    const testeur = await join('Testeur');
+    const testeur = await join('Testeur', true);
     const invitee = await join('Invitee');
     // Testeur's colour at the table, as the players' page has it (`page.css`).
     const variable = PLAYER_COLOURS[playerTone(testeur.id)] ?? '';
@@ -112,5 +114,12 @@ describe.skipIf(!existsSync(CHROMIUM) || !existsSync(BUILT))('a player\'s measur
     expect(found).toBe(true);
     expect(near(rgbOf(ACCENT), wanted)).toBe(false);
     await testeur.page.mouse.up();
+
+    // Kept, the ruler is the scene's: the page asks the GM to keep it (GM level 17), from its start to its end.
+    await until(() => gm.messages.some((message) => (message.body as { t?: string }).t === 'measure-keep'), 'GM asked to keep the measurement', 5_000);
+    const keep = gm.messages.map((message) => message.body as { t?: string; scene?: string; measure?: { shape: string; pts: number[] } }).find((body) => body.t === 'measure-keep');
+    expect(keep?.scene).toBe('s1');
+    expect(keep?.measure?.shape).toBe('ruler');
+    expect(keep?.measure?.pts).toHaveLength(4);
   });
 });

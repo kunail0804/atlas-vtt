@@ -235,16 +235,12 @@ describe('initiative roll inputs', () => {
       expect(get().initiative.entries.map(e => [e.id, e.initiative, e.order])).toEqual([['a', 9, 0], ['b', 5, 1]]);
     });
 
-    it('keeps input order when sorting is off, and sorts descending with stable ties when on', () => {
+    it('sorts descending with stable ties', () => {
       const { actions, set, get } = setup([entry('a'), entry('b'), entry('c')], [0, 0.99, 0.99]);
-      actions.setInitiativeConfig({ autoSort: false });
       set.mockClear();
       actions.rollAllInitiative('d6');
-      expect(get().initiative.entries.map(e => [e.id, e.initiative])).toEqual([['a', 1], ['b', 6], ['c', 6]]);
       expect(set).toHaveBeenCalledOnce();
-      actions.setInitiativeConfig({ autoSort: true });
-      actions.rollAllInitiative('d6');
-      expect(get().initiative.entries.map(e => [e.id, e.order])).toEqual([['b', 0], ['c', 1], ['a', 2]]);
+      expect(get().initiative.entries.map(e => [e.id, e.initiative, e.order])).toEqual([['b', 6, 0], ['c', 6, 1], ['a', 1, 2]]);
     });
 
     it('rolls just the named entry and reorders during an active fight', () => {
@@ -269,9 +265,8 @@ describe('initiative roll inputs', () => {
   describe('initiative rolls with statblock modifiers', () => {
     it('adds the statblock\'s modifier where the entry has none of its own, and keeps a hand-set one', () => {
       const { actions, get } = setup([entry('own', 2), entry('linked'), entry('plain')], [0.5]);
-      actions.setInitiativeConfig({ autoSort: false });
       actions.rollAllInitiative('1d20', new Map([['own', 9], ['linked', 5]]));
-      expect(get().initiative.entries.map(e => [e.id, e.initiative])).toEqual([['own', 13], ['linked', 16], ['plain', 11]]);
+      expect(get().initiative.entries.map(e => [e.id, e.initiative])).toEqual([['linked', 16], ['own', 13], ['plain', 11]]);
     });
 
     it('rolls one entry with its statblock\'s modifier, and keeps its own where the statblock gives none', () => {
@@ -369,7 +364,7 @@ describe('the players\' side', () => {
 
     it('gives a player character without vision the same side: both lists, the turn and the deal', () => {
       known({ library: () => [record('ranger', true), record('wolf')] });
-      const groups = trackerSegments(entries, tokens, { bySides: true, sides, fightRuns: false, round: 0, fromTurn: false, collapsed: false })
+      const groups = trackerSegments(entries, tokens, { bySides: true, sides, fightRuns: false, round: 0, fromTurn: false })
         .flatMap((segment) => (segment.kind === 'round' ? [] : [[segment.side?.id, segment.items.map((item) => item.tokenId)]]));
       expect(groups).toEqual([['players', ['ranger']], ['opponents', ['wolf']]]);
       expect([entryTokenOf(tokens.ranger, []).side, entryTokenOf(tokens.wolf, []).side]).toEqual(['players', 'opponents']);
@@ -481,13 +476,11 @@ describe('clearing the initiative', () => {
     expect(store.getState().initiative).not.toHaveProperty('sides');
   });
 
-  it('keeps the tracker open and its settings', () => {
+  it('keeps the tracker open', () => {
     const store = fight();
     store.getState().setInitiativeTrackerOpen(true);
-    store.getState().setInitiativeConfig({ autoSort: false });
     store.getState().resetInitiative();
     expect(store.getState().initiativeTrackerOpen).toBe(true);
-    expect(store.getState().initiative.config.autoSort).toBe(false);
   });
 });
 

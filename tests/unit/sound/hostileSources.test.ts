@@ -22,7 +22,7 @@ const u32 = (value: number): Uint8Array => {
   return bytes;
 };
 
-const text = (value: string): Uint8Array => new TextEncoder().encode(value);
+const text = (value: string): Uint8Array<ArrayBuffer> => new TextEncoder().encode(value);
 
 const box = (name: string, ...parts: readonly Uint8Array[]): Uint8Array<ArrayBuffer> => {
   const body = parts.reduce((sum, part) => sum + part.length, 0);

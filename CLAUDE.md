@@ -17,6 +17,8 @@ This repository is a fork whose `main` is its own product; `.github/WORKFLOW.md`
 - Upstream (`atlas-vtt/atlas-vtt`) is followed by releases: a sync merges an `upstream-sync-<date>` branch into a
   branch from develop with a real `git merge` (upstream's version first, the fork's additions put back on top), merged
   with a merge commit. A single fix may still be cherry-picked. Never open a pull request from an `upstream-*` branch.
+  A sync takes none of upstream's workflows, the Armarium, the Stream Deck or downloads from `assets.atlas-vtt.dev`
+  (`.github/WORKFLOW.md`).
 
 # Context
 - We are working on Atlas VTT, a Virtual Tabletop plugin for Obsidian.md

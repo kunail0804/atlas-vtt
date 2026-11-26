@@ -8,6 +8,8 @@ import { createStatblockEntry } from '../../../../statblocks/editor/create/entry
 import { characterSheetEntry } from '../../../../sheets/sheetEntries';
 import { copyAssetLink } from '../../../../links/atlasLinkText';
 import { t } from '../../../../i18n';
+import { previewEntry } from '../../../../services/previewByHand';
+import { previewStatblockByHand } from '../../../../services/statblockPreviewByHand';
 
 /** Edit token, Edit encounter or Rename for the clicked asset. */
 function editEntries(asset: AnyAsset, selectedAssets: AnyAsset[], deps: AssetContextMenuDeps): ContextMenuEntry[] {
@@ -79,14 +81,18 @@ function sizeEntries(asset: AnyAsset, selectedAssets: AnyAsset[], deps: AssetCon
 /** Open, change, unlink or create the statblock of a single token, then its character sheet, opened or made. */
 function statblockEntries(asset: AnyAsset, selectedAssets: AnyAsset[], deps: AssetContextMenuDeps): ContextMenuEntry[] {
   if (asset.type !== 'tokens' || selectedAssets.length !== 1) return [];
-  const entries: ContextMenuEntry[] = asset.statblockPath
-    ? [
+  const entries: ContextMenuEntry[] = [];
+  if (asset.statblockPath) {
+    const notePath = asset.statblockPath;
+    entries.push(
+      // The statblock a held Mod shows over the card, kept until a press outside it
+      previewEntry(() => previewStatblockByHand(deps.app, notePath, { name: asset.name, imagePath: asset.imagePath, showRing: asset.showRing })),
       { type: 'item', label: t('assetGrid.openStatblock'), icon: 'scroll-text', onClick: () => deps.openStatblock(asset) },
       { type: 'item', label: t('am.menu.changeStatblock'), icon: 'file-text', onClick: () => deps.openStatblockLinkModal(asset) },
       { type: 'item', label: t('am.menu.unlinkStatblock'), icon: 'unlink', onClick: () => deps.unlinkStatblock(asset) },
-    ]
-    : [{ type: 'item', label: t('am.menu.linkStatblock'), icon: 'file-text', onClick: () => deps.openStatblockLinkModal(asset) }];
-  if (!asset.statblockPath) {
+    );
+  } else {
+    entries.push({ type: 'item', label: t('am.menu.linkStatblock'), icon: 'file-text', onClick: () => deps.openStatblockLinkModal(asset) });
     const token = { imagePath: asset.imagePath ?? asset.imageUrl, name: asset.name };
     const create = createStatblockEntry(deps.app, { collectionId: deps.collectionId, from: 'asset-manager', token, onStart: deps.onClose });
     if (create) entries.push(create);

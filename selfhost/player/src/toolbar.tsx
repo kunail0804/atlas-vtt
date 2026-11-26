@@ -17,6 +17,8 @@ import { ToolButton } from '../../../src/app/packages/components/primitives/Tool
 import { LabelTooltip, TooltipProvider } from '../../../src/app/packages/components/primitives/tooltip.tsx';
 import { ToolGroup, type ToolGroupFace } from '../../../src/app/packages/components/toolbar/ToolGroup.tsx';
 import { DiceTray } from '../../../src/app/react/components/dice/DiceTray.tsx';
+import type { DiceShelf } from '../../../src/app/react/components/dice/diceShelf.ts';
+import type { DicePreset } from '../../../src/app/types/dicePresetTypes.ts';
 import { stampIconName } from '../../../src/app/pixi/mapIcons.ts';
 import { DRAW_SIZES, type DrawSize } from '../../../src/app/annotations/annotationTypes.ts';
 import { setRollText } from '../../../src/app/gameSystems/diceSets.ts';
@@ -34,6 +36,8 @@ export interface ToolbarHost {
   deleteMyDrawings(): void;
   /** Rolls the tray's formula; false when it cannot (no scene), and the tray keeps it. */
   roll(formula: string, advantage: AdvantageSide | null): boolean;
+  /** Rolls a designed roll of the GM's dice row, which the GM's Atlas rolls with its own dice (`PlayerRoll.preset`). */
+  rollPreset(preset: DicePreset, advantage: AdvantageSide | null): boolean;
   toggleChat(): void;
   toggleBook(): void;
 }
@@ -44,6 +48,8 @@ export interface ToolbarState {
   /** The map's dice, which advantage changes; null while the GM names none (an older GM): advantage then goes with any roll. */
   readonly dice: SharedRollDice['dice'] | null;
   readonly book: boolean;
+  /** The GM's dice row (`rules.diceRow`); undefined while the GM has the standard dice. */
+  readonly shelf?: DiceShelf | undefined;
 }
 
 /** The GM's keys for these tools (`MAP_HOTKEYS` defaults), shown as the GM's toolbar shows them. */
@@ -274,6 +280,10 @@ function PlayerToolbar({ host, state }: { host: ToolbarHost; state: () => Toolba
                   historyOpen={false}
                   onHistoryOpen={() => undefined}
                   onClose={() => setMenu(null)}
+                  shelf={shown.shelf}
+                  onRollPreset={(preset, side) => {
+                    if (host.rollPreset(preset, side)) setMenu(null);
+                  }}
                   advantage={shown.advantage.length > 0 ? {
                     sides: shown.advantage,
                     applies: (formula) => shown.dice === null || rollsSetDice(formula, { dice: shown.dice }),

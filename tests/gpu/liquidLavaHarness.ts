@@ -48,7 +48,7 @@ export function lavaDungeon(look: DungeonStyleId, monochrome = false): { world: 
 
 export async function lavaPng(pixels: Uint8ClampedArray, name: string): Promise<void> {
   const canvas = new OffscreenCanvas(LAVA_SIZE.width, LAVA_SIZE.height);
-  canvas.getContext('2d')!.putImageData(new ImageData(pixels, canvas.width, canvas.height), 0, 0);
+  canvas.getContext('2d')!.putImageData(new ImageData(pixels as Uint8ClampedArray<ArrayBuffer>, canvas.width, canvas.height), 0, 0);
   const bytes = new Uint8Array(await (await canvas.convertToBlob({ type: 'image/png' })).arrayBuffer());
   let binary = '';
   for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));

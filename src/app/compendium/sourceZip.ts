@@ -33,7 +33,8 @@ export async function openSource(data: ArrayBuffer): Promise<OpenedSource> {
 
   const contents = new Map<string, Uint8Array>();
   for (const file of manifest.files) {
-    const bytes = await zip.file(zipPathOf(file.path))?.async('uint8array');
+    // JSZip's bytes are typed as any buffer's; SHA-256 takes an ArrayBuffer's (TypeScript 6).
+    const bytes = (await zip.file(zipPathOf(file.path))?.async('uint8array')) as Uint8Array<ArrayBuffer> | undefined;
     if (!bytes || await sha256(bytes) !== file.sha256) throw new Error(`This compendium source is damaged: ${file.path} does not match its checksum.`);
     contents.set(file.path, bytes);
   }

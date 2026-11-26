@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { canonicalJson, fnv1a32, hashJson, hashText, Sha256, sha256 } from '../../src/app/utils/hashing';
 
-const bytes = (text: string): Uint8Array => new TextEncoder().encode(text);
+const bytes = (text: string): Uint8Array<ArrayBuffer> => new TextEncoder().encode(text);
 
 /** The two inputs whose text is pinned: nested and reordered, and every kind of key the order sets apart. */
 const NESTED = { b: 1, a: [2, { d: null, c: 'x' }] };

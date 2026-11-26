@@ -10,7 +10,7 @@ import { SEEK_COMMENT } from '@/app/sound/codec/seekTable';
 
 const KEY = 'ab'.repeat(32);
 
-async function bytesOf(blob: Blob): Promise<Uint8Array> {
+async function bytesOf(blob: Blob): Promise<Uint8Array<ArrayBuffer>> {
   return new Uint8Array(await blob.arrayBuffer());
 }
 
@@ -28,7 +28,7 @@ const FACTS: Omit<AtlasCopyFacts, 'frames' | 'channels'> = {
 };
 
 /** The file with its second page replaced by one holding `tags`, checksum and all. */
-function withTagsPacket(file: Uint8Array, tags: Uint8Array): Blob {
+function withTagsPacket(file: Uint8Array<ArrayBuffer>, tags: Uint8Array<ArrayBuffer>): Blob {
   const first = readPage(file, 0);
   const second = first && readPage(file, first.end);
   if (!first || !second) throw new Error('no header');
@@ -36,7 +36,7 @@ function withTagsPacket(file: Uint8Array, tags: Uint8Array): Blob {
   return new Blob([file.subarray(0, first.end), page, file.subarray(second.end)]);
 }
 
-function tagsHeader(count: number, ...rest: number[]): Uint8Array {
+function tagsHeader(count: number, ...rest: number[]): Uint8Array<ArrayBuffer> {
   const vendor = new TextEncoder().encode('x');
   const bytes = new Uint8Array(8 + 4 + vendor.length + 4 + rest.length);
   const view = new DataView(bytes.buffer);
@@ -50,7 +50,7 @@ function tagsHeader(count: number, ...rest: number[]): Uint8Array {
 
 describe('Atlas facts in an Opus copy', () => {
   let fixture: Blob;
-  let fixtureBytes: Uint8Array;
+  let fixtureBytes: Uint8Array<ArrayBuffer>;
   let frames: number;
   let channels: number;
   let tagged: Blob;
