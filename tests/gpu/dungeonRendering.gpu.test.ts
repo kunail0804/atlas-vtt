@@ -102,26 +102,28 @@ describe('dungeon renderer', () => {
 });
 
 describe('generated dungeons', () => {
+  // Cases without a theme of their own once drew built floors; since 0.11.0 Any may draw a Forest, which inks no walls,
+  // so those whose seed now draws one keep the theme it drew before: cavern for each (#209).
   const CASES: readonly { name: string; seed: number; theme?: ThemeChoice; tags: string[] }[] = [
     { name: 'default', seed: 16, tags: [] },
     { name: 'small', seed: 31337, tags: ['small'] },
     { name: 'large', seed: 777, tags: ['large'] },
     { name: 'ordered', seed: 101, tags: ['ordered'] },
-    { name: 'chaotic', seed: 102, tags: ['chaotic'] },
+    { name: 'chaotic', seed: 102, theme: 'cavern', tags: ['chaotic'] },
     { name: 'round', seed: 404, theme: 'fortress', tags: ['round', 'colonnades'] },
     { name: 'colonnades', seed: 405, tags: ['colonnades', 'large'] },
     { name: 'flooded', seed: 2024, theme: 'cavern', tags: ['flooded', 'winding'] },
-    { name: 'crumbling', seed: 202, tags: ['crumbling'] },
+    { name: 'crumbling', seed: 202, theme: 'cavern', tags: ['crumbling'] },
     { name: 'fortress', seed: 777, theme: 'fortress', tags: ['colonnades'] },
     { name: 'cavern', seed: 909, theme: 'cavern', tags: [] },
     { name: 'mansion', seed: 303, theme: 'mansion', tags: ['deep'] },
     { name: 'secret', seed: 515, tags: ['secret'] },
-    { name: 'string', seed: 616, tags: ['string'] },
+    { name: 'string', seed: 616, theme: 'cavern', tags: ['string'] },
     { name: 'compact', seed: 717, tags: ['compact'] },
     { name: 'winding', seed: 818, tags: ['winding', 'wet'] },
     { name: 'medium', seed: 1020, tags: ['medium'] },
-    { name: 'large-flooded', seed: 1121, tags: ['large', 'flooded', 'round'] },
-    { name: 'small-ordered', seed: 1222, tags: ['small', 'ordered'] },
+    { name: 'large-flooded', seed: 1121, theme: 'cavern', tags: ['large', 'flooded', 'round'] },
+    { name: 'small-ordered', seed: 1222, theme: 'cavern', tags: ['small', 'ordered'] },
   ];
   function modelOf(name: string): DungeonModel {
     let model = models.get(name);

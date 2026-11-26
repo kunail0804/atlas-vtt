@@ -2,7 +2,7 @@ import type { ImageJob, ImageJobResult, ImageLayout, ThumbnailSpec } from './ima
 import { bandDecoderFor } from './band/bandDecoders';
 import { reducedSize } from './band/bandTypes';
 import { drawingCanvas, fittingCanvas, learnCanvasLimit, releaseCanvas } from './canvasLimit';
-import { decodable } from './decodeLimits';
+import { canvasRaster, decodable } from './decodeLimits';
 import { encodeImage } from './imageEncoder';
 import { fitSize, frameImageRect, frameSize, scaleDown, type Size } from './imageLayout';
 import { imageHeader, type ImageFormat } from './imageDimensions';
@@ -54,11 +54,12 @@ async function decode(job: ImageJob): Promise<ImageBitmap> {
 /**
  * The browser picks the backing: with GPU raster the scaling runs on the GPU
  * and only the small result is read back for encoding, which measured faster
- * than a software canvas. `high` is Chromium's best downscaling filter; the
- * canvas default, `low`, aliases.
+ * than a software canvas. Past `GPU_CANVAS_MAX_PIXELS` the CPU rasters it, as
+ * the GPU's came back blank (`canvasRaster`). `high` is Chromium's best
+ * downscaling filter; the canvas default, `low`, aliases.
  */
 function context(canvas: OffscreenCanvas): OffscreenCanvasRenderingContext2D {
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext('2d', canvasRaster(canvas));
   if (!ctx) throw new Error('Could not create a drawing surface for the image.');
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';

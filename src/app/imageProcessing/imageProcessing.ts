@@ -1,6 +1,6 @@
 import { t } from '../i18n';
 import { fittingCanvas, learnCanvasLimit } from './canvasLimit';
-import { BAND_FORMATS, BAND_MAX_PIXELS, bandDecodable, DECODED_MAX_PIXELS, DECODER_MAX_SIDE, decodable, holdsDecoded, scaledJpegDecodeSize, sourcePixelsWithin } from './decodeLimits';
+import { BAND_FORMATS, BAND_MAX_PIXELS, bandDecodable, canvasRaster, DECODED_MAX_PIXELS, DECODER_MAX_SIDE, decodable, holdsDecoded, scaledJpegDecodeSize, sourcePixelsWithin } from './decodeLimits';
 import type { BandUnsupportedReason } from './band/bandTypes';
 import { unsupportedMessage } from './band/unsupportedMessage';
 import type { FramePlacement, ImageJob, ImageJobResult, ImageLayout, ScaleDown, ThumbnailSpec } from './imageJob';
@@ -129,7 +129,7 @@ async function rasterize(blob: Blob, layout: ImageLayout): Promise<Raster> {
     const natural = { width: image.naturalWidth || UNSIZED_IMAGE_SIDE, height: image.naturalHeight || UNSIZED_IMAGE_SIDE };
     const wanted = blob.type === SVG ? vectorRasterSize(natural, layout) : natural;
     const canvas = fittingCanvas(wanted);
-    const context = canvas.getContext('2d');
+    const context = canvas.getContext('2d', canvasRaster(canvas));
     if (!context) throw new Error('Could not create a drawing surface for the image.');
     context.drawImage(image, 0, 0, canvas.width, canvas.height);
     const scaledDown = canvas.width < wanted.width || canvas.height < wanted.height

@@ -6,6 +6,9 @@ import { recordIdFor } from '@/app/soundLibrary/libraryRecords';
 import { musicPosition } from '@/app/soundDirector/musicList';
 import { ATLAS, LIGHT, openSoundTab, type SoundTab, type TabSound } from './soundTabHarness';
 
+/** A control's radius (`$radius-m` in `styles/_tokens.scss`). */
+const CONTROL_RADIUS = 10;
+
 vi.mock('../../../src/app/react/components/dm-screen/DMStatblocksPane', async () => {
   const { createElement } = await import('react');
   return { DMStatblocksPane: () => createElement('div', { className: 'atlas-dm-statblocks-section' }) };
@@ -128,7 +131,7 @@ describe('how the Sound page looks', () => {
     viewport.remove();
   });
 
-  it('sets the first row of the rail concentric with the corner of the panel', async () => {
+  it('sets the first row of the rail concentric with the corner of the panel, never rounded less than a control', async () => {
     await open(ATLAS);
     const rectOf = (selector: string): DOMRect => document.querySelector(selector)!.getBoundingClientRect();
     const root = rectOf('.atlas-sound-lib__root');
@@ -138,9 +141,11 @@ describe('how the Sound page looks', () => {
     const inset = root.left - pane.left - border;
     expect(root.top - pane.top - border).toBeCloseTo(inset, 0);
     const rootStyle = getComputedStyle(document.querySelector('.atlas-sound-lib__root')!);
-    // A border of 1.5 px reads as 1 here, so within a pixel.
-    expect(Math.abs(parseFloat(rootStyle.borderTopLeftRadius) - (parseFloat(paneStyle.borderTopLeftRadius) - border - inset))).toBeLessThan(1);
-    expect(rootStyle.borderBottomLeftRadius).toBe('9px');
+    // The corner system of 1853d48fd (\`atlas-panel-inset-radius-value\`): concentric with the panel's corner, but
+    // an element deeper than the surface's own inset never rounds less than a control (\`$radius-m\`, 10 px).
+    const concentric = parseFloat(paneStyle.borderTopLeftRadius) - border - inset;
+    expect(parseFloat(rootStyle.borderTopLeftRadius)).toBeCloseTo(Math.max(CONTROL_RADIUS, concentric), 1);
+    expect(rootStyle.borderBottomLeftRadius).toBe(`${CONTROL_RADIUS}px`);
     expect(getComputedStyle(document.querySelector('.atlas-sound-lib__root-name')!).justifyContent).toBe('flex-start');
   });
 
@@ -253,15 +258,17 @@ describe('how the Sound page looks', () => {
       await shoot('list-hover');
     }, 240_000);
 
-    it('shows no handles while shuffled, the real order, and what plays in the accent', async () => {
+    // Since dcf86a28b what plays is told by a tint of the accent and its mark; its words keep the normal text's colour.
+    it('shows no handles while shuffled, the real order, and what plays on the accent\'s tint', async () => {
       const shown = await queue();
       expect(document.querySelectorAll('.atlas-sound-track__grip').length).toBe(NAMES.length);
-      const accent = getComputedStyle(document.body).getPropertyValue('--text-accent');
+      const normal = getComputedStyle(document.body).getPropertyValue('--text-normal');
       const probe = document.body.createDiv();
-      probe.style.color = accent;
-      const accentColor = getComputedStyle(probe).color;
+      probe.style.color = normal;
+      const normalColor = getComputedStyle(probe).color;
       probe.remove();
-      expect(getComputedStyle(row('Road to Wolfhaven')).color).toBe(accentColor);
+      expect(getComputedStyle(row('Road to Wolfhaven')).color).toBe(normalColor);
+      expect(getComputedStyle(row('Road to Wolfhaven')).backgroundColor).not.toBe(getComputedStyle(row('Grey miles')).backgroundColor);
       expect(row('Road to Wolfhaven').querySelector('.atlas-sound-track__mark')).not.toBeNull();
       expect(row('Grey miles').querySelector('.atlas-sound-track__mark')).toBeNull();
 
@@ -277,9 +284,11 @@ describe('how the Sound page looks', () => {
     it('clear keeps what plays, Back restarts it, stop after and repeat are toggles, and Played plays what was', async () => {
       const shown = await queue();
       const { director } = shown;
+      // Since dcf86a28b the card's row holds list, shuffle, repeat, back, pause and skip; stop after is the list's own.
       const actions = [...document.querySelectorAll<HTMLElement>('.atlas-sound-music__actions button')];
-      const [, , repeat, stopAfter, back, skip] = actions;
+      const [, , repeat, back, , skip] = actions;
       expect(actions).toHaveLength(6);
+      const stopAfter = document.querySelector<HTMLElement>('.atlas-sound-queue__stop');
 
       await userEvent.click(repeat!);
       await expect.poll(() => repeat!.getAttribute('aria-pressed')).toBe('true');
@@ -305,7 +314,8 @@ describe('how the Sound page looks', () => {
 
       await userEvent.click(skip!);
       await expect.poll(() => row('Grey miles').getAttribute('aria-current'), { timeout: 8000 }).toBe('true');
-      await userEvent.click(document.querySelector<HTMLElement>('.atlas-sound-queue__head button')!);
+      // Clear: the head's last button, after stop after (dcf86a28b).
+      await userEvent.click(document.querySelector<HTMLElement>('.atlas-sound-queue__head button:last-of-type')!);
       await expect.poll(rows).toHaveLength(1);
       expect(row('Grey miles').getAttribute('aria-current')).toBe('true');
 

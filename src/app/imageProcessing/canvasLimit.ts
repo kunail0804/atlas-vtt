@@ -1,4 +1,5 @@
 import { derivedImageFormat } from './imageEncoder';
+import { canvasRaster } from './decodeLimits';
 import { fitWithin, type Size } from './imageLayout';
 
 /**
@@ -55,7 +56,8 @@ export function createCanvasLimit(): CanvasLimit {
 
 /** Whether a pixel drawn in the far corner of `canvas` is there to be read; the canvas is left clear. */
 export function holdsPixels(canvas: OffscreenCanvas): boolean {
-  const context = canvas.getContext('2d');
+  // The settings a canvas's first context is made with are its for good: the raster `canvasRaster` picks (#209).
+  const context = canvas.getContext('2d', canvasRaster(canvas));
   const reader = new OffscreenCanvas(1, 1).getContext('2d');
   if (!context || !reader) return false;
   const x = canvas.width - 1;

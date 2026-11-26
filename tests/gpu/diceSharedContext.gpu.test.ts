@@ -33,6 +33,12 @@ function stage(gpu: DiceGpu, sides: DieSides, width: number, height: number, dpr
   };
 }
 
+function largestDifference(a: Uint8ClampedArray, b: Uint8ClampedArray): number {
+  let worst = a.length === b.length ? 0 : Infinity;
+  for (let i = 0; i < a.length; i++) worst = Math.max(worst, Math.abs(a[i]! - b[i]!));
+  return worst;
+}
+
 function covered(pixels: Uint8ClampedArray): number {
   let count = 0;
   for (let i = 3; i < pixels.length; i += 4) if (pixels[i]! > 0) count++;
@@ -76,11 +82,22 @@ describe('dice stages sharing one context', () => {
     const small = stage(shared, 6, 200, 120, 2);
     const alone = stage(new DiceGpu(document.createElement('canvas')), 6, 200, 120, 2);
 
+    const drawing = shared.renderer.getContext() as WebGL2RenderingContext;
+    // The big stage's frame as the context drew it, read in the same task.
+    const drawn = (): Uint8Array => {
+      const out = new Uint8Array(big.canvas.width * big.canvas.height * 4);
+      drawing.readPixels(0, drawing.drawingBufferHeight - big.canvas.height, big.canvas.width, big.canvas.height, drawing.RGBA, drawing.UNSIGNED_BYTE, out);
+      return out;
+    };
     const first = big.draw();
+    const firstDrawn = drawn();
     const smallFrame = small.draw();
     const again = big.draw();
 
-    expect(again).toEqual(first);
+    expect(drawn()).toEqual(firstDrawn);
+    // Its copy on the stage's canvas, to the level: Chromium's GPU-rastered 2D canvas copied one frame twice one
+    // level apart on a single channel (RTX 5070, ANGLE on OpenGL, #209), where the context's own pixels were equal.
+    expect(largestDifference(again, first)).toBeLessThanOrEqual(1);
     expect(smallFrame).toEqual(alone.draw());
     expect(covered(smallFrame)).toBeGreaterThan(1000);
   });

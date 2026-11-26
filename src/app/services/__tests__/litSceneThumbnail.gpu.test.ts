@@ -1,5 +1,6 @@
 import type { App } from 'obsidian';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { GM_FLOOR } from '../../lighting/lightingConstants';
 import { watchGl } from '../../pixi/lighting/engine/__tests__/strictGl';
 import { LightingWorld } from '../../pixi/lighting/engine/LightingWorld';
 import { visionToken } from '../../pixi/lighting/__tests__/rendererHarness';
@@ -22,6 +23,11 @@ vi.mock('obsidian', async (importOriginal) => ({
 const SCENE_CARD: ThumbnailSize = { width: 400, height: 300 };
 /** The map's own colour in a thumbnail without lighting. */
 const UNLIT_MAP = 180;
+/**
+ * The most a thumbnail shows where no light is: it is the GM's picture, which since 3fd5d7d63 shows unlit floor at
+ * `GM_FLOOR.shown` of the map's colour in a cool grey, its blue up to 6 levels above that share (`gmDarkFloor.gpu.test.ts`).
+ */
+const UNLIT_IN_GM_VIEW = GM_FLOOR.shown * UNLIT_MAP + 6;
 
 describe.each([false, true])('thumbnail of a scene with dynamic lighting (antialiased canvas: %s)', (antialias) => {
   let scene: ThumbnailScene | null = null;
@@ -55,7 +61,7 @@ describe.each([false, true])('thumbnail of a scene with dynamic lighting (antial
       return brightnessAt(pixels, x, y);
     };
     expect(at(LIGHT_AT)).toBeGreaterThan(150);
-    expect(at(DARK_AT)).toBeLessThan(70);
+    expect(at(DARK_AT)).toBeLessThan(UNLIT_IN_GM_VIEW);
     expect(at(OPEN_AT)).toBeGreaterThan(at(SHADOW_AT) + 30);
   });
 
@@ -98,9 +104,9 @@ describe.each([false, true])('thumbnail of a scene with dynamic lighting (antial
 
     // Each overlay covers the map in magenta: one that reached the picture would light its dark floor.
     const dark = inThumbnail(DARK_AT, SCENE_CARD);
-    expect(brightnessAt(await thumbnail(), dark.x, dark.y)).toBeLessThan(70);
-    // Pins, hex links and the GM's eight overlays: all but the wall editor, hidden before, are back.
-    expect(layers.map((layer) => layer.visible)).toEqual([true, true, false, true, true, true, true, true, true, true]);
+    expect(brightnessAt(await thumbnail(), dark.x, dark.y)).toBeLessThan(UNLIT_IN_GM_VIEW);
+    // Pins, hex links and the GM's nine overlays (rooms since 09cedc1d7): all but the wall editor, hidden before, are back.
+    expect(layers.map((layer) => layer.visible)).toEqual([true, true, false, true, true, true, true, true, true, true, true]);
     expect(largestDifference(scene.onScreen(SCENE_CARD), before)).toBe(0);
   });
 

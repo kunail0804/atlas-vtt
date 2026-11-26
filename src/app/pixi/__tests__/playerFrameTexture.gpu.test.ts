@@ -145,6 +145,8 @@ describe('a players\' frame of its own size, brought to a 2D canvas through the 
       ownCanvas(): Uint8ClampedArray {
         ownCamera();
         renderer.render({ container: app.stage });
+        // Handed to the GPU before the copy reads the canvas: on an RTX 5070 a copy made at once took a frame half drawn (#209).
+        (renderer as WebGLRenderer).gl.flush();
         const copy = new OffscreenCanvas(renderer.canvas.width, renderer.canvas.height).getContext('2d', { willReadFrequently: true })!;
         copy.drawImage(renderer.canvas, 0, 0);
         return copy.getImageData(0, 0, renderer.canvas.width, renderer.canvas.height).data;
@@ -197,6 +199,9 @@ describe('a players\' frame of its own size, brought to a 2D canvas through the 
 
     it('leaves the GM\'s canvas exactly as it is without a mirrored frame', async () => {
       const rig = await setup({ samples });
+      // The GM's canvas as every render after the first draws it: on an RTX 5070 the first render of a canvas
+      // with samples drew one pixel a level apart from the next ones, with no mirrored frame between them (#209).
+      rig.ownCanvas();
       const before = rgbOf(rig.ownCanvas());
       rig.mirrored(frameOf(500, 333));
       rig.mirrored(frameOf(640, 360, 1, true));

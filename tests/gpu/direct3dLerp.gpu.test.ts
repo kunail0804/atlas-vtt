@@ -8,8 +8,8 @@ vi.mock('events', async () => import('eventemitter3'));
 
 const MAP = 512;
 const TORCH = { bright: 4, dim: 8, color: '#ffc080', intensity: 1, animation: 'none' };
-/** The line of the composite's upscale that 0.10.1 fixed, and what it read before. */
-const FIXED_LINE = 'vec4 counted = e + (1.0 - step(1e-6, w)) * 1e9;';
+/** The line of the composite's upscale that 0.10.1 fixed (written as a choice since #209: NVIDIA's compiler cancelled 0.10.1's sum), and what it read before. */
+const FIXED_LINE = 'vec4 counted = vec4(w.x > 1e-6 ? e.x : 1e9, w.y > 1e-6 ? e.y : 1e9, w.z > 1e-6 ? e.z : 1e9, w.w > 1e-6 ? e.w : 1e9);';
 const LINE_BEFORE_FIX = 'vec4 counted = mix(vec4(1e9), e, step(1e-6, w));';
 
 type Sources = Record<string, { vertex: string; fragment: string }>;
