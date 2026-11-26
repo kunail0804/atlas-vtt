@@ -134,8 +134,6 @@ export const online: Translation = {
   'online.seats.nameTaken': '这个战役已有一名玩家叫 {name}。',
   'online.seats.loading': '战役仍在加载。请稍后再试。',
   'online.seats.newer': '这个战役的玩家文件来自更新版本的 Atlas。',
-  'online.seats.noCampaign': '请先选择一个战役。',
-  'online.seats.noFolder': '这个战役在仓库中没有文件夹。',
   'online.seats.noTable': '请先开启在线游戏桌。',
   'online.selectTokensFirst': '请先在地图上选择指示物。',
   'online.selected': '已选 {count} 个',

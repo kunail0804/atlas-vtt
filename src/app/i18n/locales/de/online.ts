@@ -134,8 +134,6 @@ export const online: Translation = {
   'online.seats.nameTaken': 'Ein Spieler dieser Kampagne heißt bereits {name}.',
   'online.seats.loading': 'Die Kampagnen werden noch geladen. Versuche es gleich erneut.',
   'online.seats.newer': 'Die Spielerdatei dieser Kampagne stammt aus einer neueren Version von Atlas.',
-  'online.seats.noCampaign': 'Wähle zuerst eine Kampagne.',
-  'online.seats.noFolder': 'Diese Kampagne hat keinen Ordner im Tresor.',
   'online.seats.noTable': 'Starte zuerst einen Online-Tisch.',
   'online.selectTokensFirst': 'Wähle zuerst Tokens auf der Karte aus.',
   'online.selected': '{count} ausgewählt',

@@ -134,8 +134,6 @@ export const online: Translation = {
   'online.seats.nameTaken': 'Un joueur de cette campagne s\'appelle déjà {name}.',
   'online.seats.loading': 'Les campagnes sont encore en chargement. Réessayez dans un instant.',
   'online.seats.newer': 'Le fichier des joueurs de cette campagne vient d\'une version plus récente d\'Atlas.',
-  'online.seats.noCampaign': 'Choisissez d\'abord une campagne.',
-  'online.seats.noFolder': 'Cette campagne n\'a pas de dossier dans le coffre.',
   'online.seats.noTable': 'Lancez d\'abord une table en ligne.',
   'online.selectTokensFirst': 'Sélectionnez d\'abord des jetons sur la carte.',
   'online.selected': '{count} sélectionnés',

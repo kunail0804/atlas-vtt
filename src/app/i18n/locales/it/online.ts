@@ -159,8 +159,6 @@ export const online = {
   "online.seats.nameTaken": "Un giocatore di questa campagna si chiama già {name}.",
   "online.seats.loading": "Le campagne sono ancora in caricamento. Riprova tra un momento.",
   "online.seats.newer": "Il file dei giocatori di questa campagna proviene da una versione più recente di Atlas.",
-  "online.seats.noCampaign": "Scegli prima una campagna.",
-  "online.seats.noFolder": "Questa campagna non ha una cartella nel vault.",
   "online.seats.noTable": "Avvia prima un tavolo online.",
   "online.selectTokensFirst": "Seleziona prima dei token sulla mappa.",
   "online.selected": "{count} selezionati",

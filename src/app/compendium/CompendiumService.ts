@@ -77,7 +77,7 @@ export class CompendiumService {
     const folder = sourceFolderNames(path);
     if (!folder) throw new Error('Only a folder Compendium/<game system>/<book> can be exported as a source.');
     const paths = this.app.vault.getFiles().map((file) => file.path).filter((filePath) => filePath.startsWith(`${path}/`));
-    const readBinary = async (filePath: string): Promise<Uint8Array> => {
+    const readBinary = async (filePath: string): Promise<Uint8Array<ArrayBuffer>> => {
       const file = this.app.vault.getFileByPath(filePath);
       if (!file) throw new Error(`${filePath} is gone.`);
       return new Uint8Array(await this.app.vault.readBinary(file));

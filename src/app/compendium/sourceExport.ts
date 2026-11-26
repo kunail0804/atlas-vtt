@@ -66,7 +66,7 @@ export async function exportSource(
   vault: CompendiumVault,
   folder: { system: string; book: string },
   paths: readonly string[],
-  readBinary: (path: string) => Promise<Uint8Array>,
+  readBinary: (path: string) => Promise<Uint8Array<ArrayBuffer>>,
   installed: readonly InstalledSource[],
   now: number = Date.now(),
 ): Promise<ExportedSource> {
